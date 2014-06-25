@@ -22,9 +22,16 @@ import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 
 import eu.stratosphere.types.TypeInformation;
+
 import org.apache.commons.lang3.Validate;
 import org.apache.hadoop.io.Writable;
 
+import eu.stratosphere.api.common.functions.GenericCoGrouper;
+import eu.stratosphere.api.common.functions.GenericCrosser;
+import eu.stratosphere.api.common.functions.GenericFlatMap;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
+import eu.stratosphere.api.common.functions.GenericJoiner;
+import eu.stratosphere.api.common.functions.GenericMap;
 import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.functions.CrossFunction;
@@ -33,71 +40,70 @@ import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.InvalidTypesException;
 import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.functions.KeySelector;
-import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.types.Value;
 
 public class TypeExtractor {
 	
 	@SuppressWarnings("unchecked")
-	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(MapFunction<IN, OUT> mapFunction, TypeInformation<IN> inType) {
-		validateInputType(MapFunction.class, mapFunction.getClass(), 0, inType);
+	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(GenericMap<IN, OUT> mapFunction, TypeInformation<IN> inType) {
+		validateInputType(GenericMap.class, mapFunction.getClass(), 0, inType);
 		if(mapFunction instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) mapFunction).getProducedType();
 		}
-		return createTypeInfo(MapFunction.class, mapFunction.getClass(), 1, inType, null);
+		return createTypeInfo(GenericMap.class, mapFunction.getClass(), 1, inType, null);
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(FlatMapFunction<IN, OUT> flatMapFunction, TypeInformation<IN> inType) {
-		validateInputType(FlatMapFunction.class, flatMapFunction.getClass(), 0, inType);
+	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(GenericFlatMap<IN, OUT> flatMapFunction, TypeInformation<IN> inType) {
+		validateInputType(GenericFlatMap.class, flatMapFunction.getClass(), 0, inType);
 		if(flatMapFunction instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) flatMapFunction).getProducedType();
 		}
-		return createTypeInfo(FlatMapFunction.class, flatMapFunction.getClass(), 1, inType, null);
+		return createTypeInfo(GenericFlatMap.class, flatMapFunction.getClass(), 1, inType, null);
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <IN, OUT> TypeInformation<OUT> getGroupReduceReturnTypes(GroupReduceFunction<IN, OUT> groupReduceFunction,
+	public static <IN, OUT> TypeInformation<OUT> getGroupReduceReturnTypes(GenericGroupReduce<IN, OUT> groupReduceFunction,
 			TypeInformation<IN> inType) {
-		validateInputType(GroupReduceFunction.class, groupReduceFunction.getClass(), 0, inType);
+		validateInputType(GenericGroupReduce.class, groupReduceFunction.getClass(), 0, inType);
 		if(groupReduceFunction instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) groupReduceFunction).getProducedType();
 		}
-		return createTypeInfo(GroupReduceFunction.class, groupReduceFunction.getClass(), 1, inType, null);
+		return createTypeInfo(GenericGroupReduce.class, groupReduceFunction.getClass(), 1, inType, null);
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(JoinFunction<IN1, IN2, OUT> joinFunction,
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(GenericJoiner<IN1, IN2, OUT> joinFunction,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		validateInputType(JoinFunction.class, joinFunction.getClass(), 0, in1Type);
-		validateInputType(JoinFunction.class, joinFunction.getClass(), 1, in2Type);
+		validateInputType(GenericJoiner.class, joinFunction.getClass(), 0, in1Type);
+		validateInputType(GenericJoiner.class, joinFunction.getClass(), 1, in2Type);
 		if(joinFunction instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) joinFunction).getProducedType();
 		}
-		return createTypeInfo(JoinFunction.class, joinFunction.getClass(), 2, in1Type, in2Type);
+		return createTypeInfo(GenericJoiner.class, joinFunction.getClass(), 2, in1Type, in2Type);
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(CoGroupFunction<IN1, IN2, OUT> coGroupFunction,
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(GenericCoGrouper<IN1, IN2, OUT> coGroupFunction,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		validateInputType(CoGroupFunction.class, coGroupFunction.getClass(), 0, in1Type);
-		validateInputType(CoGroupFunction.class, coGroupFunction.getClass(), 1, in2Type);
+		validateInputType(GenericCoGrouper.class, coGroupFunction.getClass(), 0, in1Type);
+		validateInputType(GenericCoGrouper.class, coGroupFunction.getClass(), 1, in2Type);
 		if(coGroupFunction instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) coGroupFunction).getProducedType();
 		}
-		return createTypeInfo(CoGroupFunction.class, coGroupFunction.getClass(), 2, in1Type, in2Type);
+		return createTypeInfo(GenericCoGrouper.class, coGroupFunction.getClass(), 2, in1Type, in2Type);
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(CrossFunction<IN1, IN2, OUT> crossFunction,
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(GenericCrosser<IN1, IN2, OUT> crossFunction,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		validateInputType(CrossFunction.class, crossFunction.getClass(), 0, in1Type);
-		validateInputType(CrossFunction.class, crossFunction.getClass(), 1, in2Type);
+		validateInputType(GenericCrosser.class, crossFunction.getClass(), 0, in1Type);
+		validateInputType(GenericCrosser.class, crossFunction.getClass(), 1, in2Type);
 		if(crossFunction instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) crossFunction).getProducedType();
 		}
-		return createTypeInfo(CrossFunction.class, crossFunction.getClass(), 2, in1Type, in2Type);
+		return createTypeInfo(GenericCrosser.class, crossFunction.getClass(), 2, in1Type, in2Type);
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -263,7 +269,7 @@ public class TypeExtractor {
 				
 				if (component instanceof TypeVariable<?>) {
 					component = materializeTypeVariable(typeHierarchy, (TypeVariable<?>) component);
-					if (component == null) {
+					if (component instanceof TypeVariable) {
 						return;
 					}
 				}
@@ -288,7 +294,7 @@ public class TypeExtractor {
 				
 				if (component instanceof TypeVariable<?>) {
 					component = materializeTypeVariable(typeHierarchy, (TypeVariable<?>) component);
-					if (component == null) {
+					if (component instanceof TypeVariable) {
 						return;
 					}
 				}
@@ -321,55 +327,65 @@ public class TypeExtractor {
 			}
 		} else {
 			type = materializeTypeVariable(typeHierarchy, (TypeVariable<?>) type);
-			if (type != null) {
+			if (!(type instanceof TypeVariable)) {
 				validateInfo(typeHierarchy, type, typeInfo);
 			}
 		}
 	}
 	
 	private static Type getParameterType(Class<?> baseClass, ArrayList<Type> typeHierarchy, Class<?> clazz, int pos) {
+		Type interfaceTypes[] = clazz.getGenericInterfaces();
+
+		// search in interfaces for base class
+		for (Type t : interfaceTypes) {			
+			// base class
+			if (t instanceof ParameterizedType && baseClass.equals((Class<?>) ((ParameterizedType) t).getRawType())) {
+				if (typeHierarchy != null) {
+					typeHierarchy.add(t);
+				}
+				ParameterizedType baseClassChild = (ParameterizedType) t;				
+				return baseClassChild.getActualTypeArguments()[pos];
+			}
+			// interface that extended base class as class or parameterized type
+			else if (t instanceof ParameterizedType && baseClass.isAssignableFrom((Class<?>) ((ParameterizedType) t).getRawType())) {
+				if (typeHierarchy != null) {
+					typeHierarchy.add(t);
+				}
+				return getParameterType(baseClass, typeHierarchy, (Class<?>) ((ParameterizedType) t).getRawType(), pos);
+			}			
+			else if (t instanceof Class<?> && baseClass.isAssignableFrom((Class<?>) t)) {
+				if (typeHierarchy != null) {
+					typeHierarchy.add(t);
+				}
+				return getParameterType(baseClass, typeHierarchy, (Class<?>) t, pos);
+			}
+		}
+		
+		// search in superclass for base class
 		Type t = clazz.getGenericSuperclass();
-		
-		// check if type is child of the base class
-		if (!(t instanceof Class<?> && baseClass.isAssignableFrom((Class<?>) t))
-				&& !(t instanceof ParameterizedType && baseClass.isAssignableFrom((Class<?>) ((ParameterizedType) t).getRawType()))) {
-			throw new IllegalArgumentException("A generic function base class must be a super class.");
-		}
-		if (typeHierarchy != null) {
-			typeHierarchy.add(t);
-		}
-		
-		Type curT = t;
-		// go up the hierarchy until we reach the base class (with or without generics)
-		// collect the types while moving up for a later top-down 
-		while (!(curT instanceof ParameterizedType && ((Class<?>) ((ParameterizedType) curT).getRawType()).equals(baseClass))
-				&& !(curT instanceof Class<?> && ((Class<?>) curT).equals(baseClass))) {
+		// base class
+		if (t instanceof ParameterizedType && baseClass.equals((Class<?>) ((ParameterizedType) t).getRawType())) {
 			if (typeHierarchy != null) {
-				typeHierarchy.add(curT);
+				typeHierarchy.add(t);
 			}
-			
-			// parameterized type
-			if (curT instanceof ParameterizedType) {
-				curT = ((Class<?>) ((ParameterizedType) curT).getRawType()).getGenericSuperclass();
+			ParameterizedType baseClassChild = (ParameterizedType) t;				
+			return baseClassChild.getActualTypeArguments()[pos];
+		}
+		// classes that extended base class as class or parameterized type
+		else if (t instanceof Class<?> && baseClass.isAssignableFrom((Class<?>) t)) {
+			if (typeHierarchy != null) {
+				typeHierarchy.add(t);
 			}
-			// class
-			else {
-				curT = ((Class<?>) curT).getGenericSuperclass();
+			return getParameterType(baseClass, typeHierarchy, (Class<?>) t, pos);
+		}
+		else if (t instanceof ParameterizedType && baseClass.isAssignableFrom((Class<?>) ((ParameterizedType) t).getRawType())) {
+			if (typeHierarchy != null) {
+				typeHierarchy.add(t);
 			}
+			return getParameterType(baseClass, typeHierarchy, (Class<?>) ((ParameterizedType) t).getRawType(), pos);
 		}
 		
-		// check if immediate child of base class has generics
-		if (curT instanceof Class<?>) {
-			throw new InvalidTypesException("Function needs to be parameterized by using generics.");
-		}
-		
-		if (typeHierarchy != null) {
-			typeHierarchy.add(curT);
-		}
-		
-		ParameterizedType baseClassChild = (ParameterizedType) curT;
-		
-		return baseClassChild.getActualTypeArguments()[pos];
+		throw new IllegalArgumentException(baseClass.getName() + " must be implemented.");
 	}
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -419,14 +435,9 @@ public class TypeExtractor {
 				// materialize immediate TypeVariables
 				if (tupleChild.getActualTypeArguments()[i] instanceof TypeVariable<?>) {
 					Type varContent = materializeTypeVariable(typeHierarchy, (TypeVariable<?>) tupleChild.getActualTypeArguments()[i]);
-					// variable could not be materialized
-					if (varContent == null) {
-						// add the TypeVariable as subtype for step in next section
-						subtypes[i] = tupleChild.getActualTypeArguments()[i];
-					} else {
-						// add class or parameterized type
-						subtypes[i] = varContent;
-					}
+					// add class or parameterized type
+					subtypes[i] = varContent;
+					
 				}
 				// class or parameterized type
 				else {
@@ -471,7 +482,7 @@ public class TypeExtractor {
 		else if (t instanceof TypeVariable) {
 			Type typeVar = materializeTypeVariable(typeHierarchy, (TypeVariable<?>) t);
 			
-			if (typeVar != null) {
+			if (!(typeVar instanceof TypeVariable)) {
 				return createTypeInfoWithTypeHierarchy(typeHierarchy, typeVar, in1Type, in2Type);
 			}
 			// try to derive the type info of the TypeVariable from the immediate base child input as a last attempt
@@ -584,7 +595,7 @@ public class TypeExtractor {
 			}
 		}
 		// can not be materialized, most likely due to type erasure
-		return null;
+		return inTypeTypeVar;
 	}
 	
 	@SuppressWarnings("unchecked")

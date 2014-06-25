@@ -19,9 +19,12 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Iterator;
 
+import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
 import org.junit.Test;
 
+import eu.stratosphere.api.common.functions.GenericMap;
+import eu.stratosphere.api.common.functions.RuntimeContext;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.functions.CrossFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
@@ -45,13 +48,13 @@ import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.api.java.typeutils.TypeInfoParser;
 import eu.stratosphere.api.java.typeutils.ValueTypeInfo;
 import eu.stratosphere.api.java.typeutils.WritableTypeInfo;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
-import org.apache.hadoop.io.Writable;
 
 public class TypeExtractorTest {
 
@@ -1347,5 +1350,39 @@ public class TypeExtractorTest {
 	public void testResultTypeQueryable() {
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(new MyQueryableMapper<Integer>(), BasicTypeInfo.STRING_TYPE_INFO);
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testInterfaceTypeExtraction() {
+		GenericMap<?, ?> gm = new GenericMap<String, Boolean>() {
+
+			@Override
+			public void open(Configuration parameters) throws Exception {
+					
+			}
+
+			@Override
+			public void close() throws Exception {
+				
+			}
+
+			@Override
+			public RuntimeContext getRuntimeContext() {
+				return null;
+			}
+
+			@Override
+			public void setRuntimeContext(RuntimeContext t) {
+				
+			}
+
+			@Override
+			public Boolean map(String record) throws Exception {
+				return null;
+			}
+		};
+		
+		System.out.println(TypeExtractor.getMapReturnTypes(gm, (TypeInformation) BasicTypeInfo.STRING_TYPE_INFO));
 	}
 }
