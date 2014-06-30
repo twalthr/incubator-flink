@@ -353,10 +353,10 @@ public class TypeExtractor {
 	}
 	
 	private static Type getParameterType(Class<?> baseClass, ArrayList<Type> typeHierarchy, Class<?> clazz, int pos) {
-		Type interfaceTypes[] = clazz.getGenericInterfaces();
+		Type[] interfaceTypes = clazz.getGenericInterfaces();
 
 		// search in interfaces for base class
-		for (Type t : interfaceTypes) {			
+		for (Type t : interfaceTypes) {
 			Type parameter = getParameterTypeFromGenericType(baseClass, typeHierarchy, t, pos);
 			if (parameter != null) {
 				return parameter;
