@@ -168,6 +168,7 @@ class TupleSerializerTest {
       (e, b4, o5, ba2, co4),
       (f, b5, o1, ba2, co4),
       (g, b6, o4, ba1, co2))
+
     runTests(testTuples)
   }
 

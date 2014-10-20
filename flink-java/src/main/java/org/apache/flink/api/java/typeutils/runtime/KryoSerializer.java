@@ -22,6 +22,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
+import com.twitter.chill.ScalaKryoInstantiator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -54,9 +55,6 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 		this.type = type;
 		this.typeToInstantiate = typeToInstantiate;
-		kryo = new Kryo();
-		kryo.setAsmEnabled(true);
-		kryo.register(type);
 	}
 
 	@Override
@@ -93,15 +91,15 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public void serialize(T record, DataOutputView target) throws IOException {
+	public void serialize(T object, DataOutputView target) throws IOException {
 		checkKryoInitialized();
 		if (target != previousOut) {
 			DataOutputViewStream outputStream = new DataOutputViewStream(target);
 			output = new Output(outputStream);
 			previousOut = target;
 		}
-		
-		kryo.writeObject(output, record);
+
+		kryo.writeClassAndObject(output, object);
 		output.flush();
 	}
 
@@ -113,7 +111,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			input = new NoFetchingInput(inputStream);
 			previousIn = source;
 		}
-		return kryo.readObject(input, typeToInstantiate);
+		return (T)kryo.readClassAndObject(input);
 	}
 	
 	@Override
@@ -153,8 +151,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
-			this.kryo = new Kryo();
-			this.kryo.setAsmEnabled(true);
+			this.kryo = new ScalaKryoInstantiator().newKryo();
+			this.kryo.setRegistrationRequired(false);
 			this.kryo.register(type);
 		}
 	}

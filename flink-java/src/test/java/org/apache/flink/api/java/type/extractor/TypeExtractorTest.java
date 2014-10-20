@@ -1624,4 +1624,9 @@ public class TypeExtractorTest {
 		Assert.assertTrue(ti instanceof EnumTypeInfo);
 		Assert.assertEquals(ti.getTypeClass(), MyEnum.class);
 	}
+
+//	@Test
+//	public void testInterfaceValue() {
+//		TypeInformation<?> ti = TypeExtractor.getForClass(List.class);
+//	}
 }

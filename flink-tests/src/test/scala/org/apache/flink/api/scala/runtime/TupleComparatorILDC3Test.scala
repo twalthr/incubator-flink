@@ -51,4 +51,3 @@ class TupleComparatorILDC3Test extends TupleComparatorTestBase[(Int, Long, Doubl
     (5, 25L, 25.0)
   )
 }
-
