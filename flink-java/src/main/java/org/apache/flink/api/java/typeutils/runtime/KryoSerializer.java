@@ -35,8 +35,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	private final Class<? extends T> typeToInstantiate;
 
 	private transient Kryo kryo;
-	private transient T copyInstance;
-	
+
 	private transient DataOutputView previousOut;
 	private transient DataInputView previousIn;
 	
@@ -70,9 +69,14 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
+	@Override
 	public T createInstance() {
-		checkKryoInitialized();
-		return kryo.newInstance(typeToInstantiate);
+		throw new UnsupportedOperationException("The KryoSerializer cannot create instances " +
+				"because its type parameter might be an interface or abstract.");
 	}
 
 	@Override
@@ -124,11 +128,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		checkKryoInitialized();
-		if(this.copyInstance == null){
-			this.copyInstance = createInstance();
-		}
 
-		T tmp = deserialize(copyInstance, source);
+		T tmp = deserialize(source);
 		serialize(tmp, target);
 	}
 	
@@ -136,14 +137,14 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	
 	@Override
 	public int hashCode() {
-		return type.hashCode() + 31 * typeToInstantiate.hashCode();
+		return type.hashCode();
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
 		if (obj != null && obj instanceof KryoSerializer) {
 			KryoSerializer<?> other = (KryoSerializer<?>) obj;
-			return other.type == this.type && other.typeToInstantiate == this.typeToInstantiate;
+			return other.type == this.type;
 		} else {
 			return false;
 		}
