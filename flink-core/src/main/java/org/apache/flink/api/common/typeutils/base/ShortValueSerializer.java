@@ -80,7 +80,11 @@ public final class ShortValueSerializer extends TypeSerializerSingleton<ShortVal
 	
 	@Override
 	public ShortValue deserialize(ShortValue reuse, DataInputView source) throws IOException {
-		reuse.read(source);
+		if(reuse == null){
+			reuse = deserialize(source);
+		}else {
+			reuse.read(source);
+		}
 		return reuse;
 	}
 

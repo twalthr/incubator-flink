@@ -82,7 +82,11 @@ public final class BooleanValueSerializer extends TypeSerializerSingleton<Boolea
 	
 	@Override
 	public BooleanValue deserialize(BooleanValue reuse, DataInputView source) throws IOException {
-		reuse.read(source);
+		if(reuse == null){
+			reuse = deserialize(source);
+		}else{
+			reuse.read(source);
+		}
 		return reuse;
 	}
 

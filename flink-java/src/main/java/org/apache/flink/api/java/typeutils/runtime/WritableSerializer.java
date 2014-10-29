@@ -76,7 +76,11 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		reuse.readFields(source);
+		if(reuse == null){
+			reuse = deserialize(source);
+		}else {
+			reuse.readFields(source);
+		}
 		return reuse;
 	}
 	

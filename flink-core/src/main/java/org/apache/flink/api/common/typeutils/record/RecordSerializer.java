@@ -101,7 +101,11 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 	
 	@Override
 	public Record deserialize(Record target, DataInputView source) throws IOException {
-		target.deserialize(source);
+		if(target == null){
+			target = deserialize(source);
+		}else {
+			target.deserialize(source);
+		}
 		return target;
 	}
 	

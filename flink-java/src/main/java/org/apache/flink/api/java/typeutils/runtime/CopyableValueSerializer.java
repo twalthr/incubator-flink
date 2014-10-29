@@ -90,7 +90,11 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 	
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		reuse.read(source);
+		if(reuse == null){
+			reuse = deserialize(source);
+		}else {
+			reuse.read(source);
+		}
 		return reuse;
 	}
 

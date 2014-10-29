@@ -105,7 +105,11 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		reuse.read(source);
+		if(reuse ==null){
+			reuse = deserialize(source);
+		}else {
+			reuse.read(source);
+		}
 		return reuse;
 	}
 

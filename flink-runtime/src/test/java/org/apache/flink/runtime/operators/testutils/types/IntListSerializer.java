@@ -91,14 +91,18 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 	
 	@Override
 	public IntList deserialize(IntList record, DataInputView source) throws IOException {
-		int key = source.readInt();
-		record.setKey(key);
-		int size = source.readInt();
-		int[] value = new int[size];
-		for (int i = 0; i < value.length; i++) {
-			value[i] = source.readInt();
+		if(record == null){
+			record = deserialize(source);
+		}else {
+			int key = source.readInt();
+			record.setKey(key);
+			int size = source.readInt();
+			int[] value = new int[size];
+			for (int i = 0; i < value.length; i++) {
+				value[i] = source.readInt();
+			}
+			record.setValue(value);
 		}
-		record.setValue(value);
 		return record;
 	}
 

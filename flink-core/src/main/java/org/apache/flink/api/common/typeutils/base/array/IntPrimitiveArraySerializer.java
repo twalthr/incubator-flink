@@ -51,8 +51,7 @@ public class IntPrimitiveArraySerializer extends TypeSerializerSingleton<int[]>{
 
 	@Override
 	public int[] createInstance() {
-		throw new UnsupportedOperationException("IntPrimitiveArraySerializer cannot create an " +
-				"instance.");
+		return null;
 	}
 
 	@Override

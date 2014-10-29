@@ -78,8 +78,12 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 	
 	@Override
 	public StringPair deserialize(StringPair record, DataInputView source) throws IOException {
-		record.setKey(StringValue.readString(source));
-		record.setValue(StringValue.readString(source));
+		if(record == null){
+			record = deserialize(source);
+		}else {
+			record.setKey(StringValue.readString(source));
+			record.setValue(StringValue.readString(source));
+		}
 		return record;
 	}
 

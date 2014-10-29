@@ -56,6 +56,13 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 		runTests(c);
 	}
 
+	@Test
+	public void testHeterogenousJavaList(){
+		Collection<BaseClass> list = new ArrayList<BaseClass>();
+
+		runTests(list);
+	}
+
 	private void fillCollection(Collection<Integer> coll){
 		coll.add(42);
 		coll.add(1337);
@@ -66,5 +73,22 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 	@Override
 	protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
 		return new KryoSerializer<T>(type);
+	}
+
+	public static class BaseClass{
+		private int id;
+
+		public BaseClass(int id){
+			this.id = id;
+		}
+
+		@Override
+		public boolean equals(Object obj){
+			if(obj != null && obj instanceof BaseClass){
+				return ((BaseClass)obj).id == id;
+			}else{
+				return false;
+			}
+		}
 	}
 }

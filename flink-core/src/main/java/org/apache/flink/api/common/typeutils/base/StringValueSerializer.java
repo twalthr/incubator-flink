@@ -82,7 +82,11 @@ public final class StringValueSerializer extends TypeSerializerSingleton<StringV
 	
 	@Override
 	public StringValue deserialize(StringValue reuse, DataInputView source) throws IOException {
-		reuse.read(source);
+		if(reuse == null){
+			reuse = deserialize(source);
+		}else {
+			reuse.read(source);
+		}
 		return reuse;
 	}
 

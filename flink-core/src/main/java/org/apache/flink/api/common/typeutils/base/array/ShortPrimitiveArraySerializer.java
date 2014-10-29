@@ -51,8 +51,7 @@ public final class ShortPrimitiveArraySerializer extends TypeSerializerSingleton
 
 	@Override
 	public short[] createInstance() {
-		throw new UnsupportedOperationException("ShortPrimitiveArraySerializer cannot create an " +
-				"instance.");
+		return null;
 	}
 
 	@Override

@@ -53,7 +53,7 @@ public final class StringArraySerializer extends TypeSerializerSingleton<String[
 
 	@Override
 	public String[] createInstance() {
-		throw new UnsupportedOperationException("StringArraySerializer cannot create an instance.");
+		return null;
 	}
 
 	@Override

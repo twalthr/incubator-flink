@@ -48,7 +48,8 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 
 	@Override
 	public String createInstance() {
-		throw new UnsupportedOperationException("StringSerializer cannot create an instance.");
+		return "";
+//		throw new UnsupportedOperationException("StringSerializer cannot create an instance.");
 	}
 
 	@Override
