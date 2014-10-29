@@ -51,8 +51,7 @@ public final class FloatPrimitiveArraySerializer extends TypeSerializerSingleton
 
 	@Override
 	public float[] createInstance() {
-		throw new UnsupportedOperationException("FloatPrimitiveArraySerializer cannot create an " +
-				"instance.");
+		return null;
 	}
 
 	@Override

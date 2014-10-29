@@ -51,8 +51,7 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 
 	@Override
 	public long[] createInstance() {
-		throw new UnsupportedOperationException("LongPrimitiveArraySerializer cannot create an " +
-				"instance.");
+		return null;
 	}
 
 	@Override

@@ -51,8 +51,7 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 
 	@Override
 	public byte[] createInstance() {
-		throw new UnsupportedOperationException("BytePrimitiveArraySerializer cannot create an " +
-				"instance.");
+		return null;
 	}
 
 	@Override

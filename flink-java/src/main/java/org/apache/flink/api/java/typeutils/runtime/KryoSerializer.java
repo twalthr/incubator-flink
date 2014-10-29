@@ -26,6 +26,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 public class KryoSerializer<T> extends TypeSerializer<T> {
@@ -75,20 +77,28 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T createInstance() {
-		throw new UnsupportedOperationException("The KryoSerializer cannot create instances " +
-				"because its type parameter might be an interface or abstract.");
+		return null;
 	}
 
 	@Override
 	public T copy(T from) {
 		checkKryoInitialized();
-		return kryo.copy(from);
+		ByteArrayOutputStream baout = new ByteArrayOutputStream();
+		Output output = new Output(baout);
+
+		kryo.writeObject(output, from);
+
+		output.flush();
+
+		ByteArrayInputStream bain = new ByteArrayInputStream(baout.toByteArray());
+		Input input = new Input(bain);
+
+		return (T)kryo.readObject(input, from.getClass());
 	}
 	
 	@Override
 	public T copy(T from, T reuse) {
-		checkKryoInitialized();
-		return kryo.copy(from);
+		return copy(from);
 	}
 
 	@Override

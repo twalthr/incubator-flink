@@ -51,8 +51,7 @@ public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<
 
 	@Override
 	public char[] createInstance() {
-		throw new UnsupportedOperationException("CharPrimitiveArraySerializer cannot create an " +
-				"instance.");
+		return null;
 	}
 
 	@Override

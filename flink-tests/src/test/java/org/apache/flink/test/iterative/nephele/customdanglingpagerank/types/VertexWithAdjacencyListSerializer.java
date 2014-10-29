@@ -94,6 +94,10 @@ public final class VertexWithAdjacencyListSerializer extends TypeSerializerSingl
 	
 	@Override
 	public VertexWithAdjacencyList deserialize(VertexWithAdjacencyList target, DataInputView source) throws IOException {
+		if(target == null){
+			target = new VertexWithAdjacencyList();
+		}
+
 		target.setVertexID(source.readLong());
 		
 		final int numTargets = source.readInt();

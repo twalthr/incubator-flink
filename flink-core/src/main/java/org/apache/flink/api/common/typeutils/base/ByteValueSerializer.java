@@ -80,7 +80,11 @@ public final class ByteValueSerializer extends TypeSerializerSingleton<ByteValue
 	
 	@Override
 	public ByteValue deserialize(ByteValue reuse, DataInputView source) throws IOException {
-		reuse.read(source);
+		if(reuse == null){
+			reuse = deserialize(source);
+		}else {
+			reuse.read(source);
+		}
 		return reuse;
 	}
 

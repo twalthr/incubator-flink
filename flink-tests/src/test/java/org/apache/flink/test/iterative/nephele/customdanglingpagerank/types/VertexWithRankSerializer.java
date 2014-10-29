@@ -79,8 +79,12 @@ public final class VertexWithRankSerializer extends TypeSerializerSingleton<Vert
 	
 	@Override
 	public VertexWithRank deserialize(VertexWithRank target, DataInputView source) throws IOException {
-		target.setVertexID(source.readLong());
-		target.setRank(source.readDouble());
+		if(target == null){
+			target = deserialize(source);
+		}else {
+			target.setVertexID(source.readLong());
+			target.setRank(source.readDouble());
+		}
 		return target;
 	}
 

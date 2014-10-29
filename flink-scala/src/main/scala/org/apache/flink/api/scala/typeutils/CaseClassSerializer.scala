@@ -84,7 +84,16 @@ abstract class CaseClassSerializer[T <: Product](
   }
 
   def deserialize(reuse: T, source: DataInputView): T = {
-    deserialize(source);
+    if(reuse == null){
+      deserialize(source)
+    }else {
+      initArray()
+      for (i <- 0 until arity) {
+        val field = reuse.productElement(i).asInstanceOf[AnyRef]
+        fields(i) = fieldSerializers(i).deserialize(field, source)
+      }
+      createInstance(fields)
+    }
   }
   
   def deserialize(source: DataInputView): T = {

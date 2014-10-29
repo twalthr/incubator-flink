@@ -126,15 +126,15 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	@Override
 	public T createInstance() {
 		try {
+
 			T t = clazz.newInstance();
-		
+
 			for (int i = 0; i < numFields; i++) {
 				fields[i].set(t, fieldSerializers[i].createInstance());
 			}
-			
+
 			return t;
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			throw new RuntimeException("Cannot instantiate class.", e);
 		}
 	}
@@ -239,24 +239,28 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		// handle null values
-		boolean isNull = source.readBoolean();
-		if (isNull) {
-			return null;
-		}
-		try {
-			for (int i = 0; i < numFields; i++) {
-				isNull = source.readBoolean();
-				if(isNull) {
-					fields[i].set(reuse, null);
-				} else {
-					Object field = fieldSerializers[i].deserialize(fields[i].get(reuse), source);
-					fields[i].set(reuse, field);
-				}
+		if(reuse == null){
+			reuse = deserialize(source);
+		}else {
+			// handle null values
+			boolean isNull = source.readBoolean();
+			if (isNull) {
+				return null;
 			}
-		} catch (IllegalAccessException e) {
-			throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" +
-					"before.");
+			try {
+				for (int i = 0; i < numFields; i++) {
+					isNull = source.readBoolean();
+					if (isNull) {
+						fields[i].set(reuse, null);
+					} else {
+						Object field = fieldSerializers[i].deserialize(fields[i].get(reuse), source);
+						fields[i].set(reuse, field);
+					}
+				}
+			} catch (IllegalAccessException e) {
+				throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" +
+						"before.");
+			}
 		}
 		return reuse;
 	}

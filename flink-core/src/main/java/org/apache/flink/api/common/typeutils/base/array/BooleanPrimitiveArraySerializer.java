@@ -51,8 +51,7 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 
 	@Override
 	public boolean[] createInstance() {
-		throw new UnsupportedOperationException("BooleanPrimitiveArraySerializer cannot create an" +
-				" instance.");
+		return null;
 	}
 
 	@Override

@@ -83,8 +83,12 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 	
 	@Override
 	public IntPair deserialize(IntPair reuse, DataInputView source) throws IOException {
-		reuse.setKey(source.readInt());
-		reuse.setValue(source.readInt());
+		if(reuse == null){
+			reuse = deserialize(source);
+		}else {
+			reuse.setKey(source.readInt());
+			reuse.setValue(source.readInt());
+		}
 		return reuse;
 	}
 

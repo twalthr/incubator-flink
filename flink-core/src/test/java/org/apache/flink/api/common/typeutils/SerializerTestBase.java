@@ -59,20 +59,24 @@ public abstract class SerializerTestBase<T> {
 	public void testInstantiate() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			
-			T instance = serializer.createInstance();
-			assertNotNull("The created instance must not be null.", instance);
-			
-			Class<T> type = getTypeClass();
-			assertNotNull("The test is corrupt: type class is null.", type);
-			
-			assertEquals("Type of the instantiated object is wrong.", type, instance.getClass());
+
+			if(serializer.canCreateInstance()) {
+
+				T instance = serializer.createInstance();
+				assertNotNull("The created instance must not be null.", instance);
+
+				Class<T> type = getTypeClass();
+				assertNotNull("The test is corrupt: type class is null.", type);
+
+				assertEquals("Type of the instantiated object is wrong.", type, instance.getClass());
+			}
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail("Exception in test: " + e.getMessage());
 		}
+
 	}
 	
 	@Test

@@ -79,7 +79,11 @@ public class CharValueSerializer extends TypeSerializerSingleton<CharValue> {
 
 	@Override
 	public CharValue deserialize(CharValue reuse, DataInputView source) throws IOException {
-		reuse.read(source);
+		if(reuse == null){
+			reuse = deserialize(source);
+		}else {
+			reuse.read(source);
+		}
 		return reuse;
 	}
 

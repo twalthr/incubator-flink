@@ -81,9 +81,13 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializerSin
 	
 	@Override
 	public VertexWithRankAndDangling deserialize(VertexWithRankAndDangling target, DataInputView source) throws IOException {
-		target.setVertexID(source.readLong());
-		target.setRank(source.readDouble());
-		target.setDangling(source.readBoolean());
+		if(target == null){
+			target = deserialize(source);
+		}else {
+			target.setVertexID(source.readLong());
+			target.setRank(source.readDouble());
+			target.setDangling(source.readBoolean());
+		}
 		return target;
 	}
 

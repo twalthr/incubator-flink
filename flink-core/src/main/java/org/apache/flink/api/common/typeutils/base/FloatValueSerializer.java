@@ -80,7 +80,11 @@ public class FloatValueSerializer extends TypeSerializerSingleton<FloatValue> {
 	
 	@Override
 	public FloatValue deserialize(FloatValue reuse, DataInputView source) throws IOException {
-		reuse.read(source);
+		if(reuse == null){
+			reuse = deserialize(source);
+		}else {
+			reuse.read(source);
+		}
 		return reuse;
 	}
 

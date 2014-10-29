@@ -51,8 +51,7 @@ public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleto
 
 	@Override
 	public double[] createInstance() {
-		throw new UnsupportedOperationException("DoublePrimitiveArraySerializer cannot create an " +
-				"instance.");
+		return null;
 	}
 	
 	@Override
