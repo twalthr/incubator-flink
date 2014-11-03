@@ -34,8 +34,8 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	
 	protected int dop = -1;
 
-	protected Operator(ExecutionEnvironment context, TypeInformation<OUT> resultType) {
-		super(context, resultType);
+	protected Operator(ExecutionEnvironment context) {
+		super(context);
 	}
 	
 	/**

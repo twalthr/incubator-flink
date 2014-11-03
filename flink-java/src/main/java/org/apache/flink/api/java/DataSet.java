@@ -23,6 +23,7 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -68,6 +69,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 
@@ -87,22 +89,42 @@ public abstract class DataSet<T> {
 	
 	private final ExecutionEnvironment context;
 	
-	private final TypeInformation<T> type;
+	private TypeInformation<T> type;
+	private InvalidTypesException typeException;
 	
-	
-	protected DataSet(ExecutionEnvironment context, TypeInformation<T> type) {
+	protected DataSet(ExecutionEnvironment context) {
 		if (context == null) {
 			throw new NullPointerException("context is null");
 		}
-
-		if (type == null) {
-			throw new NullPointerException("type is null");
-		}
 		
 		this.context = context;
-		this.type = type;
 	}
-
+	
+	protected void setTypeException(InvalidTypesException typeException) {
+		this.typeException = typeException;
+	}
+	
+	protected void setType(TypeInformation<T> type) {
+		if(type == null) {
+			throw new NullPointerException("type is null");
+		}
+		this.type = type;
+		typePostAction();
+	}
+	
+	private void validateType() {
+		if (type == null && typeException == null) {
+			throw new NullPointerException("type is null");
+		}
+		else if (type == null && typeException != null) {
+			throw typeException;
+		}
+	}
+	
+	protected void typePostAction() {
+		// can be overwritten by subclasses
+	}
+	
 	/**
 	 * Returns the {@link ExecutionEnvironment} in which this DataSet is registered.
 	 * 
@@ -125,6 +147,11 @@ public abstract class DataSet<T> {
 		return this.type;
 	}
 	
+	public DataSet<T> returns(String string) {
+		setType(TypeInfoParser.<T>parse(string));
+		return this;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Filter & Transformations
 	// --------------------------------------------------------------------------------------------
@@ -142,13 +169,13 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> MapOperator<T, R> map(MapFunction<T, R> mapper) {
+		validateType();
 		if (mapper == null) {
 			throw new NullPointerException("Map function must not be null.");
 		}
-
-		TypeInformation<R> resultType = TypeExtractor.getMapReturnTypes(mapper, this.getType());
-
-		return new MapOperator<T, R>(this, resultType, mapper);
+		
+		MapOperator<T, R> operator = new MapOperator<T, R>(this, mapper);
+		return operator;
 	}
 
 
@@ -1152,6 +1179,7 @@ public abstract class DataSet<T> {
 	 * @see DataSink
 	 */
 	public DataSink<T> output(OutputFormat<T> outputFormat) {
+		validateType();
 		Validate.notNull(outputFormat);
 		
 		// configure the type if needed

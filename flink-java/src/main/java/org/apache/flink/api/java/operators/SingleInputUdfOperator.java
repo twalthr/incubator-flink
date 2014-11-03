@@ -25,11 +25,10 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.api.java.DataSet;
 
 /**
  * The <tt>SingleInputUdfOperator</tt> is the base class of all unary operators that execute
@@ -60,8 +59,8 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 * @param input The data set that is the input to the operator.
 	 * @param resultType The type of the elements in the resulting data set.
 	 */
-	protected SingleInputUdfOperator(DataSet<IN> input, TypeInformation<OUT> resultType) {
-		super(input, resultType);
+	protected SingleInputUdfOperator(DataSet<IN> input) {
+		super(input);
 	}
 	
 	

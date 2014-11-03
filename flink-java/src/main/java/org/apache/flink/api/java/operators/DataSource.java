@@ -46,7 +46,8 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	 * @param type The type of the elements produced by this input format.
 	 */
 	public DataSource(ExecutionEnvironment context, InputFormat<OUT, ?> inputFormat, TypeInformation<OUT> type) {
-		super(context, type);
+		super(context);
+		setType(type);
 		
 		if (inputFormat == null) {
 			throw new IllegalArgumentException("The input format may not be null.");
