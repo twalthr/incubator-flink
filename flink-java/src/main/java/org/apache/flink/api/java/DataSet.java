@@ -23,6 +23,7 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -90,7 +91,7 @@ public abstract class DataSet<T> {
 	
 	private final ExecutionEnvironment context;
 	
-	private final TypeInformation<T> type;
+	private TypeInformation<T> type;
 	
 	
 	protected DataSet(ExecutionEnvironment context, TypeInformation<T> type) {
@@ -98,12 +99,16 @@ public abstract class DataSet<T> {
 			throw new NullPointerException("context is null");
 		}
 
-		if (type == null) {
-			throw new NullPointerException("type is null");
-		}
-		
 		this.context = context;
 		this.type = type;
+	}
+
+	protected void setType(TypeInformation<T> type) {
+		this.type = type;
+	}
+	
+	protected boolean isTypeValid() {
+		return type != null;
 	}
 
 	/**
@@ -125,6 +130,11 @@ public abstract class DataSet<T> {
 	 * @see TypeInformation
 	 */
 	public TypeInformation<T> getType() {
+		if (type == null) {
+			throw new InvalidTypesException("The return type could not be determined automatically. "
+					+ "See the log for more information. "
+					+ "Please provide type information manually.");
+		}
 		return this.type;
 	}
 	
@@ -149,7 +159,7 @@ public abstract class DataSet<T> {
 			throw new NullPointerException("Map function must not be null.");
 		}
 
-		TypeInformation<R> resultType = TypeExtractor.getMapReturnTypes(mapper, this.getType());
+		TypeInformation<R> resultType = TypeExtractor.getMapReturnTypes(mapper, getType());
 
 		return new MapOperator<T, R>(this, resultType, mapper, Utils.getCallLocationName());
 	}
@@ -178,7 +188,7 @@ public abstract class DataSet<T> {
 		if (mapPartition == null) {
 			throw new NullPointerException("MapPartition function must not be null.");
 		}
-		TypeInformation<R> resultType = TypeExtractor.getMapPartitionReturnTypes(mapPartition, this.getType());
+		TypeInformation<R> resultType = TypeExtractor.getMapPartitionReturnTypes(mapPartition, getType());
 		return new MapPartitionOperator<T, R>(this, resultType, mapPartition, Utils.getCallLocationName());
 	}
 	
@@ -199,7 +209,7 @@ public abstract class DataSet<T> {
 			throw new NullPointerException("FlatMap function must not be null.");
 		}
 
-		TypeInformation<R> resultType = TypeExtractor.getFlatMapReturnTypes(flatMapper, this.getType());
+		TypeInformation<R> resultType = TypeExtractor.getFlatMapReturnTypes(flatMapper, getType());
 		return new FlatMapOperator<T, R>(this, resultType, flatMapper, Utils.getCallLocationName());
 	}
 	
@@ -343,7 +353,7 @@ public abstract class DataSet<T> {
 		if (reducer == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
-		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, this.getType());
+		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, getType());
 		return new GroupReduceOperator<T, R>(this, resultType, reducer, Utils.getCallLocationName());
 	}
 
@@ -360,12 +370,12 @@ public abstract class DataSet<T> {
 	public ReduceOperator<T> minBy(int... fields)  {
 		
 		// Check for using a tuple
-		if(!this.type.isTupleType()) {
+		if(!getType().isTupleType()) {
 			throw new InvalidProgramException("Method minBy(int) only works on tuples.");
 		}
 			
 		return new ReduceOperator<T>(this, new SelectByMinFunction(
-				(TupleTypeInfo) this.type, fields), Utils.getCallLocationName());
+				(TupleTypeInfo) getType(), fields), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -381,7 +391,7 @@ public abstract class DataSet<T> {
 	public ReduceOperator<T> maxBy(int... fields)  {
 		
 		// Check for using a tuple
-		if(!this.type.isTupleType()) {
+		if(!getType().isTupleType()) {
 			throw new InvalidProgramException("Method maxBy(int) only works on tuples.");
 		}
 			
@@ -417,7 +427,7 @@ public abstract class DataSet<T> {
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public <K> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
-		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
+		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
 		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType), Utils.getCallLocationName());
 	}
 	
@@ -489,7 +499,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <K> UnsortedGrouping<T> groupBy(KeySelector<T, K> keyExtractor) {
-		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
+		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
 		return new UnsortedGrouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType));
 	}
 	
@@ -927,8 +937,8 @@ public abstract class DataSet<T> {
 	 * @see KeySelector
 	 */
 	public <K extends Comparable<K>> PartitionOperator<T> partitionByHash(KeySelector<T, K> keyExtractor) {
-		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
-		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, this.getType(), keyType), Utils.getCallLocationName());
+		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
+		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -974,8 +984,8 @@ public abstract class DataSet<T> {
 	 * @see KeySelector
 	 */
 	public <K extends Comparable<K>> PartitionOperator<T> partitionCustom(Partitioner<K> partitioner, KeySelector<T, K> keyExtractor) {
-		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
-		return new PartitionOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, this.getType(), keyType), partitioner, Utils.getCallLocationName());
+		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
+		return new PartitionOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType), partitioner, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -1027,7 +1037,7 @@ public abstract class DataSet<T> {
 		return output(tof);
 	}
 	
-/**
+	/**
 	 * Writes a DataSet as a text file to the specified location.<br/>
 	 * For each element of the DataSet the result of {@link TextFormatter#format(Object)} is written.
 	 *
@@ -1126,7 +1136,7 @@ public abstract class DataSet<T> {
 	
 	@SuppressWarnings("unchecked")
 	private <X extends Tuple> DataSink<T> internalWriteAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter, WriteMode wm) {
-		Validate.isTrue(this.type.isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
+		Validate.isTrue(getType().isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(filePath, rowDelimiter, fieldDelimiter);
 		if(wm != null) {
 			of.setWriteMode(wm);
@@ -1209,10 +1219,10 @@ public abstract class DataSet<T> {
 		
 		// configure the type if needed
 		if (outputFormat instanceof InputTypeConfigurable) {
-			((InputTypeConfigurable) outputFormat).setInputType(this.type);
+			((InputTypeConfigurable) outputFormat).setInputType(getType());
 		}
 		
-		DataSink<T> sink = new DataSink<T>(this, outputFormat, this.type);
+		DataSink<T> sink = new DataSink<T>(this, outputFormat, getType());
 		this.context.registerDataSink(sink);
 		return sink;
 	}
