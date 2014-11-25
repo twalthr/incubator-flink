@@ -1624,4 +1624,27 @@ public class TypeExtractorTest {
 		Assert.assertTrue(ti instanceof EnumTypeInfo);
 		Assert.assertEquals(ti.getTypeClass(), MyEnum.class);
 	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testMultiDimensionalArray() {
+		MapFunction<?,?> function = new MapFunction<Tuple2<Integer, Double>[][], Tuple2<Integer, Double>[][]>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Tuple2<Integer, Double>[][] map(
+					Tuple2<Integer, Double>[][] value) throws Exception {
+				return null;
+			}
+		};
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction)function, TypeInfoParser.parse("Tuple2<Integer, Double>[][]"));
+		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo);
+		ObjectArrayTypeInfo<?,?> oati = (ObjectArrayTypeInfo) ti;
+		Assert.assertTrue(oati.getComponentInfo() instanceof ObjectArrayTypeInfo);
+		ObjectArrayTypeInfo<?,?> oati2 = (ObjectArrayTypeInfo) oati.getComponentInfo();
+		Assert.assertTrue(oati2.getComponentInfo() instanceof TupleTypeInfo);
+		TupleTypeInfo tti = (TupleTypeInfo) oati2.getComponentInfo();
+		Assert.assertEquals(tti.getTypeAt(0), BasicTypeInfo.INT_TYPE_INFO);
+		Assert.assertEquals(tti.getTypeAt(1), BasicTypeInfo.DOUBLE_TYPE_INFO);
+	}
 }

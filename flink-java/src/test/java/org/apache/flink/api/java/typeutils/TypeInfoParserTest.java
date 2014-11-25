@@ -228,4 +228,10 @@ public class TypeInfoParserTest {
 			// right
 		}
 	}
+	
+	@Test
+	public void testMultidimensionalTuppleArray() {
+		TypeInformation<?> ti = TypeInfoParser.parse("Tuple2<Integer, Double>[][]");
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<Java Tuple2<Integer, Double>>>", ti.toString());
+	}
 }

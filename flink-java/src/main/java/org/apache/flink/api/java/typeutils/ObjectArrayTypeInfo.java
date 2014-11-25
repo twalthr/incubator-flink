@@ -35,7 +35,7 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 	private final Type componentType;
 	private final TypeInformation<C> componentInfo;
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("unchecked") // TODO MAKE PUBLIC!
 	private ObjectArrayTypeInfo(Type arrayType, Type componentType) {
 		this.arrayType = arrayType;
 		this.componentType = componentType;

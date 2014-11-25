@@ -41,9 +41,6 @@ public class TypeInfoParser {
 	private static final Pattern basicType2Pattern = Pattern.compile("^(int|byte|short|char|double|float|long|boolean)(,|>|$)");
 	private static final Pattern valueTypePattern = Pattern.compile("^((" + VALUE_PACKAGE.replaceAll("\\.", "\\\\.")
 			+ "\\.)?(String|Int|Byte|Short|Char|Double|Float|Long|Boolean|List|Map|Null))Value(,|>|$)");
-	private static final Pattern basicArrayTypePattern = Pattern
-			.compile("^((java\\.lang\\.)?(String|Integer|Byte|Short|Character|Double|Float|Long|Boolean))\\[\\](,|>|$)");
-	private static final Pattern basicArrayType2Pattern = Pattern.compile("^(int|byte|short|char|double|float|long|boolean)\\[\\](,|>|$)");
 	private static final Pattern customObjectPattern = Pattern.compile("^([^\\s,>]+)(,|>|$)");
 
 	/**
@@ -141,23 +138,7 @@ public class TypeInfoParser {
 			// remove '>'
 			sb.deleteCharAt(0);
 
-			// tuple arrays
-			if (sb.length() > 0) {
-				if (sb.length() >= 2 && sb.charAt(0) == '[' && sb.charAt(1) == ']') {
-					Class<?> arrayClazz;
-					// check if fully qualified
-					if (className.startsWith(TUPLE_PACKAGE)) {
-						arrayClazz = Class.forName("[L" + className + ";");
-					} else {
-						arrayClazz = Class.forName("[L" + TUPLE_PACKAGE + "." + className + ";");
-					}
-					returnType = ObjectArrayTypeInfo.getInfoFor(arrayClazz, new TupleTypeInfo(clazz, types));
-				} else if (sb.length() < 1 || sb.charAt(0) != '[') {
-					returnType = new TupleTypeInfo(clazz, types);
-				}
-			} else {
-				returnType = new TupleTypeInfo(clazz, types);
-			}
+			returnType = new TupleTypeInfo(clazz, types);
 		}
 		// writable types
 		else if (writableMatcher.find()) {
