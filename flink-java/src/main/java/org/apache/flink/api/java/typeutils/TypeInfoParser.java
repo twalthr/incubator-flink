@@ -100,9 +100,6 @@ public class TypeInfoParser {
 
 		final Matcher valueTypeMatcher = valueTypePattern.matcher(infoString);
 
-		final Matcher basicArrayTypeMatcher = basicArrayTypePattern.matcher(infoString);
-		final Matcher basicArrayType2Matcher = basicArrayType2Pattern.matcher(infoString);
-
 		final Matcher customObjectMatcher = customObjectPattern.matcher(infoString);
 
 		if (infoString.length() == 0) {
@@ -205,44 +202,6 @@ public class TypeInfoParser {
 				clazz = Class.forName(VALUE_PACKAGE + "." + className + "Value");
 			}
 			returnType = ValueTypeInfo.getValueTypeInfo((Class<Value>) clazz);
-		}
-		// array of classes
-		else if (basicArrayTypeMatcher.find()) {
-			String className = basicArrayTypeMatcher.group(1);
-			sb.delete(0, className.length() + 2);
-
-			Class<?> clazz;
-			if (className.startsWith("java.lang")) {
-				clazz = Class.forName("[L" + className + ";");
-			} else {
-				clazz = Class.forName("[Ljava.lang." + className + ";");
-			}
-			returnType = BasicArrayTypeInfo.getInfoFor(clazz);
-		}
-		// array of primitives
-		else if (basicArrayType2Matcher.find()) {
-			String className = basicArrayType2Matcher.group(1);
-			sb.delete(0, className.length() + 2);
-
-			Class<?> clazz = null;
-			if (className.equals("int")) {
-				clazz = int[].class;
-			} else if (className.equals("byte")) {
-				clazz = byte[].class;
-			} else if (className.equals("short")) {
-				clazz = short[].class;
-			} else if (className.equals("char")) {
-				clazz = char[].class;
-			} else if (className.equals("double")) {
-				clazz = double[].class;
-			} else if (className.equals("float")) {
-				clazz = float[].class;
-			} else if (className.equals("long")) {
-				clazz = long[].class;
-			} else if (className.equals("boolean")) {
-				clazz = boolean[].class;
-			}
-			returnType = PrimitiveArrayTypeInfo.getInfoFor(clazz);
 		}
 		// custom objects
 		else if (customObjectMatcher.find()) {
