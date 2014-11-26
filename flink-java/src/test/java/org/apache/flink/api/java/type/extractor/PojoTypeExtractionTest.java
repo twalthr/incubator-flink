@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -559,5 +560,31 @@ public class PojoTypeExtractionTest {
 	public void testGetterSetterWithVertex() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<VertexTyped> set = env.fromElements(new VertexTyped(0L, 3.0), new VertexTyped(1L, 1.0));
+	}
+	
+	public static class GenericPojo<X> {
+		public X field;
+	}
+	
+	@Test
+	public void testPojoWithGeneric2() {
+		TypeInformation<?> pti = TypeExtractor.createTypeInfo(GenericPojo.class);
+		System.out.println(pti);
+	}
+	
+	public static class GenericMapper1<X> implements MapFunction<X, X> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public X map(X value) throws Exception {
+			return null;
+		}
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testGenericPojoTypeInference1() {
+		PojoTypeInfo<?> pti = (PojoTypeInfo<?>) TypeExtractor.createTypeInfo(GenericPojo.class);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) new GenericMapper1<GenericPojo<String>>(), pti);
+		System.out.println(ti);
 	}
 }
