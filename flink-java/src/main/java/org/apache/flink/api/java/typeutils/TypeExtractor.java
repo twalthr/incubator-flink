@@ -138,7 +138,7 @@ public class TypeExtractor {
 			final Type input = (hasCollector)? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
 			
 			// validate input only if it has not been type erasured
-			if (!isTypeErasured(input)) {
+			if (!isTypeErased(input)) {
 				validateInputType((hasIterable)? removeGenericWrapper(input) : input, inType);
 			}
 			
@@ -147,7 +147,7 @@ public class TypeExtractor {
 			}
 			else {
 				final Type returnType = (hasCollector)? removeGenericWrapper(m.getGenericParameterTypes()[paramLen]) : m.getGenericReturnType();
-				if (!isTypeErasured(returnType)) {
+				if (!isTypeErased(returnType)) {
 					ti = new TypeExtractor().privateCreateTypeInfo(returnType, inType, null);
 				}
 				else {
@@ -182,10 +182,10 @@ public class TypeExtractor {
 			final Type input2 = (hasCollector)? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
 			
 			// validate input only if it has not been type erasured
-			if (!isTypeErasured(input1)) {
+			if (!isTypeErased(input1)) {
 				validateInputType((hasIterables)? removeGenericWrapper(input1) : input1, in1Type);
 			}
-			if (!isTypeErasured(input2)) {
+			if (!isTypeErased(input2)) {
 				validateInputType((hasIterables)? removeGenericWrapper(input2) : input2, in2Type);
 			}
 			
@@ -194,7 +194,7 @@ public class TypeExtractor {
 			}
 			else {
 				final Type returnType = (hasCollector)? removeGenericWrapper(m.getGenericParameterTypes()[paramLen]) : m.getGenericReturnType();
-				if (!isTypeErasured(returnType)) {
+				if (!isTypeErased(returnType)) {
 					ti = new TypeExtractor().privateCreateTypeInfo(returnType, in1Type, in2Type);
 				}
 				else {
@@ -815,7 +815,7 @@ public class TypeExtractor {
 		return t;
 	}
 
-	private static boolean isTypeErasured(Type t) {
+	private static boolean isTypeErased(Type t) {
 		if(!(t instanceof Class)) {
 			return false;
 		}

@@ -87,7 +87,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			updateTypeDependentProperties();
 		}
 	}
-	
+
 	@Override
 	protected void updateTypeDependentProperties() {
 		if (grouper != null) {
@@ -111,19 +111,25 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		return combinable;
 	}
 	
-	public void setCombinable(boolean combinable) {
+	public GroupReduceOperator<IN, OUT> setCombinable(boolean combinable) {
 		// sanity check that the function is a subclass of the combine interface
 		if (combinable && !(function instanceof FlatCombineFunction)) {
 			throw new IllegalArgumentException("The function does not implement the combine interface.");
 		}
 		
 		this.combinable = combinable;
+		
+		return this;
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	//  Translation
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
-	protected org.apache.flink.api.common.operators.base.GroupReduceOperatorBase<?, OUT, ?> translateToDataFlow(Operator<IN> input) {
+	protected GroupReduceOperatorBase<?, OUT, ?> translateToDataFlow(Operator<IN> input) {
 
-		String name = getName() != null ? getName() : "GroupReduce at "+defaultName;
+		String name = getName() != null ? getName() : "GroupReduce at " + defaultName;
 		
 		// distinguish between grouped reduce and non-grouped reduce
 		if (grouper == null) {
@@ -131,9 +137,8 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
 			GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>> po =
 					new GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>>(function, operatorInfo, new int[0], name);
-
+			
 			po.setCombinable(combinable);
-			// set input
 			po.setInput(input);
 			// the degree of parallelism for a non grouped reduce can only be 1
 			po.setDegreeOfParallelism(1);
@@ -148,7 +153,8 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			PlanUnwrappingReduceGroupOperator<IN, OUT, ?> po = translateSelectorFunctionReducer(
 							selectorKeys, function, getInputType(), getResultType(), name, input, isCombinable());
 			
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setDegreeOfParallelism(getParallelism());
+			po.setCustomPartitioner(grouper.getCustomPartitioner());
 			
 			return po;
 		}
@@ -161,7 +167,8 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 
 			po.setCombinable(combinable);
 			po.setInput(input);
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setDegreeOfParallelism(getParallelism());
+			po.setCustomPartitioner(grouper.getCustomPartitioner());
 			
 			// set group order
 			if (grouper instanceof SortedGrouping) {
