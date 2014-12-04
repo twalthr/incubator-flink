@@ -60,10 +60,8 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 */
 	public abstract boolean isStateful();
 
-
 	/**
-	 * Gets whether an instance of the underlying type can be created by this serializer
-	 * @return
+	 * Returns whether an instance of the underlying type can be created by this serializer.
 	 */
 	public abstract boolean canCreateInstance();
 

@@ -64,8 +64,9 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			if (ser.isStateful()) {
 				stateful = true;
 			}
-
-			canCreateInstance &= ser.canCreateInstance();
+			if (!ser.canCreateInstance()) {
+				canCreateInstance = false;
+			}
 		}
 		this.stateful = stateful;
 		this.canCreateInstance = canCreateInstance;
@@ -126,7 +127,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	@Override
 	public T createInstance() {
 		try {
-
 			T t = clazz.newInstance();
 
 			for (int i = 0; i < numFields; i++) {

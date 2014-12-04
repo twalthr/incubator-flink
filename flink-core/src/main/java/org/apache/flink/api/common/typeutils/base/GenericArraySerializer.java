@@ -66,7 +66,6 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 		return true;
 	}
 
-
 	@Override
 	public C[] createInstance() {
 		return EMPTY;
