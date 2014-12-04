@@ -28,12 +28,11 @@ import org.apache.flink.types.StringValue;
 public final class StringValueSerializer extends TypeSerializerSingleton<StringValue> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final int HIGH_BIT = 0x1 << 7;
-	
+
 	public static final StringValueSerializer INSTANCE = new StringValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -56,12 +55,18 @@ public final class StringValueSerializer extends TypeSerializerSingleton<StringV
 
 	@Override
 	public StringValue copy(StringValue from) {
-		return copy(from, new StringValue());
+		StringValue result = new StringValue();
+		result.setValue(from.getValue());
+		return result;
 	}
-	
+
 	@Override
 	public StringValue copy(StringValue from, StringValue reuse) {
-		reuse.setValue(from);
+		if (reuse == null) {
+			reuse = copy(from);
+		} else {
+			reuse.setValue(from.getValue());
+		}
 		return reuse;
 	}
 
@@ -77,14 +82,17 @@ public final class StringValueSerializer extends TypeSerializerSingleton<StringV
 
 	@Override
 	public StringValue deserialize(DataInputView source) throws IOException {
-		return deserialize(new StringValue(), source);
+		StringValue result = new StringValue();
+		result.read(source);
+		return result;
 	}
-	
+
 	@Override
 	public StringValue deserialize(StringValue reuse, DataInputView source) throws IOException {
-		if(reuse == null){
+		if (reuse == null) {
 			reuse = deserialize(source);
-		}else {
+		}
+		else {
 			reuse.read(source);
 		}
 		return reuse;

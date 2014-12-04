@@ -28,10 +28,9 @@ import org.apache.flink.types.FloatValue;
 public class FloatValueSerializer extends TypeSerializerSingleton<FloatValue> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final FloatValueSerializer INSTANCE = new FloatValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -54,12 +53,18 @@ public class FloatValueSerializer extends TypeSerializerSingleton<FloatValue> {
 
 	@Override
 	public FloatValue copy(FloatValue from) {
-		return copy(from, new FloatValue());
+		FloatValue result = new FloatValue();
+		result.setValue(from.getValue());
+		return result;
 	}
-	
+
 	@Override
 	public FloatValue copy(FloatValue from, FloatValue reuse) {
-		reuse.setValue(from.getValue());
+		if (reuse == null) {
+			reuse = copy(from);
+		} else {
+			reuse.setValue(from.getValue());
+		}
 		return reuse;
 	}
 
@@ -75,14 +80,17 @@ public class FloatValueSerializer extends TypeSerializerSingleton<FloatValue> {
 
 	@Override
 	public FloatValue deserialize(DataInputView source) throws IOException {
-		return deserialize(new FloatValue(), source);
+		FloatValue result = new FloatValue();
+		result.read(source);
+		return result;
 	}
-	
+
 	@Override
 	public FloatValue deserialize(FloatValue reuse, DataInputView source) throws IOException {
-		if(reuse == null){
+		if (reuse == null) {
 			reuse = deserialize(source);
-		}else {
+		}
+		else {
 			reuse.read(source);
 		}
 		return reuse;

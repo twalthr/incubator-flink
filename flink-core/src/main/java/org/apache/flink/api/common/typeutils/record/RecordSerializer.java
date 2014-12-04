@@ -35,9 +35,9 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 	private static final long serialVersionUID = 1L;
 
 	private static final RecordSerializer INSTANCE = new RecordSerializer(); // singleton instance
-	
-	private static final int MAX_BIT = 0x80;	// byte where only the most significant bit is set
-	
+
+	private static final int MAX_BIT = 0x80; // byte where only the most significant bit is set
+
 	// --------------------------------------------------------------------------------------------
 
 	public static final RecordSerializer get() {
@@ -75,20 +75,20 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 	public Record copy(Record from) {
 		return from.createCopy();
 	}
-	
+
 	@Override
 	public Record copy(Record from, Record reuse) {
 		from.copyTo(reuse);
 		return reuse;
 	}
-	
+
 	@Override
 	public int getLength() {
 		return -1;
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public void serialize(Record record, DataOutputView target) throws IOException {
 		record.serialize(target);
@@ -96,24 +96,27 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 
 	@Override
 	public Record deserialize(DataInputView source) throws IOException {
-		return deserialize(new Record(), source);
+		Record result = new Record();
+		result.deserialize(source);
+		return result;
 	}
-	
+
 	@Override
 	public Record deserialize(Record target, DataInputView source) throws IOException {
-		if(target == null){
+		if (target == null) {
 			target = deserialize(source);
-		}else {
+		}
+		else {
 			target.deserialize(source);
 		}
 		return target;
 	}
-	
+
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		int val = source.readUnsignedByte();
 		target.writeByte(val);
-		
+
 		if (val >= MAX_BIT) {
 			int shift = 7;
 			int curr;
@@ -126,7 +129,7 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 			target.writeByte(curr);
 			val |= curr << shift;
 		}
-		
+
 		target.write(source, val);
 	}
 }

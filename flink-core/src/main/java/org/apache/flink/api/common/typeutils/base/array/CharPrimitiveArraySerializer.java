@@ -30,10 +30,9 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<char[]>{
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final CharPrimitiveArraySerializer INSTANCE = new CharPrimitiveArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -51,7 +50,7 @@ public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<
 
 	@Override
 	public char[] createInstance() {
-		return null;
+		throw new UnsupportedOperationException("CharPrimitiveArraySerializer cannot create an instance.");
 	}
 
 	@Override
@@ -70,7 +69,6 @@ public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<
 	public int getLength() {
 		return -1;
 	}
-
 
 	@Override
 	public void serialize(char[] record, DataOutputView target) throws IOException {

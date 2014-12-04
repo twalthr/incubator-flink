@@ -32,10 +32,9 @@ import org.apache.flink.types.StringValue;
 public final class StringArraySerializer extends TypeSerializerSingleton<String[]>{
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final StringArraySerializer INSTANCE = new StringArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -53,7 +52,7 @@ public final class StringArraySerializer extends TypeSerializerSingleton<String[
 
 	@Override
 	public String[] createInstance() {
-		return null;
+		throw new UnsupportedOperationException("StringArraySerializer cannot create an instance.");
 	}
 
 	@Override
@@ -62,7 +61,7 @@ public final class StringArraySerializer extends TypeSerializerSingleton<String[
 		System.arraycopy(from, 0, target, 0, from.length);
 		return target;
 	}
-	
+
 	@Override
 	public String[] copy(String[] from, String[] reuse) {
 		return copy(from);
@@ -97,7 +96,7 @@ public final class StringArraySerializer extends TypeSerializerSingleton<String[
 		
 		return array;
 	}
-	
+
 	@Override
 	public String[] deserialize(String[] reuse, DataInputView source) throws IOException {
 		return deserialize(source);

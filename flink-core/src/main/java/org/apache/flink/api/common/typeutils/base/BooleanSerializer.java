@@ -26,10 +26,8 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class BooleanSerializer extends TypeSerializerSingleton<Boolean> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final BooleanSerializer INSTANCE = new BooleanSerializer();
-	
-	private static final Boolean FALSE = Boolean.FALSE;
 
 	@Override
 	public boolean isImmutableType() {
@@ -43,12 +41,12 @@ public final class BooleanSerializer extends TypeSerializerSingleton<Boolean> {
 
 	@Override
 	public boolean canCreateInstance() {
-		return true;
+		return false;
 	}
 
 	@Override
 	public Boolean createInstance() {
-		return FALSE;
+		throw new UnsupportedOperationException("BooleanSerializer cannot create an instance.");
 	}
 
 	@Override
@@ -75,7 +73,7 @@ public final class BooleanSerializer extends TypeSerializerSingleton<Boolean> {
 	public Boolean deserialize(DataInputView source) throws IOException {
 		return Boolean.valueOf(source.readBoolean());
 	}
-	
+
 	@Override
 	public Boolean deserialize(Boolean reuse, DataInputView source) throws IOException {
 		return Boolean.valueOf(source.readBoolean());

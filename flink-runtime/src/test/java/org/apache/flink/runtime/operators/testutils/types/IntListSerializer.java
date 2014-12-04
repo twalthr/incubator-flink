@@ -56,8 +56,13 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 	
 	@Override
 	public IntList copy(IntList from, IntList reuse) {
-		reuse.setKey(from.getKey());
-		reuse.setValue(Arrays.copyOf(from.getValue(), from.getValue().length));
+		if (reuse == null) {
+			reuse = copy(from);
+		}
+		else {
+			reuse.setKey(from.getKey());
+			reuse.setValue(Arrays.copyOf(from.getValue(), from.getValue().length));
+		}
 		return reuse;
 	}
 	
@@ -91,9 +96,10 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 	
 	@Override
 	public IntList deserialize(IntList record, DataInputView source) throws IOException {
-		if(record == null){
+		if (record == null) {
 			record = deserialize(source);
-		}else {
+		}
+		else {
 			int key = source.readInt();
 			record.setKey(key);
 			int size = source.readInt();

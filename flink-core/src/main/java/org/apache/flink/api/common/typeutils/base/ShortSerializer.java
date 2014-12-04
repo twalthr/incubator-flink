@@ -27,12 +27,9 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 
 	private static final long serialVersionUID = 1L;
-	
-	public static final ShortSerializer INSTANCE = new ShortSerializer();
-	
-	private static final Short ZERO = Short.valueOf((short)0);
 
-	
+	public static final ShortSerializer INSTANCE = new ShortSerializer();
+
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -45,19 +42,19 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 
 	@Override
 	public boolean canCreateInstance() {
-		return true;
+		return false;
 	}
 
 	@Override
 	public Short createInstance() {
-		return ZERO;
+		throw new UnsupportedOperationException("ShortSerializer cannot create an instance.");
 	}
 
 	@Override
 	public Short copy(Short from) {
 		return from;
 	}
-	
+
 	@Override
 	public Short copy(Short from, Short reuse) {
 		return from;
@@ -77,7 +74,7 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 	public Short deserialize(DataInputView source) throws IOException {
 		return Short.valueOf(source.readShort());
 	}
-	
+
 	@Override
 	public Short deserialize(Short reuse, DataInputView source) throws IOException {
 		return deserialize(source);

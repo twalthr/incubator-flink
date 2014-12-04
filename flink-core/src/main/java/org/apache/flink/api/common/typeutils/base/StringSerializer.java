@@ -28,9 +28,9 @@ import org.apache.flink.types.StringValue;
 public final class StringSerializer extends TypeSerializerSingleton<String> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final StringSerializer INSTANCE = new StringSerializer();
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -48,15 +48,14 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 
 	@Override
 	public String createInstance() {
-		return "";
-//		throw new UnsupportedOperationException("StringSerializer cannot create an instance.");
+		throw new UnsupportedOperationException("StringSerializer cannot create an instance.");
 	}
 
 	@Override
 	public String copy(String from) {
 		return from;
 	}
-	
+
 	@Override
 	public String copy(String from, String reuse) {
 		return from;
@@ -76,9 +75,9 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 	public String deserialize(DataInputView source) throws IOException {
 		return StringValue.readString(source);
 	}
-	
+
 	@Override
-	public String deserialize(String record, DataInputView source) throws IOException {
+	public String deserialize(String reuse, DataInputView source) throws IOException {
 		return deserialize(source);
 	}
 

@@ -27,11 +27,8 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class ByteSerializer extends TypeSerializerSingleton<Byte> {
 
 	private static final long serialVersionUID = 1L;
-	
-	public static final ByteSerializer INSTANCE = new ByteSerializer();
-	
-	private static final Byte ZERO = Byte.valueOf((byte) 0);
 
+	public static final ByteSerializer INSTANCE = new ByteSerializer();
 
 	@Override
 	public boolean isImmutableType() {
@@ -45,19 +42,19 @@ public final class ByteSerializer extends TypeSerializerSingleton<Byte> {
 
 	@Override
 	public boolean canCreateInstance() {
-		return true;
+		return false;
 	}
 
 	@Override
 	public Byte createInstance() {
-		return ZERO;
+		throw new UnsupportedOperationException("ByteSerializer cannot create an instance.");
 	}
 
 	@Override
 	public Byte copy(Byte from) {
 		return from;
 	}
-	
+
 	@Override
 	public Byte copy(Byte from, Byte reuse) {
 		return from;
@@ -77,7 +74,7 @@ public final class ByteSerializer extends TypeSerializerSingleton<Byte> {
 	public Byte deserialize(DataInputView source) throws IOException {
 		return Byte.valueOf(source.readByte());
 	}
-	
+
 	@Override
 	public Byte deserialize(Byte reuse, DataInputView source) throws IOException {
 		return deserialize(source);

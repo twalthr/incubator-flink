@@ -28,10 +28,9 @@ import org.apache.flink.types.BooleanValue;
 public final class BooleanValueSerializer extends TypeSerializerSingleton<BooleanValue> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final BooleanValueSerializer INSTANCE = new BooleanValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -58,10 +57,15 @@ public final class BooleanValueSerializer extends TypeSerializerSingleton<Boolea
 		result.setValue(from.getValue());
 		return result;
 	}
-	
+
 	@Override
 	public BooleanValue copy(BooleanValue from, BooleanValue reuse) {
-		reuse.setValue(from.getValue());
+		if (reuse == null) {
+			reuse = copy(from);
+		}
+		else {
+			reuse.setValue(from.getValue());
+		}
 		return reuse;
 	}
 
@@ -77,14 +81,17 @@ public final class BooleanValueSerializer extends TypeSerializerSingleton<Boolea
 
 	@Override
 	public BooleanValue deserialize(DataInputView source) throws IOException {
-		return deserialize(new BooleanValue(), source);
+		BooleanValue result = new BooleanValue();
+		result.read(source);
+		return result;
 	}
-	
+
 	@Override
 	public BooleanValue deserialize(BooleanValue reuse, DataInputView source) throws IOException {
-		if(reuse == null){
+		if (reuse == null) {
 			reuse = deserialize(source);
-		}else{
+		}
+		else {
 			reuse.read(source);
 		}
 		return reuse;

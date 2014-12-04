@@ -90,7 +90,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * This is, however, not guaranteed.
 	 * 
 	 * @param from The element to be copied.
-	 * @param reuse The element to be reused. May or may not be used.
+	 * @param reuse The element to be reused. May or may not be used. It can be null.
 	 * @return A deep copy of the element.
 	 */
 	public abstract T copy(T from, T reuse);
@@ -131,7 +131,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	/**
 	 * De-serializes a record from the given source input view into the given reuse record instance if mutable.
 	 * 
-	 * @param reuse The record instance into which to de-serialize the data.
+	 * @param reuse The record instance into which to de-serialize the data. It can be null.
 	 * @param source The input view from which to read the data.
 	 * @return The deserialized element.
 	 * 

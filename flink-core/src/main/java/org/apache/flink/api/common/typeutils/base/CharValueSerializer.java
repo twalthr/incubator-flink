@@ -27,10 +27,9 @@ import org.apache.flink.types.CharValue;
 public class CharValueSerializer extends TypeSerializerSingleton<CharValue> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final CharValueSerializer INSTANCE = new CharValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -50,15 +49,22 @@ public class CharValueSerializer extends TypeSerializerSingleton<CharValue> {
 	public CharValue createInstance() {
 		return new CharValue();
 	}
-	
+
 	@Override
 	public CharValue copy(CharValue from) {
-		return copy(from, new CharValue());
+		CharValue result = new CharValue();
+		result.setValue(from.getValue());
+		return result;
 	}
 
 	@Override
 	public CharValue copy(CharValue from, CharValue reuse) {
-		reuse.setValue(from.getValue());
+		if (reuse == null) {
+			reuse = copy(from);
+		}
+		else {
+			reuse.setValue(from.getValue());
+		}
 		return reuse;
 	}
 
@@ -71,17 +77,20 @@ public class CharValueSerializer extends TypeSerializerSingleton<CharValue> {
 	public void serialize(CharValue record, DataOutputView target) throws IOException {
 		record.write(target);
 	}
-	
+
 	@Override
 	public CharValue deserialize(DataInputView source) throws IOException {
-		return deserialize(new CharValue(), source);
+		CharValue result = new CharValue();
+		result.read(source);
+		return result;
 	}
 
 	@Override
 	public CharValue deserialize(CharValue reuse, DataInputView source) throws IOException {
-		if(reuse == null){
+		if (reuse == null) {
 			reuse = deserialize(source);
-		}else {
+		}
+		else {
 			reuse.read(source);
 		}
 		return reuse;

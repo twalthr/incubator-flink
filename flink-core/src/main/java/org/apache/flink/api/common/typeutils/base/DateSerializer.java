@@ -28,7 +28,7 @@ import java.util.Date;
 public final class DateSerializer extends TypeSerializerSingleton<Date> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final DateSerializer INSTANCE = new DateSerializer();
 
 	@Override
@@ -40,7 +40,12 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public Date createInstance() {
 		return new Date();
@@ -50,10 +55,15 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 	public Date copy(Date from) {
 		return new Date(from.getTime());
 	}
-	
+
 	@Override
 	public Date copy(Date from, Date reuse) {
-		reuse.setTime(from.getTime());
+		if (reuse == null) {
+			reuse = copy(from);
+		}
+		else {
+			reuse.setTime(from.getTime());
+		}
 		return reuse;
 	}
 
@@ -71,10 +81,15 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 	public Date deserialize(DataInputView source) throws IOException {
 		return new Date(source.readLong());
 	}
-	
+
 	@Override
 	public Date deserialize(Date reuse, DataInputView source) throws IOException {
-		reuse.setTime(source.readLong());
+		if (reuse == null) {
+			reuse = deserialize(source);
+		}
+		else {
+			reuse.setTime(source.readLong());
+		}
 		return reuse;
 	}
 

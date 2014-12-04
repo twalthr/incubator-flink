@@ -30,10 +30,9 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class FloatPrimitiveArraySerializer extends TypeSerializerSingleton<float[]>{
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final FloatPrimitiveArraySerializer INSTANCE = new FloatPrimitiveArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -51,7 +50,7 @@ public final class FloatPrimitiveArraySerializer extends TypeSerializerSingleton
 
 	@Override
 	public float[] createInstance() {
-		return null;
+		throw new UnsupportedOperationException("FloatPrimitiveArraySerializer cannot create an instance.");
 	}
 
 	@Override
@@ -60,7 +59,7 @@ public final class FloatPrimitiveArraySerializer extends TypeSerializerSingleton
 		System.arraycopy(from, 0, copy, 0, from.length);
 		return copy;
 	}
-	
+
 	@Override
 	public float[] copy(float[] from, float[] reuse) {
 		return copy(from);
@@ -70,7 +69,6 @@ public final class FloatPrimitiveArraySerializer extends TypeSerializerSingleton
 	public int getLength() {
 		return -1;
 	}
-
 
 	@Override
 	public void serialize(float[] record, DataOutputView target) throws IOException {
@@ -96,7 +94,7 @@ public final class FloatPrimitiveArraySerializer extends TypeSerializerSingleton
 		
 		return result;
 	}
-	
+
 	@Override
 	public float[] deserialize(float[] reuse, DataInputView source) throws IOException {
 		return deserialize(source);

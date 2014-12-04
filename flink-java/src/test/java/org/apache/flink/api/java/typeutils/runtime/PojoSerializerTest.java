@@ -181,6 +181,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 	/**
 	 * This tests if the hashes returned by the pojo and tuple comparators are the same
 	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testTuplePojoTestEquality() {
 		
@@ -206,8 +207,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		Tuple3<Integer, String, Double> multiTupleTest = new Tuple3<Integer, String, Double>(1, "haha", 4d); // its important here to use the same values.
 		TupleTypeInfo<Tuple3<Integer, String, Double>> multiTupleType = (TupleTypeInfo<Tuple3<Integer, String, Double>>)TypeExtractor.getForObject(multiTupleTest);
 		
-		ExpressionKeys fieldKey = new ExpressionKeys(new int[]{1,0,2}, multiTupleType);
-		ExpressionKeys expressKey = new ExpressionKeys(new String[] {"nestedClass.dumm2", "nestedClass.dumm1", "nestedClass.dumm3"}, pType);
+		ExpressionKeys<?> fieldKey = new ExpressionKeys(new int[]{1,0,2}, multiTupleType);
+		ExpressionKeys<?> expressKey = new ExpressionKeys(new String[] {"nestedClass.dumm2", "nestedClass.dumm1", "nestedClass.dumm3"}, pType);
 		try {
 			Assert.assertTrue("Expecting the keys to be compatible", fieldKey.areCompatible(expressKey));
 		} catch (IncompatibleKeysException e) {

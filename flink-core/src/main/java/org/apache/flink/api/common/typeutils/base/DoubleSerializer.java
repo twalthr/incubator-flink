@@ -26,12 +26,9 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class DoubleSerializer extends TypeSerializerSingleton<Double> {
 
 	private static final long serialVersionUID = 1L;
-	
-	public static final DoubleSerializer INSTANCE = new DoubleSerializer();
-	
-	private static final Double ZERO = Double.valueOf(0);
 
-	
+	public static final DoubleSerializer INSTANCE = new DoubleSerializer();
+
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -44,19 +41,19 @@ public final class DoubleSerializer extends TypeSerializerSingleton<Double> {
 
 	@Override
 	public boolean canCreateInstance() {
-		return true;
+		return false;
 	}
 
 	@Override
 	public Double createInstance() {
-		return ZERO;
+		throw new UnsupportedOperationException("DoubleSerializer cannot create an instance.");
 	}
 
 	@Override
 	public Double copy(Double from) {
 		return from;
 	}
-	
+
 	@Override
 	public Double copy(Double from, Double reuse) {
 		return from;
@@ -76,7 +73,7 @@ public final class DoubleSerializer extends TypeSerializerSingleton<Double> {
 	public Double deserialize(DataInputView source) throws IOException {
 		return Double.valueOf(source.readDouble());
 	}
-	
+
 	@Override
 	public Double deserialize(Double reuse, DataInputView source) throws IOException {
 		return deserialize(source);

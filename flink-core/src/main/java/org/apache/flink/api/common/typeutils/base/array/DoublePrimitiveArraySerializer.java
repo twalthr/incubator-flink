@@ -30,10 +30,9 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleton<double[]>{
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final DoublePrimitiveArraySerializer INSTANCE = new DoublePrimitiveArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -51,9 +50,9 @@ public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleto
 
 	@Override
 	public double[] createInstance() {
-		return null;
+		throw new UnsupportedOperationException("DoublePrimitiveArraySerializer cannot create an instance.");
 	}
-	
+
 	@Override
 	public double[] copy(double[] from) {
 		double[] copy = new double[from.length];
@@ -70,7 +69,6 @@ public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleto
 	public int getLength() {
 		return -1;
 	}
-
 
 	@Override
 	public void serialize(double[] record, DataOutputView target) throws IOException {
@@ -96,7 +94,7 @@ public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleto
 		
 		return result;
 	}
-	
+
 	@Override
 	public double[] deserialize(double[] reuse, DataInputView source) throws IOException {
 		return deserialize(source);

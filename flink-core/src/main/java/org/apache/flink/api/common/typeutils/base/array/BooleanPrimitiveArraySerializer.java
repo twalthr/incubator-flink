@@ -30,10 +30,9 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class BooleanPrimitiveArraySerializer extends TypeSerializerSingleton<boolean[]>{
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final BooleanPrimitiveArraySerializer INSTANCE = new BooleanPrimitiveArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -51,7 +50,7 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 
 	@Override
 	public boolean[] createInstance() {
-		return null;
+		throw new UnsupportedOperationException("BooleanPrimitiveArraySerializer cannot create an instance.");
 	}
 
 	@Override
@@ -71,7 +70,6 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 		return -1;
 	}
 
-
 	@Override
 	public void serialize(boolean[] record, DataOutputView target) throws IOException {
 		if (record == null) {
@@ -84,7 +82,6 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 			target.writeBoolean(record[i]);
 		}
 	}
-
 
 	@Override
 	public boolean[] deserialize(DataInputView source) throws IOException {

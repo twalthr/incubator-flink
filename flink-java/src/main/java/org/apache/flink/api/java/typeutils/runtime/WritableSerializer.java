@@ -23,79 +23,79 @@ import java.io.IOException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.hadoop.io.Writable;
 
 import com.esotericsoftware.kryo.Kryo;
 
 public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	private final Class<T> typeClass;
-	
+
 	private transient Kryo kryo;
-	
+
 	private transient T copyInstance;
-	
+
 	public WritableSerializer(Class<T> typeClass) {
 		this.typeClass = typeClass;
 	}
-	
+
 	@Override
 	public T createInstance() {
-		return InstantiationUtil.instantiate(typeClass);
+		throw new UnsupportedOperationException("WritableSerializer cannot create an instance.");
 	}
-	
+
 	@Override
 	public T copy(T from) {
 		checkKryoInitialized();
 		return this.kryo.copy(from);
 	}
-	
+
 	@Override
 	public T copy(T from, T reuse) {
 		checkKryoInitialized();
 		return this.kryo.copy(from);
 	}
-	
+
 	@Override
 	public int getLength() {
 		return -1;
 	}
-	
+
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
 		record.write(target);
 	}
-	
+
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
 		return deserialize(createInstance(), source);
 	}
-	
+
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		if(reuse == null){
+		if (reuse == null) {
 			reuse = deserialize(source);
-		}else {
+		}
+		else {
 			reuse.readFields(source);
 		}
 		return reuse;
 	}
-	
+
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		ensureInstanceInstantiated();
 		copyInstance.readFields(source);
 		copyInstance.write(target);
 	}
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
 	}
-	
+
 	@Override
 	public boolean isStateful() {
 		return true;
@@ -103,7 +103,7 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 
 	@Override
 	public boolean canCreateInstance() {
-		return true;
+		return false;
 	}
 
 	// --------------------------------------------------------------------------------------------

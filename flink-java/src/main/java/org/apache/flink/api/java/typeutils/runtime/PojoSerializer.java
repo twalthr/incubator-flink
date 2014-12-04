@@ -44,8 +44,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	private final boolean stateful;
 
-	private final boolean canCreateInstance;
-
 
 	@SuppressWarnings("unchecked")
 	public PojoSerializer(Class<T> clazz, TypeSerializer<?>[] fieldSerializers, Field[] fields) {
@@ -59,17 +57,12 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		}
 
 		boolean stateful = false;
-		boolean canCreateInstance = true;
 		for (TypeSerializer<?> ser : fieldSerializers) {
 			if (ser.isStateful()) {
 				stateful = true;
 			}
-			if (!ser.canCreateInstance()) {
-				canCreateInstance = false;
-			}
 		}
 		this.stateful = stateful;
-		this.canCreateInstance = canCreateInstance;
 	}
 
 	private void writeObject(ObjectOutputStream out)
@@ -107,8 +100,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			}
 		}
 	}
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -121,18 +113,19 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public boolean canCreateInstance() {
-		return canCreateInstance;
+		// we can always create an instance as a POJO has a default constructor
+		return true;
 	}
 
 	@Override
 	public T createInstance() {
 		try {
 			T t = clazz.newInstance();
-
 			for (int i = 0; i < numFields; i++) {
-				fields[i].set(t, fieldSerializers[i].createInstance());
+				if (fieldSerializers[i].canCreateInstance()) {
+					fields[i].set(t, fieldSerializers[i].createInstance());
+				}
 			}
-
 			return t;
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot instantiate class.", e);
@@ -163,14 +156,19 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	
 	@Override
 	public T copy(T from, T reuse) {
-		try {
-			for (int i = 0; i < numFields; i++) {
-				Object copy = fieldSerializers[i].copy(fields[i].get(from), fields[i].get(reuse));
-				fields[i].set(reuse, copy);
+		if (reuse == null) {
+			reuse = copy(from);
+		}
+		else {
+			try {
+				for (int i = 0; i < numFields; i++) {
+					Object copy = fieldSerializers[i].copy(fields[i].get(from), fields[i].get(reuse));
+					fields[i].set(reuse, copy);
+				}
+			} catch (IllegalAccessException e) {
+				throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" +
+						"before.");
 			}
-		} catch (IllegalAccessException e) {
-			throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" +
-					"before.");
 		}
 		return reuse;
 	}
@@ -179,7 +177,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	public int getLength() {
 		return -1;
 	}
-
 
 	@Override
 	public void serialize(T value, DataOutputView target) throws IOException {
@@ -239,9 +236,10 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		if(reuse == null){
+		if (reuse == null) {
 			reuse = deserialize(source);
-		}else {
+		}
+		else {
 			// handle null values
 			boolean isNull = source.readBoolean();
 			if (isNull) {
@@ -274,7 +272,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			fieldSerializers[i].copy(source, target);
 		}
 	}
-	
+
 	@Override
 	public int hashCode() {
 		int hashCode = numFields * 47;

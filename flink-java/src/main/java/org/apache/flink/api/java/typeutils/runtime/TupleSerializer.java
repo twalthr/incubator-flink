@@ -30,7 +30,7 @@ import org.apache.flink.types.NullFieldException;
 public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public TupleSerializer(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
 		super(tupleClass, fieldSerializers);
 	}
@@ -39,11 +39,11 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 	public T createInstance() {
 		try {
 			T t = tupleClass.newInstance();
-
 			for (int i = 0; i < arity; i++) {
-				t.setField(fieldSerializers[i].createInstance(), i);
+				if (fieldSerializers[i].canCreateInstance()) {
+					t.setField(fieldSerializers[i].createInstance(), i);
+				}
 			}
-
 			return t;
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot instantiate tuple.", e);
@@ -77,11 +77,15 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 	
 	@Override
 	public T copy(T from, T reuse) {
-		for (int i = 0; i < arity; i++) {
-			Object copy = fieldSerializers[i].copy(from.getField(i), reuse.getField(i));
-			reuse.setField(copy, i);
+		if (reuse == null) {
+			reuse = copy(from);
 		}
-		
+		else {
+			for (int i = 0; i < arity; i++) {
+				Object copy = fieldSerializers[i].copy(from.getField(i), reuse.getField(i));
+				reuse.setField(copy, i);
+			}
+		}
 		return reuse;
 	}
 

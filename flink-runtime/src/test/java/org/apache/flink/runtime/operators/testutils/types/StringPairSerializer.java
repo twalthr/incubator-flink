@@ -48,15 +48,21 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 	public StringPair createInstance() {
 		return new StringPair();
 	}
-	
+
 	@Override
 	public StringPair copy(StringPair from) {
 		return new StringPair(from.getKey(), from.getValue());
 	}
+
 	@Override
 	public StringPair copy(StringPair from, StringPair reuse) {
-		reuse.setKey(from.getKey());
-		reuse.setValue(from.getValue());
+		if (reuse == null) {
+			reuse = copy(from);
+		}
+		else {
+			reuse.setKey(from.getKey());
+			reuse.setValue(from.getValue());
+		}
 		return reuse;
 	}
 

@@ -51,8 +51,13 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	}
 
 	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
+	@Override
 	public T createInstance() {
-		return values[0];
+		throw new UnsupportedOperationException("EnumSerializer cannot create an instance.");
 	}
 
 	@Override
@@ -112,7 +117,6 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 		try {
 			Method valuesMethod = enumClass.getMethod("values");
 			return (T[]) valuesMethod.invoke(null);
-
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Cannot access the constants of the enum " + enumClass.getName());

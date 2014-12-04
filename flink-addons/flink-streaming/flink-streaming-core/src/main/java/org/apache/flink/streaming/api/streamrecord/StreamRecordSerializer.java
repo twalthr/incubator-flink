@@ -79,9 +79,14 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 
 	@Override
 	public StreamRecord<T> copy(StreamRecord<T> from, StreamRecord<T> reuse) {
-		reuse.isTuple = from.isTuple;
-		reuse.setId(from.getId().copy());
-		reuse.setObject(typeSerializer.copy(from.getObject(), reuse.getObject()));
+		if (reuse == null) {
+			reuse = copy(from);
+		}
+		else {
+			reuse.isTuple = from.isTuple;
+			reuse.setId(from.getId().copy());
+			reuse.setObject(typeSerializer.copy(from.getObject(), reuse.getObject()));
+		}
 		return reuse;
 	}
 
@@ -107,9 +112,9 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 
 	@Override
 	public StreamRecord<T> deserialize(StreamRecord<T> reuse, DataInputView source) throws IOException {
-		if(reuse == null){
+		if (reuse == null) {
 			reuse = deserialize(source);
-		}else {
+		} else {
 			reuse.getId().read(source);
 			reuse.setObject(typeSerializer.deserialize(reuse.getObject(), source));
 		}

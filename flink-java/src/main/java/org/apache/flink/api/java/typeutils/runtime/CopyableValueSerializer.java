@@ -30,13 +30,11 @@ import org.apache.flink.util.InstantiationUtil;
 public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
-	
-	
+
 	private final Class<T> valueClass;
-	
+
 	private transient T instance;
-	
-	
+
 	public CopyableValueSerializer(Class<T> valueClass) {
 		this.valueClass = valueClass;
 	}
@@ -60,15 +58,22 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 	public T createInstance() {
 		return InstantiationUtil.instantiate(this.valueClass);
 	}
-	
+
 	@Override
 	public T copy(T from) {
-		return copy(from, createInstance());
+		T result = createInstance();
+		from.copyTo(result);
+		return result;
 	}
-	
+
 	@Override
 	public T copy(T from, T reuse) {
-		from.copyTo(reuse);
+		if (reuse == null) {
+			reuse = copy(from);
+		}
+		else {
+			from.copyTo(reuse);
+		}
 		return reuse;
 	}
 
@@ -85,14 +90,17 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
-		return deserialize(createInstance(), source);
+		T result = createInstance();
+		result.read(source);
+		return result;
 	}
-	
+
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		if(reuse == null){
+		if (reuse == null) {
 			reuse = deserialize(source);
-		}else {
+		}
+		else {
 			reuse.read(source);
 		}
 		return reuse;
@@ -103,7 +111,7 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 		ensureInstanceInstantiated();
 		instance.copy(source, target);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	
 	private void ensureInstanceInstantiated() {
@@ -111,12 +119,12 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 			instance = createInstance();
 		}
 	}
-	
+
 	@Override
 	public int hashCode() {
 		return this.valueClass.hashCode() + 9231;
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj.getClass() == CopyableValueSerializer.class) {

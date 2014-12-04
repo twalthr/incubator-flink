@@ -59,11 +59,15 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 
 	@Override
 	public IntPair copy(IntPair from, IntPair reuse) {
-		reuse.setKey(from.getKey());
-		reuse.setValue(from.getValue());
+		if (reuse == null) {
+			reuse = copy(from);
+		}
+		else {
+			reuse.setKey(from.getKey());
+			reuse.setValue(from.getValue());
+		}
 		return reuse;
 	}
-	
 
 	@Override
 	public int getLength() {
@@ -83,9 +87,10 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 	
 	@Override
 	public IntPair deserialize(IntPair reuse, DataInputView source) throws IOException {
-		if(reuse == null){
+		if (reuse == null) {
 			reuse = deserialize(source);
-		}else {
+		}
+		else {
 			reuse.setKey(source.readInt());
 			reuse.setValue(source.readInt());
 		}
@@ -114,12 +119,12 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 		public Class<IntPair> getDataType() {
 			return IntPair.class;
 		}
-		
+
 		@Override
 		public int hashCode() {
 			return 42;
 		}
-		
+
 		public boolean equals(Object obj) {
 			return obj.getClass() == IntPairSerializerFactory.class;
 		};

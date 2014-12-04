@@ -37,20 +37,19 @@ import com.esotericsoftware.kryo.Kryo;
 public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private final Class<T> type;
-	
+
 	private transient Kryo kryo;
-	
+
 	private transient T copyInstance;
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public ValueSerializer(Class<T> type) {
 		if (type == null) {
 			throw new NullPointerException();
 		}
-		
 		this.type = type;
 	}
 
@@ -68,12 +67,12 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 
 	@Override
 	public boolean canCreateInstance() {
-		return true;
+		return false;
 	}
 
 	@Override
 	public T createInstance() {
-		return InstantiationUtil.instantiate(this.type);
+		throw new UnsupportedOperationException("ValueSerializer cannot create an instance.");
 	}
 
 	@Override
@@ -102,12 +101,13 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	public T deserialize(DataInputView source) throws IOException {
 		return deserialize(createInstance(), source);
 	}
-	
+
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		if(reuse ==null){
+		if (reuse == null) {
 			reuse = deserialize(source);
-		}else {
+		}
+		else {
 			reuse.read(source);
 		}
 		return reuse;
@@ -118,11 +118,11 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 		if (this.copyInstance == null) {
 			this.copyInstance = InstantiationUtil.instantiate(type);
 		}
-		
+
 		this.copyInstance.read(source);
 		this.copyInstance.write(target);
 	}
-	
+
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
@@ -130,14 +130,14 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 			this.kryo.register(type);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public int hashCode() {
 		return this.type.hashCode() + 17;
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj.getClass() == ValueSerializer.class) {

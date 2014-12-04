@@ -30,10 +30,9 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<byte[]>{
 
 	private static final long serialVersionUID = 1L;
-	
 
 	public static final BytePrimitiveArraySerializer INSTANCE = new BytePrimitiveArraySerializer();
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -51,7 +50,7 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 
 	@Override
 	public byte[] createInstance() {
-		return null;
+		throw new UnsupportedOperationException("BytePrimitiveArraySerializer cannot create an instance.");
 	}
 
 	@Override
@@ -60,7 +59,7 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 		System.arraycopy(from, 0, copy, 0, from.length);
 		return copy;
 	}
-	
+
 	@Override
 	public byte[] copy(byte[] from, byte[] reuse) {
 		return copy(from);
@@ -70,7 +69,6 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 	public int getLength() {
 		return -1;
 	}
-
 
 	@Override
 	public void serialize(byte[] record, DataOutputView target) throws IOException {
@@ -90,7 +88,7 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 		source.readFully(result);
 		return result;
 	}
-	
+
 	@Override
 	public byte[] deserialize(byte[] reuse, DataInputView source) throws IOException {
 		return deserialize(source);

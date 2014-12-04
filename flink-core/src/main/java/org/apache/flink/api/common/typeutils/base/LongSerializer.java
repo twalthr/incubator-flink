@@ -27,11 +27,8 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class LongSerializer extends TypeSerializerSingleton<Long> {
 
 	private static final long serialVersionUID = 1L;
-	
-	public static final LongSerializer INSTANCE = new LongSerializer();
-	
-	private static final Long ZERO = Long.valueOf(0);
 
+	public static final LongSerializer INSTANCE = new LongSerializer();
 
 	@Override
 	public boolean isImmutableType() {
@@ -45,19 +42,19 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 
 	@Override
 	public boolean canCreateInstance() {
-		return true;
+		return false;
 	}
 
 	@Override
 	public Long createInstance() {
-		return ZERO;
+		throw new UnsupportedOperationException("LongSerializer cannot create an instance.");
 	}
 
 	@Override
 	public Long copy(Long from) {
 		return from;
 	}
-	
+
 	@Override
 	public Long copy(Long from, Long reuse) {
 		return from;
@@ -77,7 +74,7 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 	public Long deserialize(DataInputView source) throws IOException {
 		return Long.valueOf(source.readLong());
 	}
-	
+
 	@Override
 	public Long deserialize(Long reuse, DataInputView source) throws IOException {
 		return deserialize(source);

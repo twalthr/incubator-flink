@@ -26,12 +26,9 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class FloatSerializer extends TypeSerializerSingleton<Float> {
 
 	private static final long serialVersionUID = 1L;
-	
-	public static final FloatSerializer INSTANCE = new FloatSerializer();
-	
-	private static final Float ZERO = Float.valueOf(0);
 
-	
+	public static final FloatSerializer INSTANCE = new FloatSerializer();
+
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -44,12 +41,12 @@ public final class FloatSerializer extends TypeSerializerSingleton<Float> {
 
 	@Override
 	public boolean canCreateInstance() {
-		return true;
+		return false;
 	}
 
 	@Override
 	public Float createInstance() {
-		return ZERO;
+		throw new UnsupportedOperationException("FloatSerializer cannot create an instance.");
 	}
 
 	@Override
@@ -76,7 +73,7 @@ public final class FloatSerializer extends TypeSerializerSingleton<Float> {
 	public Float deserialize(DataInputView source) throws IOException {
 		return Float.valueOf(source.readFloat());
 	}
-	
+
 	@Override
 	public Float deserialize(Float reuse, DataInputView source) throws IOException {
 		return deserialize(source);

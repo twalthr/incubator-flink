@@ -77,9 +77,10 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T createInstance() {
-		return null;
+		throw new UnsupportedOperationException("KryoSerializer cannot create an instance.");
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public T copy(T from) {
 		checkKryoInitialized();
@@ -129,7 +130,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		}
 		return kryo.readObject(input, typeToInstantiate);
 	}
-	
+
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
 		return deserialize(source);
@@ -142,9 +143,9 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		T tmp = deserialize(source);
 		serialize(tmp, target);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public int hashCode() {
 		return type.hashCode();
@@ -159,7 +160,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			return false;
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	private void checkKryoInitialized() {

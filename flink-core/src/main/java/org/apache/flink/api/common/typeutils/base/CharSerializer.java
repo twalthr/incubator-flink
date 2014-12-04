@@ -27,11 +27,8 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class CharSerializer extends TypeSerializerSingleton<Character> {
 
 	private static final long serialVersionUID = 1L;
-	
-	public static final CharSerializer INSTANCE = new CharSerializer();
-	
-	private static final Character ZERO = Character.valueOf((char)0);
 
+	public static final CharSerializer INSTANCE = new CharSerializer();
 
 	@Override
 	public boolean isImmutableType() {
@@ -45,19 +42,19 @@ public final class CharSerializer extends TypeSerializerSingleton<Character> {
 
 	@Override
 	public boolean canCreateInstance() {
-		return true;
+		return false;
 	}
 
 	@Override
 	public Character createInstance() {
-		return ZERO;
+		throw new UnsupportedOperationException("CharSerializer cannot create an instance.");
 	}
 
 	@Override
 	public Character copy(Character from) {
 		return from;
 	}
-	
+
 	@Override
 	public Character copy(Character from, Character reuse) {
 		return from;

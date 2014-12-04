@@ -30,10 +30,9 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class ShortPrimitiveArraySerializer extends TypeSerializerSingleton<short[]>{
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final ShortPrimitiveArraySerializer INSTANCE = new ShortPrimitiveArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -51,7 +50,7 @@ public final class ShortPrimitiveArraySerializer extends TypeSerializerSingleton
 
 	@Override
 	public short[] createInstance() {
-		return null;
+		throw new UnsupportedOperationException("ShortPrimitiveArraySerializer cannot create an instance.");
 	}
 
 	@Override
@@ -60,7 +59,7 @@ public final class ShortPrimitiveArraySerializer extends TypeSerializerSingleton
 		System.arraycopy(from, 0, copy, 0, from.length);
 		return copy;
 	}
-	
+
 	@Override
 	public short[] copy(short[] from, short[] reuse) {
 		return copy(from);
@@ -70,7 +69,6 @@ public final class ShortPrimitiveArraySerializer extends TypeSerializerSingleton
 	public int getLength() {
 		return -1;
 	}
-
 
 	@Override
 	public void serialize(short[] record, DataOutputView target) throws IOException {

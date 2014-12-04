@@ -283,8 +283,13 @@ public class CollectionInputFormatTest {
 		}
 
 		@Override
+		public boolean canCreateInstance() {
+			return false;
+		}
+
+		@Override
 		public ElementType createInstance() {
-			return new ElementType();
+			throw new UnsupportedOperationException("Cannot create an instance.");
 		}
 
 		@Override

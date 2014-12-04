@@ -30,10 +30,9 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<long[]>{
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final LongPrimitiveArraySerializer INSTANCE = new LongPrimitiveArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -51,7 +50,7 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 
 	@Override
 	public long[] createInstance() {
-		return null;
+		throw new UnsupportedOperationException("LongPrimitiveArraySerializer cannot create an instance.");
 	}
 
 	@Override
@@ -60,7 +59,7 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 		System.arraycopy(from, 0, result, 0, from.length);
 		return result;
 	}
-	
+
 	@Override
 	public long[] copy(long[] from, long[] reuse) {
 		return copy(from);
@@ -70,7 +69,6 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 	public int getLength() {
 		return -1;
 	}
-
 
 	@Override
 	public void serialize(long[] record, DataOutputView target) throws IOException {
@@ -96,7 +94,7 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 		
 		return array;
 	}
-	
+
 	@Override
 	public long[] deserialize(long[] reuse, DataInputView source) throws IOException {
 		return deserialize(source);

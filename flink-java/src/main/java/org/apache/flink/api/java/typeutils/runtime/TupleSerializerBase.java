@@ -38,9 +38,6 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	protected final boolean stateful;
 
-	protected final boolean canCreateInstance;
-
-
 	@SuppressWarnings("unchecked")
 	public TupleSerializerBase(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
 		this.tupleClass = tupleClass;
@@ -48,19 +45,14 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 		this.arity = fieldSerializers.length;
 		
 		boolean stateful = false;
-		boolean canCreateInstance = true;
 		for (TypeSerializer<?> ser : fieldSerializers) {
 			if (ser.isStateful()) {
 				stateful = true;
 			}
-
-			canCreateInstance &= ser.canCreateInstance();
 		}
 		this.stateful = stateful;
-		this.canCreateInstance = canCreateInstance;
 	}
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -72,8 +64,9 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean canCreateInstance(){
-		return canCreateInstance;
+	public boolean canCreateInstance() {
+		// tuples can always be instantiated
+		return true;
 	}
 
 	@Override
@@ -86,7 +79,7 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	}
 
 	// We use this in the Aggregate and Distinct Operators to create instances
-	// of immutable Typles (i.e. Scala Tuples)
+	// of immutable Tuples (i.e. Scala Tuples)
 	public abstract T createInstance(Object[] fields);
 
 	@Override

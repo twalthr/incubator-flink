@@ -28,10 +28,9 @@ import org.apache.flink.types.ByteValue;
 public final class ByteValueSerializer extends TypeSerializerSingleton<ByteValue> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final ByteValueSerializer INSTANCE = new ByteValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -54,12 +53,19 @@ public final class ByteValueSerializer extends TypeSerializerSingleton<ByteValue
 
 	@Override
 	public ByteValue copy(ByteValue from) {
-		return copy(from, new ByteValue());
+		ByteValue result = new ByteValue();
+		result.setValue(from.getValue());
+		return result;
 	}
-	
+
 	@Override
 	public ByteValue copy(ByteValue from, ByteValue reuse) {
-		reuse.setValue(from.getValue());
+		if (reuse == null) {
+			reuse = copy(from);
+		}
+		else {
+			reuse.setValue(from.getValue());
+		}
 		return reuse;
 	}
 
@@ -75,14 +81,17 @@ public final class ByteValueSerializer extends TypeSerializerSingleton<ByteValue
 
 	@Override
 	public ByteValue deserialize(DataInputView source) throws IOException {
-		return deserialize(new ByteValue(), source);
+		ByteValue result = new ByteValue();
+		result.read(source);
+		return result;
 	}
-	
+
 	@Override
 	public ByteValue deserialize(ByteValue reuse, DataInputView source) throws IOException {
-		if(reuse == null){
+		if (reuse == null) {
 			reuse = deserialize(source);
-		}else {
+		}
+		else {
 			reuse.read(source);
 		}
 		return reuse;

@@ -26,7 +26,7 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final VoidSerializer INSTANCE = new VoidSerializer();
 
 	@Override
@@ -38,17 +38,22 @@ public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
 	@Override
 	public Void createInstance() {
-		return null;
+		throw new UnsupportedOperationException("VoidSerializer cannot create an instance.");
 	}
 
 	@Override
 	public Void copy(Void from) {
 		return null;
 	}
-	
+
 	@Override
 	public Void copy(Void from, Void reuse) {
 		return null;
@@ -71,7 +76,7 @@ public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 		source.readByte();
 		return null;
 	}
-	
+
 	@Override
 	public Void deserialize(Void reuse, DataInputView source) throws IOException {
 		source.readByte();
