@@ -27,8 +27,7 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class VertexWithRankSerializer extends TypeSerializerSingleton<VertexWithRank> {
 
 	private static final long serialVersionUID = 1L;
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -48,7 +47,7 @@ public final class VertexWithRankSerializer extends TypeSerializerSingleton<Vert
 	public VertexWithRank createInstance() {
 		return new VertexWithRank();
 	}
-	
+
 	@Override
 	public VertexWithRank copy(VertexWithRank from) {
 		return new VertexWithRank(from.getVertexID(), from.getRank());
@@ -56,8 +55,13 @@ public final class VertexWithRankSerializer extends TypeSerializerSingleton<Vert
 
 	@Override
 	public VertexWithRank copy(VertexWithRank from, VertexWithRank reuse) {
-		reuse.setVertexID(from.getVertexID());
-		reuse.setRank(from.getRank());
+		if (reuse == null) {
+			reuse = copy(from);
+		}
+		else {
+			reuse.setVertexID(from.getVertexID());
+			reuse.setRank(from.getRank());
+		}
 		return reuse;
 	}
 
@@ -76,12 +80,13 @@ public final class VertexWithRankSerializer extends TypeSerializerSingleton<Vert
 	public VertexWithRank deserialize(DataInputView source) throws IOException {
 		return new VertexWithRank(source.readLong(), source.readDouble());
 	}
-	
+
 	@Override
 	public VertexWithRank deserialize(VertexWithRank target, DataInputView source) throws IOException {
-		if(target == null){
+		if (target == null) {
 			target = deserialize(source);
-		}else {
+		}
+		else {
 			target.setVertexID(source.readLong());
 			target.setRank(source.readDouble());
 		}

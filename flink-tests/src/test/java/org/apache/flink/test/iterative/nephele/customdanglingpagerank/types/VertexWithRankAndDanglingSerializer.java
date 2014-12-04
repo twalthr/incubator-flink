@@ -27,8 +27,7 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class VertexWithRankAndDanglingSerializer extends TypeSerializerSingleton<VertexWithRankAndDangling> {
 
 	private static final long serialVersionUID = 1L;
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -53,12 +52,17 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializerSin
 	public VertexWithRankAndDangling copy(VertexWithRankAndDangling from) {
 		return new VertexWithRankAndDangling(from.getVertexID(), from.getRank(), from.isDangling());
 	}
-	
+
 	@Override
 	public VertexWithRankAndDangling copy(VertexWithRankAndDangling from, VertexWithRankAndDangling reuse) {
-		reuse.setVertexID(from.getVertexID());
-		reuse.setRank(from.getRank());
-		reuse.setDangling(from.isDangling());
+		if (reuse == null) {
+			reuse = copy(from);
+		}
+		else {
+			reuse.setVertexID(from.getVertexID());
+			reuse.setRank(from.getRank());
+			reuse.setDangling(from.isDangling());
+		}
 		return reuse;
 	}
 
@@ -78,12 +82,13 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializerSin
 	public VertexWithRankAndDangling deserialize(DataInputView source) throws IOException {
 		return new VertexWithRankAndDangling(source.readLong(), source.readDouble(), source.readBoolean());
 	}
-	
+
 	@Override
 	public VertexWithRankAndDangling deserialize(VertexWithRankAndDangling target, DataInputView source) throws IOException {
-		if(target == null){
+		if (target == null) {
 			target = deserialize(source);
-		}else {
+		}
+		else {
 			target.setVertexID(source.readLong());
 			target.setRank(source.readDouble());
 			target.setDangling(source.readBoolean());

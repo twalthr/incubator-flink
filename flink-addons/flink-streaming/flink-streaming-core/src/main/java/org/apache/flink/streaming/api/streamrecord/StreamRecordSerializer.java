@@ -67,7 +67,7 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 			throw new RuntimeException("Cannot instantiate StreamRecord.", e);
 		}
 	}
-	
+
 	@Override
 	public StreamRecord<T> copy(StreamRecord<T> from) {
 		StreamRecord<T> rec = new StreamRecord<T>();
