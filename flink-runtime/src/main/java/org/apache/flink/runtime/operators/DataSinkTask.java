@@ -152,7 +152,10 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			final OutputFormat<IT> format = this.format;
 			
 			
-			IT record = serializer.createInstance();
+			IT record = null;
+			if (serializer.canCreateInstance()) {
+				record = serializer.createInstance();
+			}
 			
 			// check if task has been canceled
 			if (this.taskCanceled) {

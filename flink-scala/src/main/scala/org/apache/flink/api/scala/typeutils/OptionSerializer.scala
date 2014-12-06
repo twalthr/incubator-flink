@@ -28,8 +28,10 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
 
   override def isStateful: Boolean = false
 
+  override def canCreateInstance: Boolean = false
+
   override def createInstance: Option[A] = {
-    None
+    throw new UnsupportedOperationException("OptionSerializer cannot create an instance.")
   }
 
   override def isImmutableType: Boolean = elemSerializer == null || elemSerializer.isImmutableType

@@ -93,8 +93,12 @@ class ScalaSpecialTypesSerializerTestInstance[T](
   override def testInstantiate(): Unit = {
     try {
       val serializer: TypeSerializer[T] = getSerializer
-      val instance: T = serializer.createInstance
-      assertNotNull("The created instance must not be null.", instance)
+
+      if (serializer.canCreateInstance) {
+        val instance: T = serializer.createInstance
+        assertNotNull("The created instance must not be null.", instance)
+      }
+
       val tpe: Class[T] = getTypeClass
       assertNotNull("The test is corrupt: type class is null.", tpe)
       // We cannot check this because Collection Instances are not always of the type

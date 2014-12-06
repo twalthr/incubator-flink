@@ -121,7 +121,10 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				// get start and end
 				final InputSplit split = splitIterator.next();
 				
-				OT record = serializer.createInstance();
+				OT record = null;
+				if (serializer.canCreateInstance()) {
+					record = serializer.createInstance();
+				}
 	
 				if (LOG.isDebugEnabled()) {
 					LOG.debug(getLogString("Opening input split " + split.toString()));

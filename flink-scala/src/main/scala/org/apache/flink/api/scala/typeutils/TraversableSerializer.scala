@@ -41,8 +41,10 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
     cbf = getCbf
   }
 
+  override def canCreateInstance: Boolean = false
+
   override def createInstance: T = {
-    cbf().result()
+    throw new UnsupportedOperationException("TraversableSerializer cannot create an instance.")
   }
 
   override def isImmutableType: Boolean = true

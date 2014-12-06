@@ -272,8 +272,8 @@ public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> 
 		this.deserializedFields2 = new Object[this.serializers.length];
 		
 		for (int i = 0; i < this.serializers.length; i++) {
-			this.deserializedFields1[i] = this.serializers[i].createInstance();
-			this.deserializedFields2[i] = this.serializers[i].createInstance();
+			this.deserializedFields1[i] = (this.serializers[i].canCreateInstance())? this.serializers[i].createInstance() : null;
+			this.deserializedFields2[i] = (this.serializers[i].canCreateInstance())? this.serializers[i].createInstance() : null;
 		}
 	}
 	

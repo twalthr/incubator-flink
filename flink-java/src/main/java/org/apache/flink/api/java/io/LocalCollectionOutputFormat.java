@@ -72,8 +72,13 @@ public class LocalCollectionOutputFormat<T> implements OutputFormat<T>, InputTyp
 
 	@Override
 	public void writeRecord(T record) throws IOException {
-		T recordCopy = this.typeSerializer.createInstance();
-		recordCopy = this.typeSerializer.copy(record, recordCopy);
+		T recordCopy;
+		if (this.typeSerializer.canCreateInstance()) {
+			recordCopy = this.typeSerializer.copy(record, this.typeSerializer.createInstance());
+		}
+		else {
+			recordCopy = this.typeSerializer.copy(record);
+		}
 		this.taskResult.add(recordCopy);
 	}
 

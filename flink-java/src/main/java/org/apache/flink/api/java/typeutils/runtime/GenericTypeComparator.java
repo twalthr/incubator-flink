@@ -108,11 +108,11 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 			this.serializer = this.serializerFactory.getSerializer();
 		}
 
-		if (this.reference == null) {
+		if (this.reference == null && this.serializer.canCreateInstance()) {
 			this.reference = this.serializer.createInstance();
 		}
 
-		if (this.tmpReference == null) {
+		if (this.tmpReference == null && this.serializer.canCreateInstance()) {
 			this.tmpReference = this.serializer.createInstance();
 		}
 

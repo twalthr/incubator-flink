@@ -30,8 +30,10 @@ class EitherSerializer[A, B, T <: Either[A, B]](
 
   override def isStateful: Boolean = false
 
+  override def canCreateInstance: Boolean = false
+
   override def createInstance: T = {
-    Left(null).asInstanceOf[T]
+    throw new UnsupportedOperationException("EitherSerializer cannot create an instance.")
   }
 
   override def isImmutableType: Boolean = {

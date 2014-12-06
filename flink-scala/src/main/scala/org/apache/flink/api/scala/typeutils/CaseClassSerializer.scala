@@ -34,6 +34,8 @@ abstract class CaseClassSerializer[T <: Product](
   @transient var fields : Array[AnyRef] = _
   
   @transient var instanceCreationFailed : Boolean = false
+
+  override def canCreateInstance: Boolean = true
   
   def createInstance: T = {
     if (instanceCreationFailed) {
@@ -44,7 +46,9 @@ abstract class CaseClassSerializer[T <: Product](
       try {
         var i = 0
         while (i < arity) {
-          fields(i) = fieldSerializers(i).createInstance()
+          if (fieldSerializers(i).canCreateInstance()) {
+            fields(i) = fieldSerializers(i).createInstance()
+          }
           i += 1
         }
         createInstance(fields)

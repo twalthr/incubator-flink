@@ -117,7 +117,7 @@ public abstract class SerializerTestBase<T> {
 			T[] testData = getData();
 			
 			for (T datum : testData) {
-				T copy = serializer.copy(datum, serializer.createInstance());
+				T copy = serializer.copy(datum, (serializer.canCreateInstance())? serializer.createInstance() : null);
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 			}
 		}
@@ -134,7 +134,13 @@ public abstract class SerializerTestBase<T> {
 			TypeSerializer<T> serializer = getSerializer();
 			T[] testData = getData();
 			
-			T target = serializer.createInstance();
+			T target;
+			if (serializer.canCreateInstance()) {
+				target = serializer.createInstance();
+			}
+			else {
+				target = null;
+			}
 			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum, target);
@@ -162,7 +168,7 @@ public abstract class SerializerTestBase<T> {
 				
 				assertTrue("No data available during deserialization.", in.available() > 0);
 				
-				T deserialized = serializer.deserialize(serializer.createInstance(), in);
+				T deserialized = serializer.deserialize((serializer.canCreateInstance())? serializer.createInstance() : null, in);
 				deepEquals("Deserialized value if wrong.", value, deserialized);
 				
 				assertTrue("Trailing data available after deserialization.", in.available() == 0);
@@ -181,7 +187,14 @@ public abstract class SerializerTestBase<T> {
 			TypeSerializer<T> serializer = getSerializer();
 			T[] testData = getData();
 			
-			T reuseValue = serializer.createInstance();
+			T reuseValue;
+			if (serializer.canCreateInstance()) {
+				reuseValue = serializer.createInstance();
+			}
+			else {
+				reuseValue = null;
+			}
+			
 			
 			for (T value : testData) {
 				TestOutputView out = new TestOutputView();
@@ -246,7 +259,13 @@ public abstract class SerializerTestBase<T> {
 			}
 			
 			TestInputView in = out.getInputView();
-			T reuseValue = serializer.createInstance();
+			T reuseValue;
+			if (serializer.canCreateInstance()) {
+				reuseValue = serializer.createInstance();
+			}
+			else {
+				reuseValue = null;
+			}
 			
 			int num = 0;
 			while (in.available() > 0) {
@@ -283,7 +302,7 @@ public abstract class SerializerTestBase<T> {
 				
 				assertTrue("No data available copying.", toVerify.available() > 0);
 				
-				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
+				T deserialized = serializer.deserialize((serializer.canCreateInstance())? serializer.createInstance() : null, toVerify);
 				deepEquals("Deserialized value if wrong.", value, deserialized);
 				
 				assertTrue("Trailing data available after deserialization.", toVerify.available() == 0);
@@ -318,7 +337,7 @@ public abstract class SerializerTestBase<T> {
 			int num = 0;
 			
 			while (toVerify.available() > 0) {
-				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
+				T deserialized = serializer.deserialize((serializer.canCreateInstance())? serializer.createInstance() : null, toVerify);
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				num++;
 			}

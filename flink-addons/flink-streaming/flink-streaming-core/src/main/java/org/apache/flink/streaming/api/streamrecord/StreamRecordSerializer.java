@@ -53,19 +53,18 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 
 	@Override
 	public boolean canCreateInstance() {
-		return typeSerializer.canCreateInstance();
+		// a StreamRecord can always be instantiated
+		return true;
 	}
 
 	@Override
 	public StreamRecord<T> createInstance() {
-		try {
-			StreamRecord<T> t = new StreamRecord<T>();
-			t.isTuple = isTuple;
+		StreamRecord<T> t = new StreamRecord<T>();
+		t.isTuple = isTuple;
+		if (typeSerializer.canCreateInstance()) {
 			t.setObject(typeSerializer.createInstance());
-			return t;
-		} catch (Exception e) {
-			throw new RuntimeException("Cannot instantiate StreamRecord.", e);
 		}
+		return t;
 	}
 
 	@Override

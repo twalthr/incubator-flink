@@ -23,6 +23,7 @@ import java.io.IOException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.hadoop.io.Writable;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -43,7 +44,7 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 
 	@Override
 	public T createInstance() {
-		throw new UnsupportedOperationException("WritableSerializer cannot create an instance.");
+		return InstantiationUtil.instantiate(typeClass);
 	}
 
 	@Override
@@ -70,7 +71,9 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
-		return deserialize(createInstance(), source);
+		T result = InstantiationUtil.instantiate(typeClass);
+		result.readFields(source);
+		return result;
 	}
 
 	@Override
@@ -103,7 +106,7 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 
 	@Override
 	public boolean canCreateInstance() {
-		return false;
+		return true;
 	}
 
 	// --------------------------------------------------------------------------------------------

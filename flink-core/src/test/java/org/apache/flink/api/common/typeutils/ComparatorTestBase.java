@@ -125,7 +125,7 @@ public abstract class ComparatorTestBase<T> {
 			for (T d : data) {
 				comparator.setReference(d);
 				// Make a copy to compare
-				T copy = serializer.copy(d, serializer.createInstance());
+				T copy = serializer.copy(d, (serializer.canCreateInstance())? serializer.createInstance() : null);
 
 				// And then test equalTo and compareToReference method of comparator
 				assertTrue(comparator.equalToReference(d));
@@ -442,7 +442,7 @@ public abstract class ComparatorTestBase<T> {
 		TestInputView in = out.getInputView();
 		assertTrue("No data available during deserialization.", in.available() > 0);
 
-		T deserialized = serializer.deserialize(serializer.createInstance(), in);
+		T deserialized = serializer.deserialize((serializer.canCreateInstance())? serializer.createInstance() : null, in);
 		deepEquals("Deserialized value is wrong.", value, deserialized);
 
 	}

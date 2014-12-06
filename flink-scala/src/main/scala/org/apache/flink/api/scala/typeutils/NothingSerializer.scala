@@ -29,8 +29,10 @@ class NothingSerializer extends TypeSerializer[Any] {
 
   override def isStateful: Boolean = false
 
+  override def canCreateInstance: Boolean = false
+
   override def createInstance: Any = {
-    Integer.valueOf(-1)
+    throw new UnsupportedOperationException("NothingSerializer cannot create an instance.")
   }
 
   override def isImmutableType: Boolean = true

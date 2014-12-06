@@ -135,7 +135,7 @@ public interface InputFormat<OT, T extends InputSplit> extends InputSplitSource<
 	 * <p>
 	 * When this method is called, the input format it guaranteed to be opened.
 	 * 
-	 * @param reuse Object that may be reused.
+	 * @param reuse Object that may be reused. It can be null.
 	 * @return Indicates whether the record could be successfully read. A return value of <i>true</i>
 	 *         indicates that the read was successful, a return value of false indicates that the
 	 *         current record was not read successfully and should be skipped.

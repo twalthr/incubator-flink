@@ -67,12 +67,12 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 
 	@Override
 	public boolean canCreateInstance() {
-		return false;
+		return true;
 	}
 
 	@Override
 	public T createInstance() {
-		throw new UnsupportedOperationException("ValueSerializer cannot create an instance.");
+		return InstantiationUtil.instantiate(this.type);
 	}
 
 	@Override
@@ -99,7 +99,9 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
-		return deserialize(createInstance(), source);
+		T result = InstantiationUtil.instantiate(this.type);
+		result.read(source);
+		return result;
 	}
 
 	@Override

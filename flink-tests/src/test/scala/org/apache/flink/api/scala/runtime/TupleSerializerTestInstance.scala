@@ -35,13 +35,18 @@ class TupleSerializerTestInstance[T <: Product] (
   override def testInstantiate(): Unit = {
     try {
       val serializer: TypeSerializer[T] = getSerializer
-      val instance: T = serializer.createInstance
-      assertNotNull("The created instance must not be null.", instance)
+
+      if (serializer.canCreateInstance) {
+        val instance: T = serializer.createInstance
+        assertNotNull("The created instance must not be null.", instance)
+      }
+
       val tpe: Class[T] = getTypeClass
       assertNotNull("The test is corrupt: type class is null.", tpe)
       // We cannot check this because Tuple1 instances are not actually of type Tuple1
       // but something like Tuple1$mcI$sp
-//      assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
+      //      assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
+
     }
     catch {
       case e: Exception => {
