@@ -35,32 +35,46 @@ public class JobWithJars {
 	private Plan plan;
 	
 	private List<File> jarFiles;
-	
+
+	/**
+	 * classpaths that are needed during user code execution
+	 */
+	private List<URL> classpaths;
+
+	// does not load classpaths at this point since it is not 
+	// guaranteed that they are available locally
 	private ClassLoader userCodeClassLoader;
 
 	
-	public JobWithJars(Plan plan, List<String> jarFiles) throws IOException {
+	public JobWithJars(Plan plan, List<String> jarFiles, List<String> classpaths) throws IOException {
 		this.plan = plan;
 		this.jarFiles = new ArrayList<File>(jarFiles.size());
-		
+		this.classpaths = new ArrayList<URL>(classpaths.size());
+
 		for (String jar: jarFiles) {
 			File file = new File(jar);
 			checkJarFile(file);
 			this.jarFiles.add(file);
 		}
+
+		for (String path: classpaths) {
+			this.classpaths.add(new URL(path));
+		}
 	}
-	
+
 	public JobWithJars(Plan plan, String jarFile) throws IOException {
 		this.plan = plan;
 		
 		File file = new File(jarFile);
 		checkJarFile(file);
 		this.jarFiles = Collections.singletonList(file);
+		this.classpaths = Collections.<URL>emptyList();
 	}
 	
 	JobWithJars(Plan plan, List<File> jarFiles, ClassLoader userCodeClassLoader) {
 		this.plan = plan;
 		this.jarFiles = jarFiles;
+		this.classpaths = Collections.<URL>emptyList();
 		this.userCodeClassLoader = userCodeClassLoader;
 	}
 
@@ -76,6 +90,13 @@ public class JobWithJars {
 	 */
 	public List<File> getJarFiles() {
 		return this.jarFiles;
+	}
+	
+	/**
+	 * Returns list of classpaths that need to be submitted with the plan.
+	 */
+	public List<URL> getClasspaths() {
+		return classpaths;
 	}
 	
 	/**
@@ -103,7 +124,6 @@ public class JobWithJars {
 	}
 	
 	public static ClassLoader buildUserCodeClassLoader(List<File> jars, ClassLoader parent) {
-		
 		URL[] urls = new URL[jars.size()];
 		try {
 			// add the nested jars

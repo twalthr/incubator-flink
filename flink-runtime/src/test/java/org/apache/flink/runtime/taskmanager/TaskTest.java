@@ -51,6 +51,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -643,6 +645,7 @@ public class TaskTest {
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				Collections.<BlobKey>emptyList(),
+				Collections.<URL>emptyList(),
 				0);
 	}
 

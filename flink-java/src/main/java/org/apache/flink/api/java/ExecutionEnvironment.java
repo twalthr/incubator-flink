@@ -942,7 +942,7 @@ public abstract class ExecutionEnvironment {
 				}
 				if(typeInfo instanceof CompositeType) {
 					List<GenericTypeInfo<?>> genericTypesInComposite = new ArrayList<GenericTypeInfo<?>>();
-					Utils.getContainedGenericTypes((CompositeType)typeInfo, genericTypesInComposite);
+					Utils.getContainedGenericTypes((CompositeType<?>)typeInfo, genericTypesInComposite);
 					for(GenericTypeInfo<?> gt : genericTypesInComposite) {
 						Serializers.recursivelyRegisterType(gt.getTypeClass(), config);
 					}
@@ -1097,7 +1097,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A remote environment that executes the program on a cluster.
 	 */
 	public static ExecutionEnvironment createRemoteEnvironment(String host, int port, String... jarFiles) {
-		return new RemoteEnvironment(host, port, jarFiles);
+		return new RemoteEnvironment(host, port, jarFiles, null);
 	}
 
 	/**
@@ -1114,7 +1114,30 @@ public abstract class ExecutionEnvironment {
 	 * @return A remote environment that executes the program on a cluster.
 	 */
 	public static ExecutionEnvironment createRemoteEnvironment(String host, int port, int parallelism, String... jarFiles) {
-		RemoteEnvironment rec = new RemoteEnvironment(host, port, jarFiles);
+		RemoteEnvironment rec = new RemoteEnvironment(host, port, jarFiles, null);
+		rec.setParallelism(parallelism);
+		return rec;
+	}
+	
+	/**
+	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program 
+	 * to a cluster for execution. Note that all file paths used in the program must be accessible from the
+	 * cluster. The execution will use the specified parallelism.
+	 * 
+	 * @param host The host name or address of the master (JobManager), where the program should be executed.
+	 * @param port The port of the master (JobManager), where the program should be executed.
+	 * @param parallelism The parallelism to use during the execution.
+	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
+	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
+	 *                 provided in the JAR files.
+	 * @param globalClasspaths The paths of directories and JAR files that are added to each user code 
+	 *                 classloader on all nodes in the cluster. Note that the paths must specify a
+	 *                 protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share).
+	 * @return A remote environment that executes the program on a cluster.
+	 */
+	public static ExecutionEnvironment createRemoteEnvironment(String host, int port, int parallelism,
+			String[] jarFiles, String[] globalClasspaths) {
+		RemoteEnvironment rec = new RemoteEnvironment(host, port, jarFiles, globalClasspaths);
 		rec.setParallelism(parallelism);
 		return rec;
 	}

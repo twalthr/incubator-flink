@@ -25,6 +25,8 @@ import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.JobID;
@@ -281,10 +283,10 @@ public class Client {
 	}
 	
 	public JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan) throws ProgramInvocationException {
-		return getJobGraph(optPlan, prog.getAllLibraries());
+		return getJobGraph(optPlan, prog.getAllLibraries(), Collections.<URL>emptyList());
 	}
 	
-	private JobGraph getJobGraph(FlinkPlan optPlan, List<File> jarFiles) {
+	private JobGraph getJobGraph(FlinkPlan optPlan, List<File> jarFiles, List<URL> classpaths) {
 		JobGraph job;
 		if (optPlan instanceof StreamingPlan) {
 			job = ((StreamingPlan) optPlan).getJobGraph();
@@ -296,6 +298,8 @@ public class Client {
 		for (File jar : jarFiles) {
 			job.addJar(new Path(jar.getAbsolutePath()));
 		}
+
+		job.setClasspaths(classpaths);
 
 		return job;
 	}
@@ -326,7 +330,7 @@ public class Client {
 	}
 	
 	public JobSubmissionResult run(PackagedProgram prog, OptimizedPlan optimizedPlan, boolean wait) throws ProgramInvocationException {
-		return run(optimizedPlan, prog.getAllLibraries(), wait);
+		return run(optimizedPlan, prog.getAllLibraries(), Collections.<URL>emptyList(), wait);
 
 	}
 	
@@ -345,12 +349,12 @@ public class Client {
 	 *                                    parallel execution failed.
 	 */
 	public JobSubmissionResult run(JobWithJars prog, int parallelism, boolean wait) throws CompilerException, ProgramInvocationException {
-		return run((OptimizedPlan) getOptimizedPlan(prog, parallelism), prog.getJarFiles(), wait);
+		return run((OptimizedPlan) getOptimizedPlan(prog, parallelism), prog.getJarFiles(), prog.getClasspaths(), wait);
 	}
 	
 
-	public JobSubmissionResult run(OptimizedPlan compiledPlan, List<File> libraries, boolean wait) throws ProgramInvocationException {
-		JobGraph job = getJobGraph(compiledPlan, libraries);
+	public JobSubmissionResult run(OptimizedPlan compiledPlan, List<File> libraries, List<URL> classpaths, boolean wait) throws ProgramInvocationException {
+		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths);
 		this.lastJobId = job.getJobID();
 		return run(job, wait);
 	}

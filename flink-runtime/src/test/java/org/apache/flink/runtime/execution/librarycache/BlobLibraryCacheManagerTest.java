@@ -34,6 +34,7 @@ import static org.junit.Assert.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -66,7 +67,7 @@ public class BlobLibraryCacheManagerTest {
 
 			long cleanupInterval = 1000l;
 			libraryCacheManager = new BlobLibraryCacheManager(server, cleanupInterval);
-			libraryCacheManager.registerJob(jid, keys);
+			libraryCacheManager.registerJob(jid, keys, Collections.<URL>emptyList());
 
 			List<File> files = new ArrayList<File>();
 
@@ -166,7 +167,7 @@ public class BlobLibraryCacheManagerTest {
 				ExecutionAttemptID executionId = new ExecutionAttemptID();
 				Collection<BlobKey> keys = Collections.singleton(dataKey1);
 
-				libCache.registerTask(jid, executionId, keys);
+				libCache.registerTask(jid, executionId, keys, Collections.<URL>emptyList());
 				assertEquals(1, libCache.getNumberOfReferenceHolders(jid));
 				assertEquals(1, libCache.getNumberOfCachedLibraries());
 				assertNotNull(libCache.getClassLoader(jid));
@@ -197,7 +198,8 @@ public class BlobLibraryCacheManagerTest {
 
 			// since we cannot download this library any more, this call should fail
 			try {
-				libCache.registerTask(new JobID(), new ExecutionAttemptID(), Collections.singleton(dataKey2));
+				libCache.registerTask(new JobID(), new ExecutionAttemptID(), Collections.singleton(dataKey2),
+						Collections.<URL>emptyList());
 				fail("This should fail with an IOException");
 			}
 			catch (IOException e) {

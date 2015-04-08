@@ -442,7 +442,8 @@ class JobManager(protected val flinkConfiguration: Configuration,
         // because this makes sure that the uploaded jar files are removed in case of
         // unsuccessful
         try {
-          libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys)
+          libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys,
+            jobGraph.getClasspaths)
         }
         catch {
           case t: Throwable =>
@@ -463,7 +464,8 @@ class JobManager(protected val flinkConfiguration: Configuration,
         // see if there already exists an ExecutionGraph for the corresponding job ID
         executionGraph = currentJobs.getOrElseUpdate(jobGraph.getJobID,
           (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
-            jobGraph.getJobConfiguration, timeout, jobGraph.getUserJarBlobKeys, userCodeLoader),
+            jobGraph.getJobConfiguration, timeout, jobGraph.getUserJarBlobKeys,
+            jobGraph.getClasspaths, userCodeLoader),
             JobInfo(sender(), System.currentTimeMillis())))._1
 
         // configure the execution graph

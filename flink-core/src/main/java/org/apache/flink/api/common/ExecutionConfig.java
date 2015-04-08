@@ -575,7 +575,7 @@ public class ExecutionConfig implements Serializable {
 				return false;
 			}
 
-			Entry entry = (Entry) o;
+			Entry<?,?> entry = (Entry<?,?>) o;
 
 			if (k != null ? !k.equals(entry.k) : entry.k != null) {
 				return false;

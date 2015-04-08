@@ -107,9 +107,12 @@ public abstract class PlanExecutor {
 	 * @param port The port of the JobManager to send the program to.
 	 * @param jarFiles A list of jar files that contain the user-defined function (UDF) classes and all classes used
 	 *                 from within the UDFs.
+	 * @param globalClasspaths A list of paths that are added to the classpath of each user code classloader of the
+	 *                 program. Paths must specify a protocol (e.g. file://) and be accessible on all nodes.
 	 * @return A remote executor.
 	 */
-	public static PlanExecutor createRemoteExecutor(String hostname, int port, String... jarFiles) {
+	public static PlanExecutor createRemoteExecutor(String hostname, int port, String[] jarFiles,
+			String[] globalClasspaths) {
 		if (hostname == null) {
 			throw new IllegalArgumentException("The hostname must not be null.");
 		}
@@ -120,10 +123,13 @@ public abstract class PlanExecutor {
 		Class<? extends PlanExecutor> reClass = loadExecutorClass(REMOTE_EXECUTOR_CLASS);
 		
 		List<String> files = (jarFiles == null || jarFiles.length == 0) ? Collections.<String>emptyList()
-																		: Arrays.asList(jarFiles); 
+																		: Arrays.asList(jarFiles);
+		List<String> paths = (globalClasspaths == null || globalClasspaths.length == 0) ?
+				Collections.<String>emptyList() : Arrays.asList(globalClasspaths);
 		
 		try {
-			return reClass.getConstructor(String.class, int.class, List.class).newInstance(hostname, port, files);
+			return reClass.getConstructor(String.class, int.class, List.class, List.class)
+					.newInstance(hostname, port, files, paths);
 		}
 		catch (Throwable t) {
 			throw new RuntimeException("An error occurred while loading the remote executor ("

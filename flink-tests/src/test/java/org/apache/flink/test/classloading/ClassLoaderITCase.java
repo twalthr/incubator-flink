@@ -25,13 +25,14 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
-
 import org.junit.Assert;
 import org.junit.Test;
 
 public class ClassLoaderITCase {
 	
 	private static final String INPUT_SPLITS_PROG_JAR_FILE = "target/customsplit-test-jar.jar";
+
+	private static final String INPUT_SPLITS_PROG_JAR_CLASSPATH = "file://./target/customsplit-test-jar.jar";
 
 	private static final String STREAMING_PROG_JAR_FILE = "target/streamingclassloader-test-jar.jar";
 
@@ -51,11 +52,21 @@ public class ClassLoaderITCase {
 
 				PackagedProgram inputSplitTestProg = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE),
 						new String[] { INPUT_SPLITS_PROG_JAR_FILE,
+										"", // classpath
 										"localhost",
 										String.valueOf(port),
 										"4" // parallelism
 									} );
 				inputSplitTestProg.invokeInteractiveModeForExecution();
+
+				PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE),
+						new String[] { "",
+										INPUT_SPLITS_PROG_JAR_CLASSPATH, // classpath
+										"localhost",
+										String.valueOf(port),
+										"4" // parallelism
+									} );
+				inputSplitTestProg2.invokeInteractiveModeForExecution();
 
 				PackagedProgram streamingProg = new PackagedProgram(new File(STREAMING_PROG_JAR_FILE),
 						new String[] { STREAMING_PROG_JAR_FILE, "localhost", String.valueOf(port) } );

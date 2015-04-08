@@ -36,6 +36,8 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	
 	private final String[] jarFiles;
 	
+	private final String[] globalClasspaths;
+	
 	/**
 	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
 	 * given host name and port.
@@ -45,8 +47,11 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
 	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
 	 *                 provided in the JAR files.
-	 */	
-	public RemoteEnvironment(String host, int port, String... jarFiles) {
+	 * @param globalClasspaths The paths of directories and JAR files that are added to each user code 
+	 *                 classloader on all nodes in the cluster. Note that the paths must specify a 
+	 *                 protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share).
+	 */
+	public RemoteEnvironment(String host, int port, String[] jarFiles, String[] globalClasspaths) {
 		if (host == null) {
 			throw new NullPointerException("Host must not be null.");
 		}
@@ -58,14 +63,14 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		this.host = host;
 		this.port = port;
 		this.jarFiles = jarFiles;
+		this.globalClasspaths = globalClasspaths;
 	}
 	
 	
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
-		
-		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles);
+		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles, globalClasspaths);
 		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
 		return executor.executePlan(p);
 	}
@@ -76,7 +81,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		p.setDefaultParallelism(getParallelism());
 		registerCachedFilesWithPlan(p);
 		
-		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles);
+		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles, globalClasspaths);
 		return executor.getOptimizerPlanAsJSON(p);
 	}
 

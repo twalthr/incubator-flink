@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -132,6 +133,10 @@ public class ExecutionGraph implements Serializable {
 	 * inside the BlobService and are referenced via the BLOB keys. */
 	private final List<BlobKey> requiredJarFiles;
 
+	/** A list of all classpaths required during the job execution. Classpaths have to be
+	 * accessible on all nodes in the cluster. */
+	private final List<URL> requiredClasspaths;
+
 	/** Listeners that receive messages when the entire job switches it status (such as from
 	 * RUNNING to FINISHED) */
 	private final List<ActorRef> jobStatusListenerActors;
@@ -210,11 +215,12 @@ public class ExecutionGraph implements Serializable {
 	 * This constructor is for tests only, because it does not include class loading information.
 	 */
 	ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout) {
-		this(jobId, jobName, jobConfig, timeout, new ArrayList<BlobKey>(), ExecutionGraph.class.getClassLoader());
+		this(jobId, jobName, jobConfig, timeout, new ArrayList<BlobKey>(), new ArrayList<URL>(),
+				ExecutionGraph.class.getClassLoader());
 	}
 
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout,
-			List<BlobKey> requiredJarFiles, ClassLoader userClassLoader) {
+			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths, ClassLoader userClassLoader) {
 
 		if (jobId == null || jobName == null || jobConfig == null || userClassLoader == null) {
 			throw new NullPointerException();
@@ -237,6 +243,7 @@ public class ExecutionGraph implements Serializable {
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
 
 		this.requiredJarFiles = requiredJarFiles;
+		this.requiredClasspaths = requiredClasspaths;
 
 		this.timeout = timeout;
 	}
@@ -365,6 +372,16 @@ public class ExecutionGraph implements Serializable {
 	public List<BlobKey> getRequiredJarFiles() {
 		return this.requiredJarFiles;
 	}
+
+	/**
+	 * Returns a list of classpaths referring to the directories/JAR files required to run this job
+	 * @return list of classpaths referring to the directories/JAR files required to run this job
+	 */
+	public List<URL> getRequiredClasspaths() {
+		return this.requiredClasspaths;
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	public Scheduler getScheduler() {
 		return scheduler;
