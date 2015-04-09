@@ -32,8 +32,6 @@ public class ClassLoaderITCase {
 	
 	private static final String INPUT_SPLITS_PROG_JAR_FILE = "target/customsplit-test-jar.jar";
 
-	private static final String INPUT_SPLITS_PROG_JAR_CLASSPATH = "file://./target/customsplit-test-jar.jar";
-
 	private static final String STREAMING_PROG_JAR_FILE = "target/streamingclassloader-test-jar.jar";
 
 	private static final String KMEANS_JAR_PATH = "target/kmeans-test-jar.jar";
@@ -59,9 +57,10 @@ public class ClassLoaderITCase {
 									} );
 				inputSplitTestProg.invokeInteractiveModeForExecution();
 
+				String classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL().toString();
 				PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE),
 						new String[] { "",
-										INPUT_SPLITS_PROG_JAR_CLASSPATH, // classpath
+										classpath, // classpath
 										"localhost",
 										String.valueOf(port),
 										"4" // parallelism
