@@ -22,6 +22,7 @@ import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
@@ -52,27 +53,27 @@ public class RemoteExecutor extends PlanExecutor {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutor.class);
 
-	private final List<String> jarFiles;
-	private final List<String> globalClasspaths;
+	private final List<URL> jarFiles;
+	private final List<URL> globalClasspaths;
 	private final InetSocketAddress address;
 	
 	public RemoteExecutor(String hostname, int port) {
-		this(hostname, port, Collections.<String>emptyList(), Collections.<String>emptyList());
+		this(hostname, port, Collections.<URL>emptyList(), Collections.<URL>emptyList());
 	}
 	
-	public RemoteExecutor(String hostname, int port, String jarFile) {
-		this(hostname, port, Collections.singletonList(jarFile), Collections.<String>emptyList());
+	public RemoteExecutor(String hostname, int port, URL jarFile) {
+		this(hostname, port, Collections.singletonList(jarFile), Collections.<URL>emptyList());
 	}
 	
-	public RemoteExecutor(String hostport, String jarFile) {
-		this(getInetFromHostport(hostport), Collections.singletonList(jarFile), Collections.<String>emptyList());
+	public RemoteExecutor(String hostport, URL jarFile) {
+		this(getInetFromHostport(hostport), Collections.singletonList(jarFile), Collections.<URL>emptyList());
 	}
 	
-	public RemoteExecutor(String hostname, int port, List<String> jarFiles, List<String> globalClasspaths) {
+	public RemoteExecutor(String hostname, int port, List<URL> jarFiles, List<URL> globalClasspaths) {
 		this(new InetSocketAddress(hostname, port), jarFiles, globalClasspaths);
 	}
 
-	public RemoteExecutor(InetSocketAddress inet, List<String> jarFiles, List<String> globalClasspaths) {
+	public RemoteExecutor(InetSocketAddress inet, List<URL> jarFiles, List<URL> globalClasspaths) {
 		this.jarFiles = jarFiles;
 		this.address = inet;
 		this.globalClasspaths = globalClasspaths;

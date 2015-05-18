@@ -18,7 +18,7 @@
 
 package org.apache.flink.client.program;
 
-import java.io.File;
+import java.net.URL;
 import java.util.List;
 
 import org.apache.flink.api.common.JobExecutionResult;
@@ -40,7 +40,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private final Client client;
 	
-	private final List<File> jarFilesToAttach;
+	private final List<URL> jarFilesToAttach;
 	
 	private final ClassLoader userCodeClassLoader;
 
@@ -48,7 +48,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	
 	
 	
-	public ContextEnvironment(Client remoteConnection, List<File> jarFiles, ClassLoader userCodeClassLoader, boolean wait) {
+	public ContextEnvironment(Client remoteConnection, List<URL> jarFiles, ClassLoader userCodeClassLoader, boolean wait) {
 		this.client = remoteConnection;
 		this.jarFilesToAttach = jarFiles;
 		this.userCodeClassLoader = userCodeClassLoader;
@@ -93,13 +93,13 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		return this.client;
 	}
 	
-	public List<File> getJars(){
+	public List<URL> getJars(){
 		return jarFilesToAttach;
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	static void setAsContext(Client client, List<File> jarFilesToAttach, 
+	static void setAsContext(Client client, List<URL> jarFilesToAttach, 
 				ClassLoader userCodeClassLoader, int defaultParallelism, boolean wait)
 	{
 		initializeContextEnvironment(new ContextEnvironmentFactory(client, jarFilesToAttach, userCodeClassLoader, defaultParallelism, wait));
@@ -115,7 +115,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		
 		private final Client client;
 		
-		private final List<File> jarFilesToAttach;
+		private final List<URL> jarFilesToAttach;
 		
 		private final ClassLoader userCodeClassLoader;
 		
@@ -124,7 +124,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		private final boolean wait;
 		
 
-		public ContextEnvironmentFactory(Client client, List<File> jarFilesToAttach, 
+		public ContextEnvironmentFactory(Client client, List<URL> jarFilesToAttach, 
 				ClassLoader userCodeClassLoader, int defaultParallelism, boolean wait)
 		{
 			this.client = client;

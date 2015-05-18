@@ -30,6 +30,9 @@ import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -70,7 +73,7 @@ public class PackagedProgram {
 
 	// --------------------------------------------------------------------------------------------
 
-	private final File jarFile;
+	private final URL jarFile;
 
 	private final String[] args;
 	
@@ -124,19 +127,26 @@ public class PackagedProgram {
 			throw new IllegalArgumentException("The jar file must not be null.");
 		}
 		
-		checkJarFile(jarFile);
+		URL jarFileUrl;
+		try {
+			jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
+		} catch (MalformedURLException e1) {
+			throw new IllegalArgumentException("The jar file path is invalid.");
+		}
 		
-		this.jarFile = jarFile;
+		checkJarFile(jarFileUrl);
+		
+		this.jarFile = jarFileUrl;
 		this.args = args == null ? new String[0] : args;
 		
 		// if no entryPointClassName name was given, we try and look one up through the manifest
 		if (entryPointClassName == null) {
-			entryPointClassName = getEntryPointClassNameFromJar(jarFile);
+			entryPointClassName = getEntryPointClassNameFromJar(jarFileUrl);
 		}
 		
 		// now that we have an entry point, we can extract the nested jar files (if any)
-		this.extractedTempLibraries = extractContainedLibaries(jarFile);
-		this.userCodeClassLoader = buildUserCodeClassLoader(jarFile, extractedTempLibraries, getClass().getClassLoader());
+		this.extractedTempLibraries = extractContainedLibaries(jarFileUrl);
+		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(getAllLibraries(), Collections.<URL>emptyList(), getClass().getClassLoader());
 		
 		// load the entry point class
 		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
@@ -227,14 +237,7 @@ public class PackagedProgram {
 	 */
 	public JobWithJars getPlanWithJars() throws ProgramInvocationException {
 		if (isUsingProgramEntryPoint()) {
-			List<File> allJars = new ArrayList<File>();
-			
-			if (this.jarFile != null) {
-				allJars.add(jarFile);
-			}
-			allJars.addAll(extractedTempLibraries);
-			
-			return new JobWithJars(getPlan(), allJars, userCodeClassLoader);
+			return new JobWithJars(getPlan(), getAllLibraries(), userCodeClassLoader);
 		} else {
 			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() + 
 					" for a program that is using the interactive mode.");
@@ -365,15 +368,24 @@ public class PackagedProgram {
 		return this.userCodeClassLoader;
 	}
 
-	public List<File> getAllLibraries() {
-		List<File> libs = new ArrayList<File>(this.extractedTempLibraries.size() + 1);
+	public List<URL> getAllLibraries() {
+		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
+
 		if (jarFile != null) {
 			libs.add(jarFile);
 		}
-		libs.addAll(this.extractedTempLibraries);
+		for (File tmpLib : this.extractedTempLibraries) {
+			try {
+				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
+			}
+			catch (MalformedURLException e) {
+				throw new RuntimeException("URL is invalid. This should not happen.", e);
+			}
+		}
+
 		return libs;
 	}
-	
+
 	/**
 	 * Deletes all temporary files created for contained packaged libraries.
 	 */
@@ -457,14 +469,16 @@ public class PackagedProgram {
 		}
 	}
 
-	private static String getEntryPointClassNameFromJar(File jarFile) throws ProgramInvocationException {
+	private static String getEntryPointClassNameFromJar(URL jarFile) throws ProgramInvocationException {
 		JarFile jar = null;
 		Manifest manifest = null;
 		String className = null;
 
 		// Open jar file
 		try {
-			jar = new JarFile(jarFile);
+			jar = new JarFile(new File(jarFile.toURI()));
+		} catch (URISyntaxException use) {
+			throw new ProgramInvocationException("Invalid file path '" + jarFile.getPath() + "'", use);
 		} catch (IOException ioex) {
 			throw new ProgramInvocationException("Error while opening jar file '" + jarFile.getPath() + "'. "
 				+ ioex.getMessage(), ioex);
@@ -561,13 +575,13 @@ public class PackagedProgram {
 	 * @return The file names of the extracted temporary files.
 	 * @throws ProgramInvocationException Thrown, if the extraction process failed.
 	 */
-	private static List<File> extractContainedLibaries(File jarFile) throws ProgramInvocationException {
+	private static List<File> extractContainedLibaries(URL jarFile) throws ProgramInvocationException {
 		
 		Random rnd = new Random();
 		
 		JarFile jar = null;
 		try {
-			jar = new JarFile(jarFile);
+			jar = new JarFile(new File(jarFile.toURI()));
 			final List<JarEntry> containedJarFileEntries = new ArrayList<JarEntry>();
 			
 			Enumeration<JarEntry> entries = jar.entries();
@@ -666,15 +680,7 @@ public class PackagedProgram {
 		}
 	}
 	
-	private static ClassLoader buildUserCodeClassLoader(File mainJar, List<File> nestedJars, ClassLoader parent) throws ProgramInvocationException {
-		ArrayList<File> allJars = new ArrayList<File>(nestedJars.size() + 1);
-		allJars.add(mainJar);
-		allJars.addAll(nestedJars);
-		
-		return JobWithJars.buildUserCodeClassLoader(allJars, parent);
-	}
-	
-	private static void checkJarFile(File jarfile) throws ProgramInvocationException {
+	private static void checkJarFile(URL jarfile) throws ProgramInvocationException {
 		try {
 			JobWithJars.checkJarFile(jarfile);
 		}

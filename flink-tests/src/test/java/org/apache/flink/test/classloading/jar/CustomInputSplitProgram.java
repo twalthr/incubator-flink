@@ -19,6 +19,7 @@
 package org.apache.flink.test.classloading.jar;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -44,12 +45,13 @@ public class CustomInputSplitProgram {
 	
 	public static void main(String[] args) throws Exception {
 		final String[] jarFile = (args[0].equals(""))? null : new String[] { args[0] };
-		final String[] classpath = (args[1].equals(""))? null : new String[] { args[1] };
+		final URL[] classpath = (args[1].equals(""))? null : new URL[] { new URL(args[1]) };
 		final String host = args[2];
 		final int port = Integer.parseInt(args[3]);
 		final int parallelism = Integer.parseInt(args[4]);
 
-		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, parallelism, jarFile, classpath);
+		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, parallelism, jarFile,
+				 classpath);
 		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> data = env.createInput(new CustomInputFormat());

@@ -17,8 +17,8 @@
 
 package org.apache.flink.streaming.api.environment;
 
-import java.io.File;
 import java.io.Serializable;
+import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 
@@ -677,7 +677,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	private static StreamExecutionEnvironment createContextEnvironment(Client client,
-			List<File> jars, int parallelism, boolean wait) {
+			List<URL> jars, int parallelism, boolean wait) {
 		return new StreamContextEnvironment(client, jars, parallelism, wait);
 	}
 

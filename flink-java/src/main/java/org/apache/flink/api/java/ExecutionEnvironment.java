@@ -20,6 +20,7 @@ package org.apache.flink.api.java;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -1130,13 +1131,13 @@ public abstract class ExecutionEnvironment {
 	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
 	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
 	 *                 provided in the JAR files.
-	 * @param globalClasspaths The paths of directories and JAR files that are added to each user code 
+	 * @param globalClasspaths The URLs of directories and JAR files that are added to each user code 
 	 *                 classloader on all nodes in the cluster. Note that the paths must specify a
 	 *                 protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share).
 	 * @return A remote environment that executes the program on a cluster.
 	 */
 	public static ExecutionEnvironment createRemoteEnvironment(String host, int port, int parallelism,
-			String[] jarFiles, String[] globalClasspaths) {
+			String[] jarFiles, URL[] globalClasspaths) {
 		RemoteEnvironment rec = new RemoteEnvironment(host, port, jarFiles, globalClasspaths);
 		rec.setParallelism(parallelism);
 		return rec;

@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
-import java.io.File;
+import java.net.URL;
 import java.util.List;
 
 import org.apache.flink.api.common.JobExecutionResult;
@@ -34,11 +34,11 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamContextEnvironment.class);
 
-	protected List<File> jars;
+	protected List<URL> jars;
 	protected Client client;
 	private final boolean wait;
 
-	protected StreamContextEnvironment(Client client, List<File> jars, int parallelism, boolean wait) {
+	protected StreamContextEnvironment(Client client, List<URL> jars, int parallelism, boolean wait) {
 		this.client = client;
 		this.jars = jars;
 		this.wait = wait;
@@ -72,8 +72,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			jobGraph = this.streamGraph.getJobGraph(jobName);
 		}
 
-		for (File file : jars) {
-			jobGraph.addJar(new Path(file.getAbsolutePath()));
+		for (URL file : jars) {
+			jobGraph.addJar(new Path(file.toURI()));
 		}
 
 		JobSubmissionResult result = client.run(jobGraph, wait);

@@ -20,8 +20,12 @@ package org.apache.flink.streaming.api.environment;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
 import java.net.UnknownHostException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.JobExecutionResult;
@@ -40,7 +44,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	private final String host;
 	private final int port;
-	private final List<File> jarFiles;
+	private final List<URL> jarFiles;
 
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
@@ -69,16 +73,17 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 		this.host = host;
 		this.port = port;
-		this.jarFiles = new ArrayList<File>();
+		this.jarFiles = new ArrayList<URL>();
 		for (String jarFile : jarFiles) {
-			File file = new File(jarFile);
 			try {
-				JobWithJars.checkJarFile(file);
+				URL jarFileUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
+				this.jarFiles.add(jarFileUrl);
+				JobWithJars.checkJarFile(jarFileUrl);
+			} catch (MalformedURLException e) {
+				throw new IllegalArgumentException("JAR file path is invalid '" + jarFile + "'", e);
+			} catch (IOException e) {
+				throw new RuntimeException("Problem with jar file " + jarFile, e);
 			}
-			catch (IOException e) {
-				throw new RuntimeException("Problem with jar file " + file.getAbsolutePath(), e);
-			}
-			this.jarFiles.add(file);
 		}
 	}
 
@@ -108,12 +113,17 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
 
-		for (File file : jarFiles) {
-			jobGraph.addJar(new Path(file.getAbsolutePath()));
+		for (URL jarFile : jarFiles) {
+			try {
+				jobGraph.addJar(new Path(jarFile.toURI()));
+			} catch (URISyntaxException e) {
+				throw new ProgramInvocationException("URL is invalid", e);
+			}
 		}
 
 		Configuration configuration = jobGraph.getJobConfiguration();
-		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, getClass().getClassLoader());
+		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles,
+				Collections.<URL>emptyList(), getClass().getClassLoader());
 
 		try {
 			Client client = new Client(new InetSocketAddress(host, port), configuration, usercodeClassLoader, -1);

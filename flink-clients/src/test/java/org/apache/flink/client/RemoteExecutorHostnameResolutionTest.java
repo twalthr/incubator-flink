@@ -24,6 +24,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.junit.Test;
 
 import java.net.InetSocketAddress;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Collections;
 
@@ -56,7 +57,8 @@ public class RemoteExecutorHostnameResolutionTest {
 	public void testUnresolvableHostname2() {
 		try {
 			InetSocketAddress add = new InetSocketAddress(nonExistingHostname, port);
-			RemoteExecutor exec = new RemoteExecutor(add, Collections.<String>emptyList());
+			RemoteExecutor exec = new RemoteExecutor(add, Collections.<URL>emptyList(),
+					Collections.<URL>emptyList());
 			exec.executePlan(getProgram());
 			fail("This should fail with an UnknownHostException");
 		}

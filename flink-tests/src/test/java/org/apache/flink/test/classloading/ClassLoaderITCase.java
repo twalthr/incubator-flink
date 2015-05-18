@@ -57,6 +57,8 @@ public class ClassLoaderITCase {
 									} );
 				inputSplitTestProg.invokeInteractiveModeForExecution();
 
+
+
 				String classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL().toString();
 				PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE),
 						new String[] { "",

@@ -19,11 +19,11 @@
 package org.apache.flink.client.program;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.net.URL;
 import java.util.Collections;
@@ -286,7 +286,7 @@ public class Client {
 		return getJobGraph(optPlan, prog.getAllLibraries(), Collections.<URL>emptyList());
 	}
 	
-	private JobGraph getJobGraph(FlinkPlan optPlan, List<File> jarFiles, List<URL> classpaths) {
+	private JobGraph getJobGraph(FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths) {
 		JobGraph job;
 		if (optPlan instanceof StreamingPlan) {
 			job = ((StreamingPlan) optPlan).getJobGraph();
@@ -295,8 +295,12 @@ public class Client {
 			job = gen.compileJobGraph((OptimizedPlan) optPlan);
 		}
 
-		for (File jar : jarFiles) {
-			job.addJar(new Path(jar.getAbsolutePath()));
+		for (URL jar : jarFiles) {
+			try {
+				job.addJar(new Path(jar.toURI()));
+			} catch (URISyntaxException e) {
+				throw new RuntimeException("URL is invalid. This should not happen.", e);
+			}
 		}
 
 		job.setClasspaths(classpaths);
@@ -353,7 +357,7 @@ public class Client {
 	}
 	
 
-	public JobSubmissionResult run(OptimizedPlan compiledPlan, List<File> libraries, List<URL> classpaths, boolean wait) throws ProgramInvocationException {
+	public JobSubmissionResult run(OptimizedPlan compiledPlan, List<URL> libraries, List<URL> classpaths, boolean wait) throws ProgramInvocationException {
 		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths);
 		this.lastJobId = job.getJobID();
 		return run(job, wait);
