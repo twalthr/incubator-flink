@@ -94,6 +94,12 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.calcite</groupId>
+			<artifactId>calcite-core</artifactId>
+			<version>1.4.0-incubating</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>
