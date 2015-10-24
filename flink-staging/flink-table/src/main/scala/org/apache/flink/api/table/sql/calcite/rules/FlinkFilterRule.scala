@@ -16,9 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.sql
 
-/**
- * Exception for all errors occurring during SQL evaluation.
- */
-class SqlException(msg: String) extends RuntimeException(msg)
+package org.apache.flink.api.table.sql.calcite.rules
+
+import org.apache.calcite.plan.Convention
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.logical.LogicalFilter
+import org.apache.flink.api.table.sql.calcite.nodes.FlinkFilter
+import org.apache.calcite.plan.RelOptRule.{convert => convertTrait}
+
+class FlinkFilterRule private extends FlinkConverterRule(
+    classOf[LogicalFilter],
+    Convention.NONE,
+    "FlinkFilterRule") {
+
+  override def convert(rel: RelNode): RelNode = {
+    val filter = rel.asInstanceOf[LogicalFilter]
+    val traitSet = filter.getTraitSet.replace(out)
+    new FlinkFilter(rel.getCluster,
+        traitSet,
+        convertTrait(filter.getInput, out),
+        filter.getCondition)
+  }
+}
+
+object FlinkFilterRule {
+  val INSTANCE = new FlinkFilterRule()
+}

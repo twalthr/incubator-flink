@@ -16,9 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.sql
+package org.apache.flink.api.table.sql.calcite
 
-/**
- * Exception for all errors occurring during SQL evaluation.
- */
-class SqlException(msg: String) extends RuntimeException(msg)
+import org.apache.calcite.rel.rules._
+import org.apache.flink.api.table.sql.calcite.rules.FlinkCalcRule
+
+object FlinkRules {
+
+  val RULES = List(
+    FilterToCalcRule.INSTANCE,
+    ProjectToCalcRule.INSTANCE,
+    CalcMergeRule.INSTANCE,
+    FilterCalcMergeRule.INSTANCE,
+    ProjectCalcMergeRule.INSTANCE,
+    CalcMergeRule.INSTANCE,
+    FlinkCalcRule.INSTANCE
+    )
+
+}

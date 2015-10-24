@@ -18,7 +18,20 @@
 
 package org.apache.flink.api.table.sql
 
-/**
- * Exception for all errors occurring during SQL evaluation.
- */
-class SqlException(msg: String) extends RuntimeException(msg)
+import org.apache.calcite.adapter.java.JavaTypeFactory
+import org.apache.calcite.rel.RelNode
+import org.apache.flink.api.table.plan.PlanNode
+import org.apache.flink.api.table.sql.calcite.FlinkRel
+
+class PlanImplementor(typeFactory: JavaTypeFactory) {
+
+  def implement(node: RelNode): PlanNode = {
+    node match {
+      case flinkRel: FlinkRel => flinkRel.translateToPlanNode(this)
+      case _ => throw new SqlException("Plan contains unsupported operators.")
+    }
+  }
+
+  def getTypeFactory(): JavaTypeFactory = typeFactory
+
+}

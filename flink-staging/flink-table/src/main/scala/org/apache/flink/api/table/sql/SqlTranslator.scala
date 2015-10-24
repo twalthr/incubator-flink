@@ -18,58 +18,55 @@
 
 package org.apache.flink.api.table.sql
 
-import org.apache.calcite.adapter.enumerable.EnumerableConvention
-import org.apache.calcite.plan.{RelTrait, RelTraitDef, RelTraitSet}
+import org.apache.calcite.adapter.java.JavaTypeFactory
+import org.apache.calcite.plan.RelTraitSet
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.tools.{RuleSets, RuleSet, FrameworkConfig, Frameworks}
-import org.apache.flink.api.table.plan.PlanNode
-import org.apache.flink.api.table.sql.adapter.{FlinkRel, FlinkRules}
+import org.apache.calcite.tools._
+import org.apache.flink.api.table.Table
+import org.apache.flink.api.table.sql.calcite.{FlinkRel, FlinkTable}
 
 class SqlTranslator(val tableRegistry: TableRegistry) {
 
-  private def createSchema(): SchemaPlus = {
+  private def schema(): SchemaPlus = {
     val schema = Frameworks.createRootSchema(true)
     tableRegistry.registry.foreach(table => {
-      schema.add(table._1, new SqlTable(table._2.operation))
+      schema.add(table._1, new FlinkTable(table._2.operation))
     })
     schema
   }
 
-  private def createParserConfig(): SqlParser.Config = {
+  private def parserConfig(): SqlParser.Config = {
     SqlParser
-      .configBuilder()
+      .configBuilder
       .setCaseSensitive(false)
-      .build()
+      .build
   }
 
-
-  private def createRuleSet(): RuleSet = {
-    RuleSets.ofList(FlinkRules.rules())
+  private def traitSet(): RelTraitSet = {
+    RelTraitSet.createEmpty.plus(FlinkRel.CONVENTION)
   }
 
-  private def createTraitSet(): RelTraitSet = {
-    RelTraitSet.createEmpty().plus(FlinkRel.CONVENTION)
-  }
-
-  private def createFrameworkConfig(): FrameworkConfig = {
+  private def frameworkConfig(): FrameworkConfig = {
     Frameworks
-      .newConfigBuilder()
-      .defaultSchema(createSchema())
-      .parserConfig(createParserConfig())
-      .ruleSets(createRuleSet())
-      .traitDefs(FlinkRel.CONVENTION.getTraitDef, EnumerableConvention.INSTANCE.getTraitDef)
-      .build()
+      .newConfigBuilder
+      .defaultSchema(schema)
+      .parserConfig(parserConfig)
+      .programs(Programs.standard)
+      .traitDefs(FlinkRel.CONVENTION.getTraitDef)
+      .build
   }
 
-  def translate(sql: String): PlanNode = {
-    val planner = Frameworks.getPlanner(createFrameworkConfig)
-    val sqlNode = planner.parse(sql)
-    planner.validate(sqlNode)
-    val relNode = planner.convert(sqlNode)
-    val transformedRelNode = planner.transform(0, createTraitSet(), relNode)
-    System.out.print(relNode)
-    null
+  def translate(sql: String): Table = {
+    val planner = Frameworks.getPlanner(frameworkConfig)
+    val parsed = planner.parse(sql)
+    val validated = planner.validate(parsed)
+    val converted = planner.convert(validated)
+    val transformed = planner.transform(0, traitSet, converted)
+    val implementor = new PlanImplementor(planner.getTypeFactory.asInstanceOf[JavaTypeFactory])
+    val planNode = implementor.implement(transformed)
+    Table(planNode)
   }
 
 }

@@ -16,9 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.sql
+package org.apache.flink.api.table.sql.calcite
 
-/**
- * Exception for all errors occurring during SQL evaluation.
- */
-class SqlException(msg: String) extends RuntimeException(msg)
+import org.apache.calcite.plan.Convention
+import org.apache.calcite.rel.RelNode
+import org.apache.flink.api.table.plan.PlanNode
+import org.apache.flink.api.table.sql.PlanImplementor
+
+trait FlinkRel extends RelNode {
+
+  def translateToPlanNode(implementor: PlanImplementor): PlanNode
+
+}
+
+object FlinkRel {
+
+  val CONVENTION = new Convention.Impl("FLINK", classOf[FlinkRel])
+
+}

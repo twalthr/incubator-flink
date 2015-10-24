@@ -16,9 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.sql
+package org.apache.flink.api.table.sql.calcite.rules
 
-/**
- * Exception for all errors occurring during SQL evaluation.
- */
-class SqlException(msg: String) extends RuntimeException(msg)
+import org.apache.calcite.plan.RelTrait
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.flink.api.table.sql.calcite.FlinkRel
+
+abstract class FlinkConverterRule(clazz: Class[_ <: RelNode], in: RelTrait, desc: String)
+    extends ConverterRule(clazz, in, FlinkRel.CONVENTION, desc) {
+
+  def out = FlinkRel.CONVENTION
+
+}

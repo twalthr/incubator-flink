@@ -19,24 +19,40 @@
 package org.apache.flink.api.table.sql
 
 import org.junit.Test
-import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.table._
+import org.junit.Assert.assertEquals
 
 class SqlSelectTest {
 
   @Test
   def testSimpleSelect(): Unit = {
-    val tableRegistry = new TableRegistry
+    val sqlTestUtil = new SqlTestUtil
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val table = env.fromElements((1, "A"), (2, "B"), (3, "C"), (4, "D")).as('field1, 'field2)
-    tableRegistry.registerTable("mytable", table)
+    val expected = sqlTestUtil.table1
+    val actual = sqlTestUtil.translator.translate("SELECT * FROM TABLE1")
 
-    val translator = new SqlTranslator(tableRegistry)
-
-    val plan = translator.translate("SELECT field1 FROM mytable WHERE field2 = 'A'")
-
-    System.out.print(plan)
+    assertEquals(expected, actual)
   }
+
+  @Test
+  def testSelectWithProjection(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1.select("field1+1 as NEWFIELD")
+    val actual = sqlTestUtil.translator.translate("SELECT FIELD1 + 1 AS NEWFIELD FROM TABLE1")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testSelectWithFilter(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1.filter("field2 = 'test'")
+    val actual = sqlTestUtil.translator.translate("SELECT * FROM table1 " +
+      "WHERE FIELD2 = 'test'")
+
+    assertEquals(expected, actual)
+  }
+
 
 }

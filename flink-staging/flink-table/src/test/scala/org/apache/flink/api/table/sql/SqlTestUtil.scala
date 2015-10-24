@@ -16,23 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.sql.adapter;
+package org.apache.flink.api.table.sql
 
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.rel.RelNode;
+import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.table._
 
-/**
- * Relational expression that uses Flink calling convention.
- */
-public interface FlinkRel extends RelNode {
-	void implement(Implementor implementor);
+class SqlTestUtil {
+  private val tableRegistry = new TableRegistry
+  private val env = ExecutionEnvironment.getExecutionEnvironment
 
-	/** Calling convention for relational operations that occur in Flink. */
-	Convention CONVENTION = new Convention.Impl("FLINK", FlinkRel.class);
+  val table1 = env.fromElements((1, "A"), (2, "B"), (3, "C"), (4, "D")).as('field1, 'field2)
+  tableRegistry.registerTable("table1", table1)
+  val table2 = env.fromElements((1, "A"), (2, "B"), (3, "C"), (4, "D")).as('field1, 'field2)
+  tableRegistry.registerTable("table2", table2)
 
-	/** Callback for the implementation process that converts a tree of
-	 * {@link FlinkRel} nodes into a Flink Table API query. */
-	class Implementor {
-
-	}
+  val translator = new SqlTranslator(tableRegistry)
 }
