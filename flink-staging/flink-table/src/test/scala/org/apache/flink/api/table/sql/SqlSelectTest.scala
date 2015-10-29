@@ -19,7 +19,10 @@
 package org.apache.flink.api.table.sql
 
 import org.junit.Test
-import org.junit.Assert.assertEquals
+import org.junit.Assert._
+
+import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.table._
 
 class SqlSelectTest {
 
@@ -28,31 +31,102 @@ class SqlSelectTest {
     val sqlTestUtil = new SqlTestUtil
 
     val expected = sqlTestUtil.table1
-    val actual = sqlTestUtil.translator.translate("SELECT * FROM TABLE1")
+    val actual = sqlTestUtil.translator.translate("""
+        SELECT *
+        FROM TABLE1""")
 
     assertEquals(expected, actual)
   }
 
   @Test
-  def testSelectWithProjection(): Unit = {
+  def testProjection(): Unit = {
     val sqlTestUtil = new SqlTestUtil
 
-    val expected = sqlTestUtil.table1.select("field1+1 as NEWFIELD")
-    val actual = sqlTestUtil.translator.translate("SELECT FIELD1 + 1 AS NEWFIELD FROM TABLE1")
+    val expected = sqlTestUtil.table1
+      .as("tmp$0, tmp$1")
+      .select("tmp$0 + 1 as NEWFIELD")
+    val actual = sqlTestUtil.translator.translate("""
+        SELECT FIELD1 + 1 AS NEWFIELD
+        FROM TABLE1""")
 
     assertEquals(expected, actual)
   }
 
   @Test
-  def testSelectWithFilter(): Unit = {
+  def testFilter(): Unit = {
     val sqlTestUtil = new SqlTestUtil
 
-    val expected = sqlTestUtil.table1.filter("field2 = 'test'")
-    val actual = sqlTestUtil.translator.translate("SELECT * FROM table1 " +
-      "WHERE FIELD2 = 'test'")
+    val expected = sqlTestUtil.table1
+      .filter("FIELD2 = 'test'")
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT *
+      FROM TABLE1
+      WHERE FIELD2 = 'test'""")
 
     assertEquals(expected, actual)
   }
 
+  @Test
+  def testEquiJoin(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
 
+    val expected = sqlTestUtil.table1
+      .as("tmp$FIELD1, tmp$FIELD2")
+      .join(sqlTestUtil.table2)
+      .where("tmp$FIELD1 = FIELD1")
+      .as("FIELD1, FIELD2, FIELD1, FIELD2")
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT *
+      FROM TABLE1
+      JOIN TABLE2 ON TABLE1.FIELD1 = TABLE2.FIELD1""")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testEquiJoinAndProject(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .as("tmp$FIELD1, tmp$FIELD2")
+      .join(sqlTestUtil.table2)
+      .where("tmp$FIELD1 = FIELD1")
+      .as("FIELD1, FIELD2, FIELD1, FIELD2")
+      .as("tmp$0, tmp$1, tmp$2, tmp$3")
+      .select("tmp$3 AS FIELD2")
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT TABLE2.FIELD2
+      FROM TABLE1
+      JOIN TABLE2 ON TABLE1.FIELD1 = TABLE2.FIELD1""")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testAggregateCount(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .select("FIELD1.count AS VAL")
+    val actual = sqlTestUtil.translator.translate("""
+        SELECT COUNT(*) AS VAL
+        FROM TABLE1""")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testAggregateCountPerGroup(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .groupBy("FIELD1")
+      .select("FIELD1, FIELD1.min AS VALMIN, FIELD1.max AS VALMAX, FIELD1.count AS VALCOUNT")
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT FIELD1, MIN(FIELD1) AS VALMIN, MAX(FIELD1) AS VALMAX, COUNT(FIELD1) AS VALCOUNT
+      FROM TABLE1
+      GROUP BY FIELD1""")
+
+    assertEquals(expected, actual)
+  }
 }

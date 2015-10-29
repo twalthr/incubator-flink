@@ -20,27 +20,31 @@ package org.apache.flink.api.table.sql.calcite.rules
 
 import org.apache.calcite.plan.Convention
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.logical.LogicalCalc
+import org.apache.calcite.rel.logical.{LogicalJoin, LogicalAggregate}
 import org.apache.flink.api.table.sql.calcite.FlinkRel
-import org.apache.flink.api.table.sql.calcite.nodes.FlinkCalc
+import org.apache.flink.api.table.sql.calcite.nodes.{FlinkAggregate, FlinkJoin}
+
 import org.apache.calcite.plan.RelOptRule.{convert => convertTrait}
 
-class FlinkCalcRule private
-  extends FlinkConverterRule(
-    classOf[LogicalCalc],
-    Convention.NONE,
-    "FlinkCalcRule") {
+class FlinkAggregateRule private extends FlinkConverterRule(
+  classOf[LogicalAggregate],
+  Convention.NONE,
+  "FlinkAggregateRule") {
 
   override def convert(rel: RelNode): RelNode = {
-    val calc = rel.asInstanceOf[LogicalCalc]
-    new FlinkCalc(rel.getCluster,
-      rel.getTraitSet.replace(FlinkRel.CONVENTION),
-      convertTrait(calc.getInput, calc.getInput.getTraitSet.replace(FlinkRel.CONVENTION)),
-      calc.getProgram())
+    val aggregate = rel.asInstanceOf[LogicalAggregate]
+    new FlinkAggregate(aggregate.getCluster,
+      aggregate.getTraitSet.replace(FlinkRel.CONVENTION),
+      convertTrait(
+        aggregate.getInput,
+        aggregate.getInput.getTraitSet.replace(FlinkRel.CONVENTION)),
+      aggregate.indicator,
+      aggregate.getGroupSet,
+      aggregate.getGroupSets,
+      aggregate.getAggCallList)
   }
-
 }
 
-object FlinkCalcRule {
-  val INSTANCE = new FlinkCalcRule()
+object FlinkAggregateRule {
+  val INSTANCE = new FlinkAggregateRule()
 }

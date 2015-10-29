@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.table.expressions
 
+import java.lang.{Long => JavaLong}
+
 import org.apache.flink.api.table.ExpressionException
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.aggregation.Aggregations
@@ -75,12 +77,12 @@ case class Count(child: Expression) extends Aggregation {
     child.typeInfo match {
       case _ => // we can count anything... :D
     }
-    BasicTypeInfo.INT_TYPE_INFO
+    BasicTypeInfo.LONG_TYPE_INFO
   }
 
   override def toString = s"($child).count"
 
-  override def getIntermediateFields: Seq[Expression] = Seq(Literal(Integer.valueOf(1)))
+  override def getIntermediateFields: Seq[Expression] = Seq(Literal(JavaLong.valueOf(1)))
   override def getFinalField(inputs: Seq[Expression]): Expression = inputs(0)
   override def getAggregations = Seq(Aggregations.SUM)
 

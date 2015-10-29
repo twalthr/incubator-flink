@@ -24,8 +24,9 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.AbstractRelNode.sole
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.RexProgram
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.{Expression, Naming}
-import org.apache.flink.api.table.plan.{Select, Filter, PlanNode}
+import org.apache.flink.api.table.plan.{As, Select, Filter, PlanNode}
 import org.apache.flink.api.table.sql.PlanImplementor
 import org.apache.flink.api.table.sql.calcite.{RexToExpr, FlinkRel}
 
@@ -35,21 +36,24 @@ class FlinkCalc(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
-    program: RexProgram) extends SingleRel(cluster, traitSet, input) with FlinkRel {
+    program: RexProgram)
+  extends SingleRel(
+    cluster,
+    traitSet,
+    input)
+  with FlinkRel {
+
   this.rowType = program.getOutputRowType
 
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
+  override def explainTerms(pw: RelWriter): RelWriter =
     program.explainCalc(super.explainTerms(pw))
-  }
 
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
+  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode =
     new FlinkCalc(
       getCluster,
       traitSet,
       sole(inputs),
       program)
-  }
 
   override def translateToPlanNode(implementor: PlanImplementor): PlanNode = {
     val input = getInput.asInstanceOf[FlinkRel].translateToPlanNode(implementor)
@@ -69,23 +73,32 @@ class FlinkCalc(
 
     // translate projects
     var projectExprs: Seq[Expression] = null
+    var renaming: Seq[(String, TypeInformation[_])] = null
     if (!program.projectsOnlyIdentity) {
+      // rename fields to ensure uniqueness
+      renaming = input.outputFields.zipWithIndex.map(fieldWithIndex =>
+        ("tmp$" + fieldWithIndex._2, fieldWithIndex._1._2))
+
+      // translate to expressions
       projectExprs = program.getNamedProjects.map(namedProject => {
         val project = program.expandLocalRef(namedProject.getKey)
-        val projectExpr = RexToExpr.translate(project, input.outputFields)
+        val projectExpr = RexToExpr.translate(project, renaming)
         Naming(projectExpr, namedProject.getValue)
       })
     }
 
     // complete translation
+    // without condition
     if (filterNode == null) {
-      Select(input, projectExprs)
+      Select(As(input, renaming.map(_._1)), projectExprs)
     }
+    // without projection
     else if (projectExprs == null) {
       filterNode
     }
+    // with projection and condition
     else {
-      Select(filterNode, projectExprs)
+      Select(As(filterNode, renaming.map(_._1)), projectExprs)
     }
   }
 }

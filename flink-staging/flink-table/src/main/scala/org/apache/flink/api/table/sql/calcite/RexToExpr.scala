@@ -20,18 +20,31 @@ package org.apache.flink.api.table.sql.calcite
 
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind._
-import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.table.expressions._
 
 import scala.collection.JavaConversions._
 
-class RexToExpr(inputFields: Seq[(String, TypeInformation[_])]) extends RexVisitor[Expression] {
+class RexToExpr private (
+    input1Fields: Seq[(String, TypeInformation[_])],
+    input2Fields: Seq[(String, TypeInformation[_])] = null)
+  extends RexVisitor[Expression] {
 
   override def visitInputRef(inputRef: RexInputRef): Expression = {
-    val fieldName = inputFields(inputRef.getIndex)._1
-    val fieldType = inputFields(inputRef.getIndex)._2
-    ResolvedFieldReference(fieldName, fieldType)
+    val index = inputRef.getIndex
+    // input 1
+    if (index < input1Fields.size) {
+      val fieldName = input1Fields(index)._1
+      val fieldType = input1Fields(index)._2
+      ResolvedFieldReference(fieldName, fieldType)
+    }
+    // input 2
+    else {
+      val fieldName = input2Fields(index - input1Fields.size)._1
+      val fieldType = input2Fields(index - input1Fields.size)._2
+      ResolvedFieldReference(fieldName, fieldType)
+    }
   }
 
   override def visitFieldAccess(fieldAccess: RexFieldAccess): Expression = ???
@@ -72,6 +85,13 @@ object RexToExpr {
 
   def translate(rexNode: RexNode, inputFields: Seq[(String, TypeInformation[_])]): Expression = {
     rexNode.accept(new RexToExpr(inputFields))
+  }
+
+  def translate(
+      rexNode: RexNode,
+      input1Fields: Seq[(String, TypeInformation[_])],
+      input2Fields: Seq[(String, TypeInformation[_])]): Expression = {
+    rexNode.accept(new RexToExpr(input1Fields, input2Fields))
   }
 
 }

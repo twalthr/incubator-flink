@@ -18,24 +18,24 @@
 
 package org.apache.flink.api.table.sql.calcite
 
-import org.apache.calcite.rel.rules._
-import org.apache.flink.api.table.sql.calcite.rules.{FlinkAggregateRule, FlinkJoinRule, FlinkCalcRule}
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.sql.SqlAggFunction
+import org.apache.calcite.sql.fun.{SqlMinMaxAggFunction, SqlCountAggFunction}
+import org.apache.flink.api.table.expressions._
 
-object FlinkRules {
+object AggCallToExpr {
 
-  val RULES = List(
-    // join rules
-    FlinkJoinRule.INSTANCE,
-    // aggregate rules
-    FlinkAggregateRule.INSTANCE,
-    // calc rules
-    FilterToCalcRule.INSTANCE,
-    ProjectToCalcRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
-    FilterCalcMergeRule.INSTANCE,
-    ProjectCalcMergeRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
-    FlinkCalcRule.INSTANCE
-    )
+  def translate(aggCall: AggregateCall, aggFields: Seq[Expression]): Expression = {
+    val function = translateToAggExpr(aggCall, aggFields)
+    Naming(function, aggCall.getName)
+  }
+
+  private def translateToAggExpr(aggCall: AggregateCall, aggFields: Seq[Expression])
+      : Expression = aggCall.getAggregation match {
+    case count: SqlCountAggFunction => Count(aggFields(0))
+    case min: SqlMinMaxAggFunction if min.isMin => Min(aggFields(aggCall.getArgList.get(0)))
+    case max: SqlMinMaxAggFunction if !max.isMin => Max(aggFields(aggCall.getArgList.get(0)))
+    case _ => ???
+  }
 
 }

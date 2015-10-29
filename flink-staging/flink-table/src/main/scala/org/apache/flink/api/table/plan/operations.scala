@@ -92,7 +92,7 @@ case class As(input: PlanNode, names: Seq[String]) extends PlanNode {
 }
 
 /**
- * Grouping operation. Keys are specified using field references. A group by operation os only
+ * Grouping operation. Keys are specified using field references. A group by operation is only
  * useful when performing a select with aggregates afterwards.
  * @param input
  * @param fields

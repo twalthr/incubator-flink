@@ -16,26 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.sql.calcite
+package org.apache.flink.api.table.sql.calcite.rules
 
-import org.apache.calcite.rel.rules._
-import org.apache.flink.api.table.sql.calcite.rules.{FlinkAggregateRule, FlinkJoinRule, FlinkCalcRule}
+import org.apache.calcite.plan.Convention
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.logical.LogicalJoin
+import org.apache.flink.api.table.sql.calcite.FlinkRel
+import org.apache.flink.api.table.sql.calcite.nodes.FlinkJoin
 
-object FlinkRules {
+class FlinkJoinRule private extends FlinkConverterRule(
+    classOf[LogicalJoin],
+    Convention.NONE,
+    "FlinkJoinRule") {
 
-  val RULES = List(
-    // join rules
-    FlinkJoinRule.INSTANCE,
-    // aggregate rules
-    FlinkAggregateRule.INSTANCE,
-    // calc rules
-    FilterToCalcRule.INSTANCE,
-    ProjectToCalcRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
-    FilterCalcMergeRule.INSTANCE,
-    ProjectCalcMergeRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
-    FlinkCalcRule.INSTANCE
-    )
+  override def convert(rel: RelNode): RelNode = {
+    val join = rel.asInstanceOf[LogicalJoin]
+    new FlinkJoin(rel.getCluster,
+      rel.getTraitSet.replace(FlinkRel.CONVENTION),
+      join.getLeft,
+      join.getRight,
+      join.getCondition,
+      join.getJoinType,
+      join.getVariablesStopped)
+  }
+}
 
+object FlinkJoinRule {
+  val INSTANCE = new FlinkJoinRule()
 }

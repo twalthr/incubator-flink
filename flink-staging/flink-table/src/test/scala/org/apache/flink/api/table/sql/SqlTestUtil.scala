@@ -25,10 +25,10 @@ class SqlTestUtil {
   private val tableRegistry = new TableRegistry
   private val env = ExecutionEnvironment.getExecutionEnvironment
 
-  val table1 = env.fromElements((1, "A"), (2, "B"), (3, "C"), (4, "D")).as('field1, 'field2)
-  tableRegistry.registerTable("table1", table1)
-  val table2 = env.fromElements((1, "A"), (2, "B"), (3, "C"), (4, "D")).as('field1, 'field2)
-  tableRegistry.registerTable("table2", table2)
+  val table1 = env.fromElements((1, "A"), (2, "B"), (3, "C"), (4, "D")).as('FIELD1, 'FIELD2)
+  tableRegistry.registerTable("TABLE1", table1)
+  val table2 = env.fromElements((1, "A"), (2, "B"), (3, "C"), (4, "D")).as('FIELD1, 'FIELD2)
+  tableRegistry.registerTable("TABLE2", table2)
 
   val translator = new SqlTranslator(tableRegistry)
 }

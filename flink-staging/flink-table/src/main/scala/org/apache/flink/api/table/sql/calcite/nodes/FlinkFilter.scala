@@ -26,15 +26,21 @@ import org.apache.flink.api.table.plan.PlanNode
 import org.apache.flink.api.table.sql.PlanImplementor
 import org.apache.flink.api.table.sql.calcite.FlinkRel
 
-class FlinkFilter(cluster: RelOptCluster, traitSet: RelTraitSet, child: RelNode,
-    condition: RexNode) extends Filter(cluster, traitSet, child, condition) with FlinkRel {
+class FlinkFilter(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    child: RelNode,
+    condition: RexNode)
+  extends Filter(
+    cluster,
+    traitSet,
+    child,
+    condition)
+  with FlinkRel {
 
-  override def copy(traitSet: RelTraitSet, input: RelNode, condition: RexNode): Filter = {
+  override def copy(traitSet: RelTraitSet, input: RelNode, condition: RexNode): Filter =
     new FlinkFilter(getCluster, traitSet, input, condition)
-  }
 
-  override def translateToPlanNode(implementor: PlanImplementor): PlanNode = {
-    null
-  }
+  override def translateToPlanNode(implementor: PlanImplementor): PlanNode = ???
 
 }

@@ -16,26 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.sql.calcite
+package org.apache.flink.api.table.sql
 
-import org.apache.calcite.rel.rules._
-import org.apache.flink.api.table.sql.calcite.rules.{FlinkAggregateRule, FlinkJoinRule, FlinkCalcRule}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.expressions.{Expression, ResolvedFieldReference}
 
-object FlinkRules {
-
-  val RULES = List(
-    // join rules
-    FlinkJoinRule.INSTANCE,
-    // aggregate rules
-    FlinkAggregateRule.INSTANCE,
-    // calc rules
-    FilterToCalcRule.INSTANCE,
-    ProjectToCalcRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
-    FilterCalcMergeRule.INSTANCE,
-    ProjectCalcMergeRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
-    FlinkCalcRule.INSTANCE
-    )
+object ExprUtils {
+  
+  def toResField(fieldAsTuple: (String, TypeInformation[_])): Expression =
+    ResolvedFieldReference(fieldAsTuple._1, fieldAsTuple._2)
 
 }
