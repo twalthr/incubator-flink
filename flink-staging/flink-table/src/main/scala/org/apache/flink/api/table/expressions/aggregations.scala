@@ -88,6 +88,7 @@ case class Count(child: Expression) extends Aggregation {
 
 }
 
+// TODO: can be removed and replaced by logical optimizers conversions
 case class Avg(child: Expression) extends Aggregation {
   override def toString = s"($child).avg"
 

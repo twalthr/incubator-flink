@@ -19,15 +19,15 @@
 package org.apache.flink.api.table.sql.calcite
 
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.sql.SqlAggFunction
-import org.apache.calcite.sql.fun.{SqlMinMaxAggFunction, SqlCountAggFunction}
+import org.apache.calcite.sql.fun.{SqlSumAggFunction, SqlCountAggFunction, SqlMinMaxAggFunction}
 import org.apache.flink.api.table.expressions._
 
 object AggCallToExpr {
 
-  def translate(aggCall: AggregateCall, aggFields: Seq[Expression]): Expression = {
+  def translate(aggCall: AggregateCall, aggFields: Seq[Expression], aggName: String)
+      : Expression = {
     val function = translateToAggExpr(aggCall, aggFields)
-    Naming(function, aggCall.getName)
+    Naming(function, aggName)
   }
 
   private def translateToAggExpr(aggCall: AggregateCall, aggFields: Seq[Expression])
@@ -35,6 +35,7 @@ object AggCallToExpr {
     case count: SqlCountAggFunction => Count(aggFields(0))
     case min: SqlMinMaxAggFunction if min.isMin => Min(aggFields(aggCall.getArgList.get(0)))
     case max: SqlMinMaxAggFunction if !max.isMin => Max(aggFields(aggCall.getArgList.get(0)))
+    case sum: SqlSumAggFunction => Sum(aggFields(aggCall.getArgList.get(0)))
     case _ => ???
   }
 

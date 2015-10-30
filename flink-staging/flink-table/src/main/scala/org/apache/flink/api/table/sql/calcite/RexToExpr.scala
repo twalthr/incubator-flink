@@ -69,15 +69,63 @@ class RexToExpr private (
 
   override def visitCall(call: RexCall): Expression = {
     val operands = call.getOperands.map(_.accept(this))
+    if (operands.size == 2) {
+      translateBinaryCall(call, operands(0), operands(1))
+    }
+    else if (operands.size == 1) {
+      translateUnaryCall(call, operands(0))
+    }
+    else ???
+  }
+
+  override def visitOver(over: RexOver): Expression = ???
+
+  // ----------------------------------------------------------------------------------------------
+
+  def translateBinaryCall(call: RexCall, left: Expression, right: Expression): Expression = {
     call.getKind match {
-      case EQUALS => EqualTo(operands(0), operands(1))
-      case PLUS => Plus(operands(0), operands(1))
-      case CAST => operands(0) // TODO review, could cause bug
+      case EQUALS =>
+        val autoCasted = autoCastBinaryArithmetic(left, right)
+        EqualTo(autoCasted._1, autoCasted._2)
+      case PLUS =>
+        val autoCasted = autoCastBinaryArithmetic(left, right)
+        Plus(autoCasted._1, autoCasted._2)
+      case MINUS =>
+        val autoCasted = autoCastBinaryArithmetic(left, right)
+        Minus(autoCasted._1, autoCasted._2)
+      case TIMES =>
+        val autoCasted = autoCastBinaryArithmetic(left, right)
+        Mul(autoCasted._1, autoCasted._2)
+      case DIVIDE =>
+        val autoCasted = autoCastBinaryArithmetic(left, right)
+        Div(autoCasted._1, autoCasted._2)
       case _ => ???
     }
   }
 
-  override def visitOver(over: RexOver): Expression = ???
+  def translateUnaryCall(call: RexCall, operand: Expression): Expression = {
+    call.getKind match {
+      case CAST => Cast(operand, TypeConverter.sqlTypeToTypeInfo(call.getType.getSqlTypeName))
+      case _ => ???
+    }
+  }
+
+  def autoCastBinaryArithmetic(o1: Expression, o2: Expression): (Expression, Expression) = {
+    if (o1.typeInfo != o2.typeInfo && o1.typeInfo.isBasicType && o2.typeInfo.isBasicType) {
+      if (o1.typeInfo.asInstanceOf[BasicTypeInfo[_]].shouldAutocastTo(
+        o2.typeInfo.asInstanceOf[BasicTypeInfo[_]])) {
+        (Cast(o1, o2.typeInfo), o2)
+      } else if (o2.typeInfo.asInstanceOf[BasicTypeInfo[_]].shouldAutocastTo(
+        o1.typeInfo.asInstanceOf[BasicTypeInfo[_]])) {
+        (o1, Cast(o2, o1.typeInfo))
+      } else {
+        (o1, o2)
+      }
+    }
+    else {
+      (o1, o2)
+    }
+  }
 
 }
 

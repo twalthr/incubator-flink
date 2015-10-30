@@ -19,12 +19,11 @@
 package org.apache.flink.api.table.sql.calcite.rules
 
 import org.apache.calcite.plan.Convention
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.logical.{LogicalJoin, LogicalAggregate}
-import org.apache.flink.api.table.sql.calcite.FlinkRel
-import org.apache.flink.api.table.sql.calcite.nodes.{FlinkAggregate, FlinkJoin}
-
 import org.apache.calcite.plan.RelOptRule.{convert => convertTrait}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.logical.LogicalAggregate
+import org.apache.flink.api.table.sql.calcite.FlinkRel
+import org.apache.flink.api.table.sql.calcite.nodes.FlinkAggregate
 
 class FlinkAggregateRule private extends FlinkConverterRule(
   classOf[LogicalAggregate],

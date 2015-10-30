@@ -18,25 +18,23 @@
 
 package org.apache.flink.api.table.sql.calcite
 
-import org.apache.calcite.rel.rules._
-import org.apache.flink.api.table.sql.calcite.rules.{FlinkAggregateRule, FlinkJoinRule, FlinkCalcRule}
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 
-object FlinkRules {
+object TypeConverter {
 
-  val RULES = List(
-    // join rules
-    FlinkJoinRule.INSTANCE,
-    // aggregate rules
-    AggregateReduceFunctionsRule.INSTANCE,
-    FlinkAggregateRule.INSTANCE,
-    // calc rules
-    FilterToCalcRule.INSTANCE,
-    ProjectToCalcRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
-    FilterCalcMergeRule.INSTANCE,
-    ProjectCalcMergeRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
-    FlinkCalcRule.INSTANCE
-    )
+  def typeInfoToSqlType(typeInfo: TypeInformation[_]): SqlTypeName = typeInfo match {
+      case BasicTypeInfo.STRING_TYPE_INFO => SqlTypeName.VARCHAR
+      case BasicTypeInfo.INT_TYPE_INFO => SqlTypeName.INTEGER
+      case BasicTypeInfo.LONG_TYPE_INFO => SqlTypeName.BIGINT
+      case _ => ??? // TODO more types
+    }
+
+  def sqlTypeToTypeInfo(sqlType: SqlTypeName): TypeInformation[_] = sqlType match {
+      case SqlTypeName.VARCHAR | SqlTypeName.CHAR => BasicTypeInfo.STRING_TYPE_INFO
+      case SqlTypeName.INTEGER => BasicTypeInfo.INT_TYPE_INFO
+      case SqlTypeName.BIGINT => BasicTypeInfo.LONG_TYPE_INFO
+      case _ => ??? // TODO more types
+    }
 
 }

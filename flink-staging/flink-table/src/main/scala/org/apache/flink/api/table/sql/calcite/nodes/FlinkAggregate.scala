@@ -20,13 +20,12 @@ package org.apache.flink.api.table.sql.calcite.nodes
 
 import java.util
 
-import org.apache.calcite.plan.{RelTraitSet, RelOptCluster}
+import org.apache.calcite.plan.{RelOptCost, RelOptPlanner, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{AggregateCall, Aggregate}
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.util.{BitSets, ImmutableBitSet}
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.expressions.ResolvedFieldReference
-import org.apache.flink.api.table.plan.{Select, GroupBy, PlanNode}
+import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.api.table.plan.{GroupBy, PlanNode, Select}
 import org.apache.flink.api.table.sql.ExprUtils.toResField
 import org.apache.flink.api.table.sql.PlanImplementor
 import org.apache.flink.api.table.sql.calcite.{AggCallToExpr, FlinkRel}
@@ -68,35 +67,65 @@ class FlinkAggregate(
       aggCalls)
 
 
+  override def computeSelfCost(planner: RelOptPlanner): RelOptCost = {
+    // make the costs for some functions high such that the ReduceAggregatesRule
+    // can convert them in sum and count aggregations
+    val hasReduceableAggs = getAggCallList.exists(_.getAggregation.getName match {
+        case "AVG" => true
+        case "STDDEV_POP" => true
+        case "STDDEV_SAMP" => true
+        case "VAR_POP" => true
+        case "VAR_SAMP" => true
+        case _ => false
+      })
+    if (hasReduceableAggs) {
+      planner.getCostFactory().makeHugeCost()
+    }
+    else {
+      super.computeSelfCost(planner)
+    }
+  }
+
   override def translateToPlanNode(implementor: PlanImplementor): PlanNode = {
     val input = getInput.asInstanceOf[FlinkRel].translateToPlanNode(implementor)
 
-    val aggFieldsIterable = for (fieldIdx <- BitSets.toIter(groupSet)) yield {
+    val groupFieldsIterable = for (fieldIdx <- BitSets.toIter(groupSet)) yield {
       toResField(input.outputFields(fieldIdx))
     }
-    var aggFields = aggFieldsIterable.toSeq
+    val groupFields = groupFieldsIterable.toSeq
 
-    // no aggregate fields -> use all input fields
-    var grouping = true
-    if (aggFields.isEmpty) {
-      aggFields = input.outputFields.map(toResField(_)).toSeq
-      grouping = false
+    var allFields: Seq[Expression] = null
+    if (groupFields.isEmpty) {
+      allFields = input.outputFields.map(toResField(_))
     }
 
-    val aggregateExprs = getRowType.getFieldNames.map(name => {
-        // check for field aggregate
-        val aggCall = getAggCallList.find(_.getName == name)
-        if (aggCall.isDefined) {
-          AggCallToExpr.translate(aggCall.get, aggFields)
+    // a row consists of grouping fields followed by agg fields
+    val aggregateExprs = getRowType.getFieldNames.zipWithIndex.map(field => {
+      val fieldIdx = field._2
+      val fieldName = field._1
+
+      // aggregate with no grouping
+      if (groupFields.size == 0) {
+        val aggCall = getAggCallList.apply(fieldIdx)
+        AggCallToExpr.translate(aggCall, allFields, fieldName)
+      }
+      // aggregate with grouping
+      else {
+        // field reference
+        if (fieldIdx < groupFields.size) {
+          groupFields(fieldIdx)
         }
+        // aggregate
         else {
-          aggFields.find(_.name == name).get
+          val aggCall = getAggCallList.apply(fieldIdx - groupFields.size)
+          AggCallToExpr.translate(aggCall, groupFields, fieldName)
         }
+      }
     })
 
     // translate with grouping
-    if (grouping) {
-      Select(GroupBy(input, aggFields), aggregateExprs)
+    if (!groupFields.isEmpty) {
+      Select(GroupBy(input, groupFields), aggregateExprs)
     }
     // translate without grouping
     else {

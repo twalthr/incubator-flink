@@ -116,14 +116,33 @@ class SqlSelectTest {
   }
 
   @Test
-  def testAggregateCountPerGroup(): Unit = {
+  def testAggregateCountMinMaxSumPerGroup(): Unit = {
     val sqlTestUtil = new SqlTestUtil
 
     val expected = sqlTestUtil.table1
       .groupBy("FIELD1")
-      .select("FIELD1, FIELD1.min AS VALMIN, FIELD1.max AS VALMAX, FIELD1.count AS VALCOUNT")
+      .select("FIELD1, FIELD1.min AS VALMIN, FIELD1.max AS VALMAX, FIELD1.count AS VALCOUNT, " +
+        "FIELD1.sum AS VALSUM")
     val actual = sqlTestUtil.translator.translate("""
-      SELECT FIELD1, MIN(FIELD1) AS VALMIN, MAX(FIELD1) AS VALMAX, COUNT(FIELD1) AS VALCOUNT
+      SELECT FIELD1, MIN(FIELD1) AS VALMIN, MAX(FIELD1) AS VALMAX, COUNT(FIELD1) AS VALCOUNT,
+        SUM(FIELD1) AS VALSUM
+      FROM TABLE1
+      GROUP BY FIELD1""")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testAggregateAvg(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .groupBy("FIELD1")
+      .select("FIELD1, FIELD1.sum AS $f1, FIELD1.count AS $f2")
+      .as("tmp$0, tmp$1, tmp$2")
+      .select("(tmp$1 / tmp$2).cast(INT) AS VALAVG")
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT AVG(FIELD1) AS VALAVG
       FROM TABLE1
       GROUP BY FIELD1""")
 
