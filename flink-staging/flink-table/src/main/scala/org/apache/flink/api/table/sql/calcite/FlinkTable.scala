@@ -30,7 +30,10 @@ class FlinkTable(val planNode: PlanNode) extends AbstractTable with Translatable
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val builder = typeFactory.builder
     planNode.outputFields.foreach(field => {
-      builder.add(field._1, typeFactory.createSqlType(TypeConverter.typeInfoToSqlType(field._2)))
+      val sqlType = TypeConverter.typeInfoToSqlType(field._2)
+      val relDataType = typeFactory.createSqlType(sqlType)
+      val nullableRelDataType = typeFactory.createTypeWithNullability(relDataType, true)
+      builder.add(field._1, nullableRelDataType)
     })
     builder.build
   }

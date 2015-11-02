@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.table.sql
 
+import org.apache.flink.api.table.expressions.Expression
 import org.junit.Test
 import org.junit.Assert._
 
@@ -145,6 +146,64 @@ class SqlSelectTest {
       SELECT AVG(FIELD1) AS VALAVG
       FROM TABLE1
       GROUP BY FIELD1""")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testDistinct(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .groupBy("FIELD1")
+      .select("FIELD1")
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT DISTINCT FIELD1
+      FROM TABLE1""")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testBasicOperatorsWithCasting(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .filter("FIELD1 > 100.0 || (FIELD1 < 1 && !(FIELD1 = 10.0)) " +
+        "|| FIELD1 != 11.0 || FIELD1 >= 11 || (FIELD1 <= 11 && FIELD2.isNull) || FIELD2.isNotNull")
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT *
+      FROM TABLE1
+      WHERE FIELD1 > 100.0 OR (FIELD1 < 1 AND NOT (FIELD1 = 10.0)) OR FIELD1 <> 11.0
+        OR FIELD1 >= 11 OR (FIELD1 <= 11 AND FIELD2 IS NULL) OR FIELD2 IS NOT NULL""")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testBetweenOperator(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .filter("FIELD1 >= 0 && FIELD1 <= 10 && FIELD2 >= 'A' && FIELD2 <= 'C'")
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT *
+      FROM TABLE1
+      WHERE FIELD1 BETWEEN 0 AND 10 AND FIELD2 BETWEEN 'A' AND 'C'""")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testDateOperator(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .filter("FIELD1 >= 0")
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT *
+      FROM TABLE1
+      WHERE FIELD2 < DATE '2015-10-31'""")
 
     assertEquals(expected, actual)
   }

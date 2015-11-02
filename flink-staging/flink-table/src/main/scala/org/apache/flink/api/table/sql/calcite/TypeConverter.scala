@@ -19,21 +19,27 @@
 package org.apache.flink.api.table.sql.calcite
 
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 
 object TypeConverter {
 
   def typeInfoToSqlType(typeInfo: TypeInformation[_]): SqlTypeName = typeInfo match {
-      case BasicTypeInfo.STRING_TYPE_INFO => SqlTypeName.VARCHAR
-      case BasicTypeInfo.INT_TYPE_INFO => SqlTypeName.INTEGER
-      case BasicTypeInfo.LONG_TYPE_INFO => SqlTypeName.BIGINT
+      case STRING_TYPE_INFO => VARCHAR
+      case INT_TYPE_INFO => INTEGER
+      case LONG_TYPE_INFO => BIGINT
+      case DOUBLE_TYPE_INFO => DECIMAL
+      case DATE_TYPE_INFO => DATE
       case _ => ??? // TODO more types
     }
 
   def sqlTypeToTypeInfo(sqlType: SqlTypeName): TypeInformation[_] = sqlType match {
-      case SqlTypeName.VARCHAR | SqlTypeName.CHAR => BasicTypeInfo.STRING_TYPE_INFO
-      case SqlTypeName.INTEGER => BasicTypeInfo.INT_TYPE_INFO
-      case SqlTypeName.BIGINT => BasicTypeInfo.LONG_TYPE_INFO
+      case VARCHAR | CHAR => STRING_TYPE_INFO
+      case INTEGER => INT_TYPE_INFO
+      case BIGINT => LONG_TYPE_INFO
+      case DECIMAL => DOUBLE_TYPE_INFO
+      case DATE => DATE_TYPE_INFO
       case _ => ??? // TODO more types
     }
 

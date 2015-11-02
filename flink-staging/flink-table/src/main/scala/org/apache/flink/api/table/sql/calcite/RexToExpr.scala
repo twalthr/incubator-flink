@@ -21,6 +21,7 @@ package org.apache.flink.api.table.sql.calcite
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind._
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.table.expressions._
 
@@ -51,10 +52,23 @@ class RexToExpr private (
 
   override def visitLiteral(literal: RexLiteral): Expression = {
     literal.getType.getSqlTypeName match {
-      case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
-        Literal(literal.getValue2, BasicTypeInfo.STRING_TYPE_INFO)
-      case SqlTypeName.INTEGER =>
-        Literal(literal.getValue2.asInstanceOf[Long].toInt, BasicTypeInfo.INT_TYPE_INFO)
+      case VARCHAR | CHAR =>
+        Literal(literal.getValue3, BasicTypeInfo.STRING_TYPE_INFO)
+      case BOOLEAN =>
+        Literal(literal.getValue3, BasicTypeInfo.BOOLEAN_TYPE_INFO)
+      case INTEGER =>
+        val decimal = BigDecimal(literal.getValue3.asInstanceOf[java.math.BigDecimal])
+        Literal(decimal.toInt, BasicTypeInfo.INT_TYPE_INFO)
+      case DECIMAL =>
+        val decimal = BigDecimal(literal.getValue3.asInstanceOf[java.math.BigDecimal])
+        // covert decimals to double type info if possible
+        if (decimal.isValidDouble) {
+          Literal(decimal.doubleValue(), BasicTypeInfo.DOUBLE_TYPE_INFO)
+        }
+        else {
+          ???
+        }
+      case DATE => // TODO
       case _ => ???
     }
   }
@@ -69,11 +83,18 @@ class RexToExpr private (
 
   override def visitCall(call: RexCall): Expression = {
     val operands = call.getOperands.map(_.accept(this))
+    // binary calls
     if (operands.size == 2) {
       translateBinaryCall(call, operands(0), operands(1))
     }
+    // unary calls
     else if (operands.size == 1) {
       translateUnaryCall(call, operands(0))
+    }
+    // special case: n-ary AND / OR
+    else if (operands.size > 2
+        && (call.getKind == AND || call.getKind == OR)) {
+      translateNaryAndOr(call, operands)
     }
     else ???
   }
@@ -82,35 +103,45 @@ class RexToExpr private (
 
   // ----------------------------------------------------------------------------------------------
 
+  def translateNaryAndOr(call: RexCall, operands: Seq[Expression]): Expression = call.getKind match {
+    case AND => operands.reduceLeft(And(_ , _))
+    case OR => operands.reduceLeft(Or(_ , _))
+    case _ => throw new IllegalArgumentException()
+  }
+
   def translateBinaryCall(call: RexCall, left: Expression, right: Expression): Expression = {
+    val autoCasted = autoCast(left, right)
     call.getKind match {
-      case EQUALS =>
-        val autoCasted = autoCastBinaryArithmetic(left, right)
-        EqualTo(autoCasted._1, autoCasted._2)
-      case PLUS =>
-        val autoCasted = autoCastBinaryArithmetic(left, right)
-        Plus(autoCasted._1, autoCasted._2)
-      case MINUS =>
-        val autoCasted = autoCastBinaryArithmetic(left, right)
-        Minus(autoCasted._1, autoCasted._2)
-      case TIMES =>
-        val autoCasted = autoCastBinaryArithmetic(left, right)
-        Mul(autoCasted._1, autoCasted._2)
-      case DIVIDE =>
-        val autoCasted = autoCastBinaryArithmetic(left, right)
-        Div(autoCasted._1, autoCasted._2)
+      // logic
+      case AND => And(left, right)
+      case OR => Or(left, right)
+      // comparison
+      case EQUALS => EqualTo(autoCasted._1, autoCasted._2)
+      case NOT_EQUALS => NotEqualTo(autoCasted._1, autoCasted._2)
+      case GREATER_THAN => GreaterThan(autoCasted._1, autoCasted._2)
+      case GREATER_THAN_OR_EQUAL => GreaterThanOrEqual(autoCasted._1, autoCasted._2)
+      case LESS_THAN => LessThan(autoCasted._1, autoCasted._2)
+      case LESS_THAN_OR_EQUAL => LessThanOrEqual(autoCasted._1, autoCasted._2)
+      // arithmetic
+      case PLUS => Plus(autoCasted._1, autoCasted._2)
+      case MINUS => Minus(autoCasted._1, autoCasted._2)
+      case TIMES => Mul(autoCasted._1, autoCasted._2)
+      case DIVIDE => Div(autoCasted._1, autoCasted._2)
       case _ => ???
     }
   }
 
-  def translateUnaryCall(call: RexCall, operand: Expression): Expression = {
-    call.getKind match {
-      case CAST => Cast(operand, TypeConverter.sqlTypeToTypeInfo(call.getType.getSqlTypeName))
-      case _ => ???
-    }
+  def translateUnaryCall(call: RexCall, operand: Expression): Expression = call.getKind match {
+    // casting
+    case CAST => Cast(operand, TypeConverter.sqlTypeToTypeInfo(call.getType.getSqlTypeName))
+    // logic
+    case NOT => Not(operand)
+    case IS_NULL => IsNull(operand)
+    case IS_NOT_NULL => IsNotNull(operand)
+    case _ => ???
   }
 
-  def autoCastBinaryArithmetic(o1: Expression, o2: Expression): (Expression, Expression) = {
+  def autoCast(o1: Expression, o2: Expression): (Expression, Expression) = {
     if (o1.typeInfo != o2.typeInfo && o1.typeInfo.isBasicType && o2.typeInfo.isBasicType) {
       if (o1.typeInfo.asInstanceOf[BasicTypeInfo[_]].shouldAutocastTo(
         o2.typeInfo.asInstanceOf[BasicTypeInfo[_]])) {
