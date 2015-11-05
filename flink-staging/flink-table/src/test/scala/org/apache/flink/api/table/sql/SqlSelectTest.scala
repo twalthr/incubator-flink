@@ -18,7 +18,10 @@
 
 package org.apache.flink.api.table.sql
 
+import org.apache.calcite.adapter.enumerable.RexImpTable
+import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.util.InstantiationUtil
 import org.junit.Test
 import org.junit.Assert._
 
@@ -204,6 +207,33 @@ class SqlSelectTest {
       SELECT *
       FROM TABLE1
       WHERE FIELD2 < DATE '2015-10-31'""")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testCustomFunction(): Unit = {
+    val test = Thread.currentThread()
+      .getContextClassLoader.getResourceAsStream("org/apache/calcite/runtime/SqlFunctions.class")
+
+    Thread.currentThread().getContextClassLoader().l
+
+    val clazz = classOf[SqlFunctions]
+    val cons = clazz.getDeclaredConstructor()
+    cons.setAccessible(true)
+    val ins =  cons.newInstance()
+
+    val bytes = InstantiationUtil.serializeObject(ins)
+
+
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .filter("FIELD1 >= 0")
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT SUBSTRING(FIELD2, 0, 2), TRIM(FIELD2), FIELD2 LIKE '%A%',
+        FIELD2 LIKE '%A%', ABS(FIELD1), FIELD2 || FIELD2
+      FROM TABLE1""")
 
     assertEquals(expected, actual)
   }
