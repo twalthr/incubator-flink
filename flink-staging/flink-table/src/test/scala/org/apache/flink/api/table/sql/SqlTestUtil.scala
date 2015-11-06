@@ -29,6 +29,8 @@ class SqlTestUtil {
   tableRegistry.registerTable("TABLE1", table1)
   val table2 = env.fromElements((1, "A"), (2, "B"), (3, "C"), (4, "D")).as('FIELD1, 'FIELD2)
   tableRegistry.registerTable("TABLE2", table2)
+  val table3 = env.fromElements((1, "A"), (2, "B"), (3, "C"), (4, "D")).as('FIELD1, 'FIELD2)
+  tableRegistry.registerTable("TABLE3", table3)
 
   val translator = new SqlTranslator(tableRegistry)
 }

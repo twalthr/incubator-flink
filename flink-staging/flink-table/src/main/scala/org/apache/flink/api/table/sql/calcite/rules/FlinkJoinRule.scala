@@ -21,7 +21,6 @@ package org.apache.flink.api.table.sql.calcite.rules
 import org.apache.calcite.plan.Convention
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.LogicalJoin
-import org.apache.flink.api.table.sql.calcite.FlinkRel
 import org.apache.flink.api.table.sql.calcite.nodes.FlinkJoin
 
 class FlinkJoinRule private extends FlinkConverterRule(
@@ -32,7 +31,7 @@ class FlinkJoinRule private extends FlinkConverterRule(
   override def convert(rel: RelNode): RelNode = {
     val join = rel.asInstanceOf[LogicalJoin]
     new FlinkJoin(rel.getCluster,
-      rel.getTraitSet.replace(FlinkRel.CONVENTION),
+      rel.getTraitSet.replace(out),
       join.getLeft,
       join.getRight,
       join.getCondition,

@@ -23,7 +23,10 @@ import org.apache.flink.api.table.expressions.{Expression, ResolvedFieldReferenc
 
 object ExprUtils {
   
-  def toResField(fieldAsTuple: (String, TypeInformation[_])): Expression =
-    ResolvedFieldReference(fieldAsTuple._1, fieldAsTuple._2)
+  def toResField(field: (String, TypeInformation[_])): Expression =
+    ResolvedFieldReference(field._1, field._2)
+
+  def toResFields(fields: Seq[(String, TypeInformation[_])]): Seq[Expression] =
+    fields.map(toResField(_))
 
 }

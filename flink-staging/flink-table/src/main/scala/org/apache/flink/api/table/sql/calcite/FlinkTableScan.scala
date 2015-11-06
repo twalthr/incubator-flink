@@ -15,11 +15,11 @@ class FlinkTableScan(
     flinkTable: FlinkTable) extends TableScan(cluster, traits, table) with FlinkRel {
 
   override def register(planner: RelOptPlanner): Unit = {
-    FlinkRules.RULES.foreach(planner.addRule(_))
+    FlinkRules.CONVERTER_RULES.foreach(planner.addRule(_))
   }
 
   override def computeSelfCost(planner: RelOptPlanner): RelOptCost =
-    super.computeSelfCost(planner).multiplyBy(0.1)
+    super.computeSelfCost(planner).multiplyBy(1)
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = this
 

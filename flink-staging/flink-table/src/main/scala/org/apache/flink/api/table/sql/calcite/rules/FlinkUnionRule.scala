@@ -19,28 +19,29 @@
 package org.apache.flink.api.table.sql.calcite.rules
 
 import org.apache.calcite.plan.Convention
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.logical.LogicalCalc
-import org.apache.flink.api.table.sql.calcite.FlinkRel
-import org.apache.flink.api.table.sql.calcite.nodes.FlinkCalc
 import org.apache.calcite.plan.RelOptRule.{convert => convertTrait}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.logical.LogicalUnion
+import org.apache.flink.api.table.sql.calcite.nodes.FlinkUnion
 
-class FlinkCalcRule private
-  extends FlinkConverterRule(
-    classOf[LogicalCalc],
-    Convention.NONE,
-    "FlinkCalcRule") {
+import scala.collection.JavaConversions._
+
+class FlinkUnionRule private extends FlinkConverterRule(
+  classOf[LogicalUnion],
+  Convention.NONE,
+  "FlinkUnionRule") {
 
   override def convert(rel: RelNode): RelNode = {
-    val calc = rel.asInstanceOf[LogicalCalc]
-    new FlinkCalc(rel.getCluster,
+    val union = rel.asInstanceOf[LogicalUnion]
+    val inputs = union.getInputs.map(convertTrait(_, out))
+    new FlinkUnion(
+      rel.getCluster,
       rel.getTraitSet.replace(out),
-      convertTrait(calc.getInput, calc.getInput.getTraitSet.replace(FlinkRel.CONVENTION)),
-      calc.getProgram())
+      inputs,
+      union.all)
   }
-
 }
 
-object FlinkCalcRule {
-  val INSTANCE = new FlinkCalcRule()
+object FlinkUnionRule {
+  val INSTANCE = new FlinkUnionRule()
 }

@@ -20,7 +20,6 @@ package org.apache.flink.api.table.sql.calcite
 
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind._
-import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.table.expressions._
@@ -133,7 +132,15 @@ class RexToExpr private (
 
   def translateUnaryCall(call: RexCall, operand: Expression): Expression = call.getKind match {
     // casting
-    case CAST => Cast(operand, TypeConverter.sqlTypeToTypeInfo(call.getType.getSqlTypeName))
+    case CAST =>
+      val targetType = TypeConverter.sqlTypeToTypeInfo(call.getType.getSqlTypeName)
+      // only cast if necessary
+      if (targetType == operand.typeInfo) {
+        operand
+      }
+      else {
+        Cast(operand, targetType)
+      }
     // logic
     case NOT => Not(operand)
     case IS_NULL => IsNull(operand)

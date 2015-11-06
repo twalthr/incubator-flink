@@ -20,15 +20,15 @@ package org.apache.flink.api.table.sql.calcite.nodes
 
 import java.util
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.AbstractRelNode.sole
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.{Expression, Naming}
-import org.apache.flink.api.table.plan.{As, Select, Filter, PlanNode}
+import org.apache.flink.api.table.plan.{As, Filter, PlanNode, Select}
 import org.apache.flink.api.table.sql.PlanImplementor
-import org.apache.flink.api.table.sql.calcite.{RexToExpr, FlinkRel}
+import org.apache.flink.api.table.sql.calcite.{FlinkRel, RexToExpr}
 
 import scala.collection.JavaConversions._
 
@@ -45,8 +45,14 @@ class FlinkCalc(
 
   this.rowType = program.getOutputRowType
 
-  override def explainTerms(pw: RelWriter): RelWriter =
-    program.explainCalc(super.explainTerms(pw))
+  override def computeSelfCost(planner: RelOptPlanner): RelOptCost = {
+    if (program.getCondition != null) {
+      super.computeSelfCost(planner).multiplyBy(0.1)
+    }
+    else {
+      getInput.computeSelfCost(planner)
+    }
+  }
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode =
     new FlinkCalc(
@@ -58,47 +64,72 @@ class FlinkCalc(
   override def translateToPlanNode(implementor: PlanImplementor): PlanNode = {
     val input = getInput.asInstanceOf[FlinkRel].translateToPlanNode(implementor)
 
-    // return input if program is trivial
-    if (program.isTrivial) {
-      input
-    }
-
-    var filterNode: Filter = null
+    var filterNode: Option[Filter] = None
     // translate condition
     if (program.getCondition != null) {
       val condition = program.expandLocalRef(program.getCondition())
       val conditionExpr = RexToExpr.translate(condition, input.outputFields)
-      filterNode = Filter(input, conditionExpr)
+      filterNode = Some(Filter(input, conditionExpr))
     }
 
-    // translate projects
-    var projectExprs: Seq[Expression] = null
-    var renaming: Seq[(String, TypeInformation[_])] = null
-    if (!program.projectsOnlyIdentity) {
-      // rename fields to ensure uniqueness
-      renaming = input.outputFields.zipWithIndex.map(fieldWithIndex =>
-        ("tmp$" + fieldWithIndex._2, fieldWithIndex._1._2))
+    // translate projection
+    var projectExprs: Option[Seq[Expression]] = None
+    var renamedFields: Option[Seq[(String, TypeInformation[_])]] = None
+
+    // only renaming no real projection
+    if (program.projectsOnlyIdentity
+        && !program.getInputRowType.equals(rowType)) {
+      renamedFields = Some(
+        input
+          .outputFields
+          .zipWithIndex
+          .map(fieldWithIndex =>
+            (rowType.getFieldNames.get(fieldWithIndex._2), fieldWithIndex._1._2))
+      )
+    }
+    // real projection
+    else if (!program.projectsOnlyIdentity) {
+      // rename input fields to ensure uniqueness
+      renamedFields = Some(
+        input
+          .outputFields
+          .zipWithIndex
+          .map(fieldWithIndex => ("tmp$" + fieldWithIndex._2, fieldWithIndex._1._2))
+      )
 
       // translate to expressions
-      projectExprs = program.getNamedProjects.map(namedProject => {
-        val project = program.expandLocalRef(namedProject.getKey)
-        val projectExpr = RexToExpr.translate(project, renaming)
-        Naming(projectExpr, namedProject.getValue)
-      })
+      projectExprs = Some(
+        program
+          .getNamedProjects
+          .map(namedProject => {
+            val project = program.expandLocalRef(namedProject.getKey)
+            val projectExpr = RexToExpr.translate(project, renamedFields.get)
+            Naming(projectExpr, namedProject.getValue)
+          })
+      )
     }
 
     // complete translation
-    // without condition
-    if (filterNode == null) {
-      Select(As(input, renaming.map(_._1)), projectExprs)
+
+    // empty calc
+    if (filterNode.isEmpty && renamedFields.isEmpty && projectExprs.isEmpty) {
+      input
     }
-    // without projection
-    else if (projectExprs == null) {
-      filterNode
+    // without condition but with renaming and projection
+    else if (filterNode.isEmpty && renamedFields.isDefined && projectExprs.isDefined) {
+      Select(As(input, renamedFields.get.map(_._1)), projectExprs.get)
     }
-    // with projection and condition
+    // without condition but with renaming only
+    else if (filterNode.isEmpty && renamedFields.isDefined && projectExprs.isEmpty) {
+      As(input, renamedFields.get.map(_._1))
+    }
+    // with condition and without renaming/projection
+    else if (filterNode.isDefined && renamedFields.isEmpty && projectExprs.isEmpty) {
+      filterNode.get
+    }
+    // with condition, renaming and projection
     else {
-      Select(As(filterNode, renaming.map(_._1)), projectExprs)
+      Select(As(filterNode.get, renamedFields.get.map(_._1)), projectExprs.get)
     }
   }
 }

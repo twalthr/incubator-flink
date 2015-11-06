@@ -19,24 +19,40 @@
 package org.apache.flink.api.table.sql.calcite
 
 import org.apache.calcite.rel.rules._
-import org.apache.flink.api.table.sql.calcite.rules.{FlinkAggregateRule, FlinkJoinRule, FlinkCalcRule}
+import org.apache.flink.api.table.sql.calcite.rules._
 
 object FlinkRules {
 
-  val RULES = List(
-    // join rules
+  val CONVERTER_RULES = List(
+    FlinkProjectRule.INSTANCE,
+    FlinkFilterRule.INSTANCE,
     FlinkJoinRule.INSTANCE,
-    // aggregate rules
-    AggregateReduceFunctionsRule.INSTANCE,
+    FlinkUnionRule.INSTANCE,
     FlinkAggregateRule.INSTANCE,
-    // calc rules
-    FilterToCalcRule.INSTANCE,
-    ProjectToCalcRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
-    FilterCalcMergeRule.INSTANCE,
-    ProjectCalcMergeRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
     FlinkCalcRule.INSTANCE
+    )
+
+  // ALL RULES UNTIL FilterToCalcRule HAVE BEEN REVIEWED
+  val RULES = List(
+    // union rules
+    UnionMergeRule.INSTANCE,
+    UnionEliminatorRule.INSTANCE,
+    // aggregate rules
+    AggregateExpandDistinctAggregatesRule.INSTANCE,
+    AggregateProjectMergeRule.INSTANCE,
+    AggregateProjectPullUpConstantsRule.INSTANCE,
+    AggregateReduceFunctionsRule.INSTANCE,
+    AggregateRemoveRule.INSTANCE,
+    AggregateUnionAggregateRule.INSTANCE,
+    AggregateUnionTransposeRule.INSTANCE,
+    // project rules
+    FlinkProjectToCalcRule.INSTANCE,
+    // filter rules
+    FlinkFilterToCalcRule.INSTANCE,
+    FilterSetOpTransposeRule.INSTANCE,
+    // calc rules
+    CalcMergeRule.INSTANCE,
+    CalcRemoveRule.INSTANCE
     )
 
 }

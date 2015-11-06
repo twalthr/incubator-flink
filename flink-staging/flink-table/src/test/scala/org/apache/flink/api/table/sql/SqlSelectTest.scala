@@ -18,15 +18,10 @@
 
 package org.apache.flink.api.table.sql
 
-import org.apache.calcite.adapter.enumerable.RexImpTable
 import org.apache.calcite.runtime.SqlFunctions
-import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.util.InstantiationUtil
-import org.junit.Test
 import org.junit.Assert._
-
-import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.table._
+import org.junit.{Ignore, Test}
 
 class SqlSelectTest {
 
@@ -126,7 +121,7 @@ class SqlSelectTest {
     val expected = sqlTestUtil.table1
       .groupBy("FIELD1")
       .select("FIELD1, FIELD1.min AS VALMIN, FIELD1.max AS VALMAX, FIELD1.count AS VALCOUNT, " +
-        "FIELD1.sum AS VALSUM")
+      "FIELD1.sum AS VALSUM")
     val actual = sqlTestUtil.translator.translate("""
       SELECT FIELD1, MIN(FIELD1) AS VALMIN, MAX(FIELD1) AS VALMAX, COUNT(FIELD1) AS VALCOUNT,
         SUM(FIELD1) AS VALSUM
@@ -144,7 +139,9 @@ class SqlSelectTest {
       .groupBy("FIELD1")
       .select("FIELD1, FIELD1.sum AS $f1, FIELD1.count AS $f2")
       .as("tmp$0, tmp$1, tmp$2")
-      .select("(tmp$1 / tmp$2).cast(INT) AS VALAVG")
+      .select("tmp$0 AS FIELD1, (tmp$1 / tmp$2).cast(INT) AS VALAVG")
+      .as("tmp$0, tmp$1")
+      .select("tmp$1 AS VALAVG")
     val actual = sqlTestUtil.translator.translate("""
       SELECT AVG(FIELD1) AS VALAVG
       FROM TABLE1
@@ -173,7 +170,7 @@ class SqlSelectTest {
 
     val expected = sqlTestUtil.table1
       .filter("FIELD1 > 100.0 || (FIELD1 < 1 && !(FIELD1 = 10.0)) " +
-        "|| FIELD1 != 11.0 || FIELD1 >= 11 || (FIELD1 <= 11 && FIELD2.isNull) || FIELD2.isNotNull")
+      "|| FIELD1 != 11.0 || FIELD1 >= 11 || (FIELD1 <= 11 && FIELD2.isNull) || FIELD2.isNotNull")
     val actual = sqlTestUtil.translator.translate("""
       SELECT *
       FROM TABLE1
@@ -184,6 +181,112 @@ class SqlSelectTest {
   }
 
   @Test
+  def testUnionAllOperator(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .unionAll(sqlTestUtil.table2)
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT *
+      FROM TABLE1
+      UNION ALL
+      SELECT *
+      FROM TABLE2""")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testUnionAllOperatorWithProject(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .as("tmp$0, tmp$1")
+      .select("tmp$0 AS FIELD1")
+      .unionAll(
+        sqlTestUtil.table2
+          .as("tmp$0, tmp$1")
+          .select("tmp$0 AS FIELD1")
+      )
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT FIELD1
+      FROM TABLE1
+      UNION ALL
+      SELECT FIELD1
+      FROM TABLE2""")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testUnionOperator(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .unionAll(sqlTestUtil.table2)
+      .groupBy("FIELD1, FIELD2")
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT *
+      FROM TABLE1
+      UNION
+      SELECT *
+      FROM TABLE2""")
+
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testUnionOperatorWithProject(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .as("A, B")
+      .unionAll(sqlTestUtil.table2.as("A, B"))
+      .groupBy("A, B")
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT FIELD1 AS A, FIELD2 AS B
+      FROM TABLE1
+      UNION
+      SELECT FIELD1 AS A, FIELD2 AS B
+      FROM TABLE2""")
+
+    assertEquals(expected, actual)
+  }
+
+
+
+
+  // ----------------------------------------------------------------------------------------------
+  // TODO
+  // ----------------------------------------------------------------------------------------------
+
+
+  @Test
+  @Ignore
+  def testUnionAllOperatorWith3Tables(): Unit = {
+    val sqlTestUtil = new SqlTestUtil
+
+    val expected = sqlTestUtil.table1
+      .as("A, B")
+      .unionAll(sqlTestUtil.table2)
+      .unionAll(sqlTestUtil.table3)
+    val actual = sqlTestUtil.translator.translate("""
+      SELECT FIELD1 AS A, FIELD2 AS B
+      FROM TABLE1
+      UNION ALL
+      SELECT *
+      FROM TABLE2
+      UNION ALL
+      SELECT *
+      FROM TABLE3""")
+
+    assertEquals(expected, actual)
+  }
+
+
+
+  @Test
+  @Ignore
   def testBetweenOperator(): Unit = {
     val sqlTestUtil = new SqlTestUtil
 
@@ -197,6 +300,15 @@ class SqlSelectTest {
     assertEquals(expected, actual)
   }
 
+
+
+
+
+
+
+
+
+  @Ignore
   @Test
   def testDateOperator(): Unit = {
     val sqlTestUtil = new SqlTestUtil
@@ -212,11 +324,12 @@ class SqlSelectTest {
   }
 
   @Test
+  @Ignore
   def testCustomFunction(): Unit = {
     val test = Thread.currentThread()
       .getContextClassLoader.getResourceAsStream("org/apache/calcite/runtime/SqlFunctions.class")
 
-    Thread.currentThread().getContextClassLoader().l
+    Thread.currentThread().getContextClassLoader();
 
     val clazz = classOf[SqlFunctions]
     val cons = clazz.getDeclaredConstructor()

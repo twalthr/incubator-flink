@@ -20,12 +20,13 @@ package org.apache.flink.api.table.sql
 
 import org.apache.calcite.adapter.java.JavaTypeFactory
 import org.apache.calcite.plan.RelTraitSet
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools._
 import org.apache.flink.api.table.Table
-import org.apache.flink.api.table.sql.calcite.{FlinkRel, FlinkTable}
+import org.apache.flink.api.table.sql.calcite.{FlinkRel, FlinkRules, FlinkTable}
+
+import scala.collection.JavaConversions._
 
 class SqlTranslator(val tableRegistry: TableRegistry) {
 
@@ -53,7 +54,7 @@ class SqlTranslator(val tableRegistry: TableRegistry) {
       .newConfigBuilder
       .defaultSchema(schema)
       .parserConfig(parserConfig)
-      .programs(Programs.standard)
+      .programs(Programs.ofRules(FlinkRules.RULES))
       .traitDefs(FlinkRel.CONVENTION.getTraitDef)
       .build
   }
