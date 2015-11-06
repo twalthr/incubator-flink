@@ -253,23 +253,14 @@ class SqlSelectTest {
     assertEquals(expected, actual)
   }
 
-
-
-
-  // ----------------------------------------------------------------------------------------------
-  // TODO
-  // ----------------------------------------------------------------------------------------------
-
-
   @Test
-  @Ignore
   def testUnionAllOperatorWith3Tables(): Unit = {
     val sqlTestUtil = new SqlTestUtil
 
     val expected = sqlTestUtil.table1
       .as("A, B")
-      .unionAll(sqlTestUtil.table2)
-      .unionAll(sqlTestUtil.table3)
+      .unionAll(sqlTestUtil.table2.as("A, B"))
+      .unionAll(sqlTestUtil.table3.as("A, B"))
     val actual = sqlTestUtil.translator.translate("""
       SELECT FIELD1 AS A, FIELD2 AS B
       FROM TABLE1
@@ -282,6 +273,13 @@ class SqlSelectTest {
 
     assertEquals(expected, actual)
   }
+
+  // ----------------------------------------------------------------------------------------------
+  // TODO
+  // ----------------------------------------------------------------------------------------------
+
+
+
 
 
 

@@ -23,7 +23,7 @@ import java.util
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Union
-import org.apache.flink.api.table.plan.{GroupBy, PlanNode, UnionAll}
+import org.apache.flink.api.table.plan.{As, GroupBy, PlanNode, UnionAll}
 import org.apache.flink.api.table.sql.ExprUtils.toResFields
 import org.apache.flink.api.table.sql.PlanImplementor
 import org.apache.flink.api.table.sql.calcite.FlinkRel
@@ -52,7 +52,17 @@ class FlinkUnion(
 
   override def translateToPlanNode(implementor: PlanImplementor): PlanNode = {
     val inputs = getInputs.map(_.asInstanceOf[FlinkRel].translateToPlanNode(implementor))
-    val unionOfInputs = inputs.reduceLeft(UnionAll(_,_))
+    val unionOfInputs = inputs.reduceLeft((left, right) => {
+      // rename right side if field names are not equal
+      val leftFieldNames = left.outputFields.map(_._1)
+      val rightFieldNames = right.outputFields.map(_._1)
+      if (!leftFieldNames.equals(rightFieldNames)) {
+        UnionAll(left, As(right, leftFieldNames))
+      }
+      else {
+        UnionAll(left, right)
+      }
+    })
     // do not group rows for UNION ALL
     if (all) {
       unionOfInputs
