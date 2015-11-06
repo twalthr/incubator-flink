@@ -60,7 +60,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testUnionFieldsNameNotOverlap1(): Unit = {
+  def testUnionFieldsTypesDoNotOverlap1(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).as('a, 'b, 'd, 'c, 'e)
@@ -73,7 +73,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testUnionFieldsNameNotOverlap2(): Unit = {
+  def testUnionFieldsTypeDoNotOverlap2(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).as('a, 'b, 'c, 'd, 'e).select('a, 'b, 'c)
