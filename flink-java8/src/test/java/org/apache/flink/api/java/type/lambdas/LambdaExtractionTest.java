@@ -18,12 +18,14 @@
 
 package org.apache.flink.api.java.type.lambdas;
 
+import org.junit.Assert;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import junit.framework.Assert;
-
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -108,7 +110,7 @@ public class LambdaExtractionTest {
 	@Test
 	public void testLambdaWithMemberVariable() {
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(new MyClass().getMapFunction(), TypeInfoParser.parse("Integer"));
-		Assert.assertEquals(ti, BasicTypeInfo.STRING_TYPE_INFO);
+		assertEquals(ti, BasicTypeInfo.STRING_TYPE_INFO);
 	}
 
 	@Test
@@ -120,7 +122,7 @@ public class LambdaExtractionTest {
 		MapFunction<Integer, String> f = (i) -> s + k + j;
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(f, TypeInfoParser.parse("Integer"));
-		Assert.assertEquals(ti, BasicTypeInfo.STRING_TYPE_INFO);
+		assertEquals(ti, BasicTypeInfo.STRING_TYPE_INFO);
 	}
 
 	@Test
@@ -129,10 +131,10 @@ public class LambdaExtractionTest {
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"));
 		if (!(ti instanceof MissingTypeInfo)) {
-			Assert.assertTrue(ti.isTupleType());
-			Assert.assertEquals(2, ti.getArity());
-			Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-			Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+			assertTrue(ti.isTupleType());
+			assertEquals(2, ti.getArity());
+			assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+			assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
 		}
 	}
 
@@ -142,10 +144,10 @@ public class LambdaExtractionTest {
 
 		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"));
 		if (!(ti instanceof MissingTypeInfo)) {
-			Assert.assertTrue(ti.isTupleType());
-			Assert.assertEquals(2, ti.getArity());
-			Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-			Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+			assertTrue(ti.isTupleType());
+			assertEquals(2, ti.getArity());
+			assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+			assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
 		}
 	}
 
@@ -155,10 +157,10 @@ public class LambdaExtractionTest {
 
 		TypeInformation<?> ti = TypeExtractor.getMapPartitionReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"));
 		if (!(ti instanceof MissingTypeInfo)) {
-			Assert.assertTrue(ti.isTupleType());
-			Assert.assertEquals(2, ti.getArity());
-			Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-			Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+			assertTrue(ti.isTupleType());
+			assertEquals(2, ti.getArity());
+			assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+			assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
 		}
 	}
 
@@ -168,10 +170,10 @@ public class LambdaExtractionTest {
 
 		TypeInformation<?> ti = TypeExtractor.getGroupReduceReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"));
 		if (!(ti instanceof MissingTypeInfo)) {
-			Assert.assertTrue(ti.isTupleType());
-			Assert.assertEquals(2, ti.getArity());
-			Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-			Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+			assertTrue(ti.isTupleType());
+			assertEquals(2, ti.getArity());
+			assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+			assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
 		}
 	}
 
@@ -181,10 +183,10 @@ public class LambdaExtractionTest {
 
 		TypeInformation<?> ti = TypeExtractor.getFlatJoinReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"), TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Double>"));
 		if (!(ti instanceof MissingTypeInfo)) {
-			Assert.assertTrue(ti.isTupleType());
-			Assert.assertEquals(2, ti.getArity());
-			Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-			Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+			assertTrue(ti.isTupleType());
+			assertEquals(2, ti.getArity());
+			assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+			assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
 		}
 	}
 
@@ -194,10 +196,10 @@ public class LambdaExtractionTest {
 
 		TypeInformation<?> ti = TypeExtractor.getJoinReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"), TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Double>"));
 		if (!(ti instanceof MissingTypeInfo)) {
-			Assert.assertTrue(ti.isTupleType());
-			Assert.assertEquals(2, ti.getArity());
-			Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-			Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+			assertTrue(ti.isTupleType());
+			assertEquals(2, ti.getArity());
+			assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+			assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
 		}
 	}
 
@@ -207,10 +209,10 @@ public class LambdaExtractionTest {
 
 		TypeInformation<?> ti = TypeExtractor.getCoGroupReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"), TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Double>"));
 		if (!(ti instanceof MissingTypeInfo)) {
-			Assert.assertTrue(ti.isTupleType());
-			Assert.assertEquals(2, ti.getArity());
-			Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-			Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+			assertTrue(ti.isTupleType());
+			assertEquals(2, ti.getArity());
+			assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+			assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
 		}
 	}
 
@@ -220,10 +222,10 @@ public class LambdaExtractionTest {
 
 		TypeInformation<?> ti = TypeExtractor.getCrossReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"), TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Double>"));
 		if (!(ti instanceof MissingTypeInfo)) {
-			Assert.assertTrue(ti.isTupleType());
-			Assert.assertEquals(2, ti.getArity());
-			Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-			Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+			assertTrue(ti.isTupleType());
+			assertEquals(2, ti.getArity());
+			assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+			assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
 		}
 	}
 
@@ -233,10 +235,10 @@ public class LambdaExtractionTest {
 
 		TypeInformation<?> ti = TypeExtractor.getKeySelectorTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"));
 		if (!(ti instanceof MissingTypeInfo)) {
-			Assert.assertTrue(ti.isTupleType());
-			Assert.assertEquals(2, ti.getArity());
-			Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-			Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+			assertTrue(ti.isTupleType());
+			assertEquals(2, ti.getArity());
+			assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+			assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
 		}
 	}
 
@@ -245,7 +247,23 @@ public class LambdaExtractionTest {
 	public void testLambdaTypeErasure() {
 		MapFunction<Tuple1, Tuple1> f = (i) -> null;
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(f, TypeInfoParser.parse("Tuple1<String>"), null, true);
-		Assert.assertTrue(ti instanceof MissingTypeInfo);
+		assertTrue(ti instanceof MissingTypeInfo);
+	}
+
+	public static class Either<E, O> {
+		public E either;
+		public O or;
+	}
+
+	public static class UserEvent extends Tuple4<Long, Long, String, Boolean> {
+
+	}
+
+	@Test
+	public void testMapperWithEitherType() {
+		MapFunction<String, Either<UserEvent, Long>> f = (i) -> null;
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(f, TypeInfoParser.parse("String"), null, true);
+		System.out.println();
 	}
 
 }
