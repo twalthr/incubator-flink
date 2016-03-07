@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.table.plan
 
+import java.util.Date
+
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
@@ -74,6 +76,9 @@ object RexNodeTranslator {
 
     exp match {
       // Basic operators
+      case Literal(value: Date, tpe) =>
+        // Date literals are casted to Timestamps internally
+        relBuilder.cast(relBuilder.literal(value.getTime), TypeConverter.typeInfoToSqlType(tpe))
       case Literal(value, tpe) =>
         relBuilder.literal(value)
       case ResolvedFieldReference(name, tpe) =>

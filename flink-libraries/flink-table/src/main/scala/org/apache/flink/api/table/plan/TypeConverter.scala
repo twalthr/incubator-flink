@@ -56,7 +56,9 @@ object TypeConverter {
     case DOUBLE_VALUE_TYPE_INFO => DOUBLE
     case STRING_TYPE_INFO => VARCHAR
     case STRING_VALUE_TYPE_INFO => VARCHAR
-    case DATE_TYPE_INFO => DATE
+
+    // we work with BasicType long internally, so timestamp fits best for BasicType Date
+    case DATE_TYPE_INFO => TIMESTAMP
 
     case CHAR_TYPE_INFO | CHAR_VALUE_TYPE_INFO =>
       throw new TableException("Character type is not supported.")
@@ -79,15 +81,16 @@ object TypeConverter {
     case FLOAT => FLOAT_TYPE_INFO
     case DOUBLE => DOUBLE_TYPE_INFO
     case VARCHAR | CHAR => STRING_TYPE_INFO
-    case DATE => DATE_TYPE_INFO
+
+    // all date/time types are represented as BasicType Date
+    case DATE | TIME | TIMESTAMP | INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME => DATE_TYPE_INFO
 
     // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
     // are represented as integer
     case SYMBOL => INT_TYPE_INFO
 
-    case _ =>
-      println(sqlType)
-      ??? // TODO more types
+    case t@_ =>
+      throw new TableException(s"Type is not supported: $t")
   }
 
   /**

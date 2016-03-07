@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.table.codegen.calls
 
+import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo, TypeInformation}
 import org.apache.flink.api.table.codegen.CodeGenUtils._
@@ -334,15 +335,29 @@ object ScalarOperators {
           (operandTerm) => s"$operandTerm"
         }
 
-      // * -> String
+      // Date -> String
+      case STRING_TYPE_INFO if isDate(operand) =>
+        generateUnaryOperatorIfNotNull(nullCheck, STRING_TYPE_INFO, operand) {
+          (operandTerm) =>
+            s"${qualifiedMethod(BuiltInMethod.UNIX_TIMESTAMP_TO_STRING)}($operandTerm)"
+        }
+
+      // * (not Date) -> String
       case STRING_TYPE_INFO =>
         generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
           (operandTerm) => s""" "" + $operandTerm"""
         }
 
-      // * -> Date
-      case DATE_TYPE_INFO =>
-        throw new CodeGenException("Date type not supported yet.")
+      // NUMERIC TYPE -> Date
+      case DATE_TYPE_INFO if isNumeric(operand) =>
+        val internalDate = generateUnaryOperatorIfNotNull(nullCheck, LONG_TYPE_INFO, operand) {
+          (operandTerm) => s"(long) $operandTerm"
+        }
+        internalDate.copy(resultType = DATE_TYPE_INFO)
+
+      // String -> Date
+      case DATE_TYPE_INFO if isString(operand) =>
+        generateDateStringParser(operand)
 
       // * -> Void
       case VOID_TYPE_INFO =>
@@ -352,8 +367,8 @@ object ScalarOperators {
       case CHAR_TYPE_INFO =>
         throw new CodeGenException("Character type not supported.")
 
-      // NUMERIC TYPE -> Boolean
-      case BOOLEAN_TYPE_INFO if isNumeric(operand) =>
+      // NUMERIC TYPE, Date -> Boolean
+      case BOOLEAN_TYPE_INFO if isNumeric(operand) || isDate(operand) =>
         generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
           (operandTerm) => s"$operandTerm != 0"
         }
@@ -365,8 +380,8 @@ object ScalarOperators {
           (operandTerm) => s"$wrapperClass.valueOf($operandTerm)"
         }
 
-      // NUMERIC TYPE -> NUMERIC TYPE
-      case nti: NumericTypeInfo[_] if isNumeric(operand) =>
+      // NUMERIC TYPE, Date -> NUMERIC TYPE
+      case nti: NumericTypeInfo[_] if isNumeric(operand) || isDate(operand) =>
         val targetTypeTerm = primitiveTypeTermForTypeInfo(nti)
         generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
           (operandTerm) => s"($targetTypeTerm) $operandTerm"
@@ -386,6 +401,31 @@ object ScalarOperators {
   }
 
   // ----------------------------------------------------------------------------------------------
+
+  private def qualifiedMethod(builtInMethod: BuiltInMethod): String = {
+    val method = builtInMethod.method
+    s"${method.getDeclaringClass.getCanonicalName}.${method.getName}"
+  }
+
+  private def generateDateStringParser(
+      nullCheck: Boolean,
+      operand: GeneratedExpression)
+    : GeneratedExpression = {
+
+    val fullTimestampParser = s""
+
+    val timeParser = s""
+
+    val timestampParser = s""
+
+    generateUnaryOperatorIfNotNull(nullCheck, LONG_TYPE_INFO, operand) {
+      (str) =>
+        s"""
+          |($str.indexOf('.') >= 0) ? $fullTimestampParser :
+          |($str.indexOf('-') < 0) ? $timeParser :
+          |$timestampParser""".stripMargin
+    }
+  }
 
   private def generateUnaryOperatorIfNotNull(
       nullCheck: Boolean,

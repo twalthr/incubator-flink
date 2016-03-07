@@ -19,10 +19,11 @@
 package org.apache.flink.api.table.codegen
 
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.{SqlLiteral, SqlOperator}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.{SqlLiteral, SqlOperator}
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
@@ -320,12 +321,13 @@ class CodeGenerator(
     }
 
     val returnTypeTerm = boxedTypeTermForTypeInfo(returnType)
+    val outFieldExprs = fieldExprs.map(generateOutputBoxing)
 
     // generate result expression
     returnType match {
       case ri: RowTypeInfo =>
         addReusableOutRecord(ri)
-        val resultSetters: String = fieldExprs.zipWithIndex map {
+        val resultSetters: String = outFieldExprs.zipWithIndex map {
           case (fieldExpr, i) =>
             if (nullCheck) {
               s"""
@@ -350,7 +352,7 @@ class CodeGenerator(
 
       case pt: PojoTypeInfo[_] =>
         addReusableOutRecord(pt)
-        val resultSetters: String = fieldExprs.zip(resultFieldNames) map {
+        val resultSetters: String = outFieldExprs.zip(resultFieldNames) map {
           case (fieldExpr, fieldName) =>
             val accessor = getFieldAccessor(pt.getTypeClass, fieldName)
 
@@ -421,7 +423,7 @@ class CodeGenerator(
 
       case tup: TupleTypeInfo[_] =>
         addReusableOutRecord(tup)
-        val resultSetters: String = fieldExprs.zipWithIndex map {
+        val resultSetters: String = outFieldExprs.zipWithIndex map {
           case (fieldExpr, i) =>
             val fieldName = "f" + i
             if (nullCheck) {
@@ -446,12 +448,12 @@ class CodeGenerator(
         GeneratedExpression(outRecordTerm, "false", resultSetters, returnType)
 
       case cc: CaseClassTypeInfo[_] =>
-        val fieldCodes: String = fieldExprs.map(_.code).mkString("\n")
-        val constructorParams: String = fieldExprs.map(_.resultTerm).mkString(", ")
+        val fieldCodes: String = outFieldExprs.map(_.code).mkString("\n")
+        val constructorParams: String = outFieldExprs.map(_.resultTerm).mkString(", ")
         val resultTerm = newName(outRecordTerm)
 
         val nullCheckCode = if (nullCheck) {
-        fieldExprs map { (fieldExpr) =>
+        outFieldExprs map { (fieldExpr) =>
           s"""
               |if (${fieldExpr.nullTerm}) {
               |  throw new NullPointerException("Null result cannot be stored in a Case Class.");
@@ -472,7 +474,7 @@ class CodeGenerator(
         GeneratedExpression(resultTerm, "false", resultCode, returnType)
 
       case a: AtomicType[_] =>
-        val fieldExpr = fieldExprs.head
+        val fieldExpr = outFieldExprs.head
         val nullCheckCode = if (nullCheck) {
           s"""
           |if (${fieldExpr.nullTerm}) {
@@ -746,11 +748,11 @@ class CodeGenerator(
     // if input has been used before, we can reuse the code that
     // has already been generated
     val inputExpr = reusableInputUnboxingExprs.get((inputTerm, index)) match {
-      // input access and boxing has already been generated
+      // input access and unboxing has already been generated
       case Some(expr) =>
         expr
 
-      // generate input access and boxing if necessary
+      // generate input access and unboxing if necessary
       case None =>
         val newExpr = inputType match {
 
@@ -821,6 +823,38 @@ class CodeGenerator(
     GeneratedExpression(inputExpr.resultTerm, inputExpr.nullTerm, "", inputExpr.resultType)
   }
 
+  private def generateOutputBoxing(expr: GeneratedExpression): GeneratedExpression = {
+    expr.resultType match {
+      // convert the internal Date representation to a Date object
+      case DATE_TYPE_INFO =>
+        val resultTerm = newName("result")
+        val resultTypeTerm = boxedTypeTermForTypeInfo(DATE_TYPE_INFO)
+
+        val resultCode = if (nullCheck) {
+          s"""
+            |${expr.code}
+            |$resultTypeTerm $resultTerm;
+            |if (${expr.nullTerm}) {
+            |  $resultTerm = null;
+            |}
+            |else {
+            |  $resultTerm = new $resultTypeTerm(${expr.resultTerm});
+            |}
+            |""".stripMargin
+        } else {
+          s"""
+            |${expr.code}
+            |$resultTypeTerm $resultTerm = new $resultTypeTerm(${expr.resultTerm});
+            |""".stripMargin
+        }
+
+        GeneratedExpression(resultTerm, expr.nullTerm, resultCode, DATE_TYPE_INFO)
+
+      // other types are autoboxed or need no boxing
+      case _ => expr
+    }
+  }
+
   private def generateNullableLiteral(
       literalType: TypeInformation[Any],
       literalCode: String)
@@ -832,6 +866,7 @@ class CodeGenerator(
     val resultTypeTerm = primitiveTypeTermForTypeInfo(literalType)
     val defaultValue = primitiveDefaultValue(literalType)
 
+    // unboxing Wrapper classes with null check
     val wrappedCode = if (nullCheck && !isReference(literalType)) {
       s"""
         |$tmpTypeTerm $tmpTerm = $literalCode;
@@ -844,12 +879,36 @@ class CodeGenerator(
         |  $resultTerm = $tmpTerm;
         |}
         |""".stripMargin
-    } else if (nullCheck) {
+    }
+    // unboxing Date type with null check
+    else if (nullCheck && isDate(literalType)) {
+      s"""
+        |$tmpTypeTerm $tmpTerm = $literalCode;
+        |boolean $nullTerm = $tmpTerm == null;
+        |long $resultTerm;
+        |if ($nullTerm) {
+        |  $resultTerm = 0L;
+        |}
+        |else {
+        |  $resultTerm = ($tmpTerm).getTime();
+        |}
+        |""".stripMargin
+    }
+    // unboxing Date type without null check
+    else if (!nullCheck && isDate(literalType)) {
+      s"""
+        |long $resultTerm = ($literalCode).getTime();
+        |""".stripMargin
+    }
+    // no unboxing with null check
+    else if (nullCheck) {
       s"""
         |$resultTypeTerm $resultTerm = $literalCode;
         |boolean $nullTerm = $literalCode == null;
         |""".stripMargin
-    } else {
+    }
+    // no null check (implicit unboxing)
+    else {
       s"""
         |$resultTypeTerm $resultTerm = $literalCode;
         |""".stripMargin
@@ -888,7 +947,7 @@ class CodeGenerator(
 
     val wrappedCode = if (nullCheck) {
       s"""
-        |$resultTypeTerm $resultTerm = null;
+        |$resultTypeTerm $resultTerm = $defaultValue;
         |boolean $nullTerm = true;
         |""".stripMargin
     } else {

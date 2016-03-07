@@ -147,6 +147,13 @@ object CodeGenUtils {
     case _ => false
   }
 
+  def isDate(genExpr: GeneratedExpression): Boolean = isDate(genExpr.resultType)
+
+  def isDate(typeInfo: TypeInformation[_]): Boolean = typeInfo match {
+    case DATE_TYPE_INFO => true
+    case _ => false
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   sealed abstract class FieldAccessor
