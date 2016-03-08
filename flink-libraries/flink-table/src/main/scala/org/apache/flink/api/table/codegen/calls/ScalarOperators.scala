@@ -337,9 +337,8 @@ object ScalarOperators {
 
       // Date -> String
       case STRING_TYPE_INFO if isDate(operand) =>
-        generateUnaryOperatorIfNotNull(nullCheck, STRING_TYPE_INFO, operand) {
-          (operandTerm) =>
-            s"${qualifiedMethod(BuiltInMethod.UNIX_TIMESTAMP_TO_STRING)}($operandTerm)"
+        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+          (date) => s"${qualifiedMethod(BuiltInMethod.UNIX_TIMESTAMP_TO_STRING)}($date)"
         }
 
       // * (not Date) -> String
@@ -348,16 +347,22 @@ object ScalarOperators {
           (operandTerm) => s""" "" + $operandTerm"""
         }
 
-      // NUMERIC TYPE -> Date
-      case DATE_TYPE_INFO if isNumeric(operand) =>
-        val internalDate = generateUnaryOperatorIfNotNull(nullCheck, LONG_TYPE_INFO, operand) {
-          (operandTerm) => s"(long) $operandTerm"
-        }
-        internalDate.copy(resultType = DATE_TYPE_INFO)
-
       // String -> Date
       case DATE_TYPE_INFO if isString(operand) =>
-        generateDateStringParser(operand)
+        val targetTypeTerm = primitiveTypeTermForTypeInfo(targetType)
+        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+          (str) =>
+            val longParser =
+              s"($targetTypeTerm) ${LONG_TYPE_INFO.getTypeClass.getCanonicalName}.valueOf($str)"
+            val timeParser = s"${qualifiedMethod(BuiltInMethod.STRING_TO_TIME)}($str)"
+            val timestampParser = s"${qualifiedMethod(BuiltInMethod.STRING_TO_TIMESTAMP)}($str)"
+
+            s"""
+              |($str.indexOf('-') < 0 && $str.indexOf(':') < 0) ? $longParser :
+              |($str.indexOf('-') < 0) ? $timeParser :
+              |$timestampParser
+              |""".stripMargin
+        }
 
       // * -> Void
       case VOID_TYPE_INFO =>
@@ -387,6 +392,13 @@ object ScalarOperators {
           (operandTerm) => s"($targetTypeTerm) $operandTerm"
         }
 
+      // NUMERIC TYPE -> Date
+      case DATE_TYPE_INFO if isNumeric(operand) =>
+        val targetTypeTerm = primitiveTypeTermForTypeInfo(targetType)
+        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+          (operandTerm) => s"($targetTypeTerm) $operandTerm"
+        }
+
       // Boolean -> NUMERIC TYPE
       case nti: NumericTypeInfo[_] if isBoolean(operand) =>
         val targetTypeTerm = primitiveTypeTermForTypeInfo(nti)
@@ -405,26 +417,6 @@ object ScalarOperators {
   private def qualifiedMethod(builtInMethod: BuiltInMethod): String = {
     val method = builtInMethod.method
     s"${method.getDeclaringClass.getCanonicalName}.${method.getName}"
-  }
-
-  private def generateDateStringParser(
-      nullCheck: Boolean,
-      operand: GeneratedExpression)
-    : GeneratedExpression = {
-
-    val fullTimestampParser = s""
-
-    val timeParser = s""
-
-    val timestampParser = s""
-
-    generateUnaryOperatorIfNotNull(nullCheck, LONG_TYPE_INFO, operand) {
-      (str) =>
-        s"""
-          |($str.indexOf('.') >= 0) ? $fullTimestampParser :
-          |($str.indexOf('-') < 0) ? $timeParser :
-          |$timestampParser""".stripMargin
-    }
   }
 
   private def generateUnaryOperatorIfNotNull(

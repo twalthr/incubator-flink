@@ -18,8 +18,9 @@
 
 package org.apache.flink.api.scala.table.test
 
-import java.util.{Date, TimeZone}
+import java.util.{TimeZone, Date}
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
@@ -48,13 +49,14 @@ class DateTimeITCase(
     val t = env.fromElements((new Date(0), new Date(0))).as('date, 'date2)
       .select('date, new Date(1000))
 
-    val expected = "Thu Jan 01 00:00:00 UTC 1970,Thu Jan 01 00:00:01 UTC 1970"
+    val expected = "Thu Jan 01 00:00:00 UTC 1970," +
+      "Thu Jan 01 00:00:01 UTC 1970"
     val results = t.toDataSet[Row](getConfig).collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
-  def testCastingFromDate(): Unit = {
+  def testCastFromDateToAny(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements((new Date(0), new Date(0))).as('date, 'date2)
       .select(
@@ -64,13 +66,37 @@ class DateTimeITCase(
         new Date(42).cast(INT_TYPE_INFO),
         new Date(1).cast(BOOLEAN_TYPE_INFO))
 
-    val expected = "1970-01-01 00:00:00,1970-01-01 00:00:01,22,42,true"
+    val expected ="1970-01-01 00:00:00," +
+      "1970-01-01 00:00:01," +
+      "22," +
+      "42," +
+      "true"
     val results = t.toDataSet[Row](getConfig).collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
-  def testCastingToDate(): Unit = {
+  def testCastFromStrings(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = env.fromElements(("2011-05-03", "15:51:36", "2011-05-03 15:51:36.000", "1446473775"))
+      .toTable
+      .select(
+        '_1.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
+        '_2.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
+        '_3.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
+        '_4.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO))
+
+    val expected = "2011-05-03 00:00:00," +
+      "1970-01-01 15:51:36," +
+      "2011-05-03 15:51:36," +
+      "1970-01-17 17:47:53\n"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testCastFromStrings2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements((new Date(0), new Date(0))).as('date, 'date2)
       .select(
@@ -80,14 +106,13 @@ class DateTimeITCase(
         "1970-01-01 00:00:01".cast(DATE_TYPE_INFO),
         "1970-01-01 00:00:01.333".cast(DATE_TYPE_INFO))
 
-    val expected = "1970-01-01 00:00:00,1970-01-01 00:00:01,22,42,true"
+    val expected = "Thu Jan 01 00:00:00 UTC 1970," +
+      "Fri Jan 02 00:00:00 UTC 1970," +
+      "Thu Jan 01 00:00:00 UTC 1970," +
+      "Thu Jan 01 00:00:01 UTC 1970," +
+      "Thu Jan 01 00:00:01 UTC 1970"
     val results = t.toDataSet[Row](getConfig).collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def test(): Unit = {
-    ???
   }
 
 }

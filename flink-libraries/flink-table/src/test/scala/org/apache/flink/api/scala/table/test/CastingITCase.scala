@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.codegen.CodeGenException
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit._
@@ -136,41 +135,5 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val expected = "1,1,1,1,2.0,2.0,true\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test(expected = classOf[CodeGenException])
-  def testCastDateFromString(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements(("2011-05-03", "15:51:36", "2011-05-03 15:51:36.000", "1446473775"))
-      .toTable
-      .select(
-        '_1.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
-        '_2.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
-        '_3.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
-        '_4.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO))
-
-    val expected = "2011-05-03 00:00:00.000,1970-01-01 15:51:36.000,2011-05-03 15:51:36.000," +
-      "1970-01-17 17:47:53.775\n"
-    val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test(expected = classOf[CodeGenException])
-  def testCastDateToStringAndLong(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("2011-05-03 15:51:36.000", "1304437896000"))
-    val t = ds.toTable
-      .select('_1.cast(BasicTypeInfo.DATE_TYPE_INFO).as('f0),
-        '_2.cast(BasicTypeInfo.DATE_TYPE_INFO).as('f1))
-      .select('f0.cast(BasicTypeInfo.STRING_TYPE_INFO),
-        'f0.cast(BasicTypeInfo.LONG_TYPE_INFO),
-        'f1.cast(BasicTypeInfo.STRING_TYPE_INFO),
-        'f1.cast(BasicTypeInfo.LONG_TYPE_INFO))
-
-    val expected = "2011-05-03 15:51:36.000,1304437896000," +
-      "2011-05-03 15:51:36.000,1304437896000\n"
-    val result = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
 }

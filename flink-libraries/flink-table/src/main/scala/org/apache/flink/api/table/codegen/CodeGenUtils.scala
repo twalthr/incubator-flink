@@ -64,6 +64,9 @@ object CodeGenUtils {
     case BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO => "boolean[]"
     case CHAR_PRIMITIVE_ARRAY_TYPE_INFO => "char[]"
 
+    // Date can be represented as a long type
+    case DATE_TYPE_INFO => "long"
+
     case _ =>
       tpe.getTypeClass.getCanonicalName
   }
@@ -94,6 +97,7 @@ object CodeGenUtils {
     case BOOLEAN_TYPE_INFO => "false"
     case STRING_TYPE_INFO => "\"\""
     case CHAR_TYPE_INFO => "'\\0'"
+    case DATE_TYPE_INFO => "0L"
     case _ => "null"
   }
 
