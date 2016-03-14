@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.Row
 import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.api.table.parser.ExpressionParser
 import org.apache.flink.api.table.test.utils.ExpressionEvaluator
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import org.junit.Assert.assertEquals
@@ -406,12 +407,13 @@ class ScalarFunctionsTest {
       "4.6")
   }
 
+  @Test
   def testDateTimeExtract(): Unit = {
     testFunction(
-      !'f0.similar("This (is)? a (test)+ Strin_*"),
-      "!f0.similar('This (is)? a (test)+ Strin_*')",
+      'f15.extract(TimeUnit.YEAR),
+      "extract(YEAR, f15)",
       "EXTRACT(YEAR FROM f15)",
-      "false")
+      "2003")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -437,7 +439,7 @@ class ScalarFunctionsTest {
     testData.setField(12, -4.5.toFloat)
     testData.setField(13, -4.6)
     testData.setField(14, -3)
-    testData.setField(15, new Date(1058973113)) // 2003-07-23 15:11:53
+    testData.setField(15, new Date(1058973113000L)) // 2003-07-23 15:11:53
 
     val typeInfo = new RowTypeInfo(Seq(
       STRING_TYPE_INFO,
@@ -456,7 +458,7 @@ class ScalarFunctionsTest {
       DOUBLE_TYPE_INFO,
       INT_TYPE_INFO,
       DATE_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
-/*
+
     val exprResult = ExpressionEvaluator.evaluate(testData, typeInfo, expr)
     assertEquals(expected, exprResult)
 
@@ -464,7 +466,7 @@ class ScalarFunctionsTest {
       testData,
       typeInfo,
       ExpressionParser.parseExpression(exprString))
-    assertEquals(expected, exprStringResult)*/
+    assertEquals(expected, exprStringResult)
 
     val exprSqlResult = ExpressionEvaluator.evaluate(testData, typeInfo, sqlExpr)
     assertEquals(expected, exprSqlResult)

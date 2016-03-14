@@ -56,6 +56,7 @@ object BuiltInFunctionNames {
   val POWER = "POWER"
   val LN = "LN"
   val ABS = "ABS"
+  val EXTRACT = "EXTRACT"
 }
 
 /**

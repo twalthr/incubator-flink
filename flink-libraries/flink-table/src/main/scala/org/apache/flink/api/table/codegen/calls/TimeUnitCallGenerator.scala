@@ -22,7 +22,6 @@ import java.lang.reflect.Method
 
 import org.apache.calcite.avatica.util.TimeUnitRange
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.codegen.CodeGenUtils.newName
 import org.apache.flink.api.table.codegen.calls.CallGenerator._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
@@ -39,12 +38,12 @@ class TimeUnitCallGenerator(returnType: TypeInformation[_], method: Method) exte
     : GeneratedExpression = {
     generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
       (operandResultTerms) =>
-        val timeUnitTerm = newName("timeUnit")
         val timeUnitType = classOf[TimeUnitRange].getCanonicalName
         s"""
-          |$timeUnitType $timeUnitTerm = $timeUnitType.values()[${operands.head}]
           |${method.getDeclaringClass.getCanonicalName}.
-          |  ${method.getName}($timeUnitTerm, ${operandResultTerms.drop(1).mkString(", ")})
+          |  ${method.getName}(
+          |    $timeUnitType.values()[${operands.head.resultTerm}],
+          |    ${operandResultTerms.drop(1).mkString(", ")});
          """.stripMargin
     }
   }

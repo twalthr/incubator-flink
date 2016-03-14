@@ -203,6 +203,15 @@ trait ImplicitExpressionOperations {
   def similar(pattern: Expression) = {
     Call(BuiltInFunctionNames.SIMILAR, expr, pattern)
   }
+
+  /**
+    * Returns a single part of a timestamp.
+    *
+    * e.g. "2003-12-01 14:10:59" and [[TimeUnit.YEAR]] leads to "2003"
+    */
+  def extract(timeUnit: TimeUnit.Value) = {
+    Call(BuiltInFunctionNames.EXTRACT, Literal(timeUnit.id), Div(expr, Literal(86400000)))
+  }
 }
 
 /**

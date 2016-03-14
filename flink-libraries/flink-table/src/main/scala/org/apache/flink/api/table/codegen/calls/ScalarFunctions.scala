@@ -109,7 +109,9 @@ object ScalarFunctions {
     Seq(STRING_TYPE_INFO, STRING_TYPE_INFO),
     BuiltInMethod.SIMILAR.method)
 
-  // arithmetic functions
+  // ----------------------------------------------------------------------------------------------
+  // Arithmetic functions
+  // ----------------------------------------------------------------------------------------------
 
   addSqlFunctionMethod(
     LOG10,
@@ -177,6 +179,12 @@ object ScalarFunctions {
   // ----------------------------------------------------------------------------------------------
 
   addSqlFunctionTimeUnitMethod(
+    EXTRACT,
+    Seq(INT_TYPE_INFO, DATE_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+
+  addSqlFunctionTimeUnitMethod(
     EXTRACT_DATE,
     Seq(INT_TYPE_INFO, DATE_TYPE_INFO),
     LONG_TYPE_INFO,
@@ -193,6 +201,10 @@ object ScalarFunctions {
       .orElse(sqlFunctions.find(entry => entry._1._1 == call
         && entry._1._2.length == operandTypes.length
         && entry._1._2.zip(operandTypes).forall {
+        case (x@DATE_TYPE_INFO, y: BasicTypeInfo[_]) =>
+          y.shouldAutocastTo(LONG_TYPE_INFO) || LONG_TYPE_INFO == y
+        case (x: BasicTypeInfo[_], y@DATE_TYPE_INFO) =>
+          LONG_TYPE_INFO.shouldAutocastTo(x) || x == LONG_TYPE_INFO
         case (x: BasicTypeInfo[_], y: BasicTypeInfo[_]) => y.shouldAutocastTo(x) || x == y
         case _ => false
       }).map(_._2))

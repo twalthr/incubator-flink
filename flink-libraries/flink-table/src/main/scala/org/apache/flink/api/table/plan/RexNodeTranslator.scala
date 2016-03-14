@@ -206,6 +206,7 @@ object RexNodeTranslator {
       case BuiltInFunctionNames.LN => SqlStdOperatorTable.LN
       case BuiltInFunctionNames.ABS => SqlStdOperatorTable.ABS
       case BuiltInFunctionNames.MOD => SqlStdOperatorTable.MOD
+      case BuiltInFunctionNames.EXTRACT => SqlStdOperatorTable.EXTRACT
       case _ => ???
     }
   }

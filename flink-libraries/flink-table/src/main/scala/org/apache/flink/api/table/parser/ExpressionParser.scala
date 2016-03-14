@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.ExpressionException
 import org.apache.flink.api.table.expressions._
 
-import scala.util.parsing.combinator.{PackratParsers, JavaTokenParsers}
+import scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
 
 /**
  * Parser for expressions inside a String. This parses exactly the same expressions that
@@ -39,6 +39,11 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   implicit def keyword2Parser(kw: Keyword): Parser[String] = {
     ("""(?i)\Q""" + kw.key + """\E""").r
   }
+
+  // Constants
+  lazy val timeUnit: PackratParser[Expression] = accept("time unit", {
+    ???
+  })
 
   // Keyword
 
@@ -143,7 +148,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // special calls
 
-  lazy val specialFunctionCalls = trim | trimWithoutArgs
+  lazy val specialFunctionCalls = trim | trimWithoutArgs | extract
 
   lazy val specialSuffixFunctionCalls = suffixTrim | suffixTrimWithoutArgs
 
@@ -174,6 +179,11 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
         case "TRAILING" => BuiltInFunctionConstants.TRIM_TRAILING
       }
       Call(BuiltInFunctionNames.TRIM, flag, trimCharacter, operand)
+  }
+
+  lazy val extract = "extract(" ~ timeUnit ~ "," ~ expression ~ ")" ^^ {
+    case _ ~ extractType ~ _ ~ operand ~ _ =>
+      Call(BuiltInFunctionNames.EXTRACT, extractType, operand)
   }
 
   lazy val suffixTrim = atom ~ ".trim(" ~ ("BOTH" | "LEADING" | "TRAILING") ~ "," ~
