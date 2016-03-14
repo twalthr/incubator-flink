@@ -103,6 +103,7 @@ object CodeGenUtils {
 
   def requireNumeric(genExpr: GeneratedExpression) = genExpr.resultType match {
     case nti: NumericTypeInfo[_] => // ok
+    case DATE_TYPE_INFO => // ok
     case _ => throw new CodeGenException("Numeric expression type expected.")
   }
 
@@ -134,6 +135,7 @@ object CodeGenUtils {
 
   def isNumeric(typeInfo: TypeInformation[_]): Boolean = typeInfo match {
     case nti: NumericTypeInfo[_] => true
+    case DATE_TYPE_INFO => true
     case _ => false
   }
 

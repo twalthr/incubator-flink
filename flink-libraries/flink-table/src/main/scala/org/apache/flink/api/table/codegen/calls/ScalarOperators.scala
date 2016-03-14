@@ -19,7 +19,7 @@ package org.apache.flink.api.table.codegen.calls
 
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.{CodeGenException, GeneratedExpression}
 
@@ -40,8 +40,8 @@ object ScalarOperators {
     }
     // Numeric arithmetic
     else if (isNumeric(left) && isNumeric(right)) {
-      val leftType = left.resultType.asInstanceOf[NumericTypeInfo[_]]
-      val rightType = right.resultType.asInstanceOf[NumericTypeInfo[_]]
+      val leftType = left.resultType.asInstanceOf[BasicTypeInfo[_]]
+      val rightType = right.resultType.asInstanceOf[BasicTypeInfo[_]]
       val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
 
       generateOperatorIfNotNull(nullCheck, resultType, left, right) {
@@ -372,8 +372,8 @@ object ScalarOperators {
       case CHAR_TYPE_INFO =>
         throw new CodeGenException("Character type not supported.")
 
-      // NUMERIC TYPE, Date -> Boolean
-      case BOOLEAN_TYPE_INFO if isNumeric(operand) || isDate(operand) =>
+      // NUMERIC TYPE -> Boolean
+      case BOOLEAN_TYPE_INFO if isNumeric(operand) =>
         generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
           (operandTerm) => s"$operandTerm != 0"
         }
@@ -385,23 +385,16 @@ object ScalarOperators {
           (operandTerm) => s"$wrapperClass.valueOf($operandTerm)"
         }
 
-      // NUMERIC TYPE, Date -> NUMERIC TYPE
-      case nti: NumericTypeInfo[_] if isNumeric(operand) || isDate(operand) =>
-        val targetTypeTerm = primitiveTypeTermForTypeInfo(nti)
-        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
-          (operandTerm) => s"($targetTypeTerm) $operandTerm"
-        }
-
-      // NUMERIC TYPE -> Date
-      case DATE_TYPE_INFO if isNumeric(operand) =>
-        val targetTypeTerm = primitiveTypeTermForTypeInfo(targetType)
+      // NUMERIC TYPE -> NUMERIC TYPE
+      case bti: BasicTypeInfo[_] if isNumeric(bti) && isNumeric(operand) =>
+        val targetTypeTerm = primitiveTypeTermForTypeInfo(bti)
         generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
           (operandTerm) => s"($targetTypeTerm) $operandTerm"
         }
 
       // Boolean -> NUMERIC TYPE
-      case nti: NumericTypeInfo[_] if isBoolean(operand) =>
-        val targetTypeTerm = primitiveTypeTermForTypeInfo(nti)
+      case bti: BasicTypeInfo[_] if isNumeric(bti) && isBoolean(operand) =>
+        val targetTypeTerm = primitiveTypeTermForTypeInfo(bti)
         generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
           (operandTerm) => s"($targetTypeTerm) ($operandTerm ? 1 : 0)"
         }

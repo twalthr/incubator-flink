@@ -115,4 +115,21 @@ class DateTimeITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testDateTimeBasicArithmetic(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = env.fromElements(("1990-10-14", "1965-08-20")).as('date, 'date2)
+      .select(
+        ('date.cast(DATE_TYPE_INFO) + "0000-01-01".cast(DATE_TYPE_INFO)).cast(STRING_TYPE_INFO),
+        'date2.cast(DATE_TYPE_INFO).cast(STRING_TYPE_INFO))
+
+    val expected = "Thu Jan 01 00:00:00 UTC 1970," +
+      "Fri Jan 02 00:00:00 UTC 1970," +
+      "Thu Jan 01 00:00:00 UTC 1970," +
+      "Thu Jan 01 00:00:01 UTC 1970," +
+      "Thu Jan 01 00:00:01 UTC 1970"
+    val results = t.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
 }

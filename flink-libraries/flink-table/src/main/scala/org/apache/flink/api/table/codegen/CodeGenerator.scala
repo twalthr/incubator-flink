@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.table.codegen
 
+import org.apache.calcite.avatica.util.TimeUnitRange
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
@@ -578,10 +579,14 @@ class CodeGenerator(
         generateNonNullLiteral(resultType, "\"" + value.toString + "\"")
       case NULL =>
         generateNullLiteral(resultType)
-      case SYMBOL =>
+      case SYMBOL if value.isInstanceOf[SqlLiteral.SqlSymbol] =>
         val symbolOrdinal = value.asInstanceOf[SqlLiteral.SqlSymbol].ordinal()
         generateNonNullLiteral(resultType, symbolOrdinal.toString)
-      case _ => ??? // TODO more types
+      case SYMBOL if value.isInstanceOf[TimeUnitRange] =>
+        val symbolOrdinal = value.asInstanceOf[TimeUnitRange].ordinal()
+        generateNonNullLiteral(resultType, symbolOrdinal.toString)
+      case _ =>
+        throw new CodeGenException(s"Unsupported literal: $literal")
     }
   }
 
@@ -626,7 +631,7 @@ class CodeGenerator(
         requireNumeric(right)
         generateArithmeticOperator("*", nullCheck, resultType, left, right)
 
-      case DIVIDE if isNumeric(resultType) =>
+      case DIVIDE | DIVIDE_INTEGER if isNumeric(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireNumeric(left)
@@ -713,6 +718,9 @@ class CodeGenerator(
       case CAST =>
         val operand = operands.head
         generateCast(nullCheck, operand, resultType)
+
+      case REINTERPRET =>
+        operands.head
 
       // string arithmetic
       case CONCAT =>

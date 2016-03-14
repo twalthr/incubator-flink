@@ -173,6 +173,16 @@ object ScalarFunctions {
 
 
   // ----------------------------------------------------------------------------------------------
+  // Date/Time functions
+  // ----------------------------------------------------------------------------------------------
+
+  addSqlFunctionTimeUnitMethod(
+    EXTRACT_DATE,
+    Seq(INT_TYPE_INFO, DATE_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+
+  // ----------------------------------------------------------------------------------------------
 
   def getCallGenerator(
       call: SqlOperator,
@@ -215,6 +225,15 @@ object ScalarFunctions {
       returnType: TypeInformation[_])
     : Unit = {
     sqlFunctions((sqlOperator, operandTypes)) = new TrimCallGenerator(returnType)
+  }
+
+  private def addSqlFunctionTimeUnitMethod(
+      sqlOperator: SqlOperator,
+      operandTypes: Seq[TypeInformation[_]],
+      returnType: TypeInformation[_],
+      method: Method)
+    : Unit = {
+    sqlFunctions((sqlOperator, operandTypes)) = new TimeUnitCallGenerator(returnType, method)
   }
 
 }
