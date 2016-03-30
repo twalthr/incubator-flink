@@ -63,8 +63,5 @@ object BuiltInFunctionNames {
   * Enumeration of common function flags.
   */
 object BuiltInFunctionConstants {
-  val TRIM_BOTH = Literal(0)
-  val TRIM_LEADING = Literal(1)
-  val TRIM_TRAILING = Literal(2)
   val TRIM_DEFAULT_CHAR = Literal(" ")
 }

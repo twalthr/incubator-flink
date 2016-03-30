@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.api.table.expressions.{TrimType, DateTimeUnit, Expression}
 import org.apache.flink.api.table.parser.ExpressionParser
 import org.apache.flink.api.table.test.utils.ExpressionEvaluator
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
@@ -67,19 +67,19 @@ class ScalarFunctionsTest {
       "This is a test String.")
 
     testFunction(
-      'f8.trim(removeLeading = true, removeTrailing = true, " "),
+      'f8.trim(TrimType.BOTH, " "),
       "trim(f8)",
       "TRIM(f8)",
       "This is a test String.")
 
     testFunction(
-      'f8.trim(removeLeading = false, removeTrailing = true, " "),
+      'f8.trim(TrimType.TRAILING, " "),
       "f8.trim(TRAILING, ' ')",
       "TRIM(TRAILING FROM f8)",
       " This is a test String.")
 
     testFunction(
-      'f0.trim(removeLeading = true, removeTrailing = true, "."),
+      'f0.trim(TrimType.BOTH, "."),
       "trim(BOTH, '.', f0)",
       "TRIM(BOTH '.' FROM f0)",
       "This is a test String")
@@ -195,6 +195,10 @@ class ScalarFunctionsTest {
       "f0 NOT SIMILAR TO 'This (is)? a (test)+ Strin_*'",
       "false")
   }
+
+  // ----------------------------------------------------------------------------------------------
+  // Arithmetic functions
+  // ----------------------------------------------------------------------------------------------
 
   @Test
   def testMod(): Unit = {
@@ -407,13 +411,62 @@ class ScalarFunctionsTest {
       "4.6")
   }
 
+  // ----------------------------------------------------------------------------------------------
+  // Date/Time functions
+  // ----------------------------------------------------------------------------------------------
+
   @Test
   def testDateTimeExtract(): Unit = {
     testFunction(
-      'f15.extract(TimeUnit.YEAR),
+      'f15.extract(DateTimeUnit.YEAR),
       "extract(YEAR, f15)",
       "EXTRACT(YEAR FROM f15)",
       "2003")
+
+    testFunction(
+      'f15.extract(DateTimeUnit.MONTH),
+      "extract(MONTH, f15)",
+      "EXTRACT(MONTH FROM f15)",
+      "7")
+
+    testFunction(
+      'f15.extract(DateTimeUnit.DAY),
+      "extract(DAY, f15)",
+      "EXTRACT(DAY FROM f15)",
+      "23")
+
+    testFunction(
+      'f15.extract(DateTimeUnit.HOUR),
+      "extract(HOUR, f15)",
+      "EXTRACT(HOUR FROM f15)",
+      "15")
+
+    testFunction(
+      'f15.extract(DateTimeUnit.MINUTE),
+      "extract(MINUTE, f15)",
+      "EXTRACT(MINUTE FROM f15)",
+      "11")
+
+    testFunction(
+      'f15.extract(DateTimeUnit.SECOND),
+      "extract(SECOND, f15)",
+      "EXTRACT(SECOND FROM f15)",
+      "53")
+
+    testFunction(
+      'f15.extract(DateTimeUnit.SECOND),
+      "f15.extract(SECOND)",
+      "EXTRACT(SECOND FROM f15)",
+      "53")
+  }
+
+  @Test
+  def testDate(): Unit = {
+    testFunction(
+      'f15.extract(DateTimeUnit.SECOND),
+      "f15.extract(SECOND)",
+      "EXTRACT(YEAR FROM DATE '2014-02-11')",
+      "53")
   }
 
   // ----------------------------------------------------------------------------------------------

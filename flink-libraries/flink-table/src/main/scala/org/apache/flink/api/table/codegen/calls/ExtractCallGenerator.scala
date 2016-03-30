@@ -18,25 +18,28 @@
 
 package org.apache.flink.api.table.codegen.calls
 
-import java.lang.reflect.Method
-
 import org.apache.calcite.avatica.util.TimeUnitRange
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.util.BuiltInMethod
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO
 import org.apache.flink.api.table.codegen.calls.CallGenerator._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
-/**
-  *
-  * @param returnType
-  * @param method
-  */
-class TimeUnitCallGenerator(returnType: TypeInformation[_], method: Method) extends CallGenerator {
+class ExtractCallGenerator() extends CallGenerator {
 
   override def generate(
       codeGenerator: CodeGenerator,
+      logicalTypes: Seq[SqlTypeName],
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
-    generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
+    val method = BuiltInMethod.UNIX_DATE_EXTRACT.method
+    // Date comes directly from SQL API e.g. via DATE '2003-01-01'
+    // but is physically a timestamp.
+    // It needs to be converted here since SQL has not converted it.
+    if (logicalTypes(1) == SqlTypeName.DATE) {
+
+    }
+    generateCallIfArgsNotNull(codeGenerator.nullCheck, LONG_TYPE_INFO, operands) {
       (operandResultTerms) =>
         val timeUnitType = classOf[TimeUnitRange].getCanonicalName
         s"""

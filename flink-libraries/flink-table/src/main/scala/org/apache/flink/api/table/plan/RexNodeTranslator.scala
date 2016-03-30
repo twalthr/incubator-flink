@@ -20,9 +20,11 @@ package org.apache.flink.api.table.plan
 
 import java.util.Date
 
+import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnit, TimeUnitRange}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlOperator
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.fun.{SqlTrimFunction, SqlStdOperatorTable}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
 import org.apache.flink.api.table.expressions._
@@ -76,8 +78,10 @@ object RexNodeTranslator {
 
     exp match {
       // Basic operators
+      case SymbolExpression(symbols, name) =>
+        relBuilder.getRexBuilder.makeFlag(toSqlSymbol(symbols, name))
+      // Date literals are treated as Timestamps internally
       case Literal(value: Date, tpe) =>
-        // Date literals are casted to Timestamps internally
         relBuilder.cast(relBuilder.literal(value.getTime), TypeConverter.typeInfoToSqlType(tpe))
       case Literal(value, tpe) =>
         relBuilder.literal(value)
@@ -160,6 +164,14 @@ object RexNodeTranslator {
         relBuilder.call(SqlStdOperatorTable.UNARY_MINUS, c)
 
       // Scalar functions
+
+      // functions that need conversion
+      // see also: org.apache.calcite.sql2rel.StandardConvertletTable
+      case Call(BuiltInFunctionNames.EXTRACT, Literal(dateTimeUnit: Int, _), expr) =>
+        val timeUnitRange = TimeUnitRange.values()(dateTimeUnit)
+        convertExtract(timeUnitRange, toRexNode(expr, relBuilder), relBuilder)
+
+      // general call
       case Call(name, args@_*) =>
         val rexArgs = args.map(toRexNode(_, relBuilder))
         val sqlOperator = toSqlOperator(name)
@@ -206,8 +218,58 @@ object RexNodeTranslator {
       case BuiltInFunctionNames.LN => SqlStdOperatorTable.LN
       case BuiltInFunctionNames.ABS => SqlStdOperatorTable.ABS
       case BuiltInFunctionNames.MOD => SqlStdOperatorTable.MOD
-      case BuiltInFunctionNames.EXTRACT => SqlStdOperatorTable.EXTRACT
       case _ => ???
+    }
+  }
+
+  private def toSqlSymbol(symbols: Symbols, symbolName: String) = {
+    symbols match {
+      case TrimType => SqlTrimFunction.Flag.valueOf(symbolName)
+      case DateTimeUnit => TimeUnitRange.valueOf(symbolName)
+      case _ => ???
+    }
+  }
+
+  /**
+    * Standard conversion of the EXTRACT operator.
+    * Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#convertExtract]]
+    */
+  private def convertExtract(
+      timeUnitRange: TimeUnitRange,
+      rexNode: RexNode,
+      relBuilder: RelBuilder)
+    : RexNode = {
+    val unit = timeUnitRange.startUnit
+    unit match {
+      case TimeUnit.YEAR | TimeUnit.MONTH | TimeUnit.DAY =>
+        relBuilder.call(
+          SqlStdOperatorTable.EXTRACT,
+          relBuilder.literal(timeUnitRange.ordinal()),
+          relBuilder.call(
+            SqlStdOperatorTable.DIVIDE_INTEGER,
+            rexNode,
+            relBuilder.cast(relBuilder.literal(DateTimeUtils.MILLIS_PER_DAY), SqlTypeName.BIGINT)
+          )
+        )
+      case _ =>
+        val factor: Long = unit match {
+          case TimeUnit.DAY => 1
+          case TimeUnit.HOUR => TimeUnit.DAY.multiplier
+          case TimeUnit.MINUTE => TimeUnit.HOUR.multiplier
+          case TimeUnit.SECOND => TimeUnit.MINUTE.multiplier
+          case TimeUnit.YEAR => 1
+          case TimeUnit.MONTH => TimeUnit.YEAR.multiplier
+          case _ => throw new IllegalArgumentException("Invalid start unit.")
+        }
+        relBuilder.call(
+          SqlStdOperatorTable.DIVIDE_INTEGER,
+          relBuilder.call(
+            SqlStdOperatorTable.MOD,
+            rexNode,
+            relBuilder.cast(relBuilder.literal(factor), SqlTypeName.BIGINT)
+          ),
+          relBuilder.cast(relBuilder.literal(unit.multiplier), SqlTypeName.BIGINT)
+        )
     }
   }
 

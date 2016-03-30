@@ -16,14 +16,38 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.table
+package org.apache.flink.api.table.expressions
+
+import org.apache.flink.api.common.typeinfo.TypeInformation
+
+/**
+  * General expression class to represent symbols.
+  */
+case class SymbolExpression(symbols: Symbols, symbolName: String) extends Expression {
+
+  override def typeInfo: TypeInformation[_] = ???
+
+  override def children: Seq[Expression] = Seq()
+
+  def asExpression: Expression = this
+}
+
+/**
+  * Enumeration for symbols.
+  */
+abstract class Symbols extends Enumeration {
+
+  implicit def valueToSymbolExpression(value: Value): SymbolExpression =
+    SymbolExpression(this, value.toString)
+
+}
 
 /**
   * Units for working with date, time, and date/time ranges.
   */
-object TimeUnit extends Enumeration {
+object DateTimeUnit extends Symbols {
   /**
-    * This constants need to be kept in sync
+    * This symbols need to be kept in sync
     * with [[org.apache.calcite.avatica.util.TimeUnitRange]].
     */
   val YEAR,
@@ -40,3 +64,17 @@ object TimeUnit extends Enumeration {
     MINUTE_TO_SECOND,
     SECOND = Value
 }
+
+/**
+  * Trim types for TRIM operation.
+  */
+object TrimType extends Symbols {
+  /**
+    * This symbols need to be kept in sync
+    * with [[org.apache.calcite.sql.fun.SqlTrimFunction.Flag]].
+    */
+  val BOTH,
+    LEADING,
+    TRAILING = Value
+}
+

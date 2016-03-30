@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.table.codegen
 
-import org.apache.calcite.avatica.util.TimeUnitRange
+import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
@@ -585,6 +585,9 @@ class CodeGenerator(
       case SYMBOL if value.isInstanceOf[TimeUnitRange] =>
         val symbolOrdinal = value.asInstanceOf[TimeUnitRange].ordinal()
         generateNonNullLiteral(resultType, symbolOrdinal.toString)
+      case DATE =>
+        val valueInMillis = value.asInstanceOf[Int].toLong * DateTimeUtils.MILLIS_PER_DAY
+        generateNonNullLiteral(resultType, valueInMillis.toString + "L")
       case _ =>
         throw new CodeGenException(s"Unsupported literal: $literal")
     }
@@ -599,6 +602,7 @@ class CodeGenerator(
   override def visitDynamicParam(dynamicParam: RexDynamicParam): GeneratedExpression = ???
 
   override def visitCall(call: RexCall): GeneratedExpression = {
+    val logicalTypes = call.getOperands.map(_.getType.getSqlTypeName)
     val operands = call.getOperands.map(_.accept(this))
     val resultType = sqlTypeToTypeInfo(call.getType.getSqlTypeName)
 
@@ -734,7 +738,7 @@ class CodeGenerator(
         val callGen = ScalarFunctions.getCallGenerator(call, operands.map(_.resultType))
         callGen
           .getOrElse(throw new CodeGenException(s"Unsupported call: $call"))
-          .generate(this, operands)
+          .generate(this, logicalTypes, operands)
 
       // unknown or invalid
       case call@_ =>

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.table.codegen.calls
 
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.table.codegen.calls.ScalarOperators.generateNot
 import org.apache.flink.api.table.codegen.{GeneratedExpression, CodeGenerator}
 
@@ -28,9 +29,10 @@ class NotCallGenerator(callGenerator: CallGenerator) extends CallGenerator {
 
   override def generate(
       codeGenerator: CodeGenerator,
+      logicalTypes: Seq[SqlTypeName],
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
-    val expr = callGenerator.generate(codeGenerator, operands)
+    val expr = callGenerator.generate(codeGenerator, logicalTypes, operands)
     generateNot(codeGenerator.nullCheck, expr)
   }
 

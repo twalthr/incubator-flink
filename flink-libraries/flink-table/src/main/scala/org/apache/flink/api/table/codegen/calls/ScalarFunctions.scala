@@ -52,10 +52,10 @@ object ScalarFunctions {
     STRING_TYPE_INFO,
     BuiltInMethod.SUBSTRING.method)
 
-  addSqlFunctionTrim(
+  addSqlFunction(
     TRIM,
     Seq(INT_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO),
-    STRING_TYPE_INFO)
+    new TrimCallGenerator())
 
   addSqlFunctionMethod(
     CHAR_LENGTH,
@@ -178,17 +178,15 @@ object ScalarFunctions {
   // Date/Time functions
   // ----------------------------------------------------------------------------------------------
 
-  addSqlFunctionTimeUnitMethod(
-    EXTRACT,
-    Seq(INT_TYPE_INFO, DATE_TYPE_INFO),
-    LONG_TYPE_INFO,
-    BuiltInMethod.UNIX_DATE_EXTRACT.method)
-
-  addSqlFunctionTimeUnitMethod(
+  addSqlFunction(
     EXTRACT_DATE,
     Seq(INT_TYPE_INFO, DATE_TYPE_INFO),
-    LONG_TYPE_INFO,
-    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+    new ExtractCallGenerator())
+
+  addSqlFunction(
+    EXTRACT,
+    Seq(INT_TYPE_INFO, DATE_TYPE_INFO),
+    new ExtractCallGenerator())
 
   // ----------------------------------------------------------------------------------------------
 
@@ -231,21 +229,12 @@ object ScalarFunctions {
       new NotCallGenerator(new MethodCallGenerator(BOOLEAN_TYPE_INFO, method))
   }
 
-  private def addSqlFunctionTrim(
+  private def addSqlFunction(
       sqlOperator: SqlOperator,
       operandTypes: Seq[TypeInformation[_]],
-      returnType: TypeInformation[_])
+      callGenerator: CallGenerator)
     : Unit = {
-    sqlFunctions((sqlOperator, operandTypes)) = new TrimCallGenerator(returnType)
-  }
-
-  private def addSqlFunctionTimeUnitMethod(
-      sqlOperator: SqlOperator,
-      operandTypes: Seq[TypeInformation[_]],
-      returnType: TypeInformation[_],
-      method: Method)
-    : Unit = {
-    sqlFunctions((sqlOperator, operandTypes)) = new TimeUnitCallGenerator(returnType, method)
+    sqlFunctions((sqlOperator, operandTypes)) = callGenerator
   }
 
 }

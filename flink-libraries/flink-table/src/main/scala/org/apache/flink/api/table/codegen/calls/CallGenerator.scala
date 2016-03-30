@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.table.codegen.calls
 
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
@@ -26,6 +27,7 @@ trait CallGenerator {
 
   def generate(
       codeGenerator: CodeGenerator,
+      logicalTypes: Seq[SqlTypeName],
       operands: Seq[GeneratedExpression])
     : GeneratedExpression
 

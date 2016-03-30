@@ -123,36 +123,14 @@ trait ImplicitExpressionOperations {
   /**
     * Removes leading and/or trailing characters from the given string.
     *
-    * @param removeLeading if true, remove leading characters (default: true)
-    * @param removeTrailing if true, remove trailing characters (default: true)
+    * @param trimType type of trim operation (leading, trailing, or both) (default: both)
     * @param character String containing the character (default: " ")
     * @return trimmed string
     */
   def trim(
-      removeLeading: Boolean = true,
-      removeTrailing: Boolean = true,
+      trimType: TrimType.Value = TrimType.BOTH,
       character: Expression = BuiltInFunctionConstants.TRIM_DEFAULT_CHAR) = {
-    if (removeLeading && removeTrailing) {
-      Call(
-        BuiltInFunctionNames.TRIM,
-        BuiltInFunctionConstants.TRIM_BOTH,
-        character,
-        expr)
-    } else if (removeLeading) {
-      Call(
-        BuiltInFunctionNames.TRIM,
-        BuiltInFunctionConstants.TRIM_LEADING,
-        character,
-        expr)
-    } else if (removeTrailing) {
-      Call(
-        BuiltInFunctionNames.TRIM,
-        BuiltInFunctionConstants.TRIM_TRAILING,
-        character,
-        expr)
-    } else {
-      expr
-    }
+    Call(BuiltInFunctionNames.TRIM, trimType, character)
   }
 
   /**
@@ -207,10 +185,12 @@ trait ImplicitExpressionOperations {
   /**
     * Returns a single part of a timestamp.
     *
-    * e.g. "2003-12-01 14:10:59" and [[TimeUnit.YEAR]] leads to "2003"
+    * e.g. "2003-12-01 14:10:59" and [[DateTimeUnit.YEAR]] leads to "2003"
+    *
+    * @param dateTimeUnit allowed units: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND
     */
-  def extract(timeUnit: TimeUnit.Value) = {
-    Call(BuiltInFunctionNames.EXTRACT, Literal(timeUnit.id), Div(expr, Literal(86400000)))
+  def extract(dateTimeUnit: DateTimeUnit.Value) = {
+    Call(BuiltInFunctionNames.EXTRACT, dateTimeUnit, expr)
   }
 }
 

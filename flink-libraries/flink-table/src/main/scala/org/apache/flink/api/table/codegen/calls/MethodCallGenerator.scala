@@ -20,6 +20,7 @@ package org.apache.flink.api.table.codegen.calls
 
 import java.lang.reflect.Method
 
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
@@ -28,6 +29,7 @@ class MethodCallGenerator(returnType: TypeInformation[_], method: Method) extend
 
   override def generate(
       codeGenerator: CodeGenerator,
+      logicalTypes: Seq[SqlTypeName],
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
     generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {

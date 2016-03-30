@@ -18,9 +18,10 @@
 
 package org.apache.flink.api.table.codegen.calls
 
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
 import org.apache.calcite.util.BuiltInMethod
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO
 import org.apache.flink.api.table.codegen.calls.CallGenerator._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
@@ -29,14 +30,15 @@ import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
   * (see [[org.apache.calcite.sql.fun.SqlTrimFunction.Flag]]). Second operand determines
   * the String to be removed. Third operand is the String to be trimmed.
   */
-class TrimCallGenerator(returnType: TypeInformation[_]) extends CallGenerator {
+class TrimCallGenerator() extends CallGenerator {
 
   override def generate(
       codeGenerator: CodeGenerator,
+      logicalTypes: Seq[SqlTypeName],
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
     val method = BuiltInMethod.TRIM.method
-    generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
+    generateCallIfArgsNotNull(codeGenerator.nullCheck, STRING_TYPE_INFO, operands) {
       (operandResultTerms) =>
         s"""
           |${method.getDeclaringClass.getCanonicalName}.${method.getName}(

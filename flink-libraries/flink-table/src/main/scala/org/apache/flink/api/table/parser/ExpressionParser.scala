@@ -40,10 +40,14 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     ("""(?i)\Q""" + kw.key + """\E""").r
   }
 
-  // Constants
-  lazy val timeUnit: PackratParser[Expression] = accept("time unit", {
-    ???
-  })
+  // Symbols
+  lazy val dateTimeUnit: PackratParser[Expression] = DateTimeUnit.values map { unit =>
+    literal(unit.toString) ^^^ unit.asExpression
+  } reduceLeft(_ | _)
+
+  lazy val trimType: PackratParser[Expression] = TrimType.values map { tt =>
+    literal(tt.toString) ^^^ tt.asExpression
+  } reduceLeft(_ | _)
 
   // Keyword
 
@@ -150,13 +154,13 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val specialFunctionCalls = trim | trimWithoutArgs | extract
 
-  lazy val specialSuffixFunctionCalls = suffixTrim | suffixTrimWithoutArgs
+  lazy val specialSuffixFunctionCalls = suffixTrim | suffixTrimWithoutArgs | suffixExtract
 
   lazy val trimWithoutArgs = "trim(" ~ expression ~ ")" ^^ {
     case _ ~ operand ~ _ =>
       Call(
         BuiltInFunctionNames.TRIM,
-        BuiltInFunctionConstants.TRIM_BOTH,
+        TrimType.BOTH,
         BuiltInFunctionConstants.TRIM_DEFAULT_CHAR,
         operand)
   }
@@ -165,36 +169,29 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case operand ~ _ =>
       Call(
         BuiltInFunctionNames.TRIM,
-        BuiltInFunctionConstants.TRIM_BOTH,
+        TrimType.BOTH,
         BuiltInFunctionConstants.TRIM_DEFAULT_CHAR,
         operand)
   }
 
-  lazy val trim = "trim(" ~ ("BOTH" | "LEADING" | "TRAILING") ~ "," ~ expression ~
-      "," ~ expression ~ ")" ^^ {
-    case _ ~ trimType ~ _ ~ trimCharacter ~ _ ~ operand ~ _ =>
-      val flag = trimType match {
-        case "BOTH" => BuiltInFunctionConstants.TRIM_BOTH
-        case "LEADING" => BuiltInFunctionConstants.TRIM_LEADING
-        case "TRAILING" => BuiltInFunctionConstants.TRIM_TRAILING
-      }
-      Call(BuiltInFunctionNames.TRIM, flag, trimCharacter, operand)
+  lazy val trim = "trim(" ~ trimType ~ "," ~ expression ~ "," ~ expression ~ ")" ^^ {
+    case _ ~ tt ~ _ ~ trimCharacter ~ _ ~ operand ~ _ =>
+      Call(BuiltInFunctionNames.TRIM, tt, trimCharacter, operand)
   }
 
-  lazy val extract = "extract(" ~ timeUnit ~ "," ~ expression ~ ")" ^^ {
-    case _ ~ extractType ~ _ ~ operand ~ _ =>
-      Call(BuiltInFunctionNames.EXTRACT, extractType, operand)
+  lazy val extract = "extract(" ~ dateTimeUnit ~ "," ~ expression ~ ")" ^^ {
+    case _ ~ unit ~ _ ~ operand ~ _ =>
+      Call(BuiltInFunctionNames.EXTRACT, unit, operand)
   }
 
-  lazy val suffixTrim = atom ~ ".trim(" ~ ("BOTH" | "LEADING" | "TRAILING") ~ "," ~
-      expression ~ ")" ^^ {
-    case operand ~ _ ~ trimType ~ _ ~ trimCharacter ~ _ =>
-      val flag = trimType match {
-        case "BOTH" => BuiltInFunctionConstants.TRIM_BOTH
-        case "LEADING" => BuiltInFunctionConstants.TRIM_LEADING
-        case "TRAILING" => BuiltInFunctionConstants.TRIM_TRAILING
-      }
-      Call(BuiltInFunctionNames.TRIM, flag, trimCharacter, operand)
+  lazy val suffixTrim = atom ~ ".trim(" ~ trimType ~ "," ~ expression ~ ")" ^^ {
+    case operand ~ _ ~ tt ~ _ ~ trimCharacter ~ _ =>
+      Call(BuiltInFunctionNames.TRIM, tt, trimCharacter, operand)
+  }
+
+  lazy val suffixExtract = atom ~ ".extract(" ~ dateTimeUnit ~ ")" ^^ {
+    case operand ~ _ ~ unit ~ _ =>
+      Call(BuiltInFunctionNames.EXTRACT, unit, operand)
   }
 
   lazy val suffix =
