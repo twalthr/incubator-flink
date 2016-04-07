@@ -21,7 +21,7 @@ package org.apache.flink.api.table.plan
 import java.util.Date
 
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnit, TimeUnitRange}
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexLiteral, RexBuilder, RexNode}
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.{SqlTrimFunction, SqlStdOperatorTable}
@@ -59,6 +59,11 @@ object RexNodeTranslator {
         val l = extractAggCalls(b.left, relBuilder)
         val r = extractAggCalls(b.right, relBuilder)
         (b.makeCopy(List(l._1, r._1)), l._2 ::: r._2)
+      case e: Eval =>
+        val c = extractAggCalls(e.condition, relBuilder)
+        val t = extractAggCalls(e.ifTrue, relBuilder)
+        val f = extractAggCalls(e.ifFalse, relBuilder)
+        (e.makeCopy(List(c._1, t._1, f._1)), c._2 ::: t._2 ::: f._2)
 
       // Scalar functions
       case c@Call(name, args@_*) =>
@@ -78,13 +83,15 @@ object RexNodeTranslator {
 
     exp match {
       // Basic operators
-      case SymbolExpression(symbols, name) =>
-        relBuilder.getRexBuilder.makeFlag(toSqlSymbol(symbols, name))
+      case sym@SymbolExpression(_, _) =>
+        toSqlSymbol(sym, relBuilder.getRexBuilder)
       // Date literals are treated as Timestamps internally
       case Literal(value: Date, tpe) =>
         relBuilder.cast(relBuilder.literal(value.getTime), TypeConverter.typeInfoToSqlType(tpe))
       case Literal(value, tpe) =>
         relBuilder.literal(value)
+      case null =>
+        relBuilder.literal(null)
       case ResolvedFieldReference(name, tpe) =>
         relBuilder.field(name)
       case UnresolvedFieldReference(name) =>
@@ -162,20 +169,33 @@ object RexNodeTranslator {
       case UnaryMinus(child) =>
         val c = toRexNode(child, relBuilder)
         relBuilder.call(SqlStdOperatorTable.UNARY_MINUS, c)
+      case Eval(condition, ifTrue, ifFalse) =>
+        val c = toRexNode(condition, relBuilder)
+        val t = toRexNode(ifTrue, relBuilder)
+        val f = toRexNode(ifFalse, relBuilder)
+        relBuilder.call(SqlStdOperatorTable.CASE, c, t, f)
 
       // Scalar functions
 
       // functions that need conversion
       // see also: org.apache.calcite.sql2rel.StandardConvertletTable
-      case Call(BuiltInFunctionNames.EXTRACT, Literal(dateTimeUnit: Int, _), expr) =>
-        val timeUnitRange = TimeUnitRange.values()(dateTimeUnit)
-        convertExtract(timeUnitRange, toRexNode(expr, relBuilder), relBuilder)
+      case Call(BuiltInFunctionNames.EXTRACT, symbol: SymbolExpression, expr) =>
+        convertExtract(
+          symbol,
+          toRexNode(expr, relBuilder),
+          relBuilder)
+
+      case Call(BuiltInFunctionNames.FLOOR, symbol: SymbolExpression, expr) =>
+        convertExtract(
+          symbol,
+          toRexNode(expr, relBuilder),
+          relBuilder)
 
       // general call
       case Call(name, args@_*) =>
         val rexArgs = args.map(toRexNode(_, relBuilder))
         val sqlOperator = toSqlOperator(name)
-        relBuilder.call(sqlOperator, rexArgs)
+        relBuilder.call(sqlOperator, rexArgs: _*)
 
       case a: Aggregation =>
         throw new IllegalArgumentException(s"Aggregation expression $a not allowed at this place")
@@ -217,15 +237,18 @@ object RexNodeTranslator {
       case BuiltInFunctionNames.POWER => SqlStdOperatorTable.POWER
       case BuiltInFunctionNames.LN => SqlStdOperatorTable.LN
       case BuiltInFunctionNames.ABS => SqlStdOperatorTable.ABS
+      case BuiltInFunctionNames.FLOOR => SqlStdOperatorTable.FLOOR
+      case BuiltInFunctionNames.CEIL => SqlStdOperatorTable.CEIL
       case BuiltInFunctionNames.MOD => SqlStdOperatorTable.MOD
+      case BuiltInFunctionNames.EXTRACT => SqlStdOperatorTable.EXTRACT
       case _ => ???
     }
   }
 
-  private def toSqlSymbol(symbols: Symbols, symbolName: String) = {
-    symbols match {
-      case TrimType => SqlTrimFunction.Flag.valueOf(symbolName)
-      case DateTimeUnit => TimeUnitRange.valueOf(symbolName)
+  private def toSqlSymbol(symbol: SymbolExpression, rexBuilder: RexBuilder): RexLiteral = {
+    symbol.symbols match {
+      case TrimType => rexBuilder.makeFlag(SqlTrimFunction.Flag.valueOf(symbol.symbolName))
+      case DateTimeUnit => rexBuilder.makeFlag(TimeUnitRange.valueOf(symbol.symbolName))
       case _ => ???
     }
   }
@@ -235,16 +258,17 @@ object RexNodeTranslator {
     * Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#convertExtract]]
     */
   private def convertExtract(
-      timeUnitRange: TimeUnitRange,
+      dateTimeUnit: SymbolExpression,
       rexNode: RexNode,
       relBuilder: RelBuilder)
     : RexNode = {
+    val timeUnitRange = TimeUnitRange.valueOf(dateTimeUnit.symbolName)
     val unit = timeUnitRange.startUnit
     unit match {
       case TimeUnit.YEAR | TimeUnit.MONTH | TimeUnit.DAY =>
         relBuilder.call(
           SqlStdOperatorTable.EXTRACT,
-          relBuilder.literal(timeUnitRange.ordinal()),
+          toSqlSymbol(dateTimeUnit, relBuilder.getRexBuilder),
           relBuilder.call(
             SqlStdOperatorTable.DIVIDE_INTEGER,
             rexNode,
@@ -271,6 +295,18 @@ object RexNodeTranslator {
           relBuilder.cast(relBuilder.literal(unit.multiplier), SqlTypeName.BIGINT)
         )
     }
+  }
+
+  /**
+    * Standard conversion of the FLOOR/CEIL operator.
+    * Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#convertFloorCeil]]
+    */
+  private def convertFloorCeil(
+      dateTimeUnit: SymbolExpression,
+      rexNode: RexNode,
+      relBuilder: RelBuilder)
+    : RexNode = {
+    ??? // TODO
   }
 
 }

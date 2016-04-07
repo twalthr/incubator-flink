@@ -411,6 +411,33 @@ class ScalarFunctionsTest {
       "4.6")
   }
 
+  @Test
+  def testArithmeticFloorCeil(): Unit = {
+    testFunction(
+      'f5.floor(),
+      "f5.floor()",
+      "FLOOR(f5)",
+      "4.0")
+
+    testFunction(
+      'f5.ceil(),
+      "f5.ceil()",
+      "CEIL(f5)",
+      "5.0")
+
+    testFunction(
+      'f3.floor(),
+      "f3.floor()",
+      "FLOOR(f3)",
+      "43")
+
+    testFunction(
+      'f3.ceil(),
+      "f3.ceil()",
+      "CEIL(f3)",
+      "43")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Date/Time functions
   // ----------------------------------------------------------------------------------------------
@@ -458,15 +485,92 @@ class ScalarFunctionsTest {
       "f15.extract(SECOND)",
       "EXTRACT(SECOND FROM f15)",
       "53")
+
+    testFunction(
+      "1990-10-14".cast(DATE_TYPE_INFO).extract(DateTimeUnit.DAY),
+      "extract(DAY, '1990-10-14'.cast(DATE))",
+      "EXTRACT(DAY FROM DATE '1990-10-14')",
+      "14")
   }
 
   @Test
-  def testDate(): Unit = {
+  def testDateTimeFloorCeil(): Unit = {
     testFunction(
-      'f15.extract(DateTimeUnit.SECOND),
-      "f15.extract(SECOND)",
-      "EXTRACT(YEAR FROM DATE '2014-02-11')",
-      "53")
+      "46800000",
+      "46800000",
+      "CEIL(TIME '12:59:56' TO MINUTE)",
+      "46800000")
+
+    testFunction(
+      "42",
+      "42",
+      "FLOOR(INTERVAL '3:4:5' HOUR TO SECOND)",
+      "42")
+  }
+
+  @Test
+  def testInterval(): Unit = {
+    testFunction(
+      "16114", //"2014-02-11".cast(DATE_TYPE_INFO).addInterval("2", DateTimeUnit.DAY), TODO
+      "'16114'", //'2014-02-11'.cast(DATE).addInterval('2', DAY)",
+      "DATE '2014-02-11' + INTERVAL '2' DAY",
+      "16114")
+
+    testFunction(
+      "16112", //"2014-02-11".cast(DATE_TYPE_INFO).addInterval("2", DateTimeUnit.DAY), TODO
+      "'16112'", //'2014-02-11'.cast(DATE).addInterval('2', DAY)",
+      "DATE '2014-02-11' + INTERVAL '60' DAY",
+      "16112")
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Other functions
+  // ----------------------------------------------------------------------------------------------
+
+  @Test
+  def testCase(): Unit = {
+    testFunction(
+      ('f7 === 1).eval(11, ('f7 === 2).eval(4, null)),
+      "(f7 === 1).eval(11, (f7 === 2).eval(4, null))",
+      "CASE f7 WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END",
+      "1")
+
+    /*
+
+    testFunction(
+      "1",
+      "1",
+      "CASE WHEN 'a'='a' THEN 1 END",
+      "1")
+
+    testFunction(
+      "b",
+      "b",
+      "CASE 2 WHEN 1 THEN 'a' ELSE 'b' END",
+      "b")
+
+    testFunction(
+      "42",
+      "42",
+      "CASE 2 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END",
+      "bcd")
+
+    testFunction(
+      "42",
+      "42",
+      "CASE 1 WHEN 1 THEN 11.2 WHEN 2 THEN 4.543 ELSE NULL END",
+      "42")
+
+    testFunction(
+      "42",
+      "42",
+      "CASE 1" +
+        "WHEN 1, 2 THEN '1 or 2'" +
+        "WHEN 2 THEN 'not possible'" +
+        "WHEN 3, 2 THEN '3'" +
+        "ELSE 'none of the above'" +
+        "END",
+      "42")*/
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -476,7 +580,7 @@ class ScalarFunctionsTest {
       exprString: String,
       sqlExpr: String,
       expected: String): Unit = {
-    val testData = new Row(16)
+    val testData = new Row(17)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -493,6 +597,7 @@ class ScalarFunctionsTest {
     testData.setField(13, -4.6)
     testData.setField(14, -3)
     testData.setField(15, new Date(1058973113000L)) // 2003-07-23 15:11:53
+    testData.setField(16, "1990-10-14")
 
     val typeInfo = new RowTypeInfo(Seq(
       STRING_TYPE_INFO,
@@ -510,7 +615,8 @@ class ScalarFunctionsTest {
       FLOAT_TYPE_INFO,
       DOUBLE_TYPE_INFO,
       INT_TYPE_INFO,
-      DATE_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
+      DATE_TYPE_INFO,
+      STRING_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
 
     val exprResult = ExpressionEvaluator.evaluate(testData, typeInfo, expr)
     assertEquals(expected, exprResult)

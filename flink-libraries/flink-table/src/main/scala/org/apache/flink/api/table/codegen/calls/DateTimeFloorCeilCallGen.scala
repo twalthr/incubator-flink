@@ -18,36 +18,46 @@
 
 package org.apache.flink.api.table.codegen.calls
 
+import java.lang.reflect.Method
+
 import org.apache.calcite.avatica.util.TimeUnitRange
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.util.BuiltInMethod
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO
+import org.apache.calcite.rex.RexCall
+import org.apache.calcite.sql.`type`.SqlTypeName.TIMESTAMP
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO}
 import org.apache.flink.api.table.codegen.calls.CallGenerator._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
-class ExtractCallGenerator() extends CallGenerator {
+class DateTimeFloorCeilCallGen(
+      method: Method,
+      timestampMethod: Method,
+      dateMethod: Method) extends CallGenerator {
 
   override def generate(
       codeGenerator: CodeGenerator,
-      logicalTypes: Seq[SqlTypeName],
-      operands: Seq[GeneratedExpression])
+      operands: Seq[GeneratedExpression],
+      call: RexCall)
     : GeneratedExpression = {
-    val method = BuiltInMethod.UNIX_DATE_EXTRACT.method
-    // Date comes directly from SQL API e.g. via DATE '2003-01-01'
-    // but is physically a timestamp.
-    // It needs to be converted here since SQL has not converted it.
-    if (logicalTypes(1) == SqlTypeName.DATE) {
-
+    val returnType = getLogicalReturnType(call) match {
+      case TIMESTAMP => LONG_TYPE_INFO
+      case _ => INT_TYPE_INFO
     }
-    generateCallIfArgsNotNull(codeGenerator.nullCheck, LONG_TYPE_INFO, operands) {
+    val returnMethod = getLogicalReturnType(call) match {
+      case TIMESTAMP => timestampMethod
+      case _ => dateMethod
+    }
+    val unit = getSymbolOperand(call, 1).asInstanceOf[TimeUnitRange]
+    generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
       (operandResultTerms) =>
-        val timeUnitType = classOf[TimeUnitRange].getCanonicalName
-        s"""
-          |${method.getDeclaringClass.getCanonicalName}.
-          |  ${method.getName}(
-          |    $timeUnitType.values()[${operands.head.resultTerm}],
-          |    ${operandResultTerms.drop(1).mkString(", ")});
-         """.stripMargin
+      unit match {
+        case TimeUnitRange.YEAR | TimeUnitRange.MONTH =>
+          ???
+        case _ =>
+          s"""
+            |${method.getDeclaringClass.getCanonicalName}.
+            |  ${method.getName}(${operandResultTerms.head}, ${unit.startUnit.multiplier})
+            |""".stripMargin
+      }
     }
   }
+
 }

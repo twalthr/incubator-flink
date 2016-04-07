@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.table.codegen.calls
 
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.rex.RexCall
 import org.apache.flink.api.table.codegen.calls.ScalarOperators.generateNot
-import org.apache.flink.api.table.codegen.{GeneratedExpression, CodeGenerator}
+import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
 /**
   * Inverts the boolean value of a CallGenerator result.
@@ -29,10 +29,10 @@ class NotCallGenerator(callGenerator: CallGenerator) extends CallGenerator {
 
   override def generate(
       codeGenerator: CodeGenerator,
-      logicalTypes: Seq[SqlTypeName],
-      operands: Seq[GeneratedExpression])
+      operands: Seq[GeneratedExpression],
+      call: RexCall)
     : GeneratedExpression = {
-    val expr = callGenerator.generate(codeGenerator, logicalTypes, operands)
+    val expr = callGenerator.generate(codeGenerator, operands, call)
     generateNot(codeGenerator.nullCheck, expr)
   }
 

@@ -67,6 +67,19 @@ trait ImplicitExpressionOperations {
 
   def as(name: Symbol) = Naming(expr, name.name)
 
+  /**
+    * Conditional operator that decides which of two other expressions should be evaluated
+    * based on a evaluated boolean condition.
+    *
+    * e.g. (42 > 5).eval("A", "B") leads to "A"
+    *
+    * @param ifTrue expression to be evaluated if condition holds
+    * @param ifFalse expression to be evaluated if condition does not hold
+    */
+  def eval(ifTrue: Expression, ifFalse: Expression) = {
+    Eval(expr, ifTrue, ifFalse)
+  }
+
   // scalar functions
 
   /**
@@ -100,6 +113,16 @@ trait ImplicitExpressionOperations {
   def abs() = Call(BuiltInFunctionNames.ABS, expr)
 
   /**
+    * Calculates the largest integer less than or equal to a given number.
+    */
+  def floor() = Call(BuiltInFunctionNames.FLOOR, expr)
+
+  /**
+    * Calculates the smallest integer greater than or equal to a given number.
+    */
+  def ceil() = Call(BuiltInFunctionNames.CEIL, expr)
+
+  /**
     * Creates a substring of the given string between the given indices.
     *
     * @param beginIndex first character of the substring (starting at 1, inclusive)
@@ -123,14 +146,14 @@ trait ImplicitExpressionOperations {
   /**
     * Removes leading and/or trailing characters from the given string.
     *
-    * @param trimType type of trim operation (leading, trailing, or both) (default: both)
+    * @param trimType type of trim operation (LEADING, TRAILING, or BOTH) (default: BOTH)
     * @param character String containing the character (default: " ")
     * @return trimmed string
     */
   def trim(
       trimType: TrimType.Value = TrimType.BOTH,
       character: Expression = BuiltInFunctionConstants.TRIM_DEFAULT_CHAR) = {
-    Call(BuiltInFunctionNames.TRIM, trimType, character)
+    Call(BuiltInFunctionNames.TRIM, trimType, character, expr)
   }
 
   /**
@@ -191,6 +214,18 @@ trait ImplicitExpressionOperations {
     */
   def extract(dateTimeUnit: DateTimeUnit.Value) = {
     Call(BuiltInFunctionNames.EXTRACT, dateTimeUnit, expr)
+  }
+
+  def floor(dateTimeUnit: DateTimeUnit.Value) = {
+    // TODO
+  }
+
+  def ceil(dateTimeUnit: DateTimeUnit.Value) = {
+    // TODO
+  }
+
+  def addInterval(pattern: Expression, dateTimeUnit: DateTimeUnit.Value) = {
+    Call(BuiltInFunctionNames.ADD_INTERVAL, expr, pattern, dateTimeUnit)
   }
 }
 

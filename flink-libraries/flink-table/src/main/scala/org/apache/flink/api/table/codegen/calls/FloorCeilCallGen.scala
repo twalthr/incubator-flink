@@ -21,23 +21,25 @@ package org.apache.flink.api.table.codegen.calls
 import java.lang.reflect.Method
 
 import org.apache.calcite.rex.RexCall
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, FLOAT_TYPE_INFO}
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
-class MethodCallGenerator(returnType: TypeInformation[_], method: Method) extends CallGenerator {
+/**
+  * Generates arithmetic floor/ceil function calls.
+  */
+class FloorCeilCallGen(method: Method) extends MultiTypeMethodCallGen(method) {
 
   override def generate(
       codeGenerator: CodeGenerator,
       operands: Seq[GeneratedExpression],
       call: RexCall)
     : GeneratedExpression = {
-    generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
-      (operandResultTerms) =>
-        s"""
-          |${method.getDeclaringClass.getCanonicalName}.
-          |  ${method.getName}(${operandResultTerms.mkString(", ")})
-         """.stripMargin
+    operands.head.resultType match {
+      case FLOAT_TYPE_INFO | DOUBLE_TYPE_INFO =>
+        super.generate(codeGenerator, operands, call)
+      case _ =>
+        operands.head // no floor/ceil necessary
     }
   }
+
 }

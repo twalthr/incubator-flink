@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.table.codegen.calls
 
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.rex.RexCall
 import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO
@@ -34,8 +34,8 @@ class TrimCallGenerator() extends CallGenerator {
 
   override def generate(
       codeGenerator: CodeGenerator,
-      logicalTypes: Seq[SqlTypeName],
-      operands: Seq[GeneratedExpression])
+      operands: Seq[GeneratedExpression],
+      call: RexCall)
     : GeneratedExpression = {
     val method = BuiltInMethod.TRIM.method
     generateCallIfArgsNotNull(codeGenerator.nullCheck, STRING_TYPE_INFO, operands) {

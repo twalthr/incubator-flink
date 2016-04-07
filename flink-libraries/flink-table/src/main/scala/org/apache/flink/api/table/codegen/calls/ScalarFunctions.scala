@@ -20,11 +20,13 @@ package org.apache.flink.api.table.codegen.calls
 
 import java.lang.reflect.Method
 
+import org.apache.calcite.avatica.util.TimeUnitRange
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 
 import scala.collection.mutable
 
@@ -137,56 +139,58 @@ object ScalarFunctions {
     DOUBLE_TYPE_INFO,
     BuiltInMethods.POWER)
 
-  addSqlFunctionMethod(
-    ABS,
-    Seq(BYTE_TYPE_INFO),
-    BYTE_TYPE_INFO,
-    BuiltInMethods.ABS)
-
-  addSqlFunctionMethod(
-    ABS,
-    Seq(SHORT_TYPE_INFO),
-    SHORT_TYPE_INFO,
-    BuiltInMethods.ABS)
-
-  addSqlFunctionMethod(
-    ABS,
-    Seq(INT_TYPE_INFO),
-    INT_TYPE_INFO,
-    BuiltInMethods.ABS)
-
-  addSqlFunctionMethod(
-    ABS,
-    Seq(LONG_TYPE_INFO),
-    LONG_TYPE_INFO,
-    BuiltInMethods.ABS)
-
-  addSqlFunctionMethod(
-    ABS,
-    Seq(FLOAT_TYPE_INFO),
-    FLOAT_TYPE_INFO,
-    BuiltInMethods.ABS)
-
-  addSqlFunctionMethod(
+  addSqlFunction(
     ABS,
     Seq(DOUBLE_TYPE_INFO),
-    DOUBLE_TYPE_INFO,
-    BuiltInMethods.ABS)
+    new MultiTypeMethodCallGen(BuiltInMethods.ABS))
 
+  addSqlFunction(
+    FLOOR,
+    Seq(DOUBLE_TYPE_INFO),
+    new FloorCeilCallGen(BuiltInMethod.FLOOR.method))
+
+  addSqlFunction(
+    CEIL,
+    Seq(DOUBLE_TYPE_INFO),
+    new FloorCeilCallGen(BuiltInMethod.CEIL.method))
 
   // ----------------------------------------------------------------------------------------------
   // Date/Time functions
   // ----------------------------------------------------------------------------------------------
 
-  addSqlFunction(
-    EXTRACT_DATE,
-    Seq(INT_TYPE_INFO, DATE_TYPE_INFO),
-    new ExtractCallGenerator())
+  addSqlFunctionMethod(
+    EXTRACT_DATE, // comes from SQL API
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), LONG_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+
+  addSqlFunctionMethod(
+    EXTRACT, // comes from Table Expression API
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), LONG_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethod.UNIX_DATE_EXTRACT.method)
 
   addSqlFunction(
-    EXTRACT,
-    Seq(INT_TYPE_INFO, DATE_TYPE_INFO),
-    new ExtractCallGenerator())
+    DATETIME_PLUS,
+    Seq(LONG_TYPE_INFO, LONG_TYPE_INFO),
+    new DateTimePlusCallGen()
+  )
+
+  addSqlFunction(
+    FLOOR,
+    Seq(LONG_TYPE_INFO, new GenericTypeInfo(classOf[TimeUnitRange])),
+    new DateTimeFloorCeilCallGen(
+      BuiltInMethod.FLOOR.method,
+      BuiltInMethod.UNIX_TIMESTAMP_FLOOR.method,
+      BuiltInMethod.UNIX_DATE_FLOOR.method))
+
+  addSqlFunction(
+    CEIL,
+    Seq(LONG_TYPE_INFO, new GenericTypeInfo(classOf[TimeUnitRange])),
+    new DateTimeFloorCeilCallGen(
+      BuiltInMethod.CEIL.method,
+      BuiltInMethod.UNIX_TIMESTAMP_CEIL.method,
+      BuiltInMethod.UNIX_DATE_CEIL.method))
 
   // ----------------------------------------------------------------------------------------------
 
@@ -199,12 +203,20 @@ object ScalarFunctions {
       .orElse(sqlFunctions.find(entry => entry._1._1 == call
         && entry._1._2.length == operandTypes.length
         && entry._1._2.zip(operandTypes).forall {
-        case (x@DATE_TYPE_INFO, y: BasicTypeInfo[_]) =>
+
+        case (x@DATE_TYPE_INFO, y: BasicTypeInfo[_]) => // TODO REMOVE?
           y.shouldAutocastTo(LONG_TYPE_INFO) || LONG_TYPE_INFO == y
+
         case (x: BasicTypeInfo[_], y@DATE_TYPE_INFO) =>
           LONG_TYPE_INFO.shouldAutocastTo(x) || x == LONG_TYPE_INFO
-        case (x: BasicTypeInfo[_], y: BasicTypeInfo[_]) => y.shouldAutocastTo(x) || x == y
-        case _ => false
+
+        case (x: BasicTypeInfo[_], y: BasicTypeInfo[_]) =>
+          y.shouldAutocastTo(x) || x == y
+
+        case (x: TypeInformation[_], y: TypeInformation[_]) =>
+          x == y
+        case _ =>
+          false
       }).map(_._2))
 
   }

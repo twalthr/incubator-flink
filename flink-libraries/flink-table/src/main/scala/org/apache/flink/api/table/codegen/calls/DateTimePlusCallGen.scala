@@ -18,26 +18,31 @@
 
 package org.apache.flink.api.table.codegen.calls
 
-import java.lang.reflect.Method
-
+import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rex.RexCall
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
+import org.apache.calcite.sql.`type`.SqlTypeName.{DATE, TIME}
+import org.apache.flink.api.table.codegen.calls.CallGenerator._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
-class MethodCallGenerator(returnType: TypeInformation[_], method: Method) extends CallGenerator {
+/**
+  * Generates a function call for Date/Time arithmetic.
+  */
+class DateTimePlusCallGen extends CallGenerator {
 
   override def generate(
       codeGenerator: CodeGenerator,
       operands: Seq[GeneratedExpression],
       call: RexCall)
     : GeneratedExpression = {
-    generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
+    generateCallIfArgsNotNull(codeGenerator.nullCheck, operands.head.resultType, operands) {
       (operandResultTerms) =>
-        s"""
-          |${method.getDeclaringClass.getCanonicalName}.
-          |  ${method.getName}(${operandResultTerms.mkString(", ")})
-         """.stripMargin
+        val converted = getLogicalTypes(call).head match {
+          case DATE =>
+            s"((int) (${operandResultTerms(1)} / ${DateTimeUtils.MILLIS_PER_DAY}))"
+          case TIME =>
+            s"((int) ${operandResultTerms(1)})"
+        }
+        s"${operandResultTerms.head} + $converted"
     }
   }
 }

@@ -57,6 +57,9 @@ object BuiltInFunctionNames {
   val LN = "LN"
   val ABS = "ABS"
   val EXTRACT = "EXTRACT"
+  val ADD_INTERVAL = "ADDINTERVAL"
+  val FLOOR = "FLOOR"
+  val CEIL = "CEIL"
 }
 
 /**

@@ -91,6 +91,33 @@ class ExpressionsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testEval(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = env.fromElements((5, true)).as('a, 'b)
+      .select(
+        ('b && true).eval("true", "false"),
+        false.eval("true", "false"),
+        "5".eval(3, 4),
+        "true".eval(3, 4),
+        true.eval(true.eval(true.eval(10, 4), 4), 4))
+
+    val expected = "true,false,4,3,10"
+    val results = t.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testEvalInvalidTypes(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = env.fromElements((5, true)).as('a, 'b)
+      .select(('b && true).eval(5, "false"))
+
+    val expected = "true,false,3,10"
+    val results = t.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
   // Date literals not yet supported
   @Ignore
   @Test

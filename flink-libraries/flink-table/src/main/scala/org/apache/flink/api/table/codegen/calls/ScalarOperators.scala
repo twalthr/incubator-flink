@@ -354,7 +354,7 @@ object ScalarOperators {
           (str) =>
             val longParser =
               s"($targetTypeTerm) ${LONG_TYPE_INFO.getTypeClass.getCanonicalName}.valueOf($str)"
-            val timeParser = s"${qualifiedMethod(BuiltInMethod.STRING_TO_TIME)}($str)"
+            val timeParser = s"${qualifiedMethod(BuiltInMethod.STRING_TO_TIME)}($str)" // TODO REVIEW?
             val timestampParser = s"${qualifiedMethod(BuiltInMethod.STRING_TO_TIMESTAMP)}($str)"
 
             s"""
@@ -385,7 +385,11 @@ object ScalarOperators {
           (operandTerm) => s"$wrapperClass.valueOf($operandTerm)"
         }
 
-      // NUMERIC TYPE -> NUMERIC TYPE
+      // Date -> Long
+      case LONG_TYPE_INFO if isDate(operand) =>
+        GeneratedExpression(operand.resultTerm, operand.nullTerm, operand.code, LONG_TYPE_INFO)
+
+      // NUMERIC TYPE (not Date) -> NUMERIC TYPE
       case bti: BasicTypeInfo[_] if isNumeric(bti) && isNumeric(operand) =>
         val targetTypeTerm = primitiveTypeTermForTypeInfo(bti)
         generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
@@ -402,6 +406,61 @@ object ScalarOperators {
       case _ =>
         throw new CodeGenException(s"Unsupported cast from '${operand.resultType}'" +
           s"to '$targetType'.")
+    }
+  }
+
+  def generateIfElse(
+      nullCheck: Boolean,
+      operands: Seq[GeneratedExpression],
+      resultType: TypeInformation[_],
+      i: Int = 0)
+    : GeneratedExpression = {
+    // else part
+    if (i == operands.size - 1) {
+      generateCast(nullCheck, operands(i), resultType)
+    }
+    else {
+      val condition = generateCast(nullCheck = false, operands(i), BOOLEAN_TYPE_INFO)
+      val trueAction = generateCast(nullCheck, operands(i + 1), resultType)
+      val falseAction = generateIfElse(nullCheck, operands, resultType, i + 2)
+
+      val resultTerm = newName("result")
+      val nullTerm = newName("isNull")
+      val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
+
+      val operatorCode = if (nullCheck) {
+        s"""
+          |${condition.code}
+          |$resultTypeTerm $resultTerm;
+          |boolean $nullTerm;
+          |if (${condition.resultTerm}) {
+          |  ${trueAction.code}
+          |  $resultTerm = ${trueAction.resultTerm};
+          |  $nullTerm = ${trueAction.nullTerm};
+          |}
+          |else {
+          |  ${falseAction.code}
+          |  $resultTerm = ${falseAction.resultTerm};
+          |  $nullTerm = ${falseAction.nullTerm};
+          |}
+          |""".stripMargin
+      }
+      else {
+        s"""
+          |${condition.code}
+          |$resultTypeTerm $resultTerm;
+          |if (${condition.resultTerm}) {
+          |  ${trueAction.code}
+          |  $resultTerm = ${trueAction.resultTerm};
+          |}
+          |else {
+          |  ${falseAction.code}
+          |  $resultTerm = ${falseAction.resultTerm};
+          |}
+          |""".stripMargin
+      }
+
+      GeneratedExpression(resultTerm, nullTerm, operatorCode, resultType)
     }
   }
 

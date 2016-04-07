@@ -18,17 +18,20 @@
 
 package org.apache.flink.api.table.codegen.calls
 
+import org.apache.calcite.rex.{RexLiteral, RexCall}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
+import scala.collection.JavaConversions._
+
 trait CallGenerator {
 
   def generate(
       codeGenerator: CodeGenerator,
-      logicalTypes: Seq[SqlTypeName],
-      operands: Seq[GeneratedExpression])
+      operands: Seq[GeneratedExpression],
+      call: RexCall)
     : GeneratedExpression
 
 }
@@ -67,5 +70,17 @@ object CallGenerator {
     }
 
     GeneratedExpression(resultTerm, nullTerm, resultCode, returnType)
+  }
+
+  def getLogicalTypes(call: RexCall): Seq[SqlTypeName] = {
+    call.getOperands.map(_.getType.getSqlTypeName)
+  }
+
+  def getLogicalReturnType(call: RexCall): SqlTypeName = {
+    call.getType.getSqlTypeName
+  }
+
+  def getSymbolOperand(call: RexCall, index: Int): Enum[_] = {
+    call.getOperands.get(index).asInstanceOf[RexLiteral].getValue.asInstanceOf[Enum[_]]
   }
 }

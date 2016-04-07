@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.table.codegen
 
-import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
@@ -27,7 +26,7 @@ import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction,
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.CodeGenUtils._
@@ -524,6 +523,11 @@ class CodeGenerator(
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
     val resultType = sqlTypeToTypeInfo(literal.getType.getSqlTypeName)
     val value = literal.getValue3
+    // for any null values
+    if (value == null) {
+      return generateNullLiteral(resultType)
+    }
+
     literal.getType.getSqlTypeName match {
       case BOOLEAN =>
         generateNonNullLiteral(resultType, literal.getValue3.toString)
@@ -543,7 +547,7 @@ class CodeGenerator(
         else {
           throw new CodeGenException("Decimal can not be converted to short.")
         }
-      case INTEGER =>
+      case INTEGER | INTERVAL_YEAR_MONTH =>
         val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
         if (decimal.isValidInt) {
           generateNonNullLiteral(resultType, decimal.intValue().toString)
@@ -551,10 +555,10 @@ class CodeGenerator(
         else {
           throw new CodeGenException("Decimal can not be converted to integer.")
         }
-      case BIGINT =>
+      case BIGINT | INTERVAL_DAY_TIME =>
         val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
         if (decimal.isValidLong) {
-          generateNonNullLiteral(resultType, decimal.longValue().toString)
+          generateNonNullLiteral(resultType, decimal.longValue().toString + "L")
         }
         else {
           throw new CodeGenException("Decimal can not be converted to long.")
@@ -567,7 +571,7 @@ class CodeGenerator(
         else {
           throw new CodeGenException("Decimal can not be converted to float.")
         }
-      case DOUBLE =>
+      case DOUBLE | DECIMAL =>
         val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
         if (decimal.isValidDouble) {
           generateNonNullLiteral(resultType, decimal.doubleValue().toString)
@@ -579,15 +583,15 @@ class CodeGenerator(
         generateNonNullLiteral(resultType, "\"" + value.toString + "\"")
       case NULL =>
         generateNullLiteral(resultType)
-      case SYMBOL if value.isInstanceOf[SqlLiteral.SqlSymbol] =>
+      case SYMBOL if value.isInstanceOf[SqlLiteral.SqlSymbol] => // TODO REWORK?
         val symbolOrdinal = value.asInstanceOf[SqlLiteral.SqlSymbol].ordinal()
         generateNonNullLiteral(resultType, symbolOrdinal.toString)
-      case SYMBOL if value.isInstanceOf[TimeUnitRange] =>
-        val symbolOrdinal = value.asInstanceOf[TimeUnitRange].ordinal()
-        generateNonNullLiteral(resultType, symbolOrdinal.toString)
+      case SYMBOL if value.isInstanceOf[Enum[_]] =>
+        generateSymbol(value.getClass, value.asInstanceOf[Enum[_]].name())
       case DATE =>
-        val valueInMillis = value.asInstanceOf[Int].toLong * DateTimeUtils.MILLIS_PER_DAY
-        generateNonNullLiteral(resultType, valueInMillis.toString + "L")
+        generateNonNullLiteral(resultType, value.asInstanceOf[Int].toString)
+      case TIME =>
+        generateNonNullLiteral(resultType, value.asInstanceOf[Int].toString)
       case _ =>
         throw new CodeGenException(s"Unsupported literal: $literal")
     }
@@ -718,13 +722,17 @@ class CodeGenerator(
         requireBoolean(operand)
         generateNot(nullCheck, operand)
 
+      case CASE =>
+        generateIfElse(nullCheck, operands, resultType)
+
       // casting
       case CAST =>
         val operand = operands.head
         generateCast(nullCheck, operand, resultType)
 
       case REINTERPRET =>
-        operands.head
+        val operand = operands.head
+        generateCast(nullCheck, operand, resultType)
 
       // string arithmetic
       case CONCAT =>
@@ -734,11 +742,11 @@ class CodeGenerator(
         generateArithmeticOperator("+", nullCheck, resultType, left, right)
 
       // advanced scalar functions
-      case call: SqlOperator =>
-        val callGen = ScalarFunctions.getCallGenerator(call, operands.map(_.resultType))
+      case op: SqlOperator =>
+        val callGen = ScalarFunctions.getCallGenerator(op, operands.map(_.resultType))
         callGen
           .getOrElse(throw new CodeGenException(s"Unsupported call: $call"))
-          .generate(this, logicalTypes, operands)
+          .generate(this, operands, call)
 
       // unknown or invalid
       case call@_ =>
@@ -971,6 +979,14 @@ class CodeGenerator(
     GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType)
   }
 
+  private def generateSymbol(symbolClass: Class[_], name: String): GeneratedExpression = {
+    GeneratedExpression(
+      s"${symbolClass.getCanonicalName}.$name",
+      "false",
+      "",
+      new GenericTypeInfo(symbolClass))
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Reusable code snippets
   // ----------------------------------------------------------------------------------------------
@@ -1007,6 +1023,16 @@ class CodeGenerator(
         |""".stripMargin
     reusableInitStatements.add(fieldAccessibility)
 
+    fieldTerm
+  }
+
+  def addReusableConstant(clazz: Class[_], value: String): String = {
+    val fieldTerm = newName("constant")
+    val fieldDeclaration =
+      s"""
+        |private static final ${clazz.getCanonicalName} $fieldTerm = $value;
+        |""".stripMargin
+    reusableMemberStatements.add(fieldDeclaration)
     fieldTerm
   }
 

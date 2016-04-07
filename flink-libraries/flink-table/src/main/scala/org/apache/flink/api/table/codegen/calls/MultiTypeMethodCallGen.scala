@@ -21,18 +21,21 @@ package org.apache.flink.api.table.codegen.calls
 import java.lang.reflect.Method
 
 import org.apache.calcite.rex.RexCall
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
+import org.apache.flink.api.table.codegen.calls.CallGenerator._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
-class MethodCallGenerator(returnType: TypeInformation[_], method: Method) extends CallGenerator {
+/**
+  * Generates a function call that calls a method which returns the same type that it
+  * takes as first argument.
+  */
+class MultiTypeMethodCallGen(method: Method) extends CallGenerator {
 
   override def generate(
       codeGenerator: CodeGenerator,
       operands: Seq[GeneratedExpression],
       call: RexCall)
     : GeneratedExpression = {
-    generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
+    generateCallIfArgsNotNull(codeGenerator.nullCheck, operands.head.resultType, operands) {
       (operandResultTerms) =>
         s"""
           |${method.getDeclaringClass.getCanonicalName}.

@@ -56,3 +56,16 @@ case class Or(left: Expression, right: Expression) extends BinaryPredicate {
   override val name = Expression.freshName(left.name + "-or-" + right.name)
 
 }
+
+case class Eval(
+    condition: Expression,
+    ifTrue: Expression,
+    ifFalse: Expression)
+  extends Expression {
+  def typeInfo = ???
+  def children = Seq(condition, ifTrue, ifFalse)
+
+  override val name = Expression.freshName("if-" + condition.name)
+
+  override def toString = s"($condition)? $ifTrue : $ifFalse"
+}
