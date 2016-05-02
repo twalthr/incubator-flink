@@ -731,6 +731,10 @@ class CodeGenerator(
         val operand = operands.head
         generateCast(nullCheck, operand, resultType)
 
+      case REINTERPRET =>
+        val operand = operands.head
+        generateCast(nullCheck, operand, resultType)
+
       // as / renaming
       case AS =>
         operands.head

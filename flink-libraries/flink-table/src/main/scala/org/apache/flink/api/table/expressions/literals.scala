@@ -46,8 +46,12 @@ case class Literal(value: Any, tpe: TypeInformation[_])
 
   override def toString = s"$value"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.literal(value)
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = value match {
+    case date: Date =>
+      // Date literals are casted to Timestamps
+      relBuilder.cast(relBuilder.literal(date.getTime), TypeConverter.typeInfoToSqlType(tpe))
+    case _ =>
+      relBuilder.literal(value)
   }
 }
 

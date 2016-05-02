@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.scala.table
 
+import java.util.Date
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions._
 
@@ -253,6 +255,10 @@ trait ImplicitExpressionConversions {
     def expr = Literal(bool)
   }
 
+  implicit class LiteralDateExpression(date: Date) extends ImplicitExpressionOperations {
+    def expr = Literal(date)
+  }
+
   implicit def symbol2FieldExpression(sym: Symbol): Expression = UnresolvedFieldReference(sym.name)
   implicit def int2Literal(i: Int): Expression = Literal(i)
   implicit def long2Literal(l: Long): Expression = Literal(l)
@@ -260,4 +266,5 @@ trait ImplicitExpressionConversions {
   implicit def float2Literal(d: Float): Expression = Literal(d)
   implicit def string2Literal(str: String): Expression = Literal(str)
   implicit def boolean2Literal(bool: Boolean): Expression = Literal(bool)
+  implicit def date2Literal(date: Date): Expression = Literal(date)
 }

@@ -55,7 +55,9 @@ object TypeConverter {
     case DOUBLE_VALUE_TYPE_INFO => DOUBLE
     case STRING_TYPE_INFO => VARCHAR
     case STRING_VALUE_TYPE_INFO => VARCHAR
-    case DATE_TYPE_INFO => DATE
+
+    // date/time types
+    case DATE_TYPE_INFO => TIMESTAMP
 
     case CHAR_TYPE_INFO | CHAR_VALUE_TYPE_INFO =>
       throw new TableException("Character type is not supported.")
@@ -73,7 +75,11 @@ object TypeConverter {
     case FLOAT => FLOAT_TYPE_INFO
     case DOUBLE => DOUBLE_TYPE_INFO
     case VARCHAR | CHAR => STRING_TYPE_INFO
-    case DATE => DATE_TYPE_INFO
+
+    // date/time types
+    case TIMESTAMP | DATE | TIME => DATE_TYPE_INFO
+    case INTERVAL_DAY_TIME | INTERVAL_YEAR_MONTH =>
+      throw new TableException("Intervals are not supported yet.")
 
     case NULL =>
       throw new TableException("Type NULL is not supported. " +
