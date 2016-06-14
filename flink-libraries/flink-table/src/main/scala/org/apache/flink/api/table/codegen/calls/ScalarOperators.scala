@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, TypeInformation}
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.{CodeGenException, GeneratedExpression}
-import org.apache.flink.api.table.typeutils.TypeCheckUtils.{isDecimal, isNumeric}
+import org.apache.flink.api.table.typeutils.TypeCheckUtils.{isBoolean, isComparable, isDecimal, isNumeric}
 
 object ScalarOperators {
 
@@ -81,18 +81,27 @@ object ScalarOperators {
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
-    generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
-      if (isDecimal(left.resultType) && isDecimal(right.resultType)) {
-        (leftTerm, rightTerm) => s"$leftTerm.compareTo($rightTerm) == 0"
-      }
-      else if (isReference(left)) {
-        (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
-      }
-      else if (isReference(right)) {
-        (leftTerm, rightTerm) => s"$rightTerm.equals($leftTerm)"
-      }
-      else {
-        (leftTerm, rightTerm) => s"$leftTerm == $rightTerm"
+    // numeric types
+    if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
+      generateComparison("==", nullCheck, left, right)
+    }
+    // comparable types of same type
+    else if (isComparable(left.resultType) && left.resultType == right.resultType) {
+      generateComparison("==", nullCheck, left, right)
+    }
+    // non comparable types
+    else {
+      generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
+        if (isReference(left)) {
+          (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
+        }
+        else if (isReference(right)) {
+          (leftTerm, rightTerm) => s"$rightTerm.equals($leftTerm)"
+        }
+        else {
+          throw new CodeGenException(s"Incomparable types: ${left.resultType} and " +
+            s"${right.resultType}")
+        }
       }
     }
   }
@@ -102,22 +111,34 @@ object ScalarOperators {
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
-    generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
-      if (isDecimal(left.resultType) && isDecimal(right.resultType)) {
-        (leftTerm, rightTerm) => s"$leftTerm.compareTo($rightTerm) != 0"
-      }
-      else if (isReference(left)) {
-        (leftTerm, rightTerm) => s"!($leftTerm.equals($rightTerm))"
-      }
-      else if (isReference(right)) {
-        (leftTerm, rightTerm) => s"!($rightTerm.equals($leftTerm))"
-      }
-      else {
-        (leftTerm, rightTerm) => s"$leftTerm != $rightTerm"
+    // numeric types
+    if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
+      generateComparison("!=", nullCheck, left, right)
+    }
+    // comparable types
+    else if (isComparable(left.resultType) && left.resultType == right.resultType) {
+      generateComparison("!=", nullCheck, left, right)
+    }
+    // non comparable types
+    else {
+      generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
+        if (isReference(left)) {
+          (leftTerm, rightTerm) => s"!($leftTerm.equals($rightTerm))"
+        }
+        else if (isReference(right)) {
+          (leftTerm, rightTerm) => s"!($rightTerm.equals($leftTerm))"
+        }
+        else {
+          throw new CodeGenException(s"Incomparable types: ${left.resultType} and " +
+            s"${right.resultType}")
+        }
       }
     }
   }
 
+  /**
+    * Generates comparison code for numeric types and comparable types of same type.
+    */
   def generateComparison(
       operator: String,
       nullCheck: Boolean,
@@ -125,14 +146,38 @@ object ScalarOperators {
       right: GeneratedExpression)
     : GeneratedExpression = {
     generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
-      if (isReference(left) && isReference(right)) {
-        (leftTerm, rightTerm) => s"$leftTerm.compareTo($rightTerm) $operator 0"
+      // left is decimal or both sides are decimal
+      if (isDecimal(left.resultType) && isNumeric(right.resultType)) {
+        (leftTerm, rightTerm) => {
+          val operandCasting = numericCasting(right.resultType, left.resultType)
+          s"$leftTerm.compareTo(${operandCasting(rightTerm)}) $operator 0"
+        }
       }
+      // right is decimal
+      else if (isNumeric(left.resultType) && isDecimal(right.resultType)) {
+        (leftTerm, rightTerm) => {
+          val operandCasting = numericCasting(left.resultType, right.resultType)
+          s"${operandCasting(leftTerm)}.compareTo($rightTerm) $operator 0"
+        }
+      }
+      // both sides are numeric
       else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
         (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
       }
+      // both sides are boolean
+      else if (isBoolean(left.resultType) && left.resultType == right.resultType) {
+        operator match {
+          case "==" | "!=" => (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
+          case _ => throw new CodeGenException(s"Unsupported boolean comparison '$operator'.")
+        }
+      }
+      // both sides are same comparable type
+      else if (isComparable(left.resultType) && left.resultType == right.resultType) {
+        (leftTerm, rightTerm) => s"$leftTerm.compareTo($rightTerm) $operator 0"
+      }
       else {
-        throw new CodeGenException("Comparison is only supported for numeric or comparable types.")
+        throw new CodeGenException(s"Incomparable types: ${left.resultType} and " +
+            s"${right.resultType}")
       }
     }
   }

@@ -236,6 +236,56 @@ class DecimalTypeTest extends ExpressionTestBase {
       "-123456789.123456789123456789")
   }
 
+  @Test
+  def testDecimalComparison(): Unit = {
+    testAllApis(
+      'f1 < 12,
+      "f1 < 12",
+      "f1 < 12",
+      "false")
+
+    testAllApis(
+      'f1 > 12,
+      "f1 > 12",
+      "f1 > 12",
+      "true")
+
+    testAllApis(
+      'f1 === 12,
+      "f1 === 12",
+      "f1 = 12",
+      "false")
+
+    testAllApis(
+      'f5 === 0,
+      "f5 === 0",
+      "f5 = 0",
+      "true")
+
+    testAllApis(
+      'f1 === BigDecimal("123456789123456789123456789"),
+      "f1 === 123456789123456789123456789p",
+      "f1 = CAST('123456789123456789123456789' AS DECIMAL)",
+      "true")
+
+    testAllApis(
+      'f1 !== BigDecimal("123456789123456789123456789"),
+      "f1 !== 123456789123456789123456789p",
+      "f1 <> CAST('123456789123456789123456789' AS DECIMAL)",
+      "false")
+
+    testAllApis(
+      'f4 < 'f0,
+      "f4 < f0",
+      "f4 < f0",
+      "true")
+
+    // TODO add all tests if FLINK-4070 is fixed
+    testSqlApi(
+      "12 < f1",
+      "true")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testData = {

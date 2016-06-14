@@ -694,29 +694,29 @@ class CodeGenerator(
       case GREATER_THAN =>
         val left = operands.head
         val right = operands(1)
-        requireNumericOrComparable(left)
-        requireNumericOrComparable(right)
+        requireComparable(left)
+        requireComparable(right)
         generateComparison(">", nullCheck, left, right)
 
       case GREATER_THAN_OR_EQUAL =>
         val left = operands.head
         val right = operands(1)
-        requireNumericOrComparable(left)
-        requireNumericOrComparable(right)
+        requireComparable(left)
+        requireComparable(right)
         generateComparison(">=", nullCheck, left, right)
 
       case LESS_THAN =>
         val left = operands.head
         val right = operands(1)
-        requireNumericOrComparable(left)
-        requireNumericOrComparable(right)
+        requireComparable(left)
+        requireComparable(right)
         generateComparison("<", nullCheck, left, right)
 
       case LESS_THAN_OR_EQUAL =>
         val left = operands.head
         val right = operands(1)
-        requireNumericOrComparable(left)
-        requireNumericOrComparable(right)
+        requireComparable(left)
+        requireComparable(right)
         generateComparison("<=", nullCheck, left, right)
 
       case IS_NULL =>

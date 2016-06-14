@@ -35,6 +35,9 @@ object TypeCheckUtils {
 
   def isDecimal(dataType: TypeInformation[_]): Boolean = dataType == BIG_DEC_TYPE_INFO
 
+  def isComparable(dataType: TypeInformation[_]): Boolean =
+    classOf[Comparable[_]].isAssignableFrom(dataType.getTypeClass)
+
   def assertNumericExpr(
       dataType: TypeInformation[_],
       caller: String)

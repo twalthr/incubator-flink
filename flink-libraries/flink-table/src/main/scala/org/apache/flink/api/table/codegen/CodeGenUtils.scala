@@ -107,14 +107,12 @@ object CodeGenUtils {
   def requireNumeric(genExpr: GeneratedExpression) =
     if (!TypeCheckUtils.isNumeric(genExpr.resultType)) {
       throw new CodeGenException("Numeric expression type expected, but was " +
-        s"'${genExpr.resultType}'")
+        s"'${genExpr.resultType}'.")
     }
 
-  def requireNumericOrComparable(genExpr: GeneratedExpression) =
-    if (!TypeCheckUtils.isNumeric(genExpr.resultType)
-        && !classOf[Comparable[_]].isAssignableFrom(genExpr.resultType.getTypeClass)) {
-      throw new CodeGenException(s"Numeric or comparable type expected, but was " +
-        s"'${genExpr.resultType}'")
+  def requireComparable(genExpr: GeneratedExpression) =
+    if (!TypeCheckUtils.isComparable(genExpr.resultType)) {
+      throw new CodeGenException(s"Comparable type expected, but was '${genExpr.resultType}'.")
     }
 
   def requireString(genExpr: GeneratedExpression) = genExpr.resultType match {
