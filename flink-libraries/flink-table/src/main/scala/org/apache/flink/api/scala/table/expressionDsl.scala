@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.scala.table
 
+import java.sql.{Timestamp, Time, Date}
+
 import scala.language.implicitConversions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -258,6 +260,19 @@ trait ImplicitExpressionConversions {
     def expr = Literal(scalaDecimal.bigDecimal)
   }
 
+  implicit class LiteralSqlDateExpression(sqlDate: Date) extends ImplicitExpressionOperations {
+    def expr = Literal(sqlDate)
+  }
+
+  implicit class LiteralSqlTimeExpression(sqlTime: Time) extends ImplicitExpressionOperations {
+    def expr = Literal(sqlTime)
+  }
+
+  implicit class LiteralSqlTimestampExpression(sqlTimestamp: Timestamp)
+      extends ImplicitExpressionOperations {
+    def expr = Literal(sqlTimestamp)
+  }
+
   implicit def symbol2FieldExpression(sym: Symbol): Expression = UnresolvedFieldReference(sym.name)
   implicit def byte2Literal(b: Byte): Expression = Literal(b)
   implicit def short2Literal(s: Short): Expression = Literal(s)
@@ -270,4 +285,7 @@ trait ImplicitExpressionConversions {
   implicit def javaDec2Literal(javaDec: java.math.BigDecimal): Expression = Literal(javaDec)
   implicit def scalaDec2Literal(scalaDec: scala.math.BigDecimal): Expression =
     Literal(scalaDec.bigDecimal)
+  implicit def sqlDate2Literal(sqlDate: Date): Expression = Literal(sqlDate)
+  implicit def sqlTime2Literal(sqlTime: Time): Expression = Literal(sqlTime)
+  implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression = Literal(sqlTimestamp)
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.api.table.codegen
 
 import java.math.{BigDecimal => JBigDecimal}
+import java.util.Calendar
 
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName._
@@ -611,7 +612,12 @@ class CodeGenerator(
         }
 
         generateNonNullLiteral(resultType, symbolOrdinal.toString)
-      case _ => ??? // TODO more types
+
+      case DATE =>
+        val cal = value.asInstanceOf[Calendar]
+        ???
+      case t@_ =>
+        throw new CodeGenException(s"Type not supported: $t")
     }
   }
 

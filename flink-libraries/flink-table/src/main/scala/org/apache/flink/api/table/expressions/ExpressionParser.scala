@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.common.typeinfo.{TypeInformation, BasicTypeInfo}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation, BasicTypeInfo}
 import org.apache.flink.api.table.ExpressionParserException
 
 import scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
@@ -71,7 +71,9 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       "DOUBLE" ^^ { ti => BasicTypeInfo.DOUBLE_TYPE_INFO } |
       ("BOOL" | "BOOLEAN" ) ^^ { ti => BasicTypeInfo.BOOLEAN_TYPE_INFO } |
       "STRING" ^^ { ti => BasicTypeInfo.STRING_TYPE_INFO } |
-      "DATE" ^^ { ti => BasicTypeInfo.DATE_TYPE_INFO } |
+      "DATE" ^^ { ti => SqlTimeTypeInfo.DATE.asInstanceOf[TypeInformation[_]] } |
+      "TIME" ^^ { ti => SqlTimeTypeInfo.TIME } |
+      "TIMESTAMP" ^^ { ti => SqlTimeTypeInfo.TIMESTAMP } |
       "DECIMAL" ^^ { ti => BasicTypeInfo.BIG_DEC_TYPE_INFO }
 
   // Literals
