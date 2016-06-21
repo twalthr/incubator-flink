@@ -18,7 +18,7 @@
 package org.apache.flink.api.table.expressions
 
 import java.sql.{Timestamp, Time, Date}
-import java.util.Calendar
+import java.util.{TimeZone, Calendar}
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName
@@ -57,20 +57,22 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
 
       // date/time
       case SqlTimeTypeInfo.DATE =>
-        relBuilder.getRexBuilder.makeDateLiteral(valueToCalendar)
+        relBuilder.getRexBuilder.makeDateLiteral(dateToCalendar)
       case SqlTimeTypeInfo.TIME =>
-        relBuilder.getRexBuilder.makeTimeLiteral(valueToCalendar, 0)
+        relBuilder.getRexBuilder.makeTimeLiteral(dateToCalendar, 0)
       case SqlTimeTypeInfo.TIMESTAMP =>
-        relBuilder.getRexBuilder.makeTimeLiteral(valueToCalendar, 9)
+        relBuilder.getRexBuilder.makeTimestampLiteral(dateToCalendar, 3)
 
       case _ => relBuilder.literal(value)
     }
   }
 
-  private def valueToCalendar: Calendar = {
+  private def dateToCalendar: Calendar = {
     val date = value.asInstanceOf[java.util.Date]
     val cal = Calendar.getInstance()
-    cal.setTimeInMillis(date.getTime)
+    val t = date.getTime
+    // according to Calcite's SqlFunctions.internalToXXX methods
+    cal.setTimeInMillis(t + TimeZone.getDefault.getOffset(t))
     cal
   }
 }

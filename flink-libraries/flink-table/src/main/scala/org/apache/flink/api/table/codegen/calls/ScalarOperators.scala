@@ -17,11 +17,13 @@
  */
 package org.apache.flink.api.table.codegen.calls
 
+import org.apache.calcite.avatica.util.DateTimeUtils
+import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.{CodeGenException, GeneratedExpression}
-import org.apache.flink.api.table.typeutils.TypeCheckUtils.{isBoolean, isComparable, isDecimal, isNumeric}
+import org.apache.flink.api.table.typeutils.TypeCheckUtils._
 
 object ScalarOperators {
 
@@ -85,6 +87,10 @@ object ScalarOperators {
     if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
       generateComparison("==", nullCheck, left, right)
     }
+    // temporal types
+    else if (isTemporal(left.resultType) && left.resultType == right.resultType) {
+      generateComparison("==", nullCheck, left, right)
+    }
     // comparable types of same type
     else if (isComparable(left.resultType) && left.resultType == right.resultType) {
       generateComparison("==", nullCheck, left, right)
@@ -115,11 +121,15 @@ object ScalarOperators {
     if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
       generateComparison("!=", nullCheck, left, right)
     }
+    // temporal types
+    else if (isTemporal(left.resultType) && left.resultType == right.resultType) {
+      generateComparison("!=", nullCheck, left, right)
+    }
     // comparable types
     else if (isComparable(left.resultType) && left.resultType == right.resultType) {
       generateComparison("!=", nullCheck, left, right)
     }
-    // non comparable types
+    // non-comparable types
     else {
       generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
         if (isReference(left)) {
@@ -137,7 +147,8 @@ object ScalarOperators {
   }
 
   /**
-    * Generates comparison code for numeric types and comparable types of same type.
+    * Generates comparison code for numeric types, temporal types,
+    * and comparable types of same type.
     */
   def generateComparison(
       operator: String,
@@ -162,6 +173,14 @@ object ScalarOperators {
       }
       // both sides are numeric
       else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
+        (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
+      }
+      // both sides are temporal of same type
+      else if (isTemporal(left.resultType) && left.resultType == right.resultType) {
+        (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
+      }
+      // both sides are temporal but casting is required
+      else if (isTemporal(left.resultType) && isTemporal(right.resultType)) {
         (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
       }
       // both sides are boolean
@@ -379,7 +398,13 @@ object ScalarOperators {
     case (fromTp, toTp) if fromTp == toTp =>
       operand
 
-    // * -> String
+    // Date/Time/Timestamp -> String
+    case (dtt: SqlTimeTypeInfo[_], STRING_TYPE_INFO) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"""${internalToTemporalCode(dtt, operandTerm)}.toString()"""
+      }
+
+    // * (not Date/Time/Timestamp) -> String
     case (_, STRING_TYPE_INFO) =>
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
         (operandTerm) => s""" "" + $operandTerm"""
@@ -402,6 +427,25 @@ object ScalarOperators {
       val wrapperClass = targetType.getTypeClass.getCanonicalName
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
         (operandTerm) => s"new $wrapperClass($operandTerm)"
+      }
+
+    // String -> Date
+    case (STRING_TYPE_INFO, SqlTimeTypeInfo.DATE) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"${qualifyMethod(BuiltInMethod.STRING_TO_DATE.method)}($operandTerm)"
+      }
+
+    // String -> Time
+    case (STRING_TYPE_INFO, SqlTimeTypeInfo.TIME) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"${qualifyMethod(BuiltInMethod.STRING_TO_TIME.method)}($operandTerm)"
+      }
+
+    // String -> Timestamp
+    case (STRING_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"${qualifyMethod(BuiltInMethod.STRING_TO_TIMESTAMP.method)}" +
+          s"($operandTerm)"
       }
 
     // Boolean -> NUMERIC TYPE
@@ -436,6 +480,37 @@ object ScalarOperators {
       val operandCasting = numericCasting(operand.resultType, targetType)
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
         (operandTerm) => s"${operandCasting(operandTerm)}"
+      }
+
+    // DATE -> TIMESTAMP
+    case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) =>
+          s"$operandTerm * ${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY"
+      }
+
+    // TIMESTAMP -> DATE
+    case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE) =>
+      val targetTypeTerm = primitiveTypeTermForTypeInfo(targetType)
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) =>
+          s"($targetTypeTerm) ($operandTerm / " +
+            s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
+      }
+
+    // TIME -> TIMESTAMP
+    case (SqlTimeTypeInfo.TIME, SqlTimeTypeInfo.TIMESTAMP) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"$operandTerm"
+      }
+
+    // TIMESTAMP -> TIME
+    case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.TIME) =>
+      val targetTypeTerm = primitiveTypeTermForTypeInfo(targetType)
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) =>
+          s"($targetTypeTerm) ($operandTerm % " +
+            s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
       }
 
     case (from, to) =>

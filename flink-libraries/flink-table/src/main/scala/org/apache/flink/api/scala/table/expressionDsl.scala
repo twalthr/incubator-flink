@@ -21,7 +21,7 @@ import java.sql.{Timestamp, Time, Date}
 
 import scala.language.implicitConversions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.expressions._
 
 /**
@@ -203,6 +203,21 @@ trait ImplicitExpressionOperations {
     * e.g. "A+" matches all Strings that consist of at least one A
     */
   def similar(pattern: Expression) = Similar(expr, pattern)
+
+  /**
+    * Parses a date String in the form "yy-mm-dd" to a SQL Date.
+    */
+  def toDate = Cast(expr, SqlTimeTypeInfo.DATE)
+
+  /**
+    * Parses a time String in the form "hh:mm:ss" to a SQL Time.
+    */
+  def toTime = Cast(expr, SqlTimeTypeInfo.TIME)
+
+    /**
+    * Parses a timestamp String in the form "yy-mm-dd hh:mm:ss.fff" to a SQL Timestamp.
+    */
+  def toTimestamp = Cast(expr, SqlTimeTypeInfo.TIMESTAMP)
 }
 
 /**
