@@ -223,10 +223,55 @@ trait ImplicitExpressionOperations {
     */
   def toTime = Cast(expr, SqlTimeTypeInfo.TIME)
 
-    /**
+  /**
     * Parses a timestamp String in the form "yy-mm-dd hh:mm:ss.fff" to a SQL Timestamp.
     */
   def toTimestamp = Cast(expr, SqlTimeTypeInfo.TIMESTAMP)
+
+  /**
+    * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name and
+    * returns it's value.
+    *
+    * @param name name of the field (similar to Flink's field expressions)
+    * @return value of the field
+    */
+  def getField(name: String) = GetField(expr, name)
+
+  /**
+    * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by index and
+    * returns it's value.
+    *
+    * @param index position of the field
+    * @return value of the field
+    */
+  def getField(index: Int) = GetField(expr, index)
+
+  /**
+    * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name and
+    * assigns a new value to it. Returns the modified composite type.
+    *
+    * @param name name of the field or position (similar to Flink's field expressions)
+    * @param value new value to be assigned to the field
+    * @return modified composite type
+    */
+  def setField(name: String, value: Expression) = SetField(expr, name, value)
+
+  /**
+    * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by index and
+    * assigns a new value to it. Returns the modified composite type.
+    *
+    * @param index position of the field
+    * @param value new value to be assigned to the field
+    * @return modified composite type
+    */
+  def setField(index: Int, value: Expression) = SetField(expr, index, value)
+
+  /**
+    * Returns the number of fields of the given composite type (such as Tuple, POJO, etc.).
+    *
+    * @return number of fields
+    */
+  def fieldArity = FieldArity(expr)
 }
 
 /**

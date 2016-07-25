@@ -109,7 +109,12 @@ object FunctionCatalog {
     "log10" -> classOf[Log10],
     "ln" -> classOf[Ln],
     "power" -> classOf[Power],
-    "mod" -> classOf[Mod]
+    "mod" -> classOf[Mod],
+
+    // composite access functions
+    "getField" -> classOf[GetField],
+    "setField" -> classOf[SetField],
+    "fieldArity" -> classOf[FieldArity]
   )
 
   /**
