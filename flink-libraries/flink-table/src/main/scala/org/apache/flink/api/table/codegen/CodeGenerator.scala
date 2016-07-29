@@ -107,7 +107,7 @@ class CodeGenerator(
 
   // map of initial input unboxing expressions that will be added only once
   // (inputTerm, index) -> expr
-  private val reusableInputUnboxingExprs = mutable.Map[(String, Int), GeneratedExpression]()
+  private val reusableInputUnboxingExprs = mutable.LinkedHashMap[(String, Int), GeneratedExpression]()
 
   /**
     * @return code block of statements that need to be placed in the member area of the Function
@@ -257,11 +257,11 @@ class CodeGenerator(
       resultFieldNames: Seq[String])
     : GeneratedExpression = {
     val input1AccessExprs = for (i <- 0 until input1.getArity)
-      yield generateInputAccess(input1, input1Term, i)
+      yield generateInputAccess(nullableInput, input1, input1Term, i)
 
     val input2AccessExprs = input2 match {
       case Some(ti) => for (i <- 0 until ti.getArity)
-        yield generateInputAccess(ti, input2Term, i)
+        yield generateInputAccess(nullableInput, ti, input2Term, i)
       case None => Seq() // add nothing
     }
 
@@ -515,23 +515,99 @@ class CodeGenerator(
   // ----------------------------------------------------------------------------------------------
 
   override def visitInputRef(inputRef: RexInputRef): GeneratedExpression = {
-    // if inputRef index is within size of input1 we work with input1, input2 otherwise
-    val input = if (inputRef.getIndex < input1.getArity) {
-      (input1, input1Term)
+
+    case class Input(nullable: Boolean, tpe: TypeInformation[_], term: String)
+
+    // if inputRef index is within total size of input1 we work with input1, input2 otherwise
+    val input = if (inputRef.getIndex < input1.getTotalFields) {
+      Input(nullableInput, input1, input1Term)
     } else {
-      (input2.getOrElse(throw new CodeGenException("Invalid input access.")), input2Term)
+      Input(
+        nullableInput,
+        input2.getOrElse(throw new CodeGenException("Invalid input access.")),
+        input2Term)
     }
 
-    val index = if (input._2 == input1Term) {
+    val flatIndex = if (input.term == input1Term) {
       inputRef.getIndex
     } else {
-      inputRef.getIndex - input1.getArity
+      // subtract fields of input1 if we access input2
+      inputRef.getIndex - input1.getTotalFields
     }
 
-    generateInputAccess(input._1, input._2, index)
+    // no flat fields available
+    if (input.tpe.isInstanceOf[AtomicType[_]]) {
+      return generateInputAccess(input.nullable, input.tpe, input.term, 0)
+    }
+
+    // determine non-flat access path for flat field index
+    var curInput = input
+    var curInputExpr: GeneratedExpression =  null
+    var curPos = 0
+    var curFlatIndex = 0
+    while (curFlatIndex <= flatIndex) {
+      curInput.tpe match {
+
+        case ct: CompositeType[_] if curFlatIndex != flatIndex || curInputExpr == null =>
+          val curPosFields = ct.getTypeAt(curPos).getTotalFields
+          // jump into field of composite type if it contains the flatIndex
+          if (flatIndex < curFlatIndex + curPosFields) {
+            curInputExpr = generateInputAccess(
+              curInput.nullable,
+              curInput.tpe,
+              curInput.term,
+              curPos)
+            curInput = Input(nullable = true, curInputExpr.resultType, curInputExpr.resultTerm)
+            curPos = 0
+          }
+          // next field of composite type
+          else {
+            curFlatIndex += curPosFields
+            curPos += 1
+          }
+
+        case _ =>
+          curFlatIndex += 1 // final atomic type
+      }
+    }
+
+    curInputExpr
   }
 
-  override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression = ???
+  override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression = {
+    val refExpr = rexFieldAccess.getReferenceExpr.accept(this)
+    val index = rexFieldAccess.getField.getIndex
+    val fieldAccessExpr = generateFieldAccess(refExpr.resultType, refExpr.resultTerm, index)
+
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldAccessExpr.resultType)
+    val defaultValue = primitiveDefaultValue(fieldAccessExpr.resultType)
+    val resultCode = if (nullCheck) {
+      s"""
+        |${refExpr.code}
+        |$resultTypeTerm $resultTerm;
+        |boolean $nullTerm;
+        |if (${refExpr.nullTerm}) {
+        |  $resultTerm = $defaultValue;
+        |  $nullTerm = true;
+        |}
+        |else {
+        |  ${fieldAccessExpr.code}
+        |  $resultTerm = ${fieldAccessExpr.resultTerm};
+        |  $nullTerm = ${fieldAccessExpr.nullTerm};
+        |}
+        |""".stripMargin
+    } else {
+      s"""
+        |${refExpr.code}
+        |${fieldAccessExpr.code}
+        |$resultTypeTerm $resultTerm = ${fieldAccessExpr.resultTerm};
+        |""".stripMargin
+    }
+
+    GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
+  }
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
     val resultType = FlinkTypeFactory.toTypeInfo(literal.getType)
@@ -797,7 +873,8 @@ class CodeGenerator(
   // ----------------------------------------------------------------------------------------------
 
   private def generateInputAccess(
-      inputType: TypeInformation[Any],
+      nullable: Boolean,
+      inputType: TypeInformation[_],
       inputTerm: String,
       index: Int)
     : GeneratedExpression = {
@@ -810,7 +887,7 @@ class CodeGenerator(
 
       // generate input access and unboxing if necessary
       case None =>
-        val expr = if (nullableInput) {
+        val expr = if (nullable) {
           generateNullableInputFieldAccess(inputType, inputTerm, index)
         }
         else {
@@ -825,7 +902,7 @@ class CodeGenerator(
   }
 
   private def generateNullableInputFieldAccess(
-      inputType: TypeInformation[Any],
+      inputType: TypeInformation[_],
       inputTerm: String,
       index: Int)
     : GeneratedExpression = {
@@ -834,10 +911,9 @@ class CodeGenerator(
 
     val fieldType = inputType match {
       case ct: CompositeType[_] =>
-        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
+        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]] && inputPojoFieldMapping.nonEmpty) {
           inputPojoFieldMapping.get(index)
-        }
-        else {
+        } else {
           index
         }
         ct.getTypeAt(fieldIndex)
@@ -867,16 +943,15 @@ class CodeGenerator(
   }
 
   private def generateFieldAccess(
-      inputType: TypeInformation[Any],
+      inputType: TypeInformation[_],
       inputTerm: String,
       index: Int)
     : GeneratedExpression = {
     inputType match {
       case ct: CompositeType[_] =>
-        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
+        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]] && inputPojoFieldMapping.nonEmpty) {
           inputPojoFieldMapping.get(index)
-        }
-        else {
+        } else {
           index
         }
         val accessor = fieldAccessorFor(ct, fieldIndex)
@@ -935,7 +1010,7 @@ class CodeGenerator(
   }
 
   private def generateNullableLiteral(
-      literalType: TypeInformation[Any],
+      literalType: TypeInformation[_],
       literalCode: String)
     : GeneratedExpression = {
     val tmpTerm = newName("tmp")

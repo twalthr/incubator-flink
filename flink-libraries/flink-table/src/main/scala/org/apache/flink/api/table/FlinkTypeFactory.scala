@@ -24,9 +24,10 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
 import org.apache.flink.api.table.FlinkTypeFactory.typeInfoToSqlTypeName
-import org.apache.flink.api.table.plan.schema.GenericRelDataType
+import org.apache.flink.api.table.plan.schema.{CompositeRelDataType, GenericRelDataType}
 import org.apache.flink.api.table.typeutils.TypeCheckUtils.isSimple
 
 import scala.collection.mutable
@@ -37,7 +38,15 @@ import scala.collection.mutable
   */
 class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImpl(typeSystem) {
 
+  // NOTE: for future data types it might be necessary to
+  // override more methods of RelDataTypeFactoryImpl
+
   private val seenTypes = mutable.HashMap[TypeInformation[_], RelDataType]()
+
+
+  override def toSql(`type`: RelDataType): RelDataType = {
+    super.toSql(`type`)
+  }
 
   def createTypeFromTypeInfo(typeInfo: TypeInformation[_]): RelDataType = {
     // simple type can be converted to SQL types and vice versa
@@ -53,12 +62,25 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
   private def createAdvancedType(typeInfo: TypeInformation[_]): RelDataType = typeInfo match {
     // TODO add specific RelDataTypes
-    // for PrimitiveArrayTypeInfo, ObjectArrayTypeInfo, CompositeType
+    // for PrimitiveArrayTypeInfo, ObjectArrayTypeInfo
+    case ct: CompositeType[_] =>
+      new CompositeRelDataType(ct, this)
     case ti: TypeInformation[_] =>
       new GenericRelDataType(typeInfo, getTypeSystem.asInstanceOf[FlinkTypeSystem])
 
     case ti@_ =>
-      throw new TableException(s"Unsupported type information: $ti")
+      throw TableException(s"Unsupported type information: $ti")
+  }
+
+  override def createTypeWithNullability(
+      relDataType: RelDataType,
+      nullable: Boolean)
+    : RelDataType = relDataType match {
+    case composite: CompositeRelDataType =>
+      // at the moment we do not care about nullability
+      composite
+    case _ =>
+      super.createTypeWithNullability(relDataType, nullable)
   }
 }
 
@@ -81,10 +103,10 @@ object FlinkTypeFactory {
       case SqlTimeTypeInfo.TIMESTAMP => TIMESTAMP
 
       case CHAR_TYPE_INFO | CHAR_VALUE_TYPE_INFO =>
-        throw new TableException("Character type is not supported.")
+        throw TableException("Character type is not supported.")
 
       case _@t =>
-        throw new TableException(s"Type is not supported: $t")
+        throw TableException(s"Type is not supported: $t")
   }
 
   def toTypeInfo(relDataType: RelDataType): TypeInformation[_] = relDataType.getSqlTypeName match {
@@ -103,10 +125,10 @@ object FlinkTypeFactory {
     case TIME => SqlTimeTypeInfo.TIME
     case TIMESTAMP => SqlTimeTypeInfo.TIMESTAMP
     case INTERVAL_DAY_TIME | INTERVAL_YEAR_MONTH =>
-      throw new TableException("Intervals are not supported yet.")
+      throw TableException("Intervals are not supported yet.")
 
     case NULL =>
-      throw new TableException("Type NULL is not supported. " +
+      throw TableException("Type NULL is not supported. " +
         "Null values must have a supported type.")
 
     // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
@@ -118,7 +140,11 @@ object FlinkTypeFactory {
       val genericRelDataType = relDataType.asInstanceOf[GenericRelDataType]
       genericRelDataType.typeInfo
 
+    case ROW if relDataType.isInstanceOf[CompositeRelDataType] =>
+      val compositeRelDataType = relDataType.asInstanceOf[CompositeRelDataType]
+      compositeRelDataType.compositeType
+
     case _@t =>
-      throw new TableException(s"Type is not supported: $t")
+      throw TableException(s"Type is not supported: $t")
   }
 }

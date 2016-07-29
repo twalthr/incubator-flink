@@ -118,7 +118,11 @@ abstract class ExpressionTestBase {
       .zipWithIndex
       .foreach {
         case ((expr, expected), index) =>
-          assertEquals(s"Wrong result for: $expr", expected, result.productElement(index))
+          val actual = result.productElement(index)
+          assertEquals(
+            s"Wrong result for: $expr",
+            expected,
+            if (actual == null) "null" else actual)
       }
   }
 
