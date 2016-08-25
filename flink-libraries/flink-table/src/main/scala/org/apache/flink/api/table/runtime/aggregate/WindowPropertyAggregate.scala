@@ -17,33 +17,37 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
+import java.sql.Timestamp
+
+import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
-import org.apache.flink.streaming.api.windowing.windows.Window
+import org.apache.flink.streaming.api.windowing.windows.{TimeWindow, Window}
 
-class CountAggregate extends Aggregate[Long] {
-  private var countIndex: Int = _
+class WindowPropertyAggregate(start: Boolean) extends Aggregate[Timestamp] {
+  private var index: Int = _
 
   override def initiate(intermediate: Row, window: Option[Window]): Unit = {
-    intermediate.setField(countIndex, 0L)
+    window match {
+      case Some(timeWindow: TimeWindow) =>
+        intermediate.setField(index, if (start) timeWindow.getStart else timeWindow.getEnd)
+      case _ =>
+        intermediate.setField(index, null)
+    }
+
   }
 
   override def merge(intermediate: Row, buffer: Row): Unit = {
-    val partialCount = intermediate.productElement(countIndex).asInstanceOf[Long]
-    val bufferCount = buffer.productElement(countIndex).asInstanceOf[Long]
-    buffer.setField(countIndex, partialCount + bufferCount)
+    // nothing to do here
   }
 
-  override def evaluate(buffer: Row): Long = {
-    buffer.productElement(countIndex).asInstanceOf[Long]
+  override def evaluate(buffer: Row): Timestamp = {
+    val ts = buffer.productElement(index).asInstanceOf[Long]
+    SqlFunctions.internalToTimestamp(ts) // TODO make this more efficient
   }
 
   override def prepare(value: Any, intermediate: Row): Unit = {
-    if (value == null) {
-      intermediate.setField(countIndex, 0L)
-    } else {
-      intermediate.setField(countIndex, 1L)
-    }
+    intermediate.setField(index, null)
   }
 
   override def intermediateDataType = Array(BasicTypeInfo.LONG_TYPE_INFO)
@@ -51,6 +55,6 @@ class CountAggregate extends Aggregate[Long] {
   override def supportPartial: Boolean = true
 
   override def setAggOffsetInRow(aggIndex: Int): Unit = {
-    countIndex = aggIndex
+    index = aggIndex
   }
 }

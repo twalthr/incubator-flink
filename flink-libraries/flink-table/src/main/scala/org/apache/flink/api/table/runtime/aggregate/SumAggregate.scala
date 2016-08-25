@@ -18,8 +18,10 @@
 package org.apache.flink.api.table.runtime.aggregate
 
 import java.math.BigDecimal
+
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
+import org.apache.flink.streaming.api.windowing.windows.Window
 
 abstract class SumAggregate[T: Numeric]
   extends Aggregate[T] {
@@ -27,7 +29,7 @@ abstract class SumAggregate[T: Numeric]
   private val numeric = implicitly[Numeric[T]]
   protected var sumIndex: Int = _
 
-  override def initiate(partial: Row): Unit = {
+  override def initiate(partial: Row, window: Option[Window]): Unit = {
     partial.setField(sumIndex, null)
   }
 
@@ -93,7 +95,7 @@ class DecimalSumAggregate extends Aggregate[BigDecimal] {
 
   override def intermediateDataType = Array(BasicTypeInfo.BIG_DEC_TYPE_INFO)
 
-  override def initiate(partial: Row): Unit = {
+  override def initiate(partial: Row, window: Option[Window]): Unit = {
     partial.setField(sumIndex, null)
   }
 

@@ -19,6 +19,7 @@ package org.apache.flink.api.table.runtime.aggregate
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.Row
+import org.apache.flink.streaming.api.windowing.windows.Window
 
 /**
  * The interface for all Flink aggregate functions, which expressed in terms of initiate(),
@@ -55,7 +56,7 @@ trait Aggregate[T] extends Serializable {
     *
     * @param intermediate The intermediate aggregate row to initiate.
     */
-  def initiate(intermediate: Row): Unit
+  def initiate(intermediate: Row, window: Option[Window] = None): Unit
 
   /**
     * Merge intermediate aggregate data into aggregate buffer.

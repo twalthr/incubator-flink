@@ -20,7 +20,8 @@ package org.apache.flink.api.table
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.table.expressions.{Asc, ExpressionParser, UnresolvedAlias, Expression, Ordering}
+import org.apache.flink.api.scala.table.Window
+import org.apache.flink.api.table.expressions.{Asc, Expression, ExpressionParser, Ordering, UnresolvedAlias, UnresolvedFieldReference, WindowReference}
 import org.apache.flink.api.table.plan.RexNodeTranslator._
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
@@ -201,9 +202,6 @@ class Table(
     * }}}
     */
   def groupBy(fields: Expression*): GroupedTable = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new ValidationException(s"Group by on stream tables is currently not supported.")
-    }
     new GroupedTable(this, fields)
   }
 
@@ -632,6 +630,10 @@ class Table(
     // emit the table to the configured table sink
     tableEnv.writeToSink(this, configuredSink)
   }
+
+  def window(groupWindow: Window): GroupWindowedTable = {
+    new GroupWindowedTable(this, Seq(), groupWindow)
+  }
 }
 
 /**
@@ -682,4 +684,38 @@ class GroupedTable(
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
     select(fieldExprs: _*)
   }
+
+  def window(groupWindow: Window): GroupWindowedTable = {
+    new GroupWindowedTable(table, groupKey, groupWindow)
+  }
+}
+
+class GroupWindowedTable(
+    private[flink] val table: Table,
+    private[flink] val groupKey: Seq[Expression],
+    private[flink] val window: Window) {
+
+  def select(fields: Expression*): Table = {
+    val projectionOnAggregates = fields.map(extractAggregations(_, table.tableEnv))
+    val aggregations = projectionOnAggregates.flatMap(_._2)
+
+    val groupWindow = window.toGroupWindow
+
+    val logical = if (aggregations.nonEmpty) {
+      Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
+        WindowAggregate(groupKey, groupWindow, aggregations, table.logicalPlan)
+          .validate(table.tableEnv))
+    } else {
+      Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
+        WindowAggregate(groupKey, groupWindow, Nil, table.logicalPlan).validate(table.tableEnv))
+    }
+
+    new Table(table.tableEnv, logical.validate(table.tableEnv))
+  }
+
+  def select(fields: String): Table = {
+    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    select(fieldExprs: _*)
+  }
+
 }

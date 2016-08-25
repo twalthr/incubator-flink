@@ -25,8 +25,9 @@ import org.apache.calcite.sql.SqlAggFunction
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{SqlTypeFactoryImpl, SqlTypeName}
 import org.apache.calcite.sql.fun._
-import org.apache.flink.api.common.functions.{GroupReduceFunction, MapFunction}
+import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.expressions.WindowBoundaryAggregation
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.{FlinkTypeFactory, Row, TableConfig, TableException}
 
@@ -64,7 +65,7 @@ object AggregateUtil {
   def createOperatorFunctionsForAggregates(namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType, outputType: RelDataType,
       groupings: Array[Int],
-      config: TableConfig): (MapFunction[Any, Row], GroupReduceFunction[Row, Row] ) = {
+      config: TableConfig): (MapFunction[Any, Row], RichGroupReduceFunction[Row, Row] ) = {
 
     val aggregateFunctionsAndFieldIndexes =
       transformToAggregateFunctions(namedAggregates.map(_.getKey), inputType, groupings.length)
@@ -227,6 +228,10 @@ object AggregateUtil {
         }
         case _: SqlCountAggFunction =>
           aggregates(index) = new CountAggregate
+        case _: WindowBoundaryAggregation.WindowStartSqlAggFunction =>
+          aggregates(index) = new WindowPropertyAggregate(true)
+        case _: WindowBoundaryAggregation.WindowEndSqlAggFunction =>
+          aggregates(index) = new WindowPropertyAggregate(false)
         case unSupported: SqlAggFunction =>
           throw new TableException("unsupported Function: " + unSupported.getName)
       }

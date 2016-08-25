@@ -18,8 +18,10 @@
 package org.apache.flink.api.table.runtime.aggregate
 
 import java.math.BigDecimal
+
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
+import org.apache.flink.streaming.api.windowing.windows.Window
 
 abstract class MinAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
 
@@ -30,7 +32,7 @@ abstract class MinAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
    *
    * @param intermediate The intermediate aggregate row to initiate.
    */
-  override def initiate(intermediate: Row): Unit = {
+  override def initiate(intermediate: Row, window: Option[Window]): Unit = {
     intermediate.setField(minIndex, null)
   }
 
@@ -133,7 +135,7 @@ class DecimalMinAggregate extends Aggregate[BigDecimal] {
 
   override def intermediateDataType = Array(BasicTypeInfo.BIG_DEC_TYPE_INFO)
 
-  override def initiate(intermediate: Row): Unit = {
+  override def initiate(intermediate: Row, window: Option[Window]): Unit = {
     intermediate.setField(minIndex, null)
   }
 

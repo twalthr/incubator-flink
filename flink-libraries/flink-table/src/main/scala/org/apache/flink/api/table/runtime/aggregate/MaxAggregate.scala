@@ -21,6 +21,7 @@ import java.math.BigDecimal
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
+import org.apache.flink.streaming.api.windowing.windows.Window
 
 abstract class MaxAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
 
@@ -31,7 +32,7 @@ abstract class MaxAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
    *
    * @param intermediate The intermediate aggregate row to initiate.
    */
-  override def initiate(intermediate: Row): Unit = {
+  override def initiate(intermediate: Row, window: Option[Window]): Unit = {
     intermediate.setField(maxIndex, null)
   }
 
@@ -134,7 +135,7 @@ class DecimalMaxAggregate extends Aggregate[BigDecimal] {
 
   override def intermediateDataType = Array(BasicTypeInfo.BIG_DEC_TYPE_INFO)
 
-  override def initiate(intermediate: Row): Unit = {
+  override def initiate(intermediate: Row, window: Option[Window]): Unit = {
     intermediate.setField(minIndex, null)
   }
 

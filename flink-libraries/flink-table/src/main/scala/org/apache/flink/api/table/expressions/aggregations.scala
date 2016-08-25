@@ -18,12 +18,15 @@
 package org.apache.flink.api.table.expressions
 
 import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.sql._
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
-
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.api.table.typeutils.TypeCheckUtils
+import org.apache.flink.api.table.validate.{ValidationFailure, ValidationSuccess}
 
 abstract sealed class Aggregation extends UnaryExpression {
 
@@ -47,7 +50,7 @@ case class Sum(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertNumericExpr(child.resultType, "sum")
 }
 
@@ -60,7 +63,7 @@ case class Min(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertOrderableExpr(child.resultType, "min")
 }
 
@@ -73,7 +76,7 @@ case class Max(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertOrderableExpr(child.resultType, "max")
 }
 
@@ -96,6 +99,69 @@ case class Avg(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertNumericExpr(child.resultType, "avg")
+}
+
+abstract class WindowBoundaryAggregation(child: Expression) extends Aggregation {
+
+  override private[flink] def resultType = SqlTimeTypeInfo.TIMESTAMP
+
+  override private[flink] def validateInput() =
+    if (child.isInstanceOf[WindowReference]) {
+      ValidationSuccess
+    } else {
+      ValidationFailure("Child must be a window reference.")
+    }
+}
+
+object WindowBoundaryAggregation {
+
+  class WindowStartSqlAggFunction
+    extends SqlAggFunction(
+      "WINDOW_START",
+      new SqlIdentifier("WINDOW_START", SqlParserPos.ZERO),
+      SqlKind.OTHER,
+      ReturnTypes.explicit(SqlTypeName.TIMESTAMP),
+      null,
+      OperandTypes.NILADIC,
+      SqlFunctionCategory.SYSTEM,
+      false,
+      false)
+
+  class WindowEndSqlAggFunction
+    extends SqlAggFunction(
+      "WINDOW_START",
+      new SqlIdentifier("WINDOW_START", SqlParserPos.ZERO),
+      SqlKind.OTHER,
+      ReturnTypes.explicit(SqlTypeName.TIMESTAMP),
+      null,
+      OperandTypes.STRING,
+      SqlFunctionCategory.SYSTEM,
+      false,
+      false)
+
+  private[flink] val StartSqlAggFunction = new WindowStartSqlAggFunction()
+
+  private[flink] val EndSqlAggFunction = new WindowStartSqlAggFunction()
+}
+
+case class WindowStart(child: Expression) extends WindowBoundaryAggregation(child) {
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(
+      WindowBoundaryAggregation.StartSqlAggFunction, false, null, name, child.toRexNode)
+  }
+
+  override def toString: String = s"start($child)"
+}
+
+case class WindowEnd(child: Expression) extends WindowBoundaryAggregation(child) {
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(
+      WindowBoundaryAggregation.EndSqlAggFunction, false, null, name, child.toRexNode)
+  }
+
+  override def toString: String = s"end($child)"
 }

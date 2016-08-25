@@ -23,6 +23,8 @@ import org.apache.flink.api.table.Row
 import java.math.BigDecimal
 import java.math.BigInteger
 
+import org.apache.flink.streaming.api.windowing.windows.Window
+
 abstract class AvgAggregate[T] extends Aggregate[T] {
   protected var partialSumIndex: Int = _
   protected var partialCountIndex: Int = _
@@ -37,7 +39,7 @@ abstract class AvgAggregate[T] extends Aggregate[T] {
 
 abstract class IntegralAvgAggregate[T] extends AvgAggregate[T] {
 
-  override def initiate(partial: Row): Unit = {
+  override def initiate(partial: Row, window: Option[Window]): Unit = {
     partial.setField(partialSumIndex, 0L)
     partial.setField(partialCountIndex, 0L)
   }
@@ -135,7 +137,7 @@ class LongAvgAggregate extends IntegralAvgAggregate[Long] {
     BasicTypeInfo.BIG_INT_TYPE_INFO,
     BasicTypeInfo.LONG_TYPE_INFO)
 
-  override def initiate(partial: Row): Unit = {
+  override def initiate(partial: Row, window: Option[Window]): Unit = {
     partial.setField(partialSumIndex, BigInteger.ZERO)
     partial.setField(partialCountIndex, 0L)
   }
@@ -177,7 +179,7 @@ class LongAvgAggregate extends IntegralAvgAggregate[Long] {
 
 abstract class FloatingAvgAggregate[T: Numeric] extends AvgAggregate[T] {
 
-  override def initiate(partial: Row): Unit = {
+  override def initiate(partial: Row, window: Option[Window]): Unit = {
     partial.setField(partialSumIndex, 0D)
     partial.setField(partialCountIndex, 0L)
   }
@@ -259,7 +261,7 @@ class DecimalAvgAggregate extends AvgAggregate[BigDecimal] {
     BasicTypeInfo.BIG_DEC_TYPE_INFO,
     BasicTypeInfo.LONG_TYPE_INFO)
 
-  override def initiate(partial: Row): Unit = {
+  override def initiate(partial: Row, window: Option[Window]): Unit = {
     partial.setField(partialSumIndex, BigDecimal.ZERO)
     partial.setField(partialCountIndex, 0L)
   }

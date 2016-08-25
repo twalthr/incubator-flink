@@ -20,7 +20,7 @@ package org.apache.flink.api.table.plan.nodes.datastream
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelNode, RelWriter, BiRel}
+import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.StreamTableEnvironment
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -34,10 +34,10 @@ import scala.collection.JavaConverters._
 class DataStreamUnion(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    left: RelNode,
-    right: RelNode,
-    rowType: RelDataType)
-  extends BiRel(cluster, traitSet, left, right)
+    leftNode: RelNode,
+    rightNode: RelNode,
+    rowDataType: RelDataType)
+  extends BiRel(cluster, traitSet, leftNode, rightNode)
   with DataStreamRel {
 
   override def deriveRowType() = rowType
@@ -57,7 +57,7 @@ class DataStreamUnion(
   }
 
   override def toString = {
-    "Union(union: (${rowType.getFieldNames.asScala.toList.mkString(\", \")}))"
+    s"Union(union: (${rowType.getFieldNames.asScala.toList.mkString(", ")}))"
   }
 
   override def translateToPlan(
