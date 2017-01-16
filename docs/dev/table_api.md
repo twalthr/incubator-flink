@@ -3787,7 +3787,7 @@ GROUPING(expression)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns 1 if expression is rolled up in the current row’s grouping set, 0 otherwise.</p>
+        <p>Returns 1 if <i>expression</i> is rolled up in the current row’s grouping set, 0 otherwise.</p>
       </td>
     </tr>
 

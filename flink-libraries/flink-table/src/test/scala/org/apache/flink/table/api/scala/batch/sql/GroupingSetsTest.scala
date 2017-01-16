@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table
+package org.apache.flink.table.api.scala.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
@@ -23,61 +23,55 @@ import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
 
-class GroupingSetsPlansTest extends TableTestBase {
+class GroupingSetsTest extends TableTestBase {
 
   @Test
-  def testGroupingSetsPlan(): Unit = {
+  def testGroupingSets(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT b, c, avg(a) as a, GROUP_ID() as g FROM MyTable " +
-                   "GROUP BY GROUPING SETS (b, c)"
-
-    val group1 = unaryNode(
-      "DataSetAggregate",
-      batchTableNode(0),
-      term("groupBy", "b"),
-      term("select", "b",
-           "AVG(a) AS c")
-    )
-
-    val group2 = unaryNode(
-      "DataSetAggregate",
-      batchTableNode(0),
-      term("groupBy", "c"),
-      term("select", "c AS b",
-           "AVG(a) AS c")
-    )
-
-    val union = binaryNode(
-      "DataSetUnion",
-      group1, group2,
-      term("union", "b", "c", "i$b", "i$c", "a")
-    )
+      "GROUP BY GROUPING SETS (b, c)"
 
     val aggregate = unaryNode(
       "DataSetCalc",
-      union,
+      binaryNode(
+        "DataSetUnion",
+        unaryNode(
+          "DataSetAggregate",
+          batchTableNode(0),
+          term("groupBy", "b"),
+          term("select", "b", "AVG(a) AS c")
+        ),
+        unaryNode(
+          "DataSetAggregate",
+          batchTableNode(0),
+          term("groupBy", "c"),
+          term("select", "c AS b", "AVG(a) AS c")
+        ),
+        term("union", "b", "c", "i$b", "i$c", "a")
+      ),
       term("select",
-           "CASE(i$b, null, b) AS b",
-           "CASE(i$c, null, c) AS c",
-           "a",
-           "+(*(CASE(i$b, 1, 0), 2), CASE(i$c, 1, 0)) AS g") // GROUP_ID()
+        "CASE(i$b, null, b) AS b",
+        "CASE(i$c, null, c) AS c",
+        "a",
+        "+(*(CASE(i$b, 1, 0), 2), CASE(i$c, 1, 0)) AS g") // GROUP_ID()
     )
 
     util.verifySql(sqlQuery, aggregate)
   }
 
   @Test
-  def testCubePlan(): Unit = {
+  def testCube(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT b, c, avg(a) as a, GROUP_ID() as g, " +
-                   "GROUPING(b) as gb, GROUPING(c) as gc, " +
-                   "GROUPING_ID(b) as gib, GROUPING_ID(c) as gic, " +
-                   "GROUPING_ID(b, c) as gid " + " FROM MyTable " +
-                   "GROUP BY CUBE (b, c)"
+      "GROUPING(b) as gb, GROUPING(c) as gc, " +
+      "GROUPING_ID(b) as gib, GROUPING_ID(c) as gic, " +
+      "GROUPING_ID(b, c) as gid " +
+      "FROM MyTable " +
+      "GROUP BY CUBE (b, c)"
 
     val group1 = unaryNode(
       "DataSetAggregate",
@@ -147,7 +141,7 @@ class GroupingSetsPlansTest extends TableTestBase {
   }
 
   @Test
-  def testRollupPlan(): Unit = {
+  def testRollup(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 

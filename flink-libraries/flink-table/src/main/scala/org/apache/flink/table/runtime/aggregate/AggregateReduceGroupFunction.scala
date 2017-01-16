@@ -49,12 +49,16 @@ class AggregateReduceGroupFunction(
 
   protected var aggregateBuffer: Row = _
   private var output: Row = _
+  private var intermediateGroupKeys: Option[Array[Int]] = None
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupKeysMapping)
     aggregateBuffer = new Row(intermediateRowArity)
     output = new Row(finalRowArity)
+    if (!groupingSetsMapping.isEmpty) {
+      intermediateGroupKeys = Some(groupKeysMapping.map(_._1))
+    }
   }
 
   /**
@@ -90,12 +94,11 @@ class AggregateReduceGroupFunction(
         output.setField(after, aggregates(previous).evaluate(aggregateBuffer))
     }
 
-    // Evaluate grouping sets additional values
-    if (!groupingSetsMapping.isEmpty) {
-      val groupingFields = groupKeysMapping.map(_._1)
+    // Evaluate additional values of grouping sets
+    if (intermediateGroupKeys.isDefined) {
       groupingSetsMapping.foreach {
         case (inputIndex, outputIndex) =>
-          output.setField(outputIndex, !groupingFields.contains(inputIndex))
+          output.setField(outputIndex, !intermediateGroupKeys.get.contains(inputIndex))
       }
     }
 

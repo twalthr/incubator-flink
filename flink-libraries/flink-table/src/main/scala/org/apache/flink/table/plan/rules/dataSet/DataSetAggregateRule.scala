@@ -36,8 +36,8 @@ class DataSetAggregateRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: LogicalAggregate = call.rel(0).asInstanceOf[LogicalAggregate]
 
-    //for non grouped agg sets should attach null row to source data
-    //need apply DataSetAggregateWithNullValuesRule
+    // for non-grouped agg sets we attach null row to source data
+    // we need to apply DataSetAggregateWithNullValuesRule
     if (agg.getGroupSet.isEmpty) {
       return false
     }
@@ -65,7 +65,8 @@ class DataSetAggregateRule
             agg.getNamedAggCalls,
             rel.getRowType,
             agg.getInput.getRowType,
-            set.toArray
+            set.toArray,
+            inGroupingSet = true
           ).asInstanceOf[RelNode]
         ).reduce(
           (rel1, rel2) => {
@@ -86,7 +87,8 @@ class DataSetAggregateRule
         agg.getNamedAggCalls,
         rel.getRowType,
         agg.getInput.getRowType,
-        agg.getGroupSet.toArray
+        agg.getGroupSet.toArray,
+        inGroupingSet = false
       )
     }
   }

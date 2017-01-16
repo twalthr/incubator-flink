@@ -46,7 +46,8 @@ class DataSetAggregate(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     rowRelDataType: RelDataType,
     inputType: RelDataType,
-    grouping: Array[Int])
+    grouping: Array[Int],
+    inGroupingSet: Boolean)
   extends SingleRel(cluster, traitSet, inputNode)
   with FlinkAggregate
   with DataSetRel {
@@ -61,7 +62,8 @@ class DataSetAggregate(
       namedAggregates,
       getRowType,
       inputType,
-      grouping)
+      grouping,
+      inGroupingSet)
   }
 
   override def toString: String = {
@@ -104,7 +106,8 @@ class DataSetAggregate(
       namedAggregates,
       inputType,
       rowRelDataType,
-      grouping)
+      grouping,
+      inGroupingSet)
 
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(
       tableEnv,

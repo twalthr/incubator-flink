@@ -241,11 +241,12 @@ object AggregateUtil {
     *
     */
   private[flink] def createAggregateGroupReduceFunction(
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int]
-  ): RichGroupReduceFunction[Row, Row] = {
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int],
+      inGroupingSet: Boolean)
+    : RichGroupReduceFunction[Row, Row] = {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -259,7 +260,11 @@ object AggregateUtil {
         outputType,
         groupings)
 
-    val groupingSetsMapping = getGroupingSetsMapping(inputType, outputType)
+    val groupingSetsMapping: Array[(Int, Int)] = if (inGroupingSet) {
+      getGroupingSetsIndicatorMapping(inputType, outputType)
+    } else {
+      Array()
+    }
 
     val allPartialAggregate: Boolean = aggregates.forall(_.supportPartial)
 
@@ -334,7 +339,8 @@ object AggregateUtil {
         namedAggregates,
         inputType,
         outputType,
-        groupings)
+        groupings,
+        inGroupingSet = false)
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
@@ -363,7 +369,8 @@ object AggregateUtil {
         namedAggregates,
         inputType,
         outputType,
-        groupings)
+        groupings,
+        inGroupingSet = false)
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
@@ -376,7 +383,7 @@ object AggregateUtil {
 
   /**
     * Create an [[AllWindowFunction]] to finalize incrementally pre-computed non-partitioned
-    * window aggreagtes.
+    * window aggregates.
     */
   private[flink] def createAllWindowIncrementalAggregationFunction(
     window: LogicalWindow,
@@ -500,32 +507,44 @@ object AggregateUtil {
     (groupingOffsetMapping, aggOffsetMapping)
   }
 
-  private def getGroupingSetsMapping(
-    inputType: RelDataType,
-    outputType: RelDataType
-  ): Array[(Int, Int)] = {
+  /**
+    * Determines the mapping of grouping keys to boolean indicators that describe the
+    * current grouping set.
+    *
+    * E.g.: Given we group on f1 and f2 of the input type, the output type contains two
+    * boolean indicator fields i$f1 and i$f2.
+    */
+  private def getGroupingSetsIndicatorMapping(
+      inputType: RelDataType,
+      outputType: RelDataType)
+    : Array[(Int, Int)] = {
 
     val inputFields = inputType.getFieldList.map(_.getName)
 
-    val groupingFields = inputFields
-      .map(inputFieldName => {
+    // map from field -> i$field or field -> i$field_0
+    val groupingFields = inputFields.map(inputFieldName => {
         val base = "i$" + inputFieldName
         var name = base
         var i = 0
         while (inputFields.contains(name)) {
-          name = base + "_" + i
+          name = base + "_" + i // if i$XXX is already a field it will be suffixed by _NUMBER
           i = i + 1
         }
         inputFieldName -> name
       }).toMap
 
     val outputFields = outputType.getFieldList
+
     var mappingsBuffer = ArrayBuffer[(Int, Int)]()
     for (i <- outputFields.indices) {
       for (j <- outputFields.indices) {
-        if (outputFields(j).getName.equals(
-          groupingFields.getOrElse(outputFields(i).getName, null)
-        )) {
+        val possibleKey = outputFields(i).getName
+        val possibleIndicator1 = outputFields(j).getName
+        // get indicator for output field
+        val possibleIndicator2 = groupingFields.getOrElse(possibleKey, null)
+
+        // check if indicator names match
+        if (possibleIndicator1 == possibleIndicator2) {
           mappingsBuffer += ((i, j))
         }
       }
