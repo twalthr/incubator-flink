@@ -360,6 +360,19 @@ class GroupWindowTest extends TableTestBase {
       .window(Session withGap 7.milli as 'w) // require on a time attribute
       .groupBy('string, 'w)
       .select('string, 'int.count)
+
+    val expected = unaryNode(
+      "DataSetWindowAggregate",
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "int", "long")
+      ),
+      term("window", EventTimeSessionGroupWindow(None, 'long, 7.milli)),
+      term("select", "COUNT(int) AS TMP_0")
+    )
+
+    util.verifyTable(windowedTable, expected)
   }
 
 }
