@@ -100,9 +100,11 @@ class DataSetCorrelate(
 
     val mapFunc = correlateMapFunction(
       config,
+      getInput.getRowType,
       inputDS.getType,
       udtfTypeInfo,
       getRowType,
+      getPhysicalRowType,
       joinType,
       rexCall,
       condition,

@@ -48,7 +48,7 @@ class WindowAggregateTest extends TableTestBase {
             batchTableNode(0),
             term("select", "ts, a, b")
           ),
-          term("window", EventTimeTumblingGroupWindow(Some('w$), 'ts, 7200000.millis)),
+          term("window", TumblingGroupWindow('w$, 'ts, 7200000.millis)),
           term("select", "SUM(a) AS sumA, COUNT(b) AS cntB")
         ),
         term("select", "sumA, cntB")
@@ -79,7 +79,7 @@ class WindowAggregateTest extends TableTestBase {
           "DataSetWindowAggregate",
           batchTableNode(0),
           term("groupBy", "c"),
-          term("window", EventTimeTumblingGroupWindow(Some('w$), 'ts, 240000.millis)),
+          term("window", TumblingGroupWindow('w$, 'ts, 240000.millis)),
           term("select", "c, SUM(a) AS sumA, MIN(b) AS minB, " +
             "start('w$) AS w$start, end('w$) AS w$end")
         ),
@@ -110,7 +110,7 @@ class WindowAggregateTest extends TableTestBase {
             term("select", "ts, a, b")
           ),
           term("window",
-            EventTimeSlidingGroupWindow(Some('w$), 'ts, 5400000.millis, 900000.millis)),
+            SlidingGroupWindow('w$, 'ts, 5400000.millis, 900000.millis)),
           term("select", "SUM(a) AS sumA, COUNT(b) AS cntB")
         ),
         term("select", "sumA, cntB")
@@ -142,7 +142,7 @@ class WindowAggregateTest extends TableTestBase {
           batchTableNode(0),
           term("groupBy", "c, d"),
           term("window",
-            EventTimeSlidingGroupWindow(Some('w$), 'ts, 10800000.millis, 3600000.millis)),
+            SlidingGroupWindow('w$, 'ts, 10800000.millis, 3600000.millis)),
           term("select", "c, d, SUM(a) AS sumA, AVG(b) AS avgB, " +
             "start('w$) AS w$start, end('w$) AS w$end")
         ),
@@ -170,7 +170,7 @@ class WindowAggregateTest extends TableTestBase {
             batchTableNode(0),
             term("select", "ts")
           ),
-          term("window", EventTimeSessionGroupWindow(Some('w$), 'ts, 1800000.millis)),
+          term("window", SessionGroupWindow('w$, 'ts, 1800000.millis)),
           term("select", "COUNT(*) AS cnt")
         ),
         term("select", "cnt")
@@ -201,7 +201,7 @@ class WindowAggregateTest extends TableTestBase {
           "DataSetWindowAggregate",
           batchTableNode(0),
           term("groupBy", "c, d"),
-          term("window", EventTimeSessionGroupWindow(Some('w$), 'ts, 43200000.millis)),
+          term("window", SessionGroupWindow('w$, 'ts, 43200000.millis)),
           term("select", "c, d, SUM(a) AS sumA, MIN(b) AS minB, " +
             "start('w$) AS w$start, end('w$) AS w$end")
         ),

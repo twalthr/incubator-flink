@@ -21,10 +21,9 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.logical.Minus
 import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall, UnresolvedAlias}
 import org.apache.flink.table.plan.ProjectionTranslator._
-import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.plan.logical.{Minus, _}
 import org.apache.flink.table.sinks.TableSink
 
 import _root_.scala.collection.JavaConverters._
@@ -804,9 +803,6 @@ class Table(
     * @return A windowed table.
     */
   def window(window: Window): WindowedTable = {
-    if (window.alias.isEmpty) {
-      throw new ValidationException("An alias must be specified for the window.")
-    }
     new WindowedTable(this, window)
   }
 
@@ -897,7 +893,7 @@ class WindowedTable(
     * }}}
     */
   def groupBy(fields: Expression*): WindowGroupedTable = {
-    val fieldsWithoutWindow = fields.filterNot(window.alias.get.equals(_))
+    val fieldsWithoutWindow = fields.filterNot(window.alias.equals(_))
     if (fields.size != fieldsWithoutWindow.size + 1) {
       throw new ValidationException("GroupBy must contain exactly one window alias.")
     }
@@ -951,13 +947,7 @@ class WindowGroupedTable(
     val projectsOnAgg = replaceAggregationsAndProperties(
       fields, table.tableEnv, aggNames, propNames)
 
-    val projectFields = (table.tableEnv, window) match {
-      // event time can be arbitrary field in batch environment
-      case (_: BatchTableEnvironment, w: EventTimeWindow) =>
-        extractFieldReferences(fields ++ groupKeys ++ Seq(w.timeField))
-      case (_, _) =>
-        extractFieldReferences(fields ++ groupKeys)
-    }
+    val projectFields = extractFieldReferences(fields ++ groupKeys :+ window.timeField)
 
     new Table(table.tableEnv,
       Project(

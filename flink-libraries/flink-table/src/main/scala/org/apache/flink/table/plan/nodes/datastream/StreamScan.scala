@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.plan.nodes.datastream
 
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.CommonScan
 import org.apache.flink.table.plan.schema.FlinkTable
+import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.types.Row
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 trait StreamScan extends CommonScan with DataStreamRel {
@@ -37,23 +37,29 @@ trait StreamScan extends CommonScan with DataStreamRel {
     : DataStream[Row] = {
 
     val inputType = input.getType
-
-    val internalType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
+    val internalType = getPhysicalRowType
 
     // conversion
     if (needsConversion(inputType, internalType)) {
 
-      val mapFunc = getConversionMapper(
+      val function = generatedConversionFunction(
         config,
+        classOf[MapFunction[Any, Row]],
         inputType,
         internalType,
         "DataStreamSourceConversion",
-        getRowType.getFieldNames,
+        getPhysicalFieldNames,
         Some(flinkTable.fieldIndexes))
+
+      val runner = new MapRunner[Any, Row](
+        function.name,
+        function.code,
+        function.returnType)
 
       val opName = s"from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
 
-      input.map(mapFunc).name(opName)
+      // TODO we need a ProcessFunction on non-keyed Stream
+      input.map(runner).name(opName)
     }
     // no conversion necessary, forward
     else {

@@ -24,7 +24,7 @@ import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.calcite.{FlinkTypeFactory, RexInputRefUpdater}
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedFunction}
 import org.apache.flink.table.runtime.FlatMapRunner
 import org.apache.flink.types.Row
@@ -36,20 +36,32 @@ trait CommonCalc {
 
   private[flink] def functionBody(
       generator: CodeGenerator,
-      inputType: TypeInformation[Row],
-      rowType: RelDataType,
+      logicalInputRowType: RelDataType,
+      physicalInputRowType: TypeInformation[Row],
+      logicalReturnRowType: RelDataType,
+      physicalReturnRowType: TypeInformation[Row],
+      physicalFieldNames: Seq[String],
       calcProgram: RexProgram,
       config: TableConfig)
     : String = {
 
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
+    val inputRefUpdater = new RexInputRefUpdater(logicalInputRowType)
 
-    val condition = calcProgram.getCondition
-    val expandedExpressions = calcProgram.getProjectList.map(
-      expr => calcProgram.expandLocalRef(expr))
+    val expandedExpressions = calcProgram
+      .getProjectList
+      .map(expr => calcProgram.expandLocalRef(expr))
+      .filter(expr => !FlinkTypeFactory.isTimeIndicatorType(expr.getType))
+      .map(expr => expr.accept(inputRefUpdater))
+
+    val condition = if (calcProgram.getCondition != null) {
+      calcProgram.expandLocalRef(calcProgram.getCondition).accept(inputRefUpdater)
+    } else {
+      null
+    }
+
     val projection = generator.generateResultExpression(
-      returnType,
-      rowType.getFieldNames,
+      physicalReturnRowType,
+      physicalFieldNames,
       expandedExpressions)
 
     // only projection
@@ -60,8 +72,7 @@ trait CommonCalc {
         |""".stripMargin
     }
     else {
-      val filterCondition = generator.generateExpression(
-        calcProgram.expandLocalRef(calcProgram.getCondition))
+      val filterCondition = generator.generateExpression(condition)
       // only filter
       if (projection == null) {
         s"""

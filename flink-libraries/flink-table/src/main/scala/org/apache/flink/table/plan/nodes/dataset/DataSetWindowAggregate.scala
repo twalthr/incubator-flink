@@ -28,10 +28,11 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.expressions.ExpressionUtils.isTimeIntervalLiteral
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.{CalcitePair, _}
-import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
+import org.apache.flink.table.typeutils.TypeCheckUtils.{isLong, isTimePoint}
 import org.apache.flink.types.Row
 
 /**
@@ -105,36 +106,35 @@ class DataSetWindowAggregate(
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
-    val config = tableEnv.getConfig
-
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     // whether identifiers are matched case-sensitively
     val caseSensitive = tableEnv.getFrameworkConfig.getParserConfig.caseSensitive()
 
     window match {
-      case EventTimeTumblingGroupWindow(_, _, size) =>
+      case TumblingGroupWindow(_, timeField, size)
+          if isTimePoint(timeField.resultType) || isLong(timeField.resultType) =>
         createEventTimeTumblingWindowDataSet(
           inputDS,
-          isTimeInterval(size.resultType),
+          isTimeIntervalLiteral(size),
           caseSensitive)
 
-      case EventTimeSessionGroupWindow(_, _, gap) =>
+      case SessionGroupWindow(_, timeField, gap)
+          if isTimePoint(timeField.resultType) || isLong(timeField.resultType) =>
         createEventTimeSessionWindowDataSet(inputDS, caseSensitive)
 
-      case EventTimeSlidingGroupWindow(_, _, size, slide) =>
+      case SlidingGroupWindow(_, timeField, size, slide)
+          if isTimePoint(timeField.resultType) || isLong(timeField.resultType) =>
         createEventTimeSlidingWindowDataSet(
           inputDS,
-          isTimeInterval(size.resultType),
+          isTimeIntervalLiteral(size),
           asLong(size),
           asLong(slide),
           caseSensitive)
 
-      case _: ProcessingTimeGroupWindow =>
+      case _ =>
         throw new UnsupportedOperationException(
-          "Processing-time tumbling windows are not supported in a batch environment, " +
-            "windows in a batch environment must declare a time attribute over which " +
-            "the query is evaluated.")
+          s"Window $window is not supported in a batch environment.")
     }
   }
 

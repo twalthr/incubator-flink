@@ -19,7 +19,7 @@ package org.apache.flink.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{UnresolvedException, ValidationException}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
@@ -116,24 +116,6 @@ case class UnresolvedAlias(child: Expression) extends UnaryExpression with Named
   override private[flink] lazy val valid = false
 }
 
-case class RowtimeAttribute() extends Attribute {
-  override private[flink] def withName(newName: String): Attribute = {
-    if (newName == "rowtime") {
-      this
-    } else {
-      throw new ValidationException("Cannot rename streaming rowtime attribute.")
-    }
-  }
-
-  override private[flink] def name: String = "rowtime"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    throw new UnsupportedOperationException("A rowtime attribute can not be used solely.")
-  }
-
-  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.LONG_TYPE_INFO
-}
-
 case class WindowReference(name: String) extends Attribute {
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
@@ -150,3 +132,24 @@ case class WindowReference(name: String) extends Attribute {
     }
   }
 }
+
+abstract class TimeAttribute(val expression: Expression)
+  extends UnaryExpression
+  with NamedExpression {
+
+  override private[flink] def child: Expression = expression
+
+  override private[flink] def name: String = expression match {
+    case UnresolvedFieldReference(name) => name
+    case _ => throw new ValidationException("Unresolved field reference expected.")
+  }
+
+  override private[flink] def toAttribute: Attribute =
+    throw new UnsupportedOperationException("Time attribute can not be used solely.")
+
+  override private[flink] def resultType: TypeInformation[_] = SqlTimeTypeInfo.TIMESTAMP
+}
+
+case class RowtimeAttribute(expr: Expression) extends TimeAttribute(expr)
+
+case class ProctimeAttribute(expr: Expression) extends TimeAttribute(expr)

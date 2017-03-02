@@ -20,6 +20,8 @@ package org.apache.flink.table.plan
 
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.calcite.FlinkTypeFactory.isProctimeIndicatorType
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical.{LogicalNode, Project}
 

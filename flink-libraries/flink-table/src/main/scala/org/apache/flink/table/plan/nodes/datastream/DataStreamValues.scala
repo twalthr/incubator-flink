@@ -61,7 +61,7 @@ class DataStreamValues(
 
     val config = tableEnv.getConfig
 
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
+    val returnType = getPhysicalRowType
 
     val generator = new CodeGenerator(config)
 

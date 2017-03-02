@@ -20,23 +20,21 @@ package org.apache.flink.table.plan.nodes.datastream
 import java.util.{List => JList}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{AggregateCall, Window}
-import org.apache.calcite.rel.core.Window.Group
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.Window.Group
+import org.apache.calcite.rel.core.{AggregateCall, Window}
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.plan.nodes.OverAggregate
+import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.types.Row
-
-import org.apache.flink.api.java.functions.NullByteKeySelector
-import org.apache.flink.table.codegen.CodeGenerator
-import org.apache.flink.table.functions.{ProcTimeType, RowTimeType}
-import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 
 class DataStreamOverAggregate(
     logicWindow: Window,
@@ -116,59 +114,59 @@ class DataStreamOverAggregate(
       .get(orderKey.getFieldIndex)
       .getValue
 
-    timeType match {
-      case _: ProcTimeType =>
-        // proc-time OVER window
-        if (overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
-          // unbounded OVER window
-          createUnboundedAndCurrentRowOverWindow(
-            generator,
-            inputDS,
-            isRowTimeType = false,
-            isRowsClause = overWindow.isRows)
-        } else if (
-          overWindow.lowerBound.isPreceding && !overWindow.lowerBound.isUnbounded &&
-            overWindow.upperBound.isCurrentRow) {
-          // bounded OVER window
-          createBoundedAndCurrentRowOverWindow(
-            generator,
-            inputDS,
-            isRowTimeType = false,
-            isRowsClause = overWindow.isRows
-          )
-        } else {
-          throw new TableException(
-            "OVER RANGE FOLLOWING windows are not supported yet.")
-        }
-      case _: RowTimeType =>
-        // row-time OVER window
-        if (overWindow.lowerBound.isPreceding &&
-          overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
-          // unbounded OVER window
-          createUnboundedAndCurrentRowOverWindow(
-            generator,
-            inputDS,
-            isRowTimeType = true,
-            isRowsClause = overWindow.isRows
-          )
-        } else if (overWindow.lowerBound.isPreceding && overWindow.upperBound.isCurrentRow) {
-          // bounded OVER window
-          createBoundedAndCurrentRowOverWindow(
-            generator,
-            inputDS,
-            isRowTimeType = true,
-            isRowsClause = overWindow.isRows
-            )
-        } else {
-          throw new TableException(
-            "OVER RANGE FOLLOWING windows are not supported yet.")
-        }
-      case _ =>
-        throw new TableException(
-          "Unsupported time type {$timeType}. " +
-            "OVER windows do only support RowTimeType and ProcTimeType.")
-    }
-
+//    timeType match {
+//      case _: ProcTimeType =>
+//        // proc-time OVER window
+//        if (overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
+//          // unbounded OVER window
+//          createUnboundedAndCurrentRowOverWindow(
+//            generator,
+//            inputDS,
+//            isRowTimeType = false,
+//            isRowsClause = overWindow.isRows)
+//        } else if (
+//          overWindow.lowerBound.isPreceding && !overWindow.lowerBound.isUnbounded &&
+//            overWindow.upperBound.isCurrentRow) {
+//          // bounded OVER window
+//          createBoundedAndCurrentRowOverWindow(
+//            generator,
+//            inputDS,
+//            isRowTimeType = false,
+//            isRowsClause = overWindow.isRows
+//          )
+//        } else {
+//          throw new TableException(
+//            "OVER RANGE FOLLOWING windows are not supported yet.")
+//        }
+//      case _: RowTimeType =>
+//        // row-time OVER window
+//        if (overWindow.lowerBound.isPreceding &&
+//          overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
+//          // unbounded OVER window
+//          createUnboundedAndCurrentRowOverWindow(
+//            generator,
+//            inputDS,
+//            isRowTimeType = true,
+//            isRowsClause = overWindow.isRows
+//          )
+//        } else if (overWindow.lowerBound.isPreceding && overWindow.upperBound.isCurrentRow) {
+//          // bounded OVER window
+//          createBoundedAndCurrentRowOverWindow(
+//            generator,
+//            inputDS,
+//            isRowTimeType = true,
+//            isRowsClause = overWindow.isRows
+//            )
+//        } else {
+//          throw new TableException(
+//            "OVER RANGE FOLLOWING windows are not supported yet.")
+//        }
+//      case _ =>
+//        throw new TableException(
+//          "Unsupported time type {$timeType}. " +
+//            "OVER windows do only support RowTimeType and ProcTimeType.")
+//    }
+    ???
   }
 
   def createUnboundedAndCurrentRowOverWindow(
