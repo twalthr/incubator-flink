@@ -86,7 +86,8 @@ class TableEnvironmentTest extends TableTestBase {
         UnresolvedFieldReference("name1"),
         UnresolvedFieldReference("name2"),
         UnresolvedFieldReference("name3")
-    ))
+      ),
+      ignoreTimeAttributes = true)
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
@@ -100,7 +101,8 @@ class TableEnvironmentTest extends TableTestBase {
         UnresolvedFieldReference("name1"),
         UnresolvedFieldReference("name2"),
         UnresolvedFieldReference("name3")
-    ))
+      ),
+    ignoreTimeAttributes = true)
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
@@ -114,7 +116,8 @@ class TableEnvironmentTest extends TableTestBase {
         UnresolvedFieldReference("name1"),
         UnresolvedFieldReference("name2"),
         UnresolvedFieldReference("name3")
-      ))
+      ),
+      ignoreTimeAttributes = true)
   }
 
   @Test
@@ -125,7 +128,8 @@ class TableEnvironmentTest extends TableTestBase {
         UnresolvedFieldReference("pf3"),
         UnresolvedFieldReference("pf1"),
         UnresolvedFieldReference("pf2")
-      ))
+      ),
+      ignoreTimeAttributes = true)
 
     fieldInfo._1.zip(Array("pf3", "pf1", "pf2")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(2, 0, 1)).foreach(x => assertEquals(x._2, x._1))
@@ -135,7 +139,8 @@ class TableEnvironmentTest extends TableTestBase {
   def testGetFieldInfoAtomicName1(): Unit = {
     val fieldInfo = tEnv.getFieldInfo(
       atomicType,
-      Array(UnresolvedFieldReference("name"))
+      Array(UnresolvedFieldReference("name")),
+      ignoreTimeAttributes = true
     )
 
     fieldInfo._1.zip(Array("name")).foreach(x => assertEquals(x._2, x._1))
@@ -149,7 +154,8 @@ class TableEnvironmentTest extends TableTestBase {
       Array(
         UnresolvedFieldReference("name1"),
         UnresolvedFieldReference("name2")
-      ))
+      ),
+      ignoreTimeAttributes = true)
   }
 
   @Test
@@ -160,7 +166,8 @@ class TableEnvironmentTest extends TableTestBase {
         Alias(UnresolvedFieldReference("f0"), "name1"),
         Alias(UnresolvedFieldReference("f1"), "name2"),
         Alias(UnresolvedFieldReference("f2"), "name3")
-      ))
+      ),
+      ignoreTimeAttributes = true)
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
@@ -174,7 +181,8 @@ class TableEnvironmentTest extends TableTestBase {
         Alias(UnresolvedFieldReference("f2"), "name1"),
         Alias(UnresolvedFieldReference("f0"), "name2"),
         Alias(UnresolvedFieldReference("f1"), "name3")
-      ))
+      ),
+      ignoreTimeAttributes = true)
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(2, 0, 1)).foreach(x => assertEquals(x._2, x._1))
@@ -188,7 +196,8 @@ class TableEnvironmentTest extends TableTestBase {
         Alias(UnresolvedFieldReference("xxx"), "name1"),
         Alias(UnresolvedFieldReference("yyy"), "name2"),
         Alias(UnresolvedFieldReference("zzz"), "name3")
-      ))
+      ),
+      ignoreTimeAttributes = true)
   }
 
   @Test
@@ -199,7 +208,8 @@ class TableEnvironmentTest extends TableTestBase {
         Alias(UnresolvedFieldReference("cf1"), "name1"),
         Alias(UnresolvedFieldReference("cf2"), "name2"),
         Alias(UnresolvedFieldReference("cf3"), "name3")
-      ))
+      ),
+      ignoreTimeAttributes = true)
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
@@ -213,7 +223,8 @@ class TableEnvironmentTest extends TableTestBase {
         Alias(UnresolvedFieldReference("cf3"), "name1"),
         Alias(UnresolvedFieldReference("cf1"), "name2"),
         Alias(UnresolvedFieldReference("cf2"), "name3")
-      ))
+      ),
+      ignoreTimeAttributes = true)
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(2, 0, 1)).foreach(x => assertEquals(x._2, x._1))
@@ -227,7 +238,8 @@ class TableEnvironmentTest extends TableTestBase {
         Alias(UnresolvedFieldReference("xxx"), "name1"),
         Alias(UnresolvedFieldReference("yyy"), "name2"),
         Alias(UnresolvedFieldReference("zzz"), "name3")
-      ))
+      ),
+      ignoreTimeAttributes = true)
   }
 
   @Test
@@ -238,7 +250,8 @@ class TableEnvironmentTest extends TableTestBase {
         Alias(UnresolvedFieldReference("pf1"), "name1"),
         Alias(UnresolvedFieldReference("pf2"), "name2"),
         Alias(UnresolvedFieldReference("pf3"), "name3")
-      ))
+      ),
+      ignoreTimeAttributes = true)
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
@@ -252,7 +265,8 @@ class TableEnvironmentTest extends TableTestBase {
         Alias(UnresolvedFieldReference("pf3"), "name1"),
         Alias(UnresolvedFieldReference("pf1"), "name2"),
         Alias(UnresolvedFieldReference("pf2"), "name3")
-      ))
+      ),
+      ignoreTimeAttributes = true)
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(2, 0, 1)).foreach(x => assertEquals(x._2, x._1))
@@ -265,8 +279,9 @@ class TableEnvironmentTest extends TableTestBase {
       Array(
         Alias(UnresolvedFieldReference("xxx"), "name1"),
         Alias(UnresolvedFieldReference("yyy"), "name2"),
-        Alias( UnresolvedFieldReference("zzz"), "name3")
-      ))
+        Alias(UnresolvedFieldReference("zzz"), "name3")
+      ),
+      ignoreTimeAttributes = true)
   }
 
   @Test(expected = classOf[TableException])
@@ -275,7 +290,8 @@ class TableEnvironmentTest extends TableTestBase {
       atomicType,
       Array(
         Alias(UnresolvedFieldReference("name1"), "name2")
-      ))
+      ),
+      ignoreTimeAttributes = true)
   }
 
   @Test

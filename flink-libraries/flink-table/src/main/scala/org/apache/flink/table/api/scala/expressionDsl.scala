@@ -597,6 +597,12 @@ trait ImplicitExpressionOperations {
     * @return the first and only element of an array with a single element
     */
   def element() = ArrayElement(expr)
+
+  // schema definition
+
+  def rowtime = RowtimeAttribute(expr)
+
+  def proctime = ProctimeAttribute(expr)
 }
 
 /**

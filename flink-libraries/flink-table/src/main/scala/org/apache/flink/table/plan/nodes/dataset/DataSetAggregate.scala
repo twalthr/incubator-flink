@@ -91,6 +91,7 @@ class DataSetAggregate(
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val input = inputNode.asInstanceOf[DataSetRel]
 
     val generator = new CodeGenerator(
       tableEnv.getConfig,
@@ -104,7 +105,8 @@ class DataSetAggregate(
       ) = AggregateUtil.createDataSetAggregateFunctions(
         generator,
         namedAggregates,
-        inputType,
+        input.getPhysicalRowType,
+        input.getPhysicalFieldTypes,
         rowRelDataType,
         grouping,
         inGroupingSet)

@@ -23,7 +23,7 @@ import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.calcite.RexInputRefUpdater
 import org.apache.flink.table.codegen.CodeGenUtils.primitiveDefaultValue
 import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NO_CODE}
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedCollector, GeneratedExpression, GeneratedFunction}
@@ -44,9 +44,11 @@ trait CommonCorrelate {
     */
   private[flink] def correlateMapFunction(
       config: TableConfig,
-      inputTypeInfo: TypeInformation[Row],
+      logicalInputRowType: RelDataType,
+      physicalInputRowType: TypeInformation[Row],
       udtfTypeInfo: TypeInformation[Any],
-      rowType: RelDataType,
+      logicalReturnRowType: RelDataType,
+      physicalReturnRowType: TypeInformation[Row],
       joinType: SemiJoinType,
       rexCall: RexCall,
       condition: Option[RexNode],
@@ -54,26 +56,26 @@ trait CommonCorrelate {
       ruleDescription: String)
     : CorrelateFlatMapRunner[Row, Row] = {
 
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
+    val inputRefUpdater = new RexInputRefUpdater(logicalInputRowType)
 
     val flatMap = generateFunction(
       config,
-      inputTypeInfo,
+      physicalInputRowType,
       udtfTypeInfo,
-      returnType,
-      rowType,
+      physicalReturnRowType,
+      logicalReturnRowType.getFieldNames.asScala,
       joinType,
-      rexCall,
+      rexCall.accept(inputRefUpdater).asInstanceOf[RexCall],
       pojoFieldMapping,
       ruleDescription)
 
     val collector = generateCollector(
       config,
-      inputTypeInfo,
+      physicalInputRowType,
       udtfTypeInfo,
-      returnType,
-      rowType,
-      condition,
+      physicalReturnRowType,
+      logicalReturnRowType.getFieldNames.asScala,
+      condition.map(_.accept(inputRefUpdater)),
       pojoFieldMapping)
 
     new CorrelateFlatMapRunner[Row, Row](
@@ -93,7 +95,7 @@ trait CommonCorrelate {
       inputTypeInfo: TypeInformation[Row],
       udtfTypeInfo: TypeInformation[Any],
       returnType: TypeInformation[Row],
-      rowType: RelDataType,
+      resultFieldNames: Seq[String],
       joinType: SemiJoinType,
       rexCall: RexCall,
       pojoFieldMapping: Option[Array[Int]],
@@ -134,7 +136,7 @@ trait CommonCorrelate {
           x.resultType)
       }
       val outerResultExpr = functionGenerator.generateResultExpression(
-        input1AccessExprs ++ input2NullExprs, returnType, rowType.getFieldNames.asScala)
+        input1AccessExprs ++ input2NullExprs, returnType, resultFieldNames)
       body +=
         s"""
           |boolean hasOutput = $collectorTerm.isCollected();
@@ -162,7 +164,7 @@ trait CommonCorrelate {
       inputTypeInfo: TypeInformation[Row],
       udtfTypeInfo: TypeInformation[Any],
       returnType: TypeInformation[Row],
-      rowType: RelDataType,
+      resultFieldNames: Seq[String],
       condition: Option[RexNode],
       pojoFieldMapping: Option[Array[Int]])
     : GeneratedCollector = {
@@ -180,7 +182,7 @@ trait CommonCorrelate {
     val crossResultExpr = generator.generateResultExpression(
       input1AccessExprs ++ input2AccessExprs,
       returnType,
-      rowType.getFieldNames.asScala)
+      resultFieldNames)
 
     val collectorCode = if (condition.isEmpty) {
       s"""

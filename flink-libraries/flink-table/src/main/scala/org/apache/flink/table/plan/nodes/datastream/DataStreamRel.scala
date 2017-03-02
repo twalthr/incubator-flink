@@ -18,12 +18,20 @@
 
 package org.apache.flink.table.plan.nodes.datastream
 
+
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.{RelDataType, RelRecordType}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkRelNode
 import org.apache.flink.types.Row
 
-trait DataStreamRel extends FlinkRelNode {
+import scala.collection.JavaConversions._
+
+trait DataStreamRel extends RelNode with FlinkRelNode {
 
   /**
     * Translates the FlinkRelNode into a Flink operator.
@@ -31,7 +39,36 @@ trait DataStreamRel extends FlinkRelNode {
     * @param tableEnv The [[StreamTableEnvironment]] of the translated Table.
     * @return DataStream of type [[Row]]
     */
-  def translateToPlan(tableEnv: StreamTableEnvironment) : DataStream[Row]
+  private[flink] def translateToPlan(tableEnv: StreamTableEnvironment) : DataStream[Row]
 
+  def getPhysicalFieldNames: Seq[String] = {
+    val fields = getRowType.getFieldList filter { field =>
+      !FlinkTypeFactory.isTimeIndicatorType(field.getType)
+    }
+    fields.map(_.getName)
+  }
+
+  def getPhysicalFieldTypes: Seq[TypeInformation[_]] = {
+    val fields = getRowType.getFieldList filter { field =>
+      !FlinkTypeFactory.isTimeIndicatorType(field.getType)
+    }
+    fields.map(f => FlinkTypeFactory.toTypeInfo(f.getType))
+  }
+
+  def getPhysicalRowTypeInfo: TypeInformation[Row] = {
+    val fields = getRowType.getFieldList filter { field =>
+      !FlinkTypeFactory.isTimeIndicatorType(field.getType)
+    }
+    val types = fields.map(f => FlinkTypeFactory.toTypeInfo(f.getType))
+    val names = fields.map(f => f.getName)
+    new RowTypeInfo(types.toArray, names.toArray)
+  }
+
+  def getPhysicalRowType: RelDataType = {
+    val fields = getRowType.getFieldList filter { field =>
+      !FlinkTypeFactory.isTimeIndicatorType(field.getType)
+    }
+    new RelRecordType(fields)
+  }
 }
 

@@ -94,9 +94,11 @@ class DataStreamCorrelate(
 
     val mapFunc = correlateMapFunction(
       config,
+      getInput.getRowType,
       inputDS.getType,
       udtfTypeInfo,
       getRowType,
+      getPhysicalRowTypeInfo,
       joinType,
       rexCall,
       condition,

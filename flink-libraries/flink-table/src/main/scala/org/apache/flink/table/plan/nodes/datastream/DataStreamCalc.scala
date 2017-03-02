@@ -85,8 +85,11 @@ class DataStreamCalc(
 
     val body = functionBody(
       generator,
+      getInput.getRowType,
       inputDataStream.getType,
       getRowType,
+      getPhysicalRowTypeInfo,
+      getPhysicalFieldNames,
       calcProgram,
       config)
 
@@ -94,7 +97,7 @@ class DataStreamCalc(
       ruleDescription,
       classOf[FlatMapFunction[Row, Row]],
       body,
-      FlinkTypeFactory.toInternalRowTypeInfo(getRowType))
+      getPhysicalRowTypeInfo)
 
     val mapFunc = calcMapFunction(genFunction)
     inputDataStream.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString))

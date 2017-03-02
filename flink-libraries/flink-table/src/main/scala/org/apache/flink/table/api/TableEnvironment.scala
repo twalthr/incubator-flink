@@ -49,7 +49,7 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer}
-import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
@@ -570,66 +570,89 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   /**
     * Returns field names and field positions for a given [[TypeInformation]] and [[Array]] of
-    * [[Expression]].
+    * [[Expression]]. Ignores time attributes but considers them in indices.
     *
     * @param inputType The [[TypeInformation]] against which the [[Expression]]s are evaluated.
     * @param exprs The expressions that define the field names.
+    * @param ignoreTimeAttributes ignore time attributes and handle them as regular expressions.
     * @tparam A The type of the TypeInformation.
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
   protected[flink] def getFieldInfo[A](
-    inputType: TypeInformation[A],
-    exprs: Array[Expression]): (Array[String], Array[Int]) = {
+      inputType: TypeInformation[A],
+      exprs: Array[Expression],
+      ignoreTimeAttributes: Boolean)
+    : (Array[String], Array[Int]) = {
 
     TableEnvironment.validateType(inputType)
 
+    val filteredExprs = if (ignoreTimeAttributes) {
+        exprs.map {
+          case ta: TimeAttribute => ta.expression
+          case e@_ => e
+        }
+    } else {
+      exprs
+    }
+
     val indexedNames: Array[(Int, String)] = inputType match {
       case a: AtomicType[A] =>
-        if (exprs.length != 1) {
-          throw new TableException("Table of atomic type can only have a single field.")
-        }
-        exprs.map {
-          case UnresolvedFieldReference(name) => (0, name)
+        filteredExprs.zipWithIndex flatMap {
+          case (UnresolvedFieldReference(name), idx) =>
+            if (idx > 0) {
+              throw new TableException("Table of atomic type can only have a single field.")
+            }
+            Some((0, name))
+          case (_: TimeAttribute, _) if ignoreTimeAttributes =>
+            None
           case _ => throw new TableException("Field reference expression requested.")
         }
       case t: TupleTypeInfo[A] =>
-        exprs.zipWithIndex.map {
-          case (UnresolvedFieldReference(name), idx) => (idx, name)
+        filteredExprs.zipWithIndex flatMap {
+          case (UnresolvedFieldReference(name), idx) =>
+            Some((idx, name))
           case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
             val idx = t.getFieldIndex(origName)
             if (idx < 0) {
               throw new TableException(s"$origName is not a field of type $t")
             }
-            (idx, name)
+            Some((idx, name))
+          case (_: TimeAttribute, _) =>
+            None
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
       case c: CaseClassTypeInfo[A] =>
-        exprs.zipWithIndex.map {
-          case (UnresolvedFieldReference(name), idx) => (idx, name)
+        filteredExprs.zipWithIndex flatMap {
+          case (UnresolvedFieldReference(name), idx) =>
+            Some((idx, name))
           case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
             val idx = c.getFieldIndex(origName)
             if (idx < 0) {
               throw new TableException(s"$origName is not a field of type $c")
             }
-            (idx, name)
+            Some((idx, name))
+          case (_: TimeAttribute, _) =>
+            None
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
       case p: PojoTypeInfo[A] =>
-        exprs.map {
+        filteredExprs flatMap {
           case (UnresolvedFieldReference(name)) =>
             val idx = p.getFieldIndex(name)
             if (idx < 0) {
               throw new TableException(s"$name is not a field of type $p")
             }
-            (idx, name)
+            Some((idx, name))
           case Alias(UnresolvedFieldReference(origName), name, _) =>
             val idx = p.getFieldIndex(origName)
             if (idx < 0) {
               throw new TableException(s"$origName is not a field of type $p")
             }
-            (idx, name)
+            Some((idx, name))
+          case _: TimeAttribute =>
+            None
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
@@ -763,6 +786,42 @@ abstract class TableEnvironment(val config: TableConfig) {
     Some(mapFunction)
   }
 
+  /**
+    * Checks for at most one rowtime and proctime attribute.
+    * Returns the time attributes.
+    *
+    * @return rowtime attribute and proctime attribute
+    */
+  protected def validateAndExtractTimeAttributes(
+      fieldNames: Seq[String],
+      fieldIndices: Seq[Int],
+      exprs: Array[Expression])
+    : (Option[(Int, String)], Option[(Int, String)]) = {
+
+    var rowtime: Option[(Int, String)] = None
+    var proctime: Option[(Int, String)] = None
+
+    exprs.zipWithIndex.foreach {
+      case (RowtimeAttribute(reference@UnresolvedFieldReference(name)), idx) =>
+        if (rowtime.isDefined) {
+          throw new TableException(
+            "The rowtime attribute can only be defined once in a table schema.")
+        } else {
+          rowtime = Some(idx, name)
+        }
+      case (ProctimeAttribute(reference@UnresolvedFieldReference(name)), idx) =>
+        if (proctime.isDefined) {
+          throw new TableException(
+            "The proctime attribute can only be defined once in a table schema.")
+        } else {
+          proctime = Some(idx, name)
+        }
+      case _ =>
+        // do nothing
+    }
+
+    (rowtime, proctime)
+  }
 }
 
 /**
@@ -770,6 +829,9 @@ abstract class TableEnvironment(val config: TableConfig) {
   * environment.
   */
 object TableEnvironment {
+
+  val DEFAULT_ROWTIME_ATTRIBUTE = "rowtime"
+  val DEFAULT_PROCTIME_ATTRIBUTE = "proctime"
 
   /**
     * Returns a [[JavaBatchTableEnv]] for a Java [[JavaBatchExecEnv]].

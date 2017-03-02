@@ -98,49 +98,50 @@ case class OverCall(
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
 
-    val rexBuilder = relBuilder.getRexBuilder
-
-    // assemble aggregation
-    val operator: SqlAggFunction = agg.asInstanceOf[Aggregation].getSqlAggFunction()
-    val aggResultType = relBuilder
-      .getTypeFactory.asInstanceOf[FlinkTypeFactory]
-      .createTypeFromTypeInfo(agg.resultType)
-
-    val aggChildName = agg.asInstanceOf[Aggregation].child.asInstanceOf[ResolvedFieldReference].name
-    val aggExprs = List(relBuilder.field(aggChildName).asInstanceOf[RexNode]).asJava
-
-    // assemble order by key
-    val orderKey = orderBy match {
-      case _: RowTime =>
-        new RexFieldCollation(relBuilder.call(EventTimeExtractor), Set[SqlKind]().asJava)
-      case _: ProcTime =>
-        new RexFieldCollation(relBuilder.call(ProcTimeExtractor), Set[SqlKind]().asJava)
-      case _ =>
-        throw new ValidationException("Invalid OrderBy expression.")
-    }
-    val orderKeys = ImmutableList.of(orderKey)
-
-    // assemble partition by keys
-    val partitionKeys = partitionBy.map(_.toRexNode(relBuilder)).asJava
-
-    // assemble bounds
-    val isPhysical: Boolean = preceding.resultType.isInstanceOf[RowIntervalTypeInfo]
-
-    val lowerBound = createBound(relBuilder, preceding, SqlKind.PRECEDING)
-    val upperBound = createBound(relBuilder, following, SqlKind.FOLLOWING)
-
-    // build RexOver
-    rexBuilder.makeOver(
-      aggResultType,
-      operator,
-      aggExprs,
-      partitionKeys,
-      orderKeys,
-      lowerBound,
-      upperBound,
-      isPhysical,
-      true,
-      false)
+//    val rexBuilder = relBuilder.getRexBuilder
+//
+//    // assemble aggregation
+//    val operator: SqlAggFunction = agg.asInstanceOf[Aggregation].getSqlAggFunction()
+//    val aggResultType = relBuilder
+//      .getTypeFactory.asInstanceOf[FlinkTypeFactory]
+//      .createTypeFromTypeInfo(agg.resultType)
+//
+//    val aggChildName = agg.asInstanceOf[Aggregation].child.asInstanceOf[ResolvedFieldReference].name
+//    val aggExprs = List(relBuilder.field(aggChildName).asInstanceOf[RexNode]).asJava
+//
+//    // assemble order by key
+//    val orderKey = orderBy match {
+//      case _: RowTime =>
+//        new RexFieldCollation(relBuilder.call(EventTimeExtractor), Set[SqlKind]().asJava)
+//      case _: ProcTime =>
+//        new RexFieldCollation(relBuilder.call(ProcTimeExtractor), Set[SqlKind]().asJava)
+//      case _ =>
+//        throw new ValidationException("Invalid OrderBy expression.")
+//    }
+//    val orderKeys = ImmutableList.of(orderKey)
+//
+//    // assemble partition by keys
+//    val partitionKeys = partitionBy.map(_.toRexNode(relBuilder)).asJava
+//
+//    // assemble bounds
+//    val isPhysical: Boolean = preceding.resultType.isInstanceOf[RowIntervalTypeInfo]
+//
+//    val lowerBound = createBound(relBuilder, preceding, SqlKind.PRECEDING)
+//    val upperBound = createBound(relBuilder, following, SqlKind.FOLLOWING)
+//
+//    // build RexOver
+//    rexBuilder.makeOver(
+//      aggResultType,
+//      operator,
+//      aggExprs,
+//      partitionKeys,
+//      orderKeys,
+//      lowerBound,
+//      upperBound,
+//      isPhysical,
+//      true,
+//      false)
+    ???
   }
 
   private def createBound(

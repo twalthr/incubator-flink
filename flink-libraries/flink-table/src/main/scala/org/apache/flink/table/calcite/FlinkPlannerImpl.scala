@@ -108,6 +108,8 @@ class FlinkPlannerImpl(
       // we might enable it again once Calcite has better support for structured types
       // root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
       root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))
+      // convert time indicators
+      root = root.withRel(RelTimeIndicatorConverter.convert(root.rel, rexBuilder))
       root
     } catch {
       case e: RelConversionException => throw TableException(e.getMessage)
