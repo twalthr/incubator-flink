@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.runtime.datastream
 
+import java.math.BigDecimal
+
 import org.apache.flink.api.scala._
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase
@@ -37,13 +39,13 @@ import scala.collection.mutable
 class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
 
   val data = List(
-    (1L, 1, "Hi"),
-    (2L, 2, "Hallo"),
-    (3L, 2, "Hello"),
-    (4L, 5, "Hello"),
-    (6L, 3, "Hello"),
-    (8L, 3, "Hello world"),
-    (16L, 4, "Hello world"))
+    (1L, 1, 1d, 1f, new BigDecimal("1"), "Hi"),
+    (2L, 2, 2d, 2f, new BigDecimal("2"), "Hallo"),
+    (3L, 2, 2d, 2f, new BigDecimal("2"), "Hello"),
+    (4L, 5, 5d, 5f, new BigDecimal("5"), "Hello"),
+    (7L, 3, 3d, 3f, new BigDecimal("3"), "Hello"),
+    (8L, 3, 3d, 3f, new BigDecimal("3"), "Hello world"),
+    (16L, 4, 4d, 4f, new BigDecimal("4"), "Hello world"))
 
   @Test
   def testAllEventTimeSlidingGroupWindowOverTime(): Unit = {
@@ -56,7 +58,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val table = stream.toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 5.milli every 2.milli on 'rowtime as 'w)
@@ -74,9 +76,9 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
       "1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.021",
       "2,1969-12-31 23:59:59.998,1970-01-01 00:00:00.003",
       "2,1970-01-01 00:00:00.006,1970-01-01 00:00:00.011",
+      "3,1970-01-01 00:00:00.002,1970-01-01 00:00:00.007",
       "3,1970-01-01 00:00:00.004,1970-01-01 00:00:00.009",
-      "4,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005",
-      "4,1970-01-01 00:00:00.002,1970-01-01 00:00:00.007")
+      "4,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -91,7 +93,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val table = stream.toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 10.milli every 5.milli on 'rowtime as 'w)
@@ -128,7 +130,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val table = stream.toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 5.milli every 4.milli on 'rowtime as 'w)
@@ -160,7 +162,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val table = stream.toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 4.rows every 2.rows as 'w)
@@ -184,7 +186,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val table = stream.toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 6.rows every 1.rows as 'w)
@@ -215,7 +217,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val table = stream.toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 2.rows every 4.rows as 'w)
@@ -238,7 +240,7 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val table = stream.toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 1.rows every 3.rows as 'w)
@@ -255,17 +257,18 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
 }
 
 object DataStreamAggregateITCase {
-  class TimestampWithEqualWatermark extends AssignerWithPunctuatedWatermarks[(Long, Int, String)] {
+  class TimestampWithEqualWatermark
+  extends AssignerWithPunctuatedWatermarks[(Long, Int, Double, Float, BigDecimal, String)] {
 
     override def checkAndGetNextWatermark(
-        lastElement: (Long, Int, String),
+        lastElement: (Long, Int, Double, Float, BigDecimal, String),
         extractedTimestamp: Long)
       : Watermark = {
       new Watermark(extractedTimestamp)
     }
 
     override def extractTimestamp(
-        element: (Long, Int, String),
+        element: (Long, Int, Double, Float, BigDecimal, String),
         previousElementTimestamp: Long): Long = {
       element._1
     }

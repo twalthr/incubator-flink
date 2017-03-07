@@ -64,47 +64,48 @@ class DataSetSlideCountWindowAggReduceGroupFunction(
   }
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
-    var count: Long = 0
-
-    val iterator = records.iterator()
-
-    while (iterator.hasNext) {
-      val record = iterator.next()
-      // reset aggregates after completed tumbling
-      if (count % preTumblingSize == 0) {
-        // initiate intermediate aggregate value.
-        aggregates.foreach(_.initiate(output))
-      }
-
-      // merge intermediate aggregate value to buffer.
-      aggregates.foreach(_.merge(record, output))
-
-      count += 1
-
-      // trigger tumbling evaluation
-      if (count % preTumblingSize == 0) {
-        val windowStart = count
-        // adopted from SlidingEventTimeWindows
-        var start: Long = TimeWindow.getWindowStartWithOffset(windowStart, 0, windowSlide)
-
-        // skip preparing output if it is not necessary
-        if (start > windowStart - windowSize && start >= windowSlide) {
-          // set group keys value to final output
-          for (i <- 0 until groupingKeysLength) {
-            output.setField(i, record.getField(i))
-          }
-
-          // emit the output
-          // adopted from SlidingEventTimeWindows.assignWindows
-          // however, we only emit if the first slide is reached
-          while (start > windowStart - windowSize && start >= windowSlide) {
-            output.setField(outWindowStartIndex, start)
-            out.collect(output)
-            start -= windowSlide
-          }
-        }
-      }
-    }
+//    var count: Long = 0
+//
+//    val iterator = records.iterator()
+//
+//    while (iterator.hasNext) {
+//      val record = iterator.next()
+//      // reset aggregates after completed tumbling
+//      if (count % preTumblingSize == 0) {
+//        // initiate intermediate aggregate value.
+//        aggregates.foreach(_.initiate(output))
+//      }
+//
+//      // merge intermediate aggregate value to buffer.
+//      aggregates.foreach(_.merge(record, output))
+//
+//      count += 1
+//
+//      // trigger tumbling evaluation
+//      if (count % preTumblingSize == 0) {
+//        val windowStart = count
+//        // adopted from SlidingEventTimeWindows
+//        var start: Long = TimeWindow.getWindowStartWithOffset(windowStart, 0, windowSlide)
+//
+//        // skip preparing output if it is not necessary
+//        if (start > windowStart - windowSize && start >= windowSlide) {
+//          // set group keys value to final output
+//          for (i <- 0 until groupingKeysLength) {
+//            output.setField(i, record.getField(i))
+//          }
+//
+//          // emit the output
+//          // adopted from SlidingEventTimeWindows.assignWindows
+//          // however, we only emit if the first slide is reached
+//          while (start > windowStart - windowSize && start >= windowSlide) {
+//            output.setField(outWindowStartIndex, start)
+//            out.collect(output)
+//            start -= windowSlide
+//          }
+//        }
+//      }
+//    }
+    ???
   }
 
   override def getProducedType: TypeInformation[Row] = {

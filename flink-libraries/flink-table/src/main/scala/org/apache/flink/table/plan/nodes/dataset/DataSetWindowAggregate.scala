@@ -341,8 +341,8 @@ class DataSetWindowAggregate(
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
     val groupingKeys = grouping.indices.toArray
 
-    // do incremental aggregation if possible
-    val isIncremental = doAllSupportPartialAggregation(
+    // do partial aggregation if possible
+    val isPartial = doAllSupportPartialMerge(
       namedAggregates.map(_.getKey),
       inputType,
       grouping.length)
@@ -350,8 +350,8 @@ class DataSetWindowAggregate(
     val preparedDataSet = if (isTimeWindow) {
       // time window
 
-      if (isIncremental) {
-        // incremental aggregates
+      if (isPartial) {
+        // partial aggregates
 
         val groupingKeysAndAlignedRowtime = groupingKeys :+ mapReturnType.getArity - 1
 
@@ -369,7 +369,7 @@ class DataSetWindowAggregate(
           .reduceGroup(prepareReduceFunction) // pre-tumbles and replicates/omits
           .name(prepareOperatorName)
       } else {
-        // non-incremental aggregates
+        // non-partial aggregates
 
         // create FlatMapFunction
         // for replicating/omitting the content for each pane
@@ -389,8 +389,8 @@ class DataSetWindowAggregate(
       // grouped window
       if (groupingKeys.length > 0) {
 
-        if (isIncremental) {
-          // incremental aggregates
+        if (isPartial) {
+          // partial aggregates
 
           // create GroupReduceFunction
           // for pre-tumbling and replicating/omitting the content for each pane
@@ -408,7 +408,7 @@ class DataSetWindowAggregate(
             .reduceGroup(prepareReduceFunction) // pre-tumbles and replicates/omits
             .name(prepareOperatorName)
         } else {
-          // non-incremental aggregates
+          // non-partial aggregates
 
           // TODO implement a FlatMapFunction for count-windows
           throw new UnsupportedOperationException(

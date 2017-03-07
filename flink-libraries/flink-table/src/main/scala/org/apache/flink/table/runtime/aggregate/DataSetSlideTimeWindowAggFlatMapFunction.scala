@@ -52,40 +52,42 @@ class DataSetSlideTimeWindowAggFlatMapFunction(
   private var outWindowStartIndex: Int = _
 
   override def open(config: Configuration) {
-    Preconditions.checkNotNull(aggregates)
-    // add one field to store window start
-    val partialRowLength = groupingKeysLength +
-      aggregates.map(_.intermediateDataType.length).sum + 1
-    aggregateBuffer = new Row(partialRowLength)
-    outWindowStartIndex = partialRowLength - 1
+//    Preconditions.checkNotNull(aggregates)
+//    // add one field to store window start
+//    val partialRowLength = groupingKeysLength +
+//      aggregates.map(_.intermediateDataType.length).sum + 1
+//    aggregateBuffer = new Row(partialRowLength)
+//    outWindowStartIndex = partialRowLength - 1
+    ???
   }
 
   override def flatMap(record: Row, out: Collector[Row]): Unit = {
-    val windowStart = record.getField(timeFieldPos).asInstanceOf[Long]
-
-    // adopted from SlidingEventTimeWindows.assignWindows
-    var start: Long = TimeWindow.getWindowStartWithOffset(windowStart, 0, windowSlide)
-
-    // skip preparing output if it is not necessary
-    if (start > windowStart - windowSize) {
-
-      // prepare output
-      for (i <- aggregates.indices) {
-        aggregates(i).initiate(aggregateBuffer)
-        aggregates(i).merge(record, aggregateBuffer)
-      }
-      // set group keys value to final output
-      for (i <- 0 until groupingKeysLength) {
-        aggregateBuffer.setField(i, record.getField(i))
-      }
-
-      // adopted from SlidingEventTimeWindows.assignWindows
-      while (start > windowStart - windowSize) {
-        aggregateBuffer.setField(outWindowStartIndex, start)
-        out.collect(aggregateBuffer)
-        start -= windowSlide
-      }
-    }
+//    val windowStart = record.getField(timeFieldPos).asInstanceOf[Long]
+//
+//    // adopted from SlidingEventTimeWindows.assignWindows
+//    var start: Long = TimeWindow.getWindowStartWithOffset(windowStart, 0, windowSlide)
+//
+//    // skip preparing output if it is not necessary
+//    if (start > windowStart - windowSize) {
+//
+//      // prepare output
+//      for (i <- aggregates.indices) {
+//        aggregates(i).initiate(aggregateBuffer)
+//        aggregates(i).merge(record, aggregateBuffer)
+//      }
+//      // set group keys value to final output
+//      for (i <- 0 until groupingKeysLength) {
+//        aggregateBuffer.setField(i, record.getField(i))
+//      }
+//
+//      // adopted from SlidingEventTimeWindows.assignWindows
+//      while (start > windowStart - windowSize) {
+//        aggregateBuffer.setField(outWindowStartIndex, start)
+//        out.collect(aggregateBuffer)
+//        start -= windowSlide
+//      }
+//    }
+    ???
   }
 
   override def getProducedType: TypeInformation[Row] = {

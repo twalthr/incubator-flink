@@ -196,12 +196,18 @@ class DataSetWindowAggregateITCase(
       .toDataSet[Row]
   }
 
+  // ----------------------------------------------------------------------------------------------
+  // Sliding windows
+  // ----------------------------------------------------------------------------------------------
+
   @Test(expected = classOf[UnsupportedOperationException])
   def testAllEventTimeSlidingGroupWindowOverCount(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     // Count sliding non-grouping window on event-time are currently not supported
     table
@@ -217,7 +223,9 @@ class DataSetWindowAggregateITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 5.milli every 2.milli on 'long as 'w)
@@ -231,9 +239,9 @@ class DataSetWindowAggregateITCase(
       "1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.021\n" +
       "2,1969-12-31 23:59:59.998,1970-01-01 00:00:00.003\n" +
       "2,1970-01-01 00:00:00.006,1970-01-01 00:00:00.011\n" +
+      "3,1970-01-01 00:00:00.002,1970-01-01 00:00:00.007\n" +
       "3,1970-01-01 00:00:00.004,1970-01-01 00:00:00.009\n" +
-      "4,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005\n" +
-      "4,1970-01-01 00:00:00.002,1970-01-01 00:00:00.007"
+      "4,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005"
 
     val results = windowedTable.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
@@ -245,7 +253,9 @@ class DataSetWindowAggregateITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 10.milli every 5.milli on 'long as 'w)
@@ -275,7 +285,9 @@ class DataSetWindowAggregateITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 5.milli every 4.milli on 'long as 'w)
@@ -302,7 +314,9 @@ class DataSetWindowAggregateITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 5.milli every 10.milli on 'long as 'w)
@@ -324,7 +338,9 @@ class DataSetWindowAggregateITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 3.milli every 10.milli on 'long as 'w)
@@ -345,7 +361,9 @@ class DataSetWindowAggregateITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 4.rows every 2.rows on 'long as 'w)
@@ -366,7 +384,9 @@ class DataSetWindowAggregateITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 6.rows every 1.rows on 'long as 'w)
@@ -391,7 +411,9 @@ class DataSetWindowAggregateITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 2.rows every 4.rows on 'long as 'w)
@@ -408,7 +430,9 @@ class DataSetWindowAggregateITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 1.rows every 3.rows on 'long as 'w)

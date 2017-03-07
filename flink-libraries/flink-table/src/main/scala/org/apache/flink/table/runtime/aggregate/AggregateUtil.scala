@@ -221,7 +221,7 @@ object AggregateUtil {
       case EventTimeSlidingGroupWindow(_, _, size, slide) if isTimeInterval(size.resultType) =>
         // sliding time-window
         if (doAllSupportPartialMerge(aggregates)) {
-          // for incremental aggregations
+          // for partial aggregations
           new DataSetSlideTimeWindowAggReduceCombineFunction(
             aggregates,
             groupings.length,
@@ -230,7 +230,7 @@ object AggregateUtil {
             asLong(slide),
             returnType)
         } else {
-          // for non-incremental aggregations
+          // for non-partial aggregations
           new DataSetSlideTimeWindowAggReduceGroupFunction(
             aggregates,
             groupings.length,

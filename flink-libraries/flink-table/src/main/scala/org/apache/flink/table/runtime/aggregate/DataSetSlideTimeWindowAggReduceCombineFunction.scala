@@ -21,7 +21,7 @@ import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.CombineFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.types.Row
 
 /**
@@ -55,27 +55,42 @@ class DataSetSlideTimeWindowAggReduceCombineFunction(
   with CombineFunction[Row, Row] {
 
   override def combine(records: Iterable[Row]): Row = {
-    // initiate intermediate aggregate value
-    aggregates.foreach(_.initiate(aggregateBuffer))
+    // reset first accumulator
+    for (i <- aggregates.indices) {
+      val accumulator = aggregates(i).createAccumulator()
+      accumulatorList(i).set(0, accumulator)
+    }
 
     val iterator = records.iterator()
     while (iterator.hasNext) {
       val record = iterator.next()
 
-      // merge intermediate aggregate value to buffer
-      aggregates.foreach(_.merge(record, aggregateBuffer))
+      for (i <- aggregates.indices) {
+        // insert received accumulator into acc list
+        val newAcc = record.getField(accumStartPos + i).asInstanceOf[Accumulator]
+        accumulatorList(i).set(1, newAcc)
+        // merge acc list
+        val retAcc = aggregates(i).merge(accumulatorList(i))
+        // insert result into acc list
+        accumulatorList(i).set(0, retAcc)
+      }
 
       // check if this record is the last record
       if (!iterator.hasNext) {
 
         // set group keys value to buffer
         for (i <- 0 until groupingKeysLength) {
-          aggregateBuffer.setField(i, record.getField(i))
+          intermediateRow.setField(i, record.getField(i))
         }
 
-        aggregateBuffer.setField(timeFieldPos, record.getField(timeFieldPos))
+        // set accumulators
+        for (i <- aggregates.indices) {
+          intermediateRow.setField(accumStartPos + i, accumulatorList(i).get(0))
+        }
 
-        return aggregateBuffer
+        intermediateRow.setField(timeFieldPos, record.getField(timeFieldPos))
+
+        return intermediateRow
       }
     }
 

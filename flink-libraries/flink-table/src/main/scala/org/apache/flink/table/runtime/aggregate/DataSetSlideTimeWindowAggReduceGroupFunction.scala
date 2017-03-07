@@ -18,13 +18,14 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.lang.Iterable
+import java.util.{ArrayList => JArrayList}
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
 
@@ -54,30 +55,50 @@ class DataSetSlideTimeWindowAggReduceGroupFunction(
   extends RichGroupReduceFunction[Row, Row]
   with ResultTypeQueryable[Row] {
 
-  protected var aggregateBuffer: Row = _
-  private var outWindowStartIndex: Int = _
+  protected var intermediateRow: Row = _
+  protected val accumStartPos: Int = groupingKeysLength
+  // add one field to store window start
+  protected val intermediateRowArity: Int = accumStartPos + aggregates.length + 1
+
+  val accumulatorList: Array[JArrayList[Accumulator]] = Array.fill(aggregates.length) {
+    new JArrayList[Accumulator](2)
+  }
+  private val intermediateWindowStartPos: Int = intermediateRowArity - 1
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
-    // add one field to store window start
-    val partialRowLength = groupingKeysLength +
-      aggregates.map(_.intermediateDataType.length).sum + 1
-    aggregateBuffer = new Row(partialRowLength)
-    outWindowStartIndex = partialRowLength - 1
+    intermediateRow = new Row(intermediateRowArity)
+
+    // init lists with two empty accumulators
+    for (i <- aggregates.indices) {
+      val accumulator = aggregates(i).createAccumulator()
+      accumulatorList(i).add(accumulator)
+      accumulatorList(i).add(accumulator)
+    }
   }
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
-    // initiate intermediate aggregate value.
-    aggregates.foreach(_.initiate(aggregateBuffer))
+    // reset first accumulator
+    for (i <- aggregates.indices) {
+      val accumulator = aggregates(i).createAccumulator()
+      accumulatorList(i).set(0, accumulator)
+    }
 
     val iterator = records.iterator()
 
     while (iterator.hasNext) {
       val record = iterator.next()
 
-      // merge intermediate aggregate value to buffer
-      aggregates.foreach(_.merge(record, aggregateBuffer))
+      for (i <- aggregates.indices) {
+        // insert received accumulator into acc list
+        val newAcc = record.getField(accumStartPos + i).asInstanceOf[Accumulator]
+        accumulatorList(i).set(1, newAcc)
+        // merge acc list
+        val retAcc = aggregates(i).merge(accumulatorList(i))
+        // insert result into acc list
+        accumulatorList(i).set(0, retAcc)
+      }
 
       // trigger tumbling evaluation
       if (!iterator.hasNext) {
@@ -91,13 +112,18 @@ class DataSetSlideTimeWindowAggReduceGroupFunction(
 
           // set group keys value to buffer
           for (i <- 0 until groupingKeysLength) {
-            aggregateBuffer.setField(i, record.getField(i))
+            intermediateRow.setField(i, record.getField(i))
+          }
+
+          // set accumulators
+          for (i <- aggregates.indices) {
+            intermediateRow.setField(accumStartPos + i, accumulatorList(i).get(0))
           }
 
           // adopted from SlidingEventTimeWindows.assignWindows
           while (start > windowStart - windowSize) {
-            aggregateBuffer.setField(outWindowStartIndex, start)
-            out.collect(aggregateBuffer)
+            intermediateRow.setField(intermediateWindowStartPos, start)
+            out.collect(intermediateRow)
             start -= windowSlide
           }
         }

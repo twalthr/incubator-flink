@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.aggregate
 import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.CombineFunction
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.types.Row
 
 /**
@@ -59,13 +59,25 @@ class DataSetSlideWindowAggReduceCombineFunction(
   with CombineFunction[Row, Row] {
 
   override def combine(records: Iterable[Row]): Row = {
-    // initiate intermediate aggregate value
-    aggregates.foreach(_.initiate(aggregateBuffer))
+    // reset first accumulator in merge list
+    for (i <- aggregates.indices) {
+      val accumulator = aggregates(i).createAccumulator()
+      accumulatorList(i).set(0, accumulator)
+    }
 
     val iterator = records.iterator()
     while (iterator.hasNext) {
       val record = iterator.next()
-      aggregates.foreach(_.merge(record, aggregateBuffer))
+
+      for (i <- aggregates.indices) {
+        // insert received accumulator into acc list
+        val newAcc = record.getField(groupKeysMapping.length + i).asInstanceOf[Accumulator]
+        accumulatorList(i).set(1, newAcc)
+        // merge acc list
+        val retAcc = aggregates(i).merge(accumulatorList(i))
+        // insert result into acc list
+        accumulatorList(i).set(0, retAcc)
+      }
 
       // check if this record is the last record
       if (!iterator.hasNext) {
@@ -74,7 +86,12 @@ class DataSetSlideWindowAggReduceCombineFunction(
           aggregateBuffer.setField(i, record.getField(i))
         }
 
-        aggregateBuffer.setField(windowStartFieldPos, record.getField(windowStartFieldPos))
+        // set the partial merged result to the aggregateBuffer
+        for (i <- aggregates.indices) {
+          aggregateBuffer.setField(groupKeysMapping.length + i, accumulatorList(i).get(0))
+        }
+
+        aggregateBuffer.setField(windowStartPos, record.getField(windowStartPos))
 
         return aggregateBuffer
       }
