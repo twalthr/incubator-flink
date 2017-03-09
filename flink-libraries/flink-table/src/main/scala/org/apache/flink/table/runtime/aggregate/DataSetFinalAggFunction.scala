@@ -28,7 +28,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
 
 /**
-  * [[RichGroupReduceFunction]] to compute the final result of a pre-aggragregated aggregation
+  * [[RichGroupReduceFunction]] to compute the final result of a pre-aggregated aggregation
   * for batch (DataSet) queries.
   *
   * @param aggregates The aggregate functions.
@@ -52,7 +52,12 @@ class DataSetFinalAggFunction(
 
   private var output: Row = _
 
-  private var intermediateGKeys: Option[Array[Int]] = None
+  private val intermediateGKeys: Option[Array[Int]] = if (!groupingSetsMapping.isEmpty) {
+    Some(gkeyOutFields)
+  } else {
+    None
+  }
+
   private val numAggs = aggregates.length
   private val numGKeys = gkeyOutFields.length
 
@@ -61,10 +66,6 @@ class DataSetFinalAggFunction(
 
   override def open(config: Configuration) {
     output = new Row(finalRowArity)
-
-    if (!groupingSetsMapping.isEmpty) {
-      intermediateGKeys = Some(gkeyOutFields)
-    }
 
     // init lists with two empty accumulators
     for (i <- aggregates.indices) {
@@ -76,7 +77,6 @@ class DataSetFinalAggFunction(
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
-    var last: Row = null
     val iterator = records.iterator()
 
     // reset first accumulator
@@ -90,6 +90,7 @@ class DataSetFinalAggFunction(
     while (iterator.hasNext) {
       val record = iterator.next()
 
+      // accumulate
       i = 0
       while (i < aggregates.length) {
         // insert received accumulator into acc list
@@ -101,32 +102,35 @@ class DataSetFinalAggFunction(
         accumulators(i).set(0, retAcc)
         i += 1
       }
-      last = record
-    }
 
-    // set grouping keys to output
-    i = 0
-    while (i < gkeyOutFields.length) {
-      output.setField(gkeyOutFields(i), last.getField(i))
-      i += 1
-    }
-    // set agg results to output
-    i = 0
-    while (i < aggOutFields.length) {
-      val aggResult = aggregates(i).getValue(accumulators(i).get(0))
-      output.setField(aggOutFields(i), aggResult)
-      i += 1
-    }
-    // set grouping set flags to output
-    if (intermediateGKeys.isDefined) {
-      i = 0
-      while (i < groupingSetsMapping.length) {
-        val (in, out) = groupingSetsMapping(i)
-        output.setField(out, !intermediateGKeys.get.contains(in))
-        i += 1
+      // check if this record is the last record
+      if (!iterator.hasNext) {
+        // set group keys value to final output
+        i = 0
+        while (i < gkeyOutFields.length) {
+          output.setField(gkeyOutFields(i), record.getField(i))
+          i += 1
+        }
+
+        // get final aggregate value and set to output.
+        i = 0
+        while (i < aggOutFields.length) {
+          output.setField(aggOutFields(i), aggregates(i).getValue(accumulators(i).get(0)))
+          i += 1
+        }
+
+        // set grouping set flags to output
+        if (intermediateGKeys.isDefined) {
+          i = 0
+          while (i < groupingSetsMapping.length) {
+            val (inputIndex, outputIndex) = groupingSetsMapping(i)
+            output.setField(outputIndex, !intermediateGKeys.get.contains(inputIndex))
+            i += 1
+          }
+        }
+
+        out.collect(output)
       }
     }
-
-    out.collect(output)
   }
 }

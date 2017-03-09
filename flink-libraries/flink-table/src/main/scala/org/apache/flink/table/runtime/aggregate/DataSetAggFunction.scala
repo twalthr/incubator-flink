@@ -26,7 +26,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
 
 /**
-  * [[RichGroupReduceFunction]] to compute aggregates that do not support preaggregation for batch
+  * [[RichGroupReduceFunction]] to compute aggregates that do not support pre-aggregation for batch
   * (DataSet) queries.
   *
   * @param aggregates The aggregate functions.
@@ -65,54 +65,57 @@ class DataSetAggFunction(
     }
   }
 
-
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
+    // reset accumulators
     var i = 0
     while (i < aggregates.length) {
       accumulators(i) = aggregates(i).createAccumulator()
       i += 1
     }
 
-    var last: Row = null
     val iterator = records.iterator()
 
     while (iterator.hasNext) {
       val record = iterator.next()
+
+      // accumulate
       i = 0
       while (i < aggregates.length) {
         aggregates(i).accumulate(accumulators(i), record.getField(aggInFields(i)))
         i += 1
       }
-      last = record
-    }
 
-    // set grouping keys to output
-    i = 0
-    while (i < gkeyOutMapping.length) {
-      val (out, in) = gkeyOutMapping(i)
-      output.setField(out, last.getField(in))
-      i += 1
-    }
+      // check if this record is the last record
+      if (!iterator.hasNext) {
+        // set group keys value to final output
+        i = 0
+        while (i < gkeyOutMapping.length) {
+          val (after, previous) = gkeyOutMapping(i)
+          output.setField(after, record.getField(previous))
+          i += 1
+        }
 
-    // set agg results to output
-    i = 0
-    while (i < aggOutMapping.length) {
-      val (out, in) = aggOutMapping(i)
-      output.setField(out, aggregates(in).getValue(accumulators(in)))
-      i += 1
-    }
+        // set agg results to output
+        i = 0
+        while (i < aggOutMapping.length) {
+          val (out, in) = aggOutMapping(i)
+          output.setField(out, aggregates(in).getValue(accumulators(in)))
+          i += 1
+        }
 
-    // set grouping set flags to output
-    if (intermediateGKeys.isDefined) {
-      i = 0
-      while (i < groupingSetsMapping.length) {
-        val (in, out) = groupingSetsMapping(i)
-        output.setField(out, !intermediateGKeys.get.contains(in))
-        i += 1
+        // set grouping set flags to output
+        if (intermediateGKeys.isDefined) {
+          i = 0
+          while (i < groupingSetsMapping.length) {
+            val (inputIndex, outputIndex) = groupingSetsMapping(i)
+            output.setField(outputIndex, !intermediateGKeys.get.contains(inputIndex))
+            i += 1
+          }
+        }
+
+        out.collect(output)
       }
     }
-
-    out.collect(output)
   }
 }

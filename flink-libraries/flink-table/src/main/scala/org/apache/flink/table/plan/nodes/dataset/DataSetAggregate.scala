@@ -137,7 +137,7 @@ class DataSetAggregate(
 
       if (preAgg.isDefined) {
         inputDS
-          // preaggrgation
+          // pre-aggregation
           .mapPartition(preAgg.get)
           .returns(preAggType.get)
           .name(aggOpName)

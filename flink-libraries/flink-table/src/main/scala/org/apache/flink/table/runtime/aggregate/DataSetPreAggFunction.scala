@@ -63,39 +63,43 @@ class DataSetPreAggFunction(
 
   def preaggregate(records: Iterable[Row], out: Collector[Row]): Unit = {
 
+    // reset accumulators
     var i = 0
     while (i < aggregates.length) {
       accumulators(i) = aggregates(i).createAccumulator()
       i += 1
     }
 
-    var last: Row = null
     val iterator = records.iterator()
 
     while (iterator.hasNext) {
       val record = iterator.next()
+
+      // accumulate
       i = 0
       while (i < aggregates.length) {
         aggregates(i).accumulate(accumulators(i), record.getField(aggInFields(i)))
         i += 1
       }
-      last = record
-    }
+      // check if this record is the last record
+      if (!iterator.hasNext) {
+        // set group keys value to output
+        i = 0
+        while (i < groupingKeys.length) {
+          output.setField(i, record.getField(groupingKeys(i)))
+          i += 1
+        }
 
-    // set grouping keys to output
-    i = 0
-    while (i < groupingKeys.length) {
-      output.setField(i, last.getField(groupingKeys(i)))
-      i += 1
-    }
-    // set agg results to output
-    i = 0
-    while (i < aggregates.length) {
-      output.setField(i + groupingKeys.length, accumulators(i))
-      i += 1
-    }
+        // set agg results to output
+        i = 0
+        while (i < accumulators.length) {
+          output.setField(groupingKeys.length + i, accumulators(i))
+          i += 1
+        }
 
-    out.collect(output)
+        out.collect(output)
+      }
+    }
   }
 
 }

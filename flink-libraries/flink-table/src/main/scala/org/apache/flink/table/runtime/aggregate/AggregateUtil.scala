@@ -498,7 +498,7 @@ object AggregateUtil {
 
   /**
     * Create functions to compute a [[org.apache.flink.table.plan.nodes.dataset.DataSetAggregate]].
-    * If all aggregation functions support preaggregation, a preaggreation function and the
+    * If all aggregation functions support pre-aggregation, a pre-aggregation function and the
     * respective output type are generated as well.
     */
   private[flink] def createDataSetAggregateFunctions(
