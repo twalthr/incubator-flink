@@ -123,8 +123,8 @@ class DataSetFinalAggFunction(
         if (intermediateGKeys.isDefined) {
           i = 0
           while (i < groupingSetsMapping.length) {
-            val (inputIndex, outputIndex) = groupingSetsMapping(i)
-            output.setField(outputIndex, !intermediateGKeys.get.contains(inputIndex))
+            val (in, out) = groupingSetsMapping(i)
+            output.setField(out, !intermediateGKeys.get.contains(in))
             i += 1
           }
         }

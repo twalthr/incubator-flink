@@ -91,8 +91,8 @@ class DataSetAggFunction(
         // set group keys value to final output
         i = 0
         while (i < gkeyOutMapping.length) {
-          val (after, previous) = gkeyOutMapping(i)
-          output.setField(after, record.getField(previous))
+          val (out, in) = gkeyOutMapping(i)
+          output.setField(out, record.getField(in))
           i += 1
         }
 
@@ -108,8 +108,8 @@ class DataSetAggFunction(
         if (intermediateGKeys.isDefined) {
           i = 0
           while (i < groupingSetsMapping.length) {
-            val (inputIndex, outputIndex) = groupingSetsMapping(i)
-            output.setField(outputIndex, !intermediateGKeys.get.contains(inputIndex))
+            val (in, out) = groupingSetsMapping(i)
+            output.setField(out, !intermediateGKeys.get.contains(in))
             i += 1
           }
         }
