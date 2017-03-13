@@ -44,7 +44,7 @@ class TableFunctionCallGen(
       codeGenerator: CodeGenerator,
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
-    // determine function signature
+    // determine function method
     val matchingMethod = getEvalMethod(tableFunction, signature)
       .getOrElse(throw new CodeGenException("No matching signature found."))
     val matchingSignature = matchingMethod.getParameterTypes
@@ -53,8 +53,7 @@ class TableFunctionCallGen(
     var paramToOperands = matchingSignature.zip(operands)
     if (operands.length > matchingSignature.length) {
       operands.drop(matchingSignature.length).foreach(op =>
-        paramToOperands = paramToOperands :+
-          (matchingSignature.last.getComponentType, op)
+        paramToOperands = paramToOperands :+ (matchingSignature.last.getComponentType, op)
       )
     }
 
