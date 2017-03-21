@@ -15,16 +15,16 @@ language: java
 matrix:
   include:
     - jdk: "oraclejdk8"
-      env: PROFILE="-T 2 -Dhadoop.version=2.7.2 -Dscala-2.11 -Pinclude-yarn-tests,include-kinesis,jdk8 -Dmaven.javadoc.skip=true"
+      env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.11 -Pinclude-yarn-tests,include-kinesis,jdk8 -Dmaven.javadoc.skip=true"
 
     - jdk: "oraclejdk8"
-      env: PROFILE="-T 2 -Dhadoop.version=2.6.3 -Pinclude-yarn-tests,include-kinesis -Dmaven.javadoc.skip=true"
+      env: PROFILE="-Dhadoop.version=2.6.3 -Pinclude-yarn-tests,include-kinesis -Dmaven.javadoc.skip=true"
 
     - jdk: "openjdk7"
-      env: PROFILE="-T 2 -Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests,include-kinesis"
 
     - jdk: "oraclejdk7"
-      env: PROFILE="-T 2 -Dhadoop.version=2.3.0 -Pinclude-kinesis"
+      env: PROFILE="-Dhadoop.version=2.3.0 -Pinclude-kinesis"
 
 
 git:
