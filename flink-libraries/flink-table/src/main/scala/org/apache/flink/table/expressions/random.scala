@@ -26,9 +26,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 
 import scala.collection.JavaConversions._
 
-case class Rand(seed: Expression) extends Expression with InputTypeSpec {
-
-  def this() = this(null)
+case class Rand(seed: Expression = null) extends Expression with InputTypeSpec {
 
   override private[flink] def children: Seq[Expression] = if (seed != null) {
     seed :: Nil
@@ -56,9 +54,11 @@ case class Rand(seed: Expression) extends Expression with InputTypeSpec {
 
 }
 
-case class RandInteger(seed: Expression, bound: Expression) extends Expression with InputTypeSpec {
-
-  def this(bound: Expression) = this(null, bound)
+case class RandInteger(
+    bound: Expression,
+    seed: Expression = null)
+  extends Expression
+  with InputTypeSpec {
 
   override private[flink] def children: Seq[Expression] = if (seed != null) {
     seed :: bound :: Nil

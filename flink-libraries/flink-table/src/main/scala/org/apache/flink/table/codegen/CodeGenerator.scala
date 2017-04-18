@@ -1721,7 +1721,7 @@ class CodeGenerator(
     val fieldInit = if (seedExpr != null && nullCheck) {
       s"""
          |${seedExpr.code}
-         |if(!${seedExpr.nullTerm}) {
+         |if (!${seedExpr.nullTerm}) {
          |  $fieldTerm = new java.util.Random(${seedExpr.resultTerm});
          |}
          |else {

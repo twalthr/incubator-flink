@@ -292,6 +292,10 @@ object FunctionGenerator {
     Seq(),
     new CurrentTimePointCallGen(SqlTimeTypeInfo.TIMESTAMP, local = true))
 
+  // ----------------------------------------------------------------------------------------------
+  // Random functions
+  // ----------------------------------------------------------------------------------------------
+
   addSqlFunction(
     RAND,
     Seq(),

@@ -1107,12 +1107,6 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
-  def testInvalidTableApiRand2(): Unit = {
-    // Must fail. The parameter number of rand must be less than 2.
-    testTableApi(rand(1, 10), "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
   def testInvalidTableApiStringExpressionRand1(): Unit = {
     // Must fail. Parameter of rand must be an Integer not a Double.
     testTableApi("FAIL", "rand(2.0)", "FAIL")
@@ -1135,7 +1129,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     val random = new java.util.Random(1)
     testAllApis(
       rand(1),
-      "rand(1)",
+      "rand(f7)",
       "RAND(1)",
       "" + random.nextDouble())
   }
@@ -1143,13 +1137,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   @Test(expected = classOf[ValidationException])
   def testInvalidTableApiRandInteger1(): Unit = {
     // Must fail. Parameter of rand_integer must be an Integer not a Double.
-    testTableApi(rand_integer(2.0.toExpr), "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidTableApiRandInteger2(): Unit = {
-    // Must fail. The parameter number of rand_integer must be less than 3 and greater than 0.
-    testTableApi(rand_integer(), "FAIL", "FAIL")
+    testTableApi(randInteger(2.0.toExpr), "FAIL", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -1174,7 +1162,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   def testRandInteger(): Unit = {
     val random = new java.util.Random(1)
     testAllApis(
-      rand_integer(1, 10),
+      randInteger(1, 10),
       "rand_integer(1, 10)",
       "RAND_INTEGER(1, 10)",
       "" + random.nextInt(10))

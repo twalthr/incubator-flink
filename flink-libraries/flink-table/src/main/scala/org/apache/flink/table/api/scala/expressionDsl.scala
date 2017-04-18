@@ -22,7 +22,6 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions._
@@ -783,26 +782,50 @@ object array {
   }
 }
 
+/**
+  * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive)
+  * with or without an initial seed.
+  */
 object rand {
 
-  def apply(expr: Expression*): Expression = {
-    expr.size match {
-      case 0 => new Rand()
-      case 1 => Rand(expr.head)
-      case _ => throw new ValidationException("Invalid arguments for rand([seed]).")
-    }
+  /**
+    * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive).
+    */
+  def apply(): Expression = {
+    Rand()
+  }
+
+  /**
+    * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive) with an
+    * initial seed. Two rand functions produce identical sequences of numbers if they have
+    * same initial seed.
+    */
+  def apply(seed: Expression): Expression = {
+    Rand(seed)
   }
 }
 
-object rand_integer {
+/**
+  * Returns a pseudorandom integer value between 0 (inclusive) and the specified
+  * value (exclusive) with or without an initial seed.
+  */
+object randInteger {
 
-  def apply(expr: Expression*): Expression = {
-    expr.size match {
-      case 1 => new RandInteger(expr.head)
-      case 2 => RandInteger(expr.head, expr(1))
-      case _ =>
-        throw new ValidationException("Invalid arguments for rand_integer([seed, ] bound).")
-    }
+  /**
+    * Returns a pseudorandom integer value between 0 (inclusive) and the specified
+    * value (exclusive).
+    */
+  def apply(bound: Expression): Expression = {
+    RandInteger(bound)
+  }
+
+  /**
+    * Returns a pseudorandom integer value between 0 (inclusive) and the specified
+    * value (exclusive) with an initial seed. Two randInteger functions produce identical
+    * sequences of numbers if they have same initial seed and same bound.
+    */
+  def apply(seed: Expression, bound: Expression): Expression = {
+    RandInteger(bound, seed)
   }
 }
 
