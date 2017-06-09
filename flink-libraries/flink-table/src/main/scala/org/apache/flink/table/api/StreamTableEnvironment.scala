@@ -40,7 +40,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.calcite.RelTimeIndicatorConverter
 import org.apache.flink.table.explain.PlanJsonParser
-import org.apache.flink.table.expressions.{Expression, ProctimeAttribute, RowtimeAttribute, UnresolvedFieldReference}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait, _}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -437,39 +437,73 @@ abstract class StreamTableEnvironment(
     var rowtime: Option[(Int, String)] = None
     var proctime: Option[(Int, String)] = None
 
-    exprs.zipWithIndex.foreach {
-      case (RowtimeAttribute(reference@UnresolvedFieldReference(name)), idx) =>
-        if (rowtime.isDefined) {
-          throw new TableException(
-            "The rowtime attribute can only be defined once in a table schema.")
-        } else {
-          // check type of field that is replaced
-          if (idx < fieldTypes.length &&
-            !(TypeCheckUtils.isLong(fieldTypes(idx)) ||
-              TypeCheckUtils.isTimePoint(fieldTypes(idx)))) {
-            throw new TableException(
-              "The rowtime attribute can only be replace a field with a valid time type, such as " +
-                "Timestamp or Long.")
-          }
-          rowtime = Some(idx, name)
+    def extractRowtime(pos: Either[Int, String], name: String): Unit = {
+      if (rowtime.isDefined) {
+        throw new TableException(
+          "The rowtime attribute can only be defined once in a table schema.")
+      } else {
+        val idx = pos match {
+          case Left(i) => i
+          case Right(n) if streamType.isInstanceOf[CompositeType[_]] =>
+            streamType.asInstanceOf[CompositeType[_]].getFieldIndex(n)
+          case _ => -1
         }
-      case (ProctimeAttribute(reference@UnresolvedFieldReference(name)), idx) =>
-        if (proctime.isDefined) {
+
+        // check type of field that is replaced
+        if (idx >= 0 && idx < fieldTypes.length &&
+          !(TypeCheckUtils.isLong(fieldTypes(idx)) ||
+            TypeCheckUtils.isTimePoint(fieldTypes(idx)))) {
+          throw new TableException(
+            s"The rowtime attribute can only be replace a field with a valid time type, " +
+              s"such as Timestamp or Long. But was: ${fieldTypes(idx)}")
+        }
+
+        rowtime = Some(idx, name)
+      }
+    }
+
+    def extractProctime(pos: Either[Int, String], name: String): Unit = {
+      if (proctime.isDefined) {
           throw new TableException(
             "The proctime attribute can only be defined once in a table schema.")
-        } else {
-          // check that proctime is only appended
-          if (idx < fieldTypes.length) {
-            throw new TableException(
-              "The proctime attribute can only be appended to the table schema and not replace " +
-                "an existing field. Please move it to the end of the schema.")
-          }
-          proctime = Some(idx, name)
+      } else {
+        val idx = pos match {
+          case Left(i) => i
+          case Right(n) if streamType.isInstanceOf[CompositeType[_]] =>
+            streamType.asInstanceOf[CompositeType[_]].getFieldIndex(n)
+          case _ => -1
         }
-      case (u: UnresolvedFieldReference, _) => fieldNames = u.name :: fieldNames
 
-      case _ =>
-        throw new TableException("Time attributes can only be defined on field references.")
+        // check that proctime is only appended
+        if (idx >= 0 && idx < fieldTypes.length) {
+          throw new TableException(
+            "The proctime attribute can only be appended to the table schema and not replace " +
+              "an existing field. Please move it to the end of the schema.")
+        }
+        proctime = Some(idx, name)
+      }
+    }
+
+    exprs.zipWithIndex.foreach {
+      case (RowtimeAttribute(UnresolvedFieldReference(name)), idx) =>
+        extractRowtime(Left(idx), name)
+
+      case (RowtimeAttribute(Alias(UnresolvedFieldReference(origName), name, _)), idx) =>
+        extractRowtime(Right(origName), name)
+
+      case (ProctimeAttribute(UnresolvedFieldReference(name)), idx) =>
+        extractProctime(Left(idx), name)
+
+      case (ProctimeAttribute(Alias(UnresolvedFieldReference(origName), name, _)), idx) =>
+        extractProctime(Right(origName), name)
+
+      case (UnresolvedFieldReference(name), _) => fieldNames = name :: fieldNames
+
+      case (Alias(UnresolvedFieldReference(_), name, _), _) => fieldNames = name :: fieldNames
+
+      case (e, _) =>
+        throw new TableException(s"Time attributes can only be defined on field references or " +
+          s"aliases of field references. But was: $e")
     }
 
     if (rowtime.isDefined && fieldNames.contains(rowtime.get._2)) {

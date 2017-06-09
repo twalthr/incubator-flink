@@ -18,6 +18,7 @@
 package org.apache.flink.table.examples.scala
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
@@ -39,20 +40,21 @@ object StreamTableExample {
 
     // set up execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val orderA = env.fromCollection(Seq(
-      Order(1L, "beer", 3),
-      Order(1L, "diaper", 4),
-      Order(3L, "rubber", 2))).toTable(tEnv)
+      new Order(),
+      new Order(),
+      new Order())).toTable(tEnv)
 
     val orderB = env.fromCollection(Seq(
-      Order(2L, "pen", 3),
-      Order(2L, "rubber", 3),
-      Order(4L, "beer", 1))).toTable(tEnv)
+      new Order(),
+      new Order(),
+      new Order())).toTable(tEnv, 'user, 'product, 'amount, 'rowtime.rowtime)
 
     // union the two tables
-    val result: DataStream[Order] = orderA.unionAll(orderB)
+    val result: DataStream[Order] = orderA
       .select('user, 'product, 'amount)
       .where('amount > 2)
       .toAppendStream[Order]
@@ -66,6 +68,10 @@ object StreamTableExample {
   //     USER DATA TYPES
   // *************************************************************************
 
-  case class Order(user: Long, product: String, amount: Int)
+  class Order() extends Serializable {
+     var user:Long = _
+    var product:String = _
+    var amount:Int = _
+  }
 
 }
