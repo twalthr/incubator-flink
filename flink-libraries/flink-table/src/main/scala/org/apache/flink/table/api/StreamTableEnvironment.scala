@@ -33,7 +33,7 @@ import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -437,45 +437,36 @@ abstract class StreamTableEnvironment(
     var rowtime: Option[(Int, String)] = None
     var proctime: Option[(Int, String)] = None
 
-    def extractRowtime(pos: Either[Int, String], name: String): Unit = {
+    def extractRowtime(idx: Int, name: String, origName: Option[String]): Unit = {
       if (rowtime.isDefined) {
         throw new TableException(
           "The rowtime attribute can only be defined once in a table schema.")
       } else {
-        val idx = pos match {
-          case Left(i) => i
-          case Right(n) if streamType.isInstanceOf[CompositeType[_]] =>
-            streamType.asInstanceOf[CompositeType[_]].getFieldIndex(n)
-          case _ => -1
+        val mappedIdx = streamType match {
+          case pti: PojoTypeInfo[_] =>
+            pti.getFieldIndex(origName.getOrElse(name))
+          case _ => idx;
         }
-
         // check type of field that is replaced
-        if (idx >= 0 && idx < fieldTypes.length &&
-          !(TypeCheckUtils.isLong(fieldTypes(idx)) ||
-            TypeCheckUtils.isTimePoint(fieldTypes(idx)))) {
+        if (mappedIdx < fieldTypes.length &&
+          !(TypeCheckUtils.isLong(fieldTypes(mappedIdx)) ||
+            TypeCheckUtils.isTimePoint(fieldTypes(mappedIdx)))) {
           throw new TableException(
             s"The rowtime attribute can only be replace a field with a valid time type, " +
-              s"such as Timestamp or Long. But was: ${fieldTypes(idx)}")
+              s"such as Timestamp or Long. But was: ${fieldTypes(mappedIdx)}")
         }
 
         rowtime = Some(idx, name)
       }
     }
 
-    def extractProctime(pos: Either[Int, String], name: String): Unit = {
+    def extractProctime(idx: Int, name: String): Unit = {
       if (proctime.isDefined) {
           throw new TableException(
             "The proctime attribute can only be defined once in a table schema.")
       } else {
-        val idx = pos match {
-          case Left(i) => i
-          case Right(n) if streamType.isInstanceOf[CompositeType[_]] =>
-            streamType.asInstanceOf[CompositeType[_]].getFieldIndex(n)
-          case _ => -1
-        }
-
         // check that proctime is only appended
-        if (idx >= 0 && idx < fieldTypes.length) {
+        if (idx < exprs.length - 1) {
           throw new TableException(
             "The proctime attribute can only be appended to the table schema and not replace " +
               "an existing field. Please move it to the end of the schema.")
@@ -486,16 +477,16 @@ abstract class StreamTableEnvironment(
 
     exprs.zipWithIndex.foreach {
       case (RowtimeAttribute(UnresolvedFieldReference(name)), idx) =>
-        extractRowtime(Left(idx), name)
+        extractRowtime(idx, name, None)
 
       case (RowtimeAttribute(Alias(UnresolvedFieldReference(origName), name, _)), idx) =>
-        extractRowtime(Right(origName), name)
+        extractRowtime(idx, name, Some(origName))
 
       case (ProctimeAttribute(UnresolvedFieldReference(name)), idx) =>
-        extractProctime(Left(idx), name)
+        extractProctime(idx, name)
 
-      case (ProctimeAttribute(Alias(UnresolvedFieldReference(origName), name, _)), idx) =>
-        extractProctime(Right(origName), name)
+      case (ProctimeAttribute(Alias(UnresolvedFieldReference(_), name, _)), idx) =>
+        extractProctime(idx, name)
 
       case (UnresolvedFieldReference(name), _) => fieldNames = name :: fieldNames
 

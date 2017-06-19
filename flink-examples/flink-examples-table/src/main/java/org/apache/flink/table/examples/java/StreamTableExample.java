@@ -14,6 +14,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.api.java.Tumble;
+import org.apache.flink.types.Row;
 
 public class StreamTableExample {
 
@@ -51,10 +52,10 @@ public class StreamTableExample {
 
         Table table = tableEnv.fromDataStream(stream2,
                 "urlKey as urlKey," +
-					"statusCodeCount as statusCodeCount," +
-					"recordTime as rowtime.rowtime");
-        table.window(Tumble.over("1.hours").on("rowtime").as("w")).groupBy("w, urlKey")
-                .select("w.start,urlKey ");
+					"statusCodeCount as statusCodeCount");
+        table.select("urlKey, statusCodeCount");
+
+        tableEnv.toAppendStream(table, Row.class).print();
 
         env.execute();
     }
