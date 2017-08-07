@@ -19,8 +19,9 @@ package org.apache.flink.table.examples.scala
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.types.Row
 
 /**
   * Simple example for demonstrating the use of SQL on a Stream Table.
@@ -59,10 +60,13 @@ object StreamSQLExample {
 
     // union the two tables
     val result = tEnv.sql(
-      "SELECT * FROM OrderA WHERE amount > 2 UNION ALL " +
-        "SELECT * FROM OrderB WHERE amount < 2")
+      "SELECT user, SUM(amount) FROM OrderA GROUP BY user")
 
-    result.toAppendStream[Order].print()
+    result.toQueryableSink[Row]("myQuery")
+
+    val client = new QueryableSinkClient("localhost", 4000)
+
+    client.query[Int, Row]("ss", "myQuery")
 
     env.execute()
   }

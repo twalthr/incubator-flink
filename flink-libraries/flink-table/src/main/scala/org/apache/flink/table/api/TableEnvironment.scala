@@ -48,7 +48,7 @@ import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableE
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
-import org.apache.flink.table.codegen.{FunctionCodeGenerator, ExpressionReducer, GeneratedFunction}
+import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.AggregateFunction
@@ -64,6 +64,7 @@ import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.TableEnvironment.validateInputType
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable.HashMap
@@ -601,16 +602,12 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @tparam A The type of the TypeInformation.
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
-  protected[flink] def getFieldInfo[A](inputType: TypeInformation[A]):
-  (Array[String], Array[Int]) = {
+  protected[flink] def getFieldInfo[A](inputType: TypeInformation[A])
+    : (Array[String], Array[Int]) = {
 
-    if (inputType.isInstanceOf[GenericTypeInfo[A]] && inputType.getTypeClass == classOf[Row]) {
-      throw new TableException(
-        "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
-          "Please specify the type of the input with a RowTypeInfo.")
-    } else {
-      (TableEnvironment.getFieldNames(inputType), TableEnvironment.getFieldIndices(inputType))
-    }
+    validateInputType(inputType)
+
+    (TableEnvironment.getFieldNames(inputType), TableEnvironment.getFieldIndices(inputType))
   }
 
   /**
@@ -627,13 +624,9 @@ abstract class TableEnvironment(val config: TableConfig) {
       exprs: Array[Expression])
     : (Array[String], Array[Int]) = {
 
-    TableEnvironment.validateType(inputType)
+   validateInputType(inputType)
 
     val indexedNames: Array[(Int, String)] = inputType match {
-      case g: GenericTypeInfo[A] if g.getTypeClass == classOf[Row] =>
-        throw new TableException(
-          "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
-            "Please specify the type of the input with a RowTypeInfo.")
       case a: AtomicType[_] =>
         exprs.zipWithIndex flatMap {
           case (UnresolvedFieldReference(name), idx) =>
@@ -949,6 +942,28 @@ object TableEnvironment {
       clazz.getCanonicalName == null) {
       throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
         s"static and globally accessible.")
+    }
+  }
+
+  /**
+    * Validate if type information is a valid input type.
+    *
+    * @param typeInfo type to check
+    * @throws TableException if type does not meet these criteria
+    */
+  def validateInputType(typeInfo: TypeInformation[_]): Unit = {
+    val clazz = typeInfo.getTypeClass
+    if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) ||
+      !Modifier.isPublic(clazz.getModifiers) ||
+      clazz.getCanonicalName == null) {
+      throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
+        s"static and globally accessible.")
+    }
+
+    if (typeInfo.isInstanceOf[GenericTypeInfo[_]] && typeInfo.getTypeClass == classOf[Row]) {
+      throw new TableException(
+        "A type of GenericTypeInfo<Row> has no information about a row's fields. " +
+          "Please specify the type with Types.ROW(...).")
     }
   }
 

@@ -20,12 +20,13 @@ package org.apache.flink.table.api
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
+import org.apache.flink.api.scala._
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical.{Minus, _}
-import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.sinks.{QueryableTableSink, TableSink}
 
 import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConverters._
@@ -797,6 +798,29 @@ class Table(
 
     // emit the table to the configured table sink
     tableEnv.writeToSink(this, configuredSink, conf)
+  }
+
+  def toQueryableSink[T: TypeInformation](name: String): Unit = {
+    val returnType = createTypeInformation[T]
+    val streamConf = this.tableEnv match {
+      case s: StreamTableEnvironment => s.queryConfig
+      case _ =>
+        throw new ValidationException(
+          "The QueryableSink is only supported in a streaming environment.")
+    }
+    writeToSink(new QueryableTableSink(name, returnType, streamConf), streamConf)
+  }
+
+  def toQueryableSink[T: TypeInformation](name: String, conf: QueryConfig): Unit = {
+    val streamConf = (this.tableEnv, conf) match {
+      case (_: StreamTableEnvironment, conf: StreamQueryConfig) =>
+        conf
+      case _ =>
+        throw new ValidationException(
+          "The QueryableSink is only supported in a streaming environment.")
+    }
+    val returnType = createTypeInformation[T]
+    writeToSink(new QueryableTableSink(name, returnType, streamConf), streamConf)
   }
 
   /**
