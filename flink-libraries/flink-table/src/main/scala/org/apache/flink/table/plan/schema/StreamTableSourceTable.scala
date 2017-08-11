@@ -19,10 +19,11 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.flink.table.api.{TableEnvironment, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.{DefinedProctimeAttribute, DefinedRowtimeAttribute, TableSource}
+import org.apache.flink.table.typeutils.FieldTypeUtils
 
 class StreamTableSourceTable[T](
     override val tableSource: TableSource[T],
@@ -33,8 +34,8 @@ class StreamTableSourceTable[T](
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
 
-    val fieldNames = TableEnvironment.getFieldNames(tableSource).toList
-    val fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
+    val fieldNames = FieldTypeUtils.getFieldNames(tableSource).toList
+    val fieldTypes = FieldTypeUtils.getFieldTypes(tableSource.getReturnType).toList
 
     val fieldCnt = fieldNames.length
 

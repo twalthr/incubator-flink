@@ -20,10 +20,10 @@ package org.apache.flink.table.plan.rules.logical
 
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
+import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
 import org.apache.flink.table.sources.{NestedFieldsProjectableTableSource, ProjectableTableSource}
+import org.apache.flink.table.typeutils.FieldTypeUtils
 
 class PushProjectIntoTableSourceScanRule extends RelOptRule(
   operand(classOf[FlinkLogicalCalc],
@@ -45,7 +45,7 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
 
     // if no fields can be projected, we keep the original plan.
     val source = scan.tableSource
-    if (TableEnvironment.getFieldNames(source).length != usedFields.length) {
+    if (FieldTypeUtils.getFieldNames(source).length != usedFields.length) {
 
       val newTableSource = source match {
         case nested: NestedFieldsProjectableTableSource[_] =>

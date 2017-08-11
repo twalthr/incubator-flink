@@ -23,10 +23,8 @@ import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelNode, RelVisitor}
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
-import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.api.common.functions.MapFunction
@@ -42,7 +40,7 @@ import org.apache.flink.table.calcite.RelTimeIndicatorConverter
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait, _}
+import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema, StreamTableSourceTable}
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
@@ -50,7 +48,7 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{CRowInputJavaTupleOutputMapRunner, CRowInputMapRunner, CRowInputScalaTupleOutputMapRunner}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.sources.{DefinedRowtimeAttribute, StreamTableSource, TableSource}
-import org.apache.flink.table.typeutils.TypeCheckUtils
+import org.apache.flink.table.typeutils.{FieldTypeUtils, TypeCheckUtils}
 import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConverters._
@@ -352,7 +350,7 @@ abstract class StreamTableEnvironment(
     name: String,
     dataStream: DataStream[T]): Unit = {
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType)
+    val (fieldNames, fieldIndexes) = FieldTypeUtils.getFieldInfo[T](dataStream.getType)
     val dataStreamTable = new DataStreamTable[T](
       dataStream,
       fieldIndexes,
@@ -381,7 +379,7 @@ abstract class StreamTableEnvironment(
     val streamType = dataStream.getType
 
     // get field names and types for all non-replaced fields
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType, fields)
+    val (fieldNames, fieldIndexes) = FieldTypeUtils.getFieldInfo[T](streamType, fields)
 
     // validate and extract time attributes
     val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, fields)

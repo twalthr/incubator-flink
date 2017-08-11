@@ -36,6 +36,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
+import org.apache.flink.table.typeutils.FieldTypeUtils
 import org.apache.flink.util.InstantiationUtil
 
 object UserDefinedFunctionUtils {
@@ -444,9 +445,9 @@ object UserDefinedFunctionUtils {
   def getFieldInfo(inputType: TypeInformation[_])
     : (Array[String], Array[Int], Array[TypeInformation[_]]) = {
 
-    (TableEnvironment.getFieldNames(inputType),
-    TableEnvironment.getFieldIndices(inputType),
-    TableEnvironment.getFieldTypes(inputType))
+    (FieldTypeUtils.getFieldNames(inputType),
+    FieldTypeUtils.getFieldIndices(inputType),
+    FieldTypeUtils.getFieldTypes(inputType))
   }
 
   /**

@@ -23,22 +23,25 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
+import org.apache.flink.api.java.tuple.Tuple2
+import org.apache.flink.api.scala._
 import org.apache.flink.configuration._
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.query.UnknownKvStateLocation
 import org.apache.flink.runtime.testingUtils.TestingCluster
+import org.apache.flink.streaming.api.functions.source.{RichParallelSourceFunction, SourceFunction}
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.runtime.utils.StreamITCase
-import org.junit.Assert.fail
-import org.apache.flink.api.scala._
-import org.apache.flink.runtime.jobgraph.JobGraph
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.runtime.stream.sql.QueryableSinkITCase.TestAscendingValueSource
+import org.junit.Assert.fail
 import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.collection.mutable
 import scala.concurrent.Await
-import scala.concurrent.duration.{Deadline, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 
 class QueryableSinkITCase {
@@ -50,18 +53,12 @@ class QueryableSinkITCase {
     env.setParallelism(1)
     env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000))
 
-    val data = new mutable.MutableList[(Int, Long, String)]
-    data.+=((1, 1L, "Hi1"))
-    data.+=((1, 2L, "Hi2"))
-    data.+=((1, 5L, "Hi3"))
-    data.+=((2, 7L, "Hi5"))
-    data.+=((1, 9L, "Hi6"))
-    data.+=((1, 8L, "Hi8"))
-
-    val table = env.fromCollection(data).toTable(tEnv, 'amount, 'key, 'value)
+    val table = env.addSource(new TestAscendingValueSource(10)).toTable(tEnv, 'subtask, 'value)
     tEnv.registerTable("MyTable", table)
 
-    tEnv.sql("SELECT key, SUM(amount) FROM MyTable GROUP BY key").toQueryableSink[(Long, Int)]("TestSink")
+    tEnv
+      .sql("SELECT subtask, MIN(`value`) FROM MyTable GROUP BY subtask")
+      .toQueryableSink[(Int, Long)]("TestSink")
 
     // submit the job graph
     val jobGraph = env.getStreamGraph.getJobGraph
@@ -74,19 +71,32 @@ class QueryableSinkITCase {
 
     val config = QueryableSinkITCase.cluster.configuration
 
+
     val client = new QueryableSinkClient(
-      config.getString(JobManagerOptions.ADDRESS, "localhost"),
-      config.getInteger(JobManagerOptions.PORT, 0))
+    config.getString(JobManagerOptions.ADDRESS, "localhost"),
+    config.getInteger(JobManagerOptions.PORT, 0))
 
-    Thread.sleep(10000)
+    val query = client.queryByKey[Int, (Int, Long)](jobId.toString, "TestSink")
 
-    val query = client.query[Long, (Long, Int)](jobId.toString, "TestSink")
+    while (deadline.hasTimeLeft) {
 
+      Thread.sleep(1000)
 
+      val future = query.request(0)
 
-    val future = query.request(9)
+      future.onSuccess {
+        case p => println(p)
+      }
 
-    val value = Await.result(future, deadline.timeLeft)
+      future.onFailure {
+        case p => println(p)
+      }
+
+      future.onComplete {
+        case p => println(p)
+      }
+    }
+
 
     ???
   }
@@ -96,7 +106,6 @@ class QueryableSinkITCase {
 object QueryableSinkITCase {
 
   private val TEST_TIMEOUT = new FiniteDuration(100, TimeUnit.SECONDS)
-  private val QUERY_RETRY_DELAY = new FiniteDuration(100, TimeUnit.MILLISECONDS)
 
   private var testActorSystem: ActorSystem = _
 
@@ -141,6 +150,38 @@ object QueryableSinkITCase {
     }
     if (testActorSystem != null) {
       testActorSystem.shutdown()
+    }
+  }
+
+  private class TestAscendingValueSource(val maxValue: Long)
+      extends RichParallelSourceFunction[Tuple2[Integer, Long]] {
+
+    private var isRunning = true
+
+    @throws[Exception]
+    override def run(ctx: SourceFunction.SourceContext[Tuple2[Integer, Long]]): Unit = { // f0 => key
+      val key = getRuntimeContext.getIndexOfThisSubtask
+      val record = new Tuple2[Integer, Long](key, 0L)
+      var currentValue = 0
+      while (isRunning && currentValue <= maxValue) {
+        ctx.getCheckpointLock.synchronized {
+          record.f1 = currentValue
+          ctx.collect(record)
+        }
+        currentValue += 1
+      }
+      while (isRunning) {
+        this.synchronized {
+          this.wait()
+        }
+      }
+    }
+
+    override def cancel(): Unit = {
+      isRunning = false
+      this.synchronized {
+        this.notifyAll()
+      }
     }
   }
 }

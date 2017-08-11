@@ -27,6 +27,8 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import _root_.java.lang.{Boolean => JBool}
 
+import org.apache.flink.table.typeutils.FieldTypeUtils
+
 /**
   * The [[TableEnvironment]] for a Java [[StreamExecutionEnvironment]].
   *
@@ -304,7 +306,7 @@ class StreamTableEnvironment(
       clazz: Class[T],
       queryConfig: StreamQueryConfig): DataStream[T] = {
     val typeInfo = TypeExtractor.createTypeInfo(clazz)
-    TableEnvironment.validateType(typeInfo)
+    FieldTypeUtils.validateType(typeInfo)
     translate[T](table, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(typeInfo)
   }
 
@@ -329,7 +331,7 @@ class StreamTableEnvironment(
       table: Table,
       typeInfo: TypeInformation[T],
       queryConfig: StreamQueryConfig): DataStream[T] = {
-    TableEnvironment.validateType(typeInfo)
+    FieldTypeUtils.validateType(typeInfo)
     translate[T](table, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(typeInfo)
   }
 
@@ -405,7 +407,7 @@ class StreamTableEnvironment(
       queryConfig: StreamQueryConfig): DataStream[JTuple2[JBool, T]] = {
 
     val typeInfo = TypeExtractor.createTypeInfo(clazz)
-    TableEnvironment.validateType(typeInfo)
+    FieldTypeUtils.validateType(typeInfo)
     val resultType = new TupleTypeInfo[JTuple2[JBool, T]](Types.BOOLEAN, typeInfo)
     translate[JTuple2[JBool, T]](
       table,
@@ -437,7 +439,7 @@ class StreamTableEnvironment(
       typeInfo: TypeInformation[T],
       queryConfig: StreamQueryConfig): DataStream[JTuple2[JBool, T]] = {
 
-    TableEnvironment.validateType(typeInfo)
+    FieldTypeUtils.validateType(typeInfo)
     val resultTypeInfo = new TupleTypeInfo[JTuple2[JBool, T]](
       Types.BOOLEAN,
       typeInfo

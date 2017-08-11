@@ -40,6 +40,7 @@ import org.apache.flink.table.plan.schema.{DataSetTable, RowSchema, TableSourceT
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks.{BatchTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
+import org.apache.flink.table.typeutils.FieldTypeUtils
 import org.apache.flink.types.Row
 
 /**
@@ -224,7 +225,7 @@ abstract class BatchTableEnvironment(
     */
   protected def registerDataSetInternal[T](name: String, dataSet: DataSet[T]): Unit = {
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataSet.getType)
+    val (fieldNames, fieldIndexes) = FieldTypeUtils.getFieldInfo[T](dataSet.getType)
     val dataSetTable = new DataSetTable[T](
       dataSet,
       fieldIndexes,
@@ -245,7 +246,7 @@ abstract class BatchTableEnvironment(
   protected def registerDataSetInternal[T](
       name: String, dataSet: DataSet[T], fields: Array[Expression]): Unit = {
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](
+    val (fieldNames, fieldIndexes) = FieldTypeUtils.getFieldInfo[T](
       dataSet.getType,
       fields)
 
@@ -350,7 +351,7 @@ abstract class BatchTableEnvironment(
       logicalPlan: RelNode,
       logicalType: RelDataType)
       (implicit tpe: TypeInformation[A]): DataSet[A] = {
-    TableEnvironment.validateType(tpe)
+    FieldTypeUtils.validateType(tpe)
 
     logicalPlan match {
       case node: DataSetRel =>

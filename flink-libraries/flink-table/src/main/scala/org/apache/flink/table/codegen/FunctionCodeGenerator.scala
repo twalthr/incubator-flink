@@ -18,12 +18,14 @@
 package org.apache.flink.table.codegen
 
 import org.apache.flink.api.common.functions._
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
+import org.apache.flink.types.Row
 
 /**
   * A code generator for generating Flink [[org.apache.flink.api.common.functions.Function]]s.
@@ -173,5 +175,96 @@ class FunctionCodeGenerator(
     """.stripMargin
 
     GeneratedFunction(funcName, returnType, funcCode)
+  }
+}
+
+object FunctionCodeGenerator {
+
+  /**
+    * Generates a MapFunction for converting a internal row type into the requested
+    * type with given field names and types.
+    */
+  def generateRowConverter[OUT](
+      tableConfig: TableConfig,
+      inputTypeInfo: TypeInformation[Row],
+      requestedTypeInfo: TypeInformation[OUT],
+      fieldTypes: Seq[TypeInformation[_]],
+      fieldNames: Seq[String],
+      functionName: String)
+    : GeneratedFunction[MapFunction[Row, OUT], OUT] = {
+
+    // validate requested type
+    if (requestedTypeInfo.getArity != fieldTypes.length) {
+      throw new TableException(
+        s"Arity[${fieldTypes.length}] of result[$fieldTypes] does not match " +
+        s"the number[${requestedTypeInfo.getArity}] of requested type[$requestedTypeInfo].")
+    }
+
+    requestedTypeInfo match {
+      // POJO type requested
+      case pt: PojoTypeInfo[_] =>
+        fieldNames.zip(fieldTypes) foreach {
+          case (fName, fType) =>
+            val pojoIdx = pt.getFieldIndex(fName)
+            if (pojoIdx < 0) {
+              throw new TableException(s"POJO does not define field name: $fName")
+            }
+            val requestedTypeInfo = pt.getTypeAt(pojoIdx)
+            if (fType != requestedTypeInfo) {
+              throw new TableException(s"Result field does not match requested type. " +
+                s"requested: $requestedTypeInfo; Actual: $fType")
+            }
+        }
+
+      // Tuple/Case class/Row type requested
+      case tt: TupleTypeInfoBase[_] =>
+        fieldTypes.zipWithIndex foreach {
+          case (fieldTypeInfo, i) =>
+            val requestedTypeInfo = tt.getTypeAt(i)
+            if (fieldTypeInfo != requestedTypeInfo) {
+              throw new TableException(s"Result field does not match requested type. " +
+                s"Requested: $requestedTypeInfo; Actual: $fieldTypeInfo")
+            }
+        }
+
+      // Atomic type requested
+      case at: AtomicType[_] =>
+        if (fieldTypes.size != 1) {
+          throw new TableException(s"Requested result type is an atomic type but " +
+            s"result[$fieldTypes] has more or less than a single field.")
+        }
+        val fieldTypeInfo = fieldTypes.head
+        if (fieldTypeInfo != at) {
+          throw new TableException(s"Result field does not match requested type. " +
+            s"Requested: $at; Actual: $fieldTypeInfo")
+        }
+
+      case _ =>
+        throw new TableException(s"Unsupported result type: $requestedTypeInfo")
+    }
+
+    // code generate MapFunction
+    val generator = new FunctionCodeGenerator(
+      tableConfig,
+      false,
+      inputTypeInfo,
+      None,
+      None)
+
+    val conversion = generator.generateConverterResultExpression(
+      requestedTypeInfo,
+      fieldNames)
+
+    val body =
+      s"""
+         |${conversion.code}
+         |return ${conversion.resultTerm};
+         |""".stripMargin
+
+    generator.generateFunction(
+      functionName,
+      classOf[MapFunction[Row, OUT]],
+      body,
+      requestedTypeInfo)
   }
 }

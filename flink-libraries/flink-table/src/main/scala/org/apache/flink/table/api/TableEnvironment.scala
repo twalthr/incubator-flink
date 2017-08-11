@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api
 
-import _root_.java.lang.reflect.Modifier
 import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import com.google.common.collect.ImmutableList
@@ -36,11 +35,8 @@ import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
 import org.apache.calcite.tools._
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils._
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
@@ -49,26 +45,20 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
-import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions, _}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{RelTable, RowSchema}
 import org.apache.flink.table.sinks.TableSink
-import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
+import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.TableEnvironment.validateInputType
 
-import _root_.scala.collection.JavaConverters._
-import _root_.scala.collection.mutable.HashMap
 import _root_.scala.annotation.varargs
+import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.mutable
 
 /**
   * The abstract base class for batch and stream TableEnvironments.
@@ -109,10 +99,10 @@ abstract class TableEnvironment(val config: TableConfig) {
   private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
 
   // registered external catalog names -> catalog
-  private val externalCatalogs = new HashMap[String, ExternalCatalog]
+  private val externalCatalogs = new mutable.HashMap[String, ExternalCatalog]
 
   /** Returns the table config to define the runtime behavior of the Table API. */
-  def getConfig = config
+  def getConfig: TableConfig = config
 
   /**
     * Returns the operator table for this environment including a custom Calcite configuration.
@@ -595,218 +585,32 @@ abstract class TableEnvironment(val config: TableConfig) {
     frameworkConfig
   }
 
-  /**
-    * Returns field names and field positions for a given [[TypeInformation]].
-    *
-    * @param inputType The TypeInformation extract the field names and positions from.
-    * @tparam A The type of the TypeInformation.
-    * @return A tuple of two arrays holding the field names and corresponding field positions.
-    */
-  protected[flink] def getFieldInfo[A](inputType: TypeInformation[A])
-    : (Array[String], Array[Int]) = {
-
-    validateInputType(inputType)
-
-    (TableEnvironment.getFieldNames(inputType), TableEnvironment.getFieldIndices(inputType))
-  }
-
-  /**
-    * Returns field names and field positions for a given [[TypeInformation]] and [[Array]] of
-    * [[Expression]]. It does not handle time attributes but considers them in indices.
-    *
-    * @param inputType The [[TypeInformation]] against which the [[Expression]]s are evaluated.
-    * @param exprs     The expressions that define the field names.
-    * @tparam A The type of the TypeInformation.
-    * @return A tuple of two arrays holding the field names and corresponding field positions.
-    */
-  protected[flink] def getFieldInfo[A](
-      inputType: TypeInformation[A],
-      exprs: Array[Expression])
-    : (Array[String], Array[Int]) = {
-
-   validateInputType(inputType)
-
-    val indexedNames: Array[(Int, String)] = inputType match {
-      case a: AtomicType[_] =>
-        exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(name), idx) =>
-            if (idx > 0) {
-              throw new TableException("Table of atomic type can only have a single field.")
-            }
-            Some((0, name))
-          case _ => throw new TableException("Field reference expression requested.")
-        }
-      case t: TupleTypeInfo[A] =>
-        exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(name), idx) =>
-            Some((idx, name))
-          case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
-            val idx = t.getFieldIndex(origName)
-            if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $t")
-            }
-            Some((idx, name))
-          case (_: TimeAttribute, _) =>
-            None
-          case _ => throw new TableException(
-            "Field reference expression or alias on field expression expected.")
-        }
-      case c: CaseClassTypeInfo[A] =>
-        exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(name), idx) =>
-            Some((idx, name))
-          case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
-            val idx = c.getFieldIndex(origName)
-            if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $c")
-            }
-            Some((idx, name))
-          case (_: TimeAttribute, _) =>
-            None
-          case _ => throw new TableException(
-            "Field reference expression or alias on field expression expected.")
-        }
-      case p: PojoTypeInfo[A] =>
-        exprs flatMap {
-          case (UnresolvedFieldReference(name)) =>
-            val idx = p.getFieldIndex(name)
-            if (idx < 0) {
-              throw new TableException(s"$name is not a field of type $p")
-            }
-            Some((idx, name))
-          case Alias(UnresolvedFieldReference(origName), name, _) =>
-            val idx = p.getFieldIndex(origName)
-            if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $p")
-            }
-            Some((idx, name))
-          case _: TimeAttribute =>
-            None
-          case _ => throw new TableException(
-            "Field reference expression or alias on field expression expected.")
-        }
-      case r: RowTypeInfo => {
-        exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(name), idx) =>
-            Some((idx, name))
-          case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
-            val idx = r.getFieldIndex(origName)
-            if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $r")
-            }
-            Some((idx, name))
-          case (_: TimeAttribute, _) =>
-            None
-          case _ => throw new TableException(
-            "Field reference expression or alias on field expression expected.")
-        }
-        
-      }
-      case tpe => throw new TableException(
-        s"Source of type $tpe cannot be converted into Table.")
-    }
-
-    val (fieldIndexes, fieldNames) = indexedNames.unzip
-
-    if (fieldNames.contains("*")) {
-      throw new TableException("Field name can not be '*'.")
-    }
-
-    (fieldNames.toArray, fieldIndexes.toArray)
-  }
-
   protected def generateRowConverterFunction[OUT](
       inputTypeInfo: TypeInformation[Row],
       schema: RowSchema,
       requestedTypeInfo: TypeInformation[OUT],
-      functionName: String):
-    GeneratedFunction[MapFunction[Row, OUT], OUT] = {
+      functionName: String)
+    : GeneratedFunction[MapFunction[Row, OUT], OUT] = {
 
     // validate that at least the field types of physical and logical type match
     // we do that here to make sure that plan translation was correct
     if (schema.physicalTypeInfo != inputTypeInfo) {
       throw TableException(
         s"The field types of physical and logical row types do not match. " +
-        s"Physical type is [${schema.physicalTypeInfo}], Logical type is [${inputTypeInfo}]. " +
+        s"Physical type is [${schema.physicalTypeInfo}], Logical type is [$inputTypeInfo]. " +
         s"This is a bug and should not happen. Please file an issue.")
     }
 
     val fieldTypes = schema.physicalFieldTypeInfo
     val fieldNames = schema.physicalFieldNames
 
-    // validate requested type
-    if (requestedTypeInfo.getArity != fieldTypes.length) {
-      throw new TableException(
-        s"Arity[${fieldTypes.length}] of result[${fieldTypes}] does not match " +
-        s"the number[${requestedTypeInfo.getArity}] of requested type[${requestedTypeInfo}].")
-    }
-
-    requestedTypeInfo match {
-      // POJO type requested
-      case pt: PojoTypeInfo[_] =>
-        fieldNames.zip(fieldTypes) foreach {
-          case (fName, fType) =>
-            val pojoIdx = pt.getFieldIndex(fName)
-            if (pojoIdx < 0) {
-              throw new TableException(s"POJO does not define field name: $fName")
-            }
-            val requestedTypeInfo = pt.getTypeAt(pojoIdx)
-            if (fType != requestedTypeInfo) {
-              throw new TableException(s"Result field does not match requested type. " +
-                s"requested: $requestedTypeInfo; Actual: $fType")
-            }
-        }
-
-      // Tuple/Case class/Row type requested
-      case tt: TupleTypeInfoBase[_] =>
-        fieldTypes.zipWithIndex foreach {
-          case (fieldTypeInfo, i) =>
-            val requestedTypeInfo = tt.getTypeAt(i)
-            if (fieldTypeInfo != requestedTypeInfo) {
-              throw new TableException(s"Result field does not match requested type. " +
-                s"Requested: $requestedTypeInfo; Actual: $fieldTypeInfo")
-            }
-        }
-
-      // Atomic type requested
-      case at: AtomicType[_] =>
-        if (fieldTypes.size != 1) {
-          throw new TableException(s"Requested result type is an atomic type but " +
-            s"result[$fieldTypes] has more or less than a single field.")
-        }
-        val fieldTypeInfo = fieldTypes.head
-        if (fieldTypeInfo != at) {
-          throw new TableException(s"Result field does not match requested type. " +
-            s"Requested: $at; Actual: $fieldTypeInfo")
-        }
-
-      case _ =>
-        throw new TableException(s"Unsupported result type: $requestedTypeInfo")
-    }
-
-    // code generate MapFunction
-    val generator = new FunctionCodeGenerator(
+    FunctionCodeGenerator.generateRowConverter(
       config,
-      false,
       inputTypeInfo,
-      None,
-      None)
-
-    val conversion = generator.generateConverterResultExpression(
       requestedTypeInfo,
-      fieldNames)
-
-    val body =
-      s"""
-         |${conversion.code}
-         |return ${conversion.resultTerm};
-         |""".stripMargin
-
-    generator.generateFunction(
-      functionName,
-      classOf[MapFunction[Row, OUT]],
-      body,
-      requestedTypeInfo)
+      fieldTypes,
+      fieldNames,
+      functionName)
   }
 }
 
@@ -903,118 +707,5 @@ object TableEnvironment {
     tableConfig: TableConfig): ScalaStreamTableEnv = {
 
     new ScalaStreamTableEnv(executionEnvironment, tableConfig)
-  }
-
-  /**
-    * Returns field names for a given [[TypeInformation]].
-    *
-    * @param inputType The TypeInformation extract the field names.
-    * @tparam A The type of the TypeInformation.
-    * @return An array holding the field names
-    */
-  def getFieldNames[A](inputType: TypeInformation[A]): Array[String] = {
-    validateType(inputType)
-
-    val fieldNames: Array[String] = inputType match {
-      case t: CompositeType[_] => t.getFieldNames
-      case a: AtomicType[_] => Array("f0")
-      case tpe =>
-        throw new TableException(s"Currently only CompositeType and AtomicType are supported. " +
-          s"Type $tpe lacks explicit field naming")
-    }
-
-    if (fieldNames.contains("*")) {
-      throw new TableException("Field name can not be '*'.")
-    }
-
-    fieldNames
-  }
-
-  /**
-    * Validate if class represented by the typeInfo is static and globally accessible
-    * @param typeInfo type to check
-    * @throws TableException if type does not meet these criteria
-    */
-  def validateType(typeInfo: TypeInformation[_]): Unit = {
-    val clazz = typeInfo.getTypeClass
-    if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) ||
-      !Modifier.isPublic(clazz.getModifiers) ||
-      clazz.getCanonicalName == null) {
-      throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
-        s"static and globally accessible.")
-    }
-  }
-
-  /**
-    * Validate if type information is a valid input type.
-    *
-    * @param typeInfo type to check
-    * @throws TableException if type does not meet these criteria
-    */
-  def validateInputType(typeInfo: TypeInformation[_]): Unit = {
-    val clazz = typeInfo.getTypeClass
-    if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) ||
-      !Modifier.isPublic(clazz.getModifiers) ||
-      clazz.getCanonicalName == null) {
-      throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
-        s"static and globally accessible.")
-    }
-
-    if (typeInfo.isInstanceOf[GenericTypeInfo[_]] && typeInfo.getTypeClass == classOf[Row]) {
-      throw new TableException(
-        "A type of GenericTypeInfo<Row> has no information about a row's fields. " +
-          "Please specify the type with Types.ROW(...).")
-    }
-  }
-
-  /**
-    * Returns field indexes for a given [[TypeInformation]].
-    *
-    * @param inputType The TypeInformation extract the field positions from.
-    * @return An array holding the field positions
-    */
-  def getFieldIndices(inputType: TypeInformation[_]): Array[Int] = {
-    getFieldNames(inputType).indices.toArray
-  }
-
-  /**
-    * Returns field types for a given [[TypeInformation]].
-    *
-    * @param inputType The TypeInformation to extract field types from.
-    * @return An array holding the field types.
-    */
-  def getFieldTypes(inputType: TypeInformation[_]): Array[TypeInformation[_]] = {
-    validateType(inputType)
-
-    inputType match {
-      case t: CompositeType[_] => 0.until(t.getArity).map(t.getTypeAt(_)).toArray
-      case a: AtomicType[_] => Array(a.asInstanceOf[TypeInformation[_]])
-      case tpe =>
-        throw new TableException(s"Currently only CompositeType and AtomicType are supported.")
-    }
-  }
-
-  /**
-    * Returns field names for a given [[TableSource]].
-    *
-    * @param tableSource The TableSource to extract field names from.
-    * @tparam A The type of the TableSource.
-    * @return An array holding the field names.
-    */
-  def getFieldNames[A](tableSource: TableSource[A]): Array[String] = tableSource match {
-      case d: DefinedFieldNames => d.getFieldNames
-      case _ => TableEnvironment.getFieldNames(tableSource.getReturnType)
-    }
-
-  /**
-    * Returns field indices for a given [[TableSource]].
-    *
-    * @param tableSource The TableSource to extract field indices from.
-    * @tparam A The type of the TableSource.
-    * @return An array holding the field indices.
-    */
-  def getFieldIndices[A](tableSource: TableSource[A]): Array[Int] = tableSource match {
-    case d: DefinedFieldNames => d.getFieldIndices
-    case _ => TableEnvironment.getFieldIndices(tableSource.getReturnType)
   }
 }

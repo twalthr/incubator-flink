@@ -20,16 +20,16 @@ package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableEnvironment}
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
-import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.sources._
-import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.plan.schema.{RowSchema, TableSourceTable}
 import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.sources.{StreamTableSource, TableSource, _}
+import org.apache.flink.table.typeutils.FieldTypeUtils
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
 class StreamTableSourceScan(
@@ -40,11 +40,11 @@ class StreamTableSourceScan(
   extends PhysicalTableSourceScan(cluster, traitSet, table, tableSource)
   with StreamScan {
 
-  override def deriveRowType() = {
+  override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
-    val fieldNames = TableEnvironment.getFieldNames(tableSource).toList
-    val fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
+    val fieldNames = FieldTypeUtils.getFieldNames(tableSource).toList
+    val fieldTypes = FieldTypeUtils.getFieldTypes(tableSource.getReturnType).toList
 
     val fieldCnt = fieldNames.length
 

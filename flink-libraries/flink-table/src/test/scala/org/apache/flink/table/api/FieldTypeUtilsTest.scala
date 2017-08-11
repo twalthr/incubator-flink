@@ -24,14 +24,13 @@ import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo, TupleT
 import org.apache.flink.api.scala._
 import org.apache.flink.table.expressions.{Alias, UnresolvedFieldReference}
 import org.apache.flink.table.runtime.types.CRowTypeInfo
-import org.apache.flink.table.utils.{MockTableEnvironment, TableTestBase}
+import org.apache.flink.table.typeutils.FieldTypeUtils
+import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class TableEnvironmentTest extends TableTestBase {
-
-  val tEnv = new MockTableEnvironment
+class FieldTypeUtilsTest extends TableTestBase {
 
   val tupleType = new TupleTypeInfo(
     INT_TYPE_INFO,
@@ -52,7 +51,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoRow(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(rowType)
+    val fieldInfo = FieldTypeUtils.getFieldInfo(rowType)
 
     fieldInfo._1.zip(Array("f0", "f1", "f2")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
@@ -60,7 +59,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoRowNames(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
+    val fieldInfo = FieldTypeUtils.getFieldInfo(
       rowType,
       Array(
         UnresolvedFieldReference("name1"),
@@ -74,7 +73,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoTuple(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(tupleType)
+    val fieldInfo = FieldTypeUtils.getFieldInfo(tupleType)
 
     fieldInfo._1.zip(Array("f0", "f1", "f2")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
@@ -82,7 +81,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoCClass(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(caseClassType)
+    val fieldInfo = FieldTypeUtils.getFieldInfo(caseClassType)
 
     fieldInfo._1.zip(Array("cf1", "cf2", "cf3")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
@@ -90,7 +89,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoPojo(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(pojoType)
+    val fieldInfo = FieldTypeUtils.getFieldInfo(pojoType)
 
     fieldInfo._1.zip(Array("pf1", "pf2", "pf3")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
@@ -98,7 +97,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoAtomic(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(atomicType)
+    val fieldInfo = FieldTypeUtils.getFieldInfo(atomicType)
 
     fieldInfo._1.zip(Array("f0")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0)).foreach(x => assertEquals(x._2, x._1))
@@ -106,7 +105,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoTupleNames(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
+    val fieldInfo = FieldTypeUtils.getFieldInfo(
       tupleType,
       Array(
         UnresolvedFieldReference("name1"),
@@ -120,7 +119,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoCClassNames(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
+    val fieldInfo = FieldTypeUtils.getFieldInfo(
       caseClassType,
       Array(
         UnresolvedFieldReference("name1"),
@@ -134,7 +133,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoPojoNames2(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
+    val fieldInfo = FieldTypeUtils.getFieldInfo(
       pojoType,
       Array(
         UnresolvedFieldReference("pf3"),
@@ -148,7 +147,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoAtomicName1(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
+    val fieldInfo = FieldTypeUtils.getFieldInfo(
       atomicType,
       Array(UnresolvedFieldReference("name")))
 
@@ -158,7 +157,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoTupleAlias1(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
+    val fieldInfo = FieldTypeUtils.getFieldInfo(
       tupleType,
       Array(
         Alias(UnresolvedFieldReference("f0"), "name1"),
@@ -172,7 +171,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoTupleAlias2(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
+    val fieldInfo = FieldTypeUtils.getFieldInfo(
       tupleType,
       Array(
         Alias(UnresolvedFieldReference("f2"), "name1"),
@@ -186,7 +185,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoCClassAlias1(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
+    val fieldInfo = FieldTypeUtils.getFieldInfo(
       caseClassType,
       Array(
         Alias(UnresolvedFieldReference("cf1"), "name1"),
@@ -200,7 +199,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoCClassAlias2(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
+    val fieldInfo = FieldTypeUtils.getFieldInfo(
       caseClassType,
       Array(
         Alias(UnresolvedFieldReference("cf3"), "name1"),
@@ -214,7 +213,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoPojoAlias1(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
+    val fieldInfo = FieldTypeUtils.getFieldInfo(
       pojoType,
       Array(
         Alias(UnresolvedFieldReference("pf1"), "name1"),
@@ -228,7 +227,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testGetFieldInfoPojoAlias2(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
+    val fieldInfo = FieldTypeUtils.getFieldInfo(
       pojoType,
       Array(
         Alias(UnresolvedFieldReference("pf3"), "name1"),

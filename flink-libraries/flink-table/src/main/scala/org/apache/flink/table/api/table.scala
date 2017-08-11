@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.scala._
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
@@ -801,26 +802,29 @@ class Table(
   }
 
   def toQueryableSink[T: TypeInformation](name: String): Unit = {
-    val returnType = createTypeInformation[T]
-    val streamConf = this.tableEnv match {
-      case s: StreamTableEnvironment => s.queryConfig
-      case _ =>
-        throw new ValidationException(
-          "The QueryableSink is only supported in a streaming environment.")
+
+    val streamConf = tableEnv match {
+      case ste: StreamTableEnvironment => ste.queryConfig
+      case _ => throw new ValidationException(
+        "The queryable table sink is only available in streaming environment.")
     }
-    writeToSink(new QueryableTableSink(name, returnType, streamConf), streamConf)
+
+    val stateType = createTypeInformation[T]
+
+    writeToSink(new QueryableTableSink(name, stateType, tableEnv.config, streamConf))
   }
 
-  def toQueryableSink[T: TypeInformation](name: String, conf: QueryConfig): Unit = {
-    val streamConf = (this.tableEnv, conf) match {
-      case (_: StreamTableEnvironment, conf: StreamQueryConfig) =>
-        conf
-      case _ =>
-        throw new ValidationException(
-          "The QueryableSink is only supported in a streaming environment.")
+  def toQueryableSink[T: TypeInformation](name: String, conf: StreamQueryConfig): Unit = {
+
+    val streamConf = tableEnv match {
+      case _: StreamTableEnvironment => conf
+      case _ => throw new ValidationException(
+        "The queryable table sink is only available in streaming environment.")
     }
-    val returnType = createTypeInformation[T]
-    writeToSink(new QueryableTableSink(name, returnType, streamConf), streamConf)
+
+    val stateType = createTypeInformation[T]
+
+    writeToSink(new QueryableTableSink(name, stateType, tableEnv.config, streamConf), conf)
   }
 
   /**
