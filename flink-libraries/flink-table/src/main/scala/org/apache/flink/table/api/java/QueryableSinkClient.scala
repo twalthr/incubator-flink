@@ -36,7 +36,7 @@ class QueryableSinkClient(
     * @tparam V value type
     * @return sink query targeted to the specified queryable table sink
     */
-  def query[V](
+  def queryByKeys[V](
       jobId: String,
       sinkName: String,
       keyType: TypeInformation[Row],

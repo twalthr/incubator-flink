@@ -48,4 +48,10 @@ abstract class QueryableSinkClient(
   protected val execConfig: ExecutionConfig =
     StreamExecutionEnvironment.getExecutionEnvironment.getConfig
 
+  /**
+    * Shuts down the client.
+    */
+  def shutdown(): Unit = {
+    client.shutDown()
+  }
 }
