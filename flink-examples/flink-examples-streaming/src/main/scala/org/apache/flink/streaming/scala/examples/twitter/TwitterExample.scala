@@ -128,13 +128,13 @@ object TwitterExample {
       val jsonNode = jsonParser.readValue(value, classOf[JsonNode])
       val isEnglish = jsonNode.has("user") &&
         jsonNode.get("user").has("lang") &&
-        jsonNode.get("user").get("lang").asText == "en"
+        jsonNode.get("user").get("lang").getTextValue == "en"
       val hasText = jsonNode.has("text")
 
       (isEnglish, hasText, jsonNode) match {
         case (true, true, node) => {
           val tokens = new ListBuffer[(String, Int)]()
-          val tokenizer = new StringTokenizer(node.get("text").asText())
+          val tokenizer = new StringTokenizer(node.get("text").getTextValue)
 
           while (tokenizer.hasMoreTokens) {
             val token = tokenizer.nextToken().replaceAll("\\s*", "").toLowerCase()

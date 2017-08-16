@@ -94,7 +94,7 @@ class KryoGenericTypeSerializerTest {
   @Test
   def jodaSerialization(): Unit = {
     val a = List(new LocalDate(1), new LocalDate(2))
-    
+
     runTests(a)
   }
 

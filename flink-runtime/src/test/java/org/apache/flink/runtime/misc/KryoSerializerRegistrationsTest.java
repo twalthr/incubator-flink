@@ -69,10 +69,7 @@ public class KryoSerializerRegistrationsTest {
 
 				Registration registration = kryo.getRegistration(tag);
 
-				if (registration == null) {
-					fail(String.format("Registration for %d = %s got lost", tag, registeredClass));
-				}
-				else if (!registeredClass.equals(registration.getType().getName())) {
+				if (!registeredClass.equals(registration.getType().getName())) {
 					fail(String.format("Registration for %d = %s changed to %s",
 							tag, registeredClass, registration.getType().getName()));
 				}
