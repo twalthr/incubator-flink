@@ -45,6 +45,8 @@ import java.util.Properties;
  */
 public abstract class KafkaAvroTableSource extends KafkaTableSource {
 
+	public final Class specificRecordClazz;
+
 	/**
 	 * Creates a generic Kafka Avro {@link StreamTableSource} using a given {@link SpecificRecord}.
 	 *
@@ -62,6 +64,8 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource {
 			properties,
 			createDeserializationSchema(avroClass),
 			convertToRowTypeInformation(avroClass));
+
+		this.specificRecordClazz = avroClass;
 	}
 
 	private static AvroRowDeserializationSchema createDeserializationSchema(Class<? extends SpecificRecordBase> record) {
@@ -104,5 +108,10 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource {
 			}
 		}
 		return extracted;
+	}
+
+	@Override
+	public String explainSource() {
+		return "KafkaAvroTableSource(" + this.specificRecordClazz.getSimpleName() + ")";
 	}
 }

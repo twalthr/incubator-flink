@@ -68,4 +68,9 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource {
 
 		return new JsonRowDeserializationSchema(typeInfo);
 	}
+
+	@Override
+	public String explainSource() {
+		return "KafkaJSONTableSource";
+	}
 }
