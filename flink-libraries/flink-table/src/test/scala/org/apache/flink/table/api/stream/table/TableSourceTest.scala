@@ -128,7 +128,7 @@ class TestRowtimeSource(timeField: String)
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = ???
 
-  override def getRowtimeAttribute: String = timeField
+  override def getRowTimeAttribute: String = timeField
 
   override def getReturnType: TypeInformation[Row] = {
     new RowTypeInfo(
@@ -142,7 +142,7 @@ class TestProctimeSource(timeField: String)
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = ???
 
-  override def getProctimeAttribute: String = timeField
+  override def getProcTimeAttribute: String = timeField
 
   override def getReturnType: TypeInformation[Row] = {
     new RowTypeInfo(

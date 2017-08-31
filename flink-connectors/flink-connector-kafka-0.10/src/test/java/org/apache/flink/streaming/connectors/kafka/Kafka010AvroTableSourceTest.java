@@ -33,10 +33,16 @@ public class Kafka010AvroTableSourceTest extends KafkaTableSourceTestBase {
 	@Override
 	protected KafkaTableSource createTableSource(String topic, Properties properties, TypeInformation<Row> typeInfo) {
 
-		return new Kafka010AvroTableSource(
+		KafkaTableSource x = new Kafka010AvroTableSource(
 			topic,
 			properties,
 			AvroSpecificRecord.class);
+
+		x.withAscendingRowTimeAttribute("mylong");
+
+		TypeInformation xxx = x.getReturnType();
+
+		return x;
 	}
 
 	@Override

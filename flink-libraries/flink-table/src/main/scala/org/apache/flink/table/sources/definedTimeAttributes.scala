@@ -35,7 +35,7 @@ trait DefinedRowtimeAttribute {
     *
     * The field will be appended to the schema provided by the [[TableSource]].
     */
-  def getRowtimeAttribute: String
+  def getRowTimeAttribute: String
 }
 
 /**
@@ -55,6 +55,6 @@ trait DefinedProctimeAttribute {
     *
     * The field will be appended to the schema provided by the [[TableSource]].
     */
-  def getProctimeAttribute: String
+  def getProcTimeAttribute: String
 
 }
