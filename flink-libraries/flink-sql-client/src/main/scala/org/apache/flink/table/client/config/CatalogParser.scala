@@ -27,25 +27,31 @@ import org.apache.flink.table.api.TableException
 /**
   * Parser for the SQL client schema configuration.
   */
-object ClientParser {
+object CatalogParser {
 
-  def parseSchema(path: File): SchemaNode = {
+  def parseCatalog(path: File): CatalogNode = {
     val mapper = new ObjectMapper()
     mapper.configure(JsonGenerator.Feature.QUOTE_FIELD_NAMES, false)
     mapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     try {
-      mapper.readValue(path, classOf[SchemaNode])
+      val catalog = mapper.readValue(path, classOf[CatalogNode])
+      catalog.validate()
+
+      catalog
     } catch {
       case ioe: IOException =>
-        throw TableException("Could not read schema configuration file.", ioe)
+        throw TableException("Could not read catalog file.", ioe)
       case jpe: JsonParseException =>
-        throw TableException("The JSON of the schema configuration file is invalid.", jpe)
+        throw TableException("The JSON of the catalog file is invalid.", jpe)
       case jme: JsonMappingException =>
-        throw TableException("The JSON of the schema configuration file is invalid.", jme)
+        throw TableException("The JSON of the catalog file is invalid.", jme)
     }
   }
+}
+
+object ConfigParser {
 
   def parseConfig(path: File): ConfigNode = {
     val mapper = new ObjectMapper()
@@ -54,7 +60,10 @@ object ClientParser {
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     try {
-      mapper.readValue(path, classOf[ConfigNode])
+      val config = mapper.readValue(path, classOf[ConfigNode])
+      config.validate()
+
+      config
     } catch {
       case ioe: IOException =>
         throw TableException("Could not read client configuration file.", ioe)

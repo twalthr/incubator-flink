@@ -18,68 +18,52 @@
 
 package org.apache.flink.table.client.config
 
-import java.util
 import java.lang.{Long => JLong}
+import java.util
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.apache.flink.table.api.ValidationException
 
-import scala.beans.BeanProperty
 import _root_.scala.collection.JavaConversions._
+import scala.beans.BeanProperty
 
 trait Validatable {
   def validate()
 }
 
 case class ConfigNode(
-    @BeanProperty @JsonProperty("output") output: String,
-    @BeanProperty @JsonProperty("classpath") classpath: Array[String],
-    @BeanProperty @JsonProperty("watermark_interval") watermarkInterval: JLong,
-    @BeanProperty @JsonProperty("defaults") defaults: DefaultsNode)
+  @BeanProperty @JsonProperty("classpath") classpath: Array[String],
+  @BeanProperty @JsonProperty("watermark_interval") watermarkInterval: JLong,
+  @BeanProperty @JsonProperty("kafka") kafka: KafkaOutputNode)
   extends Validatable {
 
-  def this() = this(null, null)
-
-  override def validate(): Unit = {
-    if (output == null || output.toLowerCase != "kafka") {
-      throw ValidationException("Kafka sink is the only supported output yet.")
-    }
-    if (defaults != null) {
-      defaults.validate()
-    }
-  }
-}
-
-case class DefaultsNode(
-    @BeanProperty @JsonProperty("kafka") kafka: KafkaDefaultsNode)
-  extends Validatable {
-
-  def this() = this(null)
+  def this() = this(null, null, null)
 
   override def validate(): Unit = {
     if (kafka == null) {
-      throw ValidationException("Kafka defaults are required.")
+      throw new ValidationException("Flink SQL client requires a Kafka configuration.")
+    } else {
+      kafka.validate()
     }
-    kafka.validate()
   }
 }
 
-case class KafkaDefaultsNode(
-    @BeanProperty @JsonProperty("properties") properties: util.Map[String, String],
-    @BeanProperty @JsonProperty("output_topic_prefix") outputTopicPrefix: String)
+case class KafkaOutputNode(
+  @BeanProperty @JsonProperty("properties") properties: util.Map[String, String],
+  @BeanProperty @JsonProperty("output-topic-prefix") outputTopicPrefix: String)
   extends Validatable {
 
   def this() = this(null, null)
 
   override def validate(): Unit = {
-    if (outputTopicPrefix != null) {
+    if (outputTopicPrefix == null) {
       throw ValidationException("Kafka needs a default output topic prefix.")
     }
   }
 }
 
-case class SchemaNode(
-    @BeanProperty @JsonProperty("tables") tables: util.List[TableNode])
+case class CatalogNode(
+  @BeanProperty @JsonProperty("tables") tables: util.List[TableNode])
   extends Validatable {
 
   def this() = this(null)
@@ -93,11 +77,11 @@ case class SchemaNode(
 }
 
 case class TableNode(
-    @BeanProperty @JsonProperty("name") name: String,
-    @BeanProperty @JsonProperty("source") source: SourceNode,
-    @BeanProperty @JsonProperty("encoding") encoding: EncodingNode,
-    @BeanProperty @JsonProperty("rowtime") rowtime: RowtimeNode,
-    @BeanProperty @JsonProperty("proctime") proctime: String)
+  @BeanProperty @JsonProperty("name") name: String,
+  @BeanProperty @JsonProperty("source") source: SourceNode,
+  @BeanProperty @JsonProperty("encoding") encoding: EncodingNode,
+  @BeanProperty @JsonProperty("rowtime") rowtime: RowtimeNode,
+  @BeanProperty @JsonProperty("proctime") proctime: String)
   extends Validatable {
 
   def this() = this(null, null, null, null, null)
@@ -122,32 +106,27 @@ case class TableNode(
 }
 
 case class SourceNode(
-    @BeanProperty @JsonProperty("type") tpe: String,
-    @BeanProperty @JsonProperty("topic") topic: String,
-    @BeanProperty @JsonProperty("properties") properties: util.Map[String, String])
+  @BeanProperty @JsonProperty("type") tpe: String,
+  @BeanProperty @JsonProperty("properties") properties: util.Map[String, String])
   extends Validatable {
 
-  def this() = this(null, null, null)
+  def this() = this(null, null)
 
   override def validate(): Unit = {
     if (tpe == null) {
       throw ValidationException(s"Source needs a type.")
     }
 
-    if (tpe.toLowerCase == "kafka") {
-      if (topic == null) {
-        throw ValidationException(s"Kafka source needs a topic definition.")
-      }
-    } else {
+    if (tpe.toLowerCase != "kafka" && tpe.toLowerCase != "demo") {
       throw ValidationException(s"Unsupported source type.")
     }
   }
 }
 
 case class EncodingNode(
-    @BeanProperty @JsonProperty("type") tpe: String,
-    @BeanProperty @JsonProperty("class") clazz: String,
-    @BeanProperty @JsonProperty("schema") schema: Array[String])
+  @BeanProperty @JsonProperty("type") tpe: String,
+  @BeanProperty @JsonProperty("class") clazz: String,
+  @BeanProperty @JsonProperty("schema") schema: Array[FieldNode])
   extends Validatable {
 
   def this() = this(null, null, null)
@@ -171,9 +150,9 @@ case class EncodingNode(
 }
 
 case class RowtimeNode(
-    @BeanProperty @JsonProperty("type") tpe: String,
-    @BeanProperty @JsonProperty("field") field: String,
-    @BeanProperty @JsonProperty("watermark") watermark: WatermarkNode)
+  @BeanProperty @JsonProperty("type") tpe: String,
+  @BeanProperty @JsonProperty("field") field: String,
+  @BeanProperty @JsonProperty("watermark") watermark: WatermarkNode)
   extends Validatable {
 
   def this() = this(null, null, null)
@@ -195,8 +174,8 @@ case class RowtimeNode(
 }
 
 case class WatermarkNode(
-    @BeanProperty @JsonProperty("type") tpe: String,
-    @BeanProperty @JsonProperty("lag") lag: JLong)
+  @BeanProperty @JsonProperty("type") tpe: String,
+  @BeanProperty @JsonProperty("lag") lag: JLong)
   extends Validatable {
 
   def this() = this(null, null)
@@ -216,3 +195,26 @@ case class WatermarkNode(
     }
   }
 }
+
+case class FieldNode(
+  @BeanProperty @JsonProperty("name") name: String,
+  @BeanProperty @JsonProperty("type") tpe: String)
+  extends Validatable {
+
+  def this() = this(null, null)
+
+  override def validate() = {
+    if (name == null || name.isEmpty) {
+      throw new ValidationException("Field name must be set.")
+    }
+    if (tpe == null || tpe.isEmpty) {
+      // TODO: Check valid types
+      throw new ValidationException("Field type must be set.")
+    }
+
+
+  }
+
+}
+
+
