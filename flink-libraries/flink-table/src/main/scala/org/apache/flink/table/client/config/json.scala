@@ -22,7 +22,8 @@ import java.util
 import java.lang.{Long => JLong}
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.{Types, ValidationException}
 
 import scala.beans.BeanProperty
 import _root_.scala.collection.JavaConversions._
@@ -167,6 +168,29 @@ case class EncodingNode(
     } else {
       throw ValidationException("Unsupported encoding type.")
     }
+  }
+
+  def getParsedSchema: Seq[(String, TypeInformation[_])] = {
+    schema.map { field =>
+      if (!field.matches("\\S* \\S*")) {
+        throw ValidationException("A field schema must have the following format: " +
+          "'<name> <SQL type>'. E.g. 'myfield VARCHAR'")
+      }
+      val parts = field.split(" ")
+
+      (parts(0), convertType(parts(1).toUpperCase))
+    }
+  }
+
+  private def convertType(sqlType: String): TypeInformation[_] = sqlType match {
+    case "VARCHAR" => Types.STRING
+    case "BOOLEAN" => Types.BOOLEAN
+    case "TINYINT" => Types.SHORT
+    case "INT" | "INTEGER" => Types.INT
+    case "BIGINT" => Types.LONG
+    case "REAL" | "FLOAT" => Types.FLOAT
+    case "DOUBLE" => Types.DOUBLE
+    case _ => ??? // TODO add more data types and also NULL / NOT NULL / ARRAY / ignore KEY
   }
 }
 
