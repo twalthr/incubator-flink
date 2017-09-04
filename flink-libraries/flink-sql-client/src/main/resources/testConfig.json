@@ -1,0 +1,14 @@
+{
+  kafka: {
+    output-topic-prefix: "out",
+    properties: {
+      "bootstrap.servers": "localhost:9092",
+      "zookeeper.connect": "localhost:2181",
+      "group.id": "test"
+    }
+  },
+  classpath: [
+    "/Users/fhueske/test.jar"
+  ],
+  watermarkInterval: 1000
+}

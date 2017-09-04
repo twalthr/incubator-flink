@@ -1,0 +1,42 @@
+{
+  tables: [
+    {
+      name: "TestUsers",
+      source: {
+
+        type: "kafka",
+        properties: {
+          "topic": "testUsers",
+          "bootstrap.servers": "localhost:9092",
+          "zookeeper.connect": "localhost:2181",
+          "group.id": "test"
+        }
+      },
+
+      encoding: {
+
+        type: "json",
+        schema: [
+          {"name": "id", "type": "BIGINT" },
+          {"name": "name", "type": "VARCHAR" }
+        ]
+      },
+
+      rowtime: {
+        type: "ingestion-time",
+        field: "rowtime"
+      },
+
+      proctime: "proctime"
+    },
+    {
+      name: "ClickStream",
+      source: {
+        type: "demo",
+        properties: {
+          "table": "clickstream"
+        }
+      }
+    }
+  ]
+}

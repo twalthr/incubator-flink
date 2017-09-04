@@ -28,6 +28,7 @@ import org.I0Itec.zkclient.serialize.ZkSerializer
 import org.I0Itec.zkclient.{ZkClient, ZkConnection}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -48,15 +49,16 @@ object SqlClient {
 
   def main(args: Array[String]): Unit = {
 
+    val params = ParameterTool.fromArgs(args)
+    val configPath: String = params.getRequired("config")
+    val catalogPath: String = params.getRequired("catalog")
+
     println(
       """
         |####################
         |# FLINK SQL CLIENT #
         |####################
         |""".stripMargin)
-
-    val catalogPath: String = "/Users/fhueske/testCatalog.json"
-    val configPath: String = "/Users/fhueske/testConfig.json"
 
     println("> Loading configuration from: " + configPath)
 
