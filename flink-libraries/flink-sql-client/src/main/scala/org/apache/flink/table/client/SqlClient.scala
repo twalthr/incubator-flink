@@ -19,6 +19,7 @@
 package org.apache.flink.table.client
 
 import java.io.File
+import java.lang.Thread.UncaughtExceptionHandler
 import java.util.{Collections, Properties}
 
 import kafka.admin.{AdminUtils, RackAwareMode}
@@ -26,15 +27,15 @@ import kafka.utils.ZkUtils
 import org.I0Itec.zkclient.exception.ZkMarshallingError
 import org.I0Itec.zkclient.serialize.ZkSerializer
 import org.I0Itec.zkclient.{ZkClient, ZkConnection}
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaProducer010, Kafka010JsonTableSource}
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema
-import org.apache.flink.table.api.{Table, TableEnvironment, Types, ValidationException}
+import org.apache.flink.table.api.{Table, TableEnvironment, ValidationException}
 import org.apache.flink.table.client.config.{CatalogParser, ConfigNode, ConfigParser}
 import org.apache.flink.table.client.demoSource.ClickStreamTableSource
 import org.apache.flink.table.sources.StreamTableSource
@@ -42,6 +43,7 @@ import org.apache.flink.types.Row
 import org.apache.kafka.clients.consumer.{ConsumerRecords, KafkaConsumer}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.io.StdIn
 import scala.util.Random
 
@@ -53,27 +55,26 @@ object SqlClient {
     val configPath: String = params.getRequired("config")
     val catalogPath: String = params.getRequired("catalog")
 
-    println(
-      """
-        |####################
-        |# FLINK SQL CLIENT #
-        |####################
-        |""".stripMargin)
+    printWelcome()
 
     println("> Loading configuration from: " + configPath)
 
     // read config
     val config: ConfigNode = ConfigParser.parseConfig(new File(configPath))
-    // configure Kafka output
-    val outputTopicPrefix = config.kafka.outputTopicPrefix
-    val outputKafkaProps = new Properties()
-    outputKafkaProps.putAll(config.kafka.properties)
+
     val watermarkInterval: Long = config.watermarkInterval
 
     println("> Loading catalog from: " + catalogPath)
 
     // read catalog
     val tables: Seq[(String, StreamTableSource[_])] = readCatalog(catalogPath)
+
+    println()
+    println("> Welcome!")
+    println()
+    println("> Please enter SQL query or Q to exit.")
+    println("> Terminate a running query by pressing ENTER")
+    println("> Use 'SHOW TABLES' to print available tables.")
 
     // create and configure stream exec environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -84,76 +85,79 @@ object SqlClient {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     tables.foreach(t => tEnv.registerTableSource(t._1, t._2))
 
-    // Loop doesn't work yet. We have no way to gracefully stop the query.
+    // we have no way to gracefully stop the query.
     var continue: Boolean = true
     while (continue) {
 
-      println("> Please enter SQL query or Q to exit.")
-      println("> Terminate a running query by pressing ENTER")
+      println()
+      print("> ")
 
-      val query = StdIn.readLine()
+      val query = StdIn.readLine().trim
 
       if (query == "Q") {
         continue = false
+      } else if (query.toUpperCase == "SHOW TABLES") {
+        tEnv.listTables().asScala.foreach { t =>
+          println(t)
+          println(tEnv.scan(t).getSchema)
+        }
+      } else if (query.toUpperCase.startsWith("EXPLAIN ")) {
+        try {
+          val tableOrStmt = query.substring(8)
+          val table = if (!query.contains("SELECT")) {
+            tEnv.scan(tableOrStmt)
+          } else {
+            tEnv.sql(tableOrStmt)
+          }
+          println(tEnv.explain(table))
+        } catch {
+          case e: Exception =>
+            println("> Query could not be executed:")
+            println(e.getMessage)
+        }
       } else {
 
         // parse query
         val result: Option[Table] = try {
           Some(tEnv.sql(query))
         } catch {
-          case e: Exception => {
-            // TODO: we need better error messages than Calcite's exceptions.
-            e.printStackTrace()
+          case e: Exception =>
+            println("> Query could not be parsed:")
+            println(e.getMessage)
             None
-          }
         }
 
         if (result.isDefined) {
-          // create output topic with 1 partition and replication 1
-          val outputTopicName = getRandomOutputTopic(outputTopicPrefix)
-          createKafkaTopic(outputTopicName, outputKafkaProps)
 
-          // create Kafka producer
-          val producer = new FlinkKafkaProducer010(
-            outputTopicName,
-            new SimpleStringSchema(),
-            outputKafkaProps)
+          // prepare output
+          val (sink, outputThread, cleanUp) = config.output match {
+            case "kafka" =>
+              createKafkaOutput(config)
+            case o@_ =>
+              throw new ValidationException(s"Unsupported output '$o'.")
+          }
 
           try {
             // try to create append stream
             tEnv.toAppendStream[Row](result.get)
               .map(r => r.toString)
-              .addSink(producer)
+              .addSink(sink)
           } catch {
             case _: Exception =>
               tEnv.toRetractStream[Row](result.get)
                 .map(r => r.toString())
-                .addSink(producer)
+                .addSink(sink)
           }
 
-          // start a thread to print query results
-          val topicPrinter = new TopicPrinter(outputTopicName, outputKafkaProps)
-          new Thread(topicPrinter, "Topic Printer").start()
-
-          // register shutdown hook to stop output printer and delete output topic
-          val mainThread = Thread.currentThread()
-          Runtime.getRuntime.addShutdownHook(
-            new Thread() {
-              override def run(): Unit = {
-                // stop printing of query results
-                topicPrinter.stopPrinting()
-                // delete Kakfa output topic
-                deleteKafkaTopic(outputTopicName, outputKafkaProps)
-                mainThread.join()
-              }
-            }
-          )
+          outputThread.start()
 
           // create execution thread
+          val exceptionHandler = new ExceptionHandler
           val execThread = new Thread(
             new Runnable {
               override def run(): Unit = env.execute()
             }, "Query Execution")
+          execThread.setUncaughtExceptionHandler(exceptionHandler)
 
           // start query execution
           println("> Query execution starts.")
@@ -165,37 +169,21 @@ object SqlClient {
           // stop execution thread hard (there is no way to stop it gracefully).
           execThread.interrupt()
           execThread.join()
-          println("> Query execution terminated.")
+          exceptionHandler.collected.foreach { t =>
+            println("> Terminated with exception:")
+            t.printStackTrace(System.out)
+          }
 
-          // stop printing of query results
-          topicPrinter.stopPrinting()
-          // delete Kakfa output topic
-          deleteKafkaTopic(outputTopicName, outputKafkaProps)
-
+          // clean up
+          cleanUp()
         }
+
+        println("> Query execution terminated.")
       }
     }
   }
 
   def readCatalog(catalogPath: String): Seq[(String, StreamTableSource[_])] = {
-
-    def tpeToTpeInfo(tpe: String): TypeInformation[_] = {
-      tpe.toUpperCase match {
-        case "BOOLEAN" => Types.BOOLEAN
-        case "TINYINT" => Types.BYTE
-        case "SMALLINT" => Types.SHORT
-        case "INTEGER" => Types.INT
-        case "BIGINT" => Types.LONG
-        case "FLOAT" => Types.FLOAT
-        case "DOUBLE" => Types.DOUBLE
-        case "DECIMAL" => Types.DECIMAL
-        case "TIMESTAMP" => Types.SQL_TIMESTAMP
-        case "TIME" => Types.SQL_TIME
-        case "DATE" => Types.SQL_DATE
-        case "VARCHAR" => Types.STRING
-        case _ => throw new ValidationException("Unknown type: " + tpe)
-      }
-    }
 
     val catalogNode = CatalogParser.parseCatalog(new File(catalogPath))
 
@@ -210,7 +198,7 @@ object SqlClient {
               kafkaProps.putAll(t.source.properties)
 
               val names = t.encoding.schema.map(_.name)
-              val types = t.encoding.schema.map(f => tpeToTpeInfo(f.tpe))
+              val types = t.encoding.schema.map(_.convertType())
               val schema = new RowTypeInfo(types, names)
 
               new Kafka010JsonTableSource(
@@ -249,6 +237,50 @@ object SqlClient {
 
   def getRandomOutputTopic(prefix: String): String = {
     prefix + "_" + Random.nextLong().toHexString
+  }
+
+  def createKafkaOutput(config: ConfigNode): (SinkFunction[String], Thread, () => Unit) = {
+    val outputTopicPrefix = config.defaults.kafka.outputTopicPrefix
+    val outputKafkaProps = new Properties()
+    outputKafkaProps.putAll(config.defaults.kafka.properties)
+
+    // create output topic with 1 partition and replication 1
+    val outputTopicName = getRandomOutputTopic(outputTopicPrefix)
+    createKafkaTopic(outputTopicName, outputKafkaProps)
+
+    // create Kafka producer
+    val producer = new FlinkKafkaProducer010(
+      outputTopicName,
+      new SimpleStringSchema(),
+      outputKafkaProps)
+
+    // create a thread to print query results
+    val topicPrinter = new TopicPrinter(outputTopicName, outputKafkaProps)
+    val outputThread = new Thread(topicPrinter, "Topic Printer")
+
+    // register shutdown hook to stop output printer and delete output topic
+    val mainThread = Thread.currentThread()
+    Runtime.getRuntime.addShutdownHook(
+      new Thread() {
+        override def run(): Unit = {
+          // stop printing of query results
+          topicPrinter.stopPrinting()
+          // delete Kakfa output topic
+          deleteKafkaTopic(outputTopicName, outputKafkaProps)
+          mainThread.join()
+        }
+      }
+    )
+
+    // clean up procedure
+    val cleanUp = () => {
+      // stop printing of query results
+      topicPrinter.stopPrinting()
+      // delete Kafka output topic
+      deleteKafkaTopic(outputTopicName, outputKafkaProps)
+    }
+
+    (producer, outputThread, cleanUp)
   }
 
   def createKafkaTopic(topicName: String, kafkaProps: Properties): Unit = {
@@ -339,6 +371,58 @@ object SqlClient {
     def stopPrinting(): Unit = {
       printing = false
     }
+
+  }
+
+  class ExceptionHandler extends UncaughtExceptionHandler {
+    val collected = new mutable.ArrayBuffer[Throwable]()
+    override def uncaughtException(t: Thread, e: Throwable): Unit = {
+      collected += e
+    }
+  }
+
+  def printWelcome() {
+    println(
+      // scalastyle:off
+      """
+                         \u2592\u2593\u2588\u2588\u2593\u2588\u2588\u2592
+                     \u2593\u2588\u2588\u2588\u2588\u2592\u2592\u2588\u2593\u2592\u2593\u2588\u2588\u2588\u2593\u2592
+                  \u2593\u2588\u2588\u2588\u2593\u2591\u2591        \u2592\u2592\u2592\u2593\u2588\u2588\u2592  \u2592
+                \u2591\u2588\u2588\u2592   \u2592\u2592\u2593\u2593\u2588\u2593\u2593\u2592\u2591      \u2592\u2588\u2588\u2588\u2588
+                \u2588\u2588\u2592         \u2591\u2592\u2593\u2588\u2588\u2588\u2592    \u2592\u2588\u2592\u2588\u2592
+                  \u2591\u2593\u2588            \u2588\u2588\u2588   \u2593\u2591\u2592\u2588\u2588
+                    \u2593\u2588       \u2592\u2592\u2592\u2592\u2592\u2593\u2588\u2588\u2593\u2591\u2592\u2591\u2593\u2593\u2588
+                  \u2588\u2591 \u2588   \u2592\u2592\u2591       \u2588\u2588\u2588\u2593\u2593\u2588 \u2592\u2588\u2592\u2592\u2592
+                  \u2588\u2588\u2588\u2588\u2591   \u2592\u2593\u2588\u2593      \u2588\u2588\u2592\u2592\u2592 \u2593\u2588\u2588\u2588\u2592
+               \u2591\u2592\u2588\u2593\u2593\u2588\u2588       \u2593\u2588\u2592    \u2593\u2588\u2592\u2593\u2588\u2588\u2593 \u2591\u2588\u2591
+         \u2593\u2591\u2592\u2593\u2588\u2588\u2588\u2588\u2592 \u2588\u2588         \u2592\u2588    \u2588\u2593\u2591\u2592\u2588\u2592\u2591\u2592\u2588\u2592
+        \u2588\u2588\u2588\u2593\u2591\u2588\u2588\u2593  \u2593\u2588           \u2588   \u2588\u2593 \u2592\u2593\u2588\u2593\u2593\u2588\u2592
+      \u2591\u2588\u2588\u2593  \u2591\u2588\u2591            \u2588  \u2588\u2592 \u2592\u2588\u2588\u2588\u2588\u2588\u2593\u2592 \u2588\u2588\u2593\u2591\u2592
+     \u2588\u2588\u2588\u2591 \u2591 \u2588\u2591          \u2593 \u2591\u2588 \u2588\u2588\u2588\u2588\u2588\u2592\u2591\u2591    \u2591\u2588\u2591\u2593  \u2593\u2591
+    \u2588\u2588\u2593\u2588 \u2592\u2592\u2593\u2592          \u2593\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2593\u2591       \u2592\u2588\u2592 \u2592\u2593 \u2593\u2588\u2588\u2593
+ \u2592\u2588\u2588\u2593 \u2593\u2588 \u2588\u2593\u2588       \u2591\u2592\u2588\u2588\u2588\u2588\u2588\u2593\u2593\u2592\u2591         \u2588\u2588\u2592\u2592  \u2588 \u2592  \u2593\u2588\u2592
+ \u2593\u2588\u2593  \u2593\u2588 \u2588\u2588\u2593 \u2591\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2592              \u2592\u2588\u2588\u2593           \u2591\u2588\u2592
+ \u2593\u2588    \u2588 \u2593\u2588\u2588\u2588\u2593\u2592\u2591              \u2591\u2593\u2593\u2593\u2588\u2588\u2588\u2593          \u2591\u2592\u2591 \u2593\u2588
+ \u2588\u2588\u2593    \u2588\u2588\u2592    \u2591\u2592\u2593\u2593\u2588\u2588\u2588\u2593\u2593\u2593\u2593\u2593\u2588\u2588\u2588\u2588\u2588\u2588\u2593\u2592            \u2593\u2588\u2588\u2588  \u2588
+\u2593\u2588\u2588\u2588\u2592 \u2588\u2588\u2588   \u2591\u2593\u2593\u2592\u2591\u2591   \u2591\u2593\u2588\u2588\u2588\u2588\u2593\u2591                  \u2591\u2592\u2593\u2592  \u2588\u2593
+\u2588\u2593\u2592\u2592\u2593\u2593\u2588\u2588  \u2591\u2592\u2592\u2591\u2591\u2591\u2592\u2592\u2592\u2592\u2593\u2588\u2588\u2593\u2591                            \u2588\u2593
+\u2588\u2588 \u2593\u2591\u2592\u2588   \u2593\u2593\u2593\u2593\u2592\u2591\u2591  \u2592\u2588\u2593       \u2592\u2593\u2593\u2588\u2588\u2593    \u2593\u2592          \u2592\u2592\u2593
+\u2593\u2588\u2593 \u2593\u2592\u2588  \u2588\u2593\u2591  \u2591\u2592\u2593\u2593\u2588\u2588\u2592            \u2591\u2593\u2588\u2592   \u2592\u2592\u2592\u2591\u2592\u2592\u2593\u2588\u2588\u2588\u2588\u2588\u2592
+ \u2588\u2588\u2591 \u2593\u2588\u2592\u2588\u2592  \u2592\u2593\u2593\u2592  \u2593\u2588                \u2588\u2591      \u2591\u2591\u2591\u2591   \u2591\u2588\u2592
+ \u2593\u2588   \u2592\u2588\u2593   \u2591     \u2588\u2591                \u2592\u2588              \u2588\u2593
+  \u2588\u2593   \u2588\u2588         \u2588\u2591                 \u2593\u2593        \u2592\u2588\u2593\u2593\u2593\u2592\u2588\u2591
+   \u2588\u2593 \u2591\u2593\u2588\u2588\u2591       \u2593\u2592                  \u2593\u2588\u2593\u2592\u2591\u2591\u2591\u2592\u2593\u2588\u2591    \u2592\u2588
+    \u2588\u2588   \u2593\u2588\u2593\u2591      \u2592                    \u2591\u2592\u2588\u2592\u2588\u2588\u2592      \u2593\u2593
+     \u2593\u2588\u2592   \u2592\u2588\u2593\u2592\u2591                         \u2592\u2592 \u2588\u2592\u2588\u2593\u2592\u2592\u2591\u2591\u2592\u2588\u2588
+      \u2591\u2588\u2588\u2592    \u2592\u2593\u2593\u2592                     \u2593\u2588\u2588\u2593\u2592\u2588\u2592 \u2591\u2593\u2593\u2593\u2593\u2592\u2588\u2593
+        \u2591\u2593\u2588\u2588\u2592                          \u2593\u2591  \u2592\u2588\u2593\u2588  \u2591\u2591\u2592\u2592\u2592
+            \u2592\u2593\u2593\u2593\u2593\u2593\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2591\u2591\u2593\u2593  \u2593\u2591\u2592\u2588\u2591
+
+             F L I N K - S Q L - C L I E N T
+
+      """
+    // scalastyle:on
+    )
 
   }
 

@@ -22,7 +22,8 @@ import java.lang.{Long => JLong}
 import java.util
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.{Types, ValidationException}
 
 import _root_.scala.collection.JavaConversions._
 import scala.beans.BeanProperty
@@ -32,23 +33,39 @@ trait Validatable {
 }
 
 case class ConfigNode(
+  @BeanProperty @JsonProperty("output") output: String,
   @BeanProperty @JsonProperty("classpath") classpath: Array[String],
   @BeanProperty @JsonProperty("watermark_interval") watermarkInterval: JLong,
-  @BeanProperty @JsonProperty("kafka") kafka: KafkaOutputNode)
+  @BeanProperty @JsonProperty("defaults") defaults: DefaultsNode)
   extends Validatable {
 
-  def this() = this(null, null, null)
+  def this() = this(null, null, null, null)
 
   override def validate(): Unit = {
-    if (kafka == null) {
-      throw new ValidationException("Flink SQL client requires a Kafka configuration.")
-    } else {
-      kafka.validate()
+    if (output == null || output.toLowerCase != "kafka") {
+      throw ValidationException("Kafka sink is the only supported output yet.")
+    }
+    if (defaults != null) {
+      defaults.validate()
     }
   }
 }
 
-case class KafkaOutputNode(
+case class DefaultsNode(
+    @BeanProperty @JsonProperty("kafka") kafka: KafkaDefaultsNode)
+  extends Validatable {
+
+  def this() = this(null)
+
+  override def validate(): Unit = {
+    if (kafka == null) {
+      throw ValidationException("Kafka defaults are required.")
+    }
+    kafka.validate()
+  }
+}
+
+case class KafkaDefaultsNode(
   @BeanProperty @JsonProperty("properties") properties: util.Map[String, String],
   @BeanProperty @JsonProperty("output-topic-prefix") outputTopicPrefix: String)
   extends Validatable {
@@ -137,7 +154,7 @@ case class EncodingNode(
     }
     if (tpe.toLowerCase == "avro") {
       if (clazz == null) {
-        throw ValidationException("Avro encoding needs a clazz definition.")
+        throw ValidationException("Avro encoding needs a class definition.")
       }
     } else if (tpe.toLowerCase == "json") {
       if (schema == null) {
@@ -203,16 +220,30 @@ case class FieldNode(
 
   def this() = this(null, null)
 
-  override def validate() = {
+  override def validate(): Unit = {
     if (name == null || name.isEmpty) {
       throw new ValidationException("Field name must be set.")
     }
     if (tpe == null || tpe.isEmpty) {
-      // TODO: Check valid types
       throw new ValidationException("Field type must be set.")
     }
+    convertType()
+  }
 
-
+  def convertType(): TypeInformation[_] = tpe match {
+    case "VARCHAR" => Types.STRING
+    case "BOOLEAN" => Types.BOOLEAN
+    case "TINYINT" => Types.BYTE
+    case "SMALLINT" => Types.SHORT
+    case "INT" | "INTEGER" => Types.INT
+    case "BIGINT" => Types.LONG
+    case "REAL" | "FLOAT" => Types.FLOAT
+    case "DOUBLE" => Types.DOUBLE
+    case "DECIMAL" => Types.DECIMAL
+    case "DATE" => Types.SQL_DATE
+    case "TIME" => Types.SQL_TIME
+    case "TIMESTAMP" => Types.SQL_TIMESTAMP
+    case s@_ => throw new ValidationException(s"Unsupported type 's'.")
   }
 
 }

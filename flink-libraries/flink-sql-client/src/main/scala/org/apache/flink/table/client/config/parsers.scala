@@ -34,6 +34,7 @@ object CatalogParser {
     mapper.configure(JsonGenerator.Feature.QUOTE_FIELD_NAMES, false)
     mapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+    mapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true)
 
     try {
       val catalog = mapper.readValue(path, classOf[CatalogNode])
@@ -58,6 +59,7 @@ object ConfigParser {
     mapper.configure(JsonGenerator.Feature.QUOTE_FIELD_NAMES, false)
     mapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+    mapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true)
 
     try {
       val config = mapper.readValue(path, classOf[ConfigNode])

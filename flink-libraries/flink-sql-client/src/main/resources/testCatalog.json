@@ -1,11 +1,11 @@
 {
-  tables: [
+  "tables": [
     {
-      name: "TestUsers",
-      source: {
+      "name": "TestUsers",
+      "source": {
 
-        type: "kafka",
-        properties: {
+        "type": "kafka",
+        "properties": {
           "topic": "testUsers",
           "bootstrap.servers": "localhost:9092",
           "zookeeper.connect": "localhost:2181",
@@ -13,27 +13,26 @@
         }
       },
 
-      encoding: {
-
-        type: "json",
-        schema: [
+      "encoding": {
+        "type": "json",
+        "schema": [
           {"name": "id", "type": "BIGINT" },
           {"name": "name", "type": "VARCHAR" }
         ]
       },
 
-      rowtime: {
-        type: "ingestion-time",
-        field: "rowtime"
+      "rowtime": {
+        "type": "ingestion-time",
+        "field": "rowtime"
       },
 
-      proctime: "proctime"
+      "proctime": "proctime"
     },
     {
-      name: "ClickStream",
-      source: {
-        type: "demo",
-        properties: {
+      "name": "ClickStream",
+      "source": {
+        "type": "demo",
+        "properties": {
           "table": "clickstream"
         }
       }

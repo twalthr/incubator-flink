@@ -20,6 +20,7 @@ package org.apache.flink.table.api
 
 import _root_.java.lang.reflect.Modifier
 import _root_.java.util.concurrent.atomic.AtomicInteger
+import _root_.java.util.{List => JList}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.Lex
@@ -484,6 +485,15 @@ abstract class TableEnvironment(val config: TableConfig) {
       }
     }
     schema
+  }
+
+  /**
+    * Gets the names of all tables registered in this catalog.
+    *
+    * @return A list of the names of all registered tables.
+    */
+  def listTables(): JList[String] = {
+    rootSchema.getTableNames.asScala.toList.asJava
   }
 
   /**
