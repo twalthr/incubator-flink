@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaProducer010, Kafka010JsonTableSource}
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema
+import org.apache.flink.table.api.java.StreamTableEnvironment
 import org.apache.flink.table.api.{Table, TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.client.config.{CatalogParser, ConfigNode, ConfigParser}
 import org.apache.flink.table.client.demo.ClickStreamTableSource
@@ -56,35 +57,29 @@ import scala.util.Random
 object SqlClient {
 
   def main(args: Array[String]): Unit = {
-    new SqlClient().start(args)
-  }
-
-}
-
-class SqlClient {
-
-  def start(args: Array[String]): Unit = {
-
     val params = ParameterTool.fromArgs(args)
-    val isEmbeddedMode: Boolean = params.getBoolean("embedded", false)
+    val mode: String = params.get("mode", "cluster")
+    val isEmbeddedMode: Boolean = mode.toLowerCase == "embedded"
+    val isClusterMode: Boolean = mode.toLowerCase == "cluster"
     val configPath: String = params.getRequired("config")
     val catalogPath: String = params.getRequired("catalog")
-    val query: String = params.get("query")
+    val query: String = params.get("query", "")
+    val isCli: Boolean = query.isEmpty
 
-    printWelcome()
+    printWelcome(isCli)
 
     if (isEmbeddedMode) {
-      println("> Executing client in EMBEDDED mode.")
+      printIf(isCli, "> Executing client in EMBEDDED mode.")
     } else {
-      println("> Executing client in CLUSTER mode.")
+      printIf(isCli, "> Executing client in CLUSTER mode.")
     }
 
-    println("> Loading configuration from: " + configPath)
+    printIf(isCli, "> Loading configuration from: " + configPath)
 
     // read config
     val config = ConfigParser.parseConfig(new File(configPath))
 
-    println("> Loading catalog from: " + catalogPath)
+    printIf(isCli, "> Loading catalog from: " + catalogPath)
 
     // initialize classloader
 
@@ -100,12 +95,12 @@ class SqlClient {
     // read catalog
     val (tables, functions) = readCatalog(catalogPath, classLoader)
 
-    println()
-    println("> Welcome!")
-    println()
-    println("> Please enter SQL query or Q to exit.")
-    println("> Terminate a running query by pressing ENTER")
-    println("> Commands: 'SHOW TABLES', 'SHOW FUNCTIONS', 'SELECT ...', 'EXPLAIN ...'")
+    printIf(isCli, "")
+    printIf(isCli, "> Welcome!")
+    printIf(isCli, "")
+    printIf(isCli, "> Please enter SQL query or Q to exit.")
+    printIf(isCli, "> Terminate a running query by pressing ENTER")
+    printIf(isCli, "> Commands: 'SHOW TABLES', 'SHOW FUNCTIONS', 'SELECT ...', 'EXPLAIN ...'")
 
     // create and configure stream exec environment
     // we are using the Java environment in order to support dynamically registration of functions
@@ -134,134 +129,169 @@ class SqlClient {
         }
     }
 
-    // we have no way to gracefully stop the query.
-    var continue: Boolean = true
-    while (continue) {
+    if (isCli) {
+      // we have no way to gracefully stop the query.
+      var continue: Boolean = true
+      while (continue) {
 
-      println()
-      print("> ")
+        println()
+        print("> ")
 
-      val action = if (query == null || query.isEmpty) {
         // read action from CLI
-        StdIn.readLine().trim
-      } else {
-        // execute pre-defined action and exit
-        continue = false
-        query
-      }
+        val action = StdIn.readLine().trim
 
-      if (action == "Q") {
-        continue = false
-      } else if (action.toUpperCase == "SHOW TABLES") {
+        if (action == "Q") {
+          continue = false
+        } else {
+          val output = parseQuery(config, env, tEnv, action)
+          output match {
+            case Some((outputThread, cleanUp)) =>
+              executeAsync(
+                isEmbeddedMode,
+                jarPath,
+                configPath,
+                catalogPath,
+                env,
+                outputThread,
+                cleanUp,
+                action)
+            case _ =>
+          }
+        }
+      }
+    } else {
+      parseQuery(config, env, tEnv, query)
+      // just execute it
+      env.execute()
+    }
+  }
+
+  def executeAsync(
+      isEmbeddedMode: Boolean,
+      jarPath: String,
+      configPath: String,
+      catalogPath: String,
+      env: StreamExecutionEnvironment,
+      outputThread: Thread,
+      cleanUp: () => Unit,
+      query: String) {
+    outputThread.start()
+
+    // create execution thread
+    val exceptionHandler = new ExceptionHandler
+    val execThread = new Thread(
+      new Runnable {
+        override def run(): Unit = {
+          if (isEmbeddedMode) {
+            env.execute()
+          } else {
+            CliFrontend.main(Array(
+              "run", // run Flink job
+              "-c", "org.apache.flink.table.client.SqlClient", // use this client for submission
+              jarPath, // ship jar
+              "-mode", "embedded", // call execute in cluster configured environment
+              "-config", configPath,
+              "-catalog", catalogPath,
+              "-query", query)) // execute query immediately
+          }
+        }
+      }, "Query Execution")
+    execThread.setUncaughtExceptionHandler(exceptionHandler)
+
+    // start query execution
+    println("> Query execution starts.")
+    execThread.start()
+
+    // wait for <ENTER> to terminate query
+    StdIn.readLine()
+
+    // stop execution thread hard (there is no way to stop it gracefully).
+    execThread.interrupt()
+    execThread.join()
+    exceptionHandler.collected.foreach { t =>
+      println("> Terminated with exception:")
+      t.printStackTrace(System.out)
+    }
+
+    // clean up
+    cleanUp()
+  }
+
+  def parseQuery(
+      config: ConfigNode,
+      env: StreamExecutionEnvironment,
+      tEnv: StreamTableEnvironment,
+      query: String)
+    : Option[(Thread, () => Unit)] = {
+
+    if (query.toUpperCase == "SHOW TABLES") {
         tEnv.listTables().foreach { t =>
           println(t)
           println(tEnv.scan(t).getSchema)
         }
-      } else if (action.toUpperCase == "SHOW FUNCTIONS") {
-        tEnv.listUserDefinedFunctions().foreach { t =>
-          println(t)
+    } else if (query.toUpperCase == "SHOW FUNCTIONS") {
+      tEnv.listUserDefinedFunctions().foreach { t =>
+        println(t)
+      }
+    } else if (query.toUpperCase.startsWith("EXPLAIN ")) {
+      try {
+        val tableOrStmt = query.substring(8)
+        val explain = if (!query.contains("SELECT")) {
+          tEnv.scan(tableOrStmt).getSchema
+        } else {
+          tEnv.explain(tEnv.sql(tableOrStmt))
         }
-      } else if (action.toUpperCase.startsWith("EXPLAIN ")) {
+        println(explain)
+      } catch {
+        case e: Exception =>
+          println("> Query could not be executed:")
+          println(e.getMessage)
+      }
+    } else if (!query.isEmpty) {
+
+      // parse query
+      val result: Option[Table] = try {
+        Some(tEnv.sql(query))
+      } catch {
+        case e: Exception =>
+          println("> Query could not be parsed:")
+          println(e.getMessage)
+          None
+      }
+
+      // ready to be executed or submitted
+      if (result.isDefined) {
+
+        // prepare output
+        val (sink, outputThread, cleanUp) = config.output match {
+          case "kafka" =>
+            createKafkaOutput(config)
+          case o@_ =>
+            throw ValidationException(s"Unsupported output '$o'.")
+        }
+
         try {
-          val tableOrStmt = action.substring(8)
-          val explain = if (!action.contains("SELECT")) {
-            tEnv.scan(tableOrStmt).getSchema
-          } else {
-            tEnv.explain(tEnv.sql(tableOrStmt))
-          }
-          println(explain)
+          // try to create append stream
+          tEnv.toAppendStream(result.get, classOf[Row])
+            .map(new MapFunction[Row, String] {
+              override def map(value: Row): String = value.toString
+            })
+            .addSink(sink)
         } catch {
-          case e: Exception =>
-            println("> Query could not be executed:")
-            println(e.getMessage)
-        }
-      } else if (action != "") {
+          case _: Exception =>
+            tEnv.toRetractStream(result.get, classOf[Row])
+              .map(new MapFunction[JTuple2[JBoolean, Row], String] {
 
-        // parse query
-        val result: Option[Table] = try {
-          Some(tEnv.sql(action))
-        } catch {
-          case e: Exception =>
-            println("> Query could not be parsed:")
-            println(e.getMessage)
-            None
-        }
-
-        // ready to be executed or submitted
-        if (result.isDefined) {
-
-          // prepare output
-          val (sink, outputThread, cleanUp) = config.output match {
-            case "kafka" =>
-              createKafkaOutput(config)
-            case o@_ =>
-              throw ValidationException(s"Unsupported output '$o'.")
-          }
-
-          try {
-            // try to create append stream
-            tEnv.toAppendStream(result.get, classOf[Row])
-              .map(new MapFunction[Row, String] {
-                override def map(value: Row): String = value.toString
+                def map(value: JTuple2[JBoolean, Row]): String = value.toString
               })
               .addSink(sink)
-          } catch {
-            case _: Exception =>
-              tEnv.toRetractStream(result.get, classOf[Row])
-                .map(new MapFunction[JTuple2[JBoolean, Row], String] {
-
-                  def map(value: JTuple2[JBoolean, Row]): String = value.toString
-                })
-                .addSink(sink)
-          }
-
-          outputThread.start()
-
-          // create execution thread
-          val exceptionHandler = new ExceptionHandler
-          val execThread = new Thread(
-            new Runnable {
-              override def run(): Unit = {
-                if (isEmbeddedMode) {
-                  env.execute()
-                } else {
-                  CliFrontend.main(Array(
-                    "run", // run Flink job
-                    "-c", classOf[SqlClient].getName, // use this client for submission
-                    jarPath, // ship jar
-                    "-embedded", // call execute in cluster configured environment
-                    "-config", configPath,
-                    "-catalog", catalogPath,
-                    "-query", action)) // execute query immediately
-                }
-              }
-            }, "Query Execution")
-          execThread.setUncaughtExceptionHandler(exceptionHandler)
-
-          // start query execution
-          println("> Query execution starts.")
-          execThread.start()
-
-          // wait for <ENTER> to terminate query
-          if (query == null || query.isEmpty) {
-            StdIn.readLine()
-          }
-
-          // stop execution thread hard (there is no way to stop it gracefully).
-          execThread.interrupt()
-          execThread.join()
-          exceptionHandler.collected.foreach { t =>
-            println("> Terminated with exception:")
-            t.printStackTrace(System.out)
-          }
-
-          // clean up
-          cleanUp()
         }
 
-        println("> Query execution terminated.")
+        return Some(outputThread, cleanUp)
       }
     }
+
+    None
   }
 
   def readCatalog(catalogPath: String, classLoader: ClassLoader)
@@ -381,6 +411,58 @@ class SqlClient {
 
     (sources, functions)
   }
+
+  def printIf(cond: Boolean, str: String): Unit = {
+    if (cond) {
+      println(str)
+    }
+  }
+
+  def printWelcome(isCli: Boolean) {
+    printIf(
+      isCli,
+      // scalastyle:off
+      """
+                         \u2592\u2593\u2588\u2588\u2593\u2588\u2588\u2592
+                     \u2593\u2588\u2588\u2588\u2588\u2592\u2592\u2588\u2593\u2592\u2593\u2588\u2588\u2588\u2593\u2592
+                  \u2593\u2588\u2588\u2588\u2593\u2591\u2591        \u2592\u2592\u2592\u2593\u2588\u2588\u2592  \u2592
+                \u2591\u2588\u2588\u2592   \u2592\u2592\u2593\u2593\u2588\u2593\u2593\u2592\u2591      \u2592\u2588\u2588\u2588\u2588
+                \u2588\u2588\u2592         \u2591\u2592\u2593\u2588\u2588\u2588\u2592    \u2592\u2588\u2592\u2588\u2592
+                  \u2591\u2593\u2588            \u2588\u2588\u2588   \u2593\u2591\u2592\u2588\u2588
+                    \u2593\u2588       \u2592\u2592\u2592\u2592\u2592\u2593\u2588\u2588\u2593\u2591\u2592\u2591\u2593\u2593\u2588
+                  \u2588\u2591 \u2588   \u2592\u2592\u2591       \u2588\u2588\u2588\u2593\u2593\u2588 \u2592\u2588\u2592\u2592\u2592
+                  \u2588\u2588\u2588\u2588\u2591   \u2592\u2593\u2588\u2593      \u2588\u2588\u2592\u2592\u2592 \u2593\u2588\u2588\u2588\u2592
+               \u2591\u2592\u2588\u2593\u2593\u2588\u2588       \u2593\u2588\u2592    \u2593\u2588\u2592\u2593\u2588\u2588\u2593 \u2591\u2588\u2591
+         \u2593\u2591\u2592\u2593\u2588\u2588\u2588\u2588\u2592 \u2588\u2588         \u2592\u2588    \u2588\u2593\u2591\u2592\u2588\u2592\u2591\u2592\u2588\u2592
+        \u2588\u2588\u2588\u2593\u2591\u2588\u2588\u2593  \u2593\u2588           \u2588   \u2588\u2593 \u2592\u2593\u2588\u2593\u2593\u2588\u2592
+      \u2591\u2588\u2588\u2593  \u2591\u2588\u2591            \u2588  \u2588\u2592 \u2592\u2588\u2588\u2588\u2588\u2588\u2593\u2592 \u2588\u2588\u2593\u2591\u2592
+     \u2588\u2588\u2588\u2591 \u2591 \u2588\u2591          \u2593 \u2591\u2588 \u2588\u2588\u2588\u2588\u2588\u2592\u2591\u2591    \u2591\u2588\u2591\u2593  \u2593\u2591
+    \u2588\u2588\u2593\u2588 \u2592\u2592\u2593\u2592          \u2593\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2593\u2591       \u2592\u2588\u2592 \u2592\u2593 \u2593\u2588\u2588\u2593
+ \u2592\u2588\u2588\u2593 \u2593\u2588 \u2588\u2593\u2588       \u2591\u2592\u2588\u2588\u2588\u2588\u2588\u2593\u2593\u2592\u2591         \u2588\u2588\u2592\u2592  \u2588 \u2592  \u2593\u2588\u2592
+ \u2593\u2588\u2593  \u2593\u2588 \u2588\u2588\u2593 \u2591\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2592              \u2592\u2588\u2588\u2593           \u2591\u2588\u2592
+ \u2593\u2588    \u2588 \u2593\u2588\u2588\u2588\u2593\u2592\u2591              \u2591\u2593\u2593\u2593\u2588\u2588\u2588\u2593          \u2591\u2592\u2591 \u2593\u2588
+ \u2588\u2588\u2593    \u2588\u2588\u2592    \u2591\u2592\u2593\u2593\u2588\u2588\u2588\u2593\u2593\u2593\u2593\u2593\u2588\u2588\u2588\u2588\u2588\u2588\u2593\u2592            \u2593\u2588\u2588\u2588  \u2588
+\u2593\u2588\u2588\u2588\u2592 \u2588\u2588\u2588   \u2591\u2593\u2593\u2592\u2591\u2591   \u2591\u2593\u2588\u2588\u2588\u2588\u2593\u2591                  \u2591\u2592\u2593\u2592  \u2588\u2593
+\u2588\u2593\u2592\u2592\u2593\u2593\u2588\u2588  \u2591\u2592\u2592\u2591\u2591\u2591\u2592\u2592\u2592\u2592\u2593\u2588\u2588\u2593\u2591                            \u2588\u2593
+\u2588\u2588 \u2593\u2591\u2592\u2588   \u2593\u2593\u2593\u2593\u2592\u2591\u2591  \u2592\u2588\u2593       \u2592\u2593\u2593\u2588\u2588\u2593    \u2593\u2592          \u2592\u2592\u2593
+\u2593\u2588\u2593 \u2593\u2592\u2588  \u2588\u2593\u2591  \u2591\u2592\u2593\u2593\u2588\u2588\u2592            \u2591\u2593\u2588\u2592   \u2592\u2592\u2592\u2591\u2592\u2592\u2593\u2588\u2588\u2588\u2588\u2588\u2592
+ \u2588\u2588\u2591 \u2593\u2588\u2592\u2588\u2592  \u2592\u2593\u2593\u2592  \u2593\u2588                \u2588\u2591      \u2591\u2591\u2591\u2591   \u2591\u2588\u2592
+ \u2593\u2588   \u2592\u2588\u2593   \u2591     \u2588\u2591                \u2592\u2588              \u2588\u2593
+  \u2588\u2593   \u2588\u2588         \u2588\u2591                 \u2593\u2593        \u2592\u2588\u2593\u2593\u2593\u2592\u2588\u2591
+   \u2588\u2593 \u2591\u2593\u2588\u2588\u2591       \u2593\u2592                  \u2593\u2588\u2593\u2592\u2591\u2591\u2591\u2592\u2593\u2588\u2591    \u2592\u2588
+    \u2588\u2588   \u2593\u2588\u2593\u2591      \u2592                    \u2591\u2592\u2588\u2592\u2588\u2588\u2592      \u2593\u2593
+     \u2593\u2588\u2592   \u2592\u2588\u2593\u2592\u2591                         \u2592\u2592 \u2588\u2592\u2588\u2593\u2592\u2592\u2591\u2591\u2592\u2588\u2588
+      \u2591\u2588\u2588\u2592    \u2592\u2593\u2593\u2592                     \u2593\u2588\u2588\u2593\u2592\u2588\u2592 \u2591\u2593\u2593\u2593\u2593\u2592\u2588\u2593
+        \u2591\u2593\u2588\u2588\u2592                          \u2593\u2591  \u2592\u2588\u2593\u2588  \u2591\u2591\u2592\u2592\u2592
+            \u2592\u2593\u2593\u2593\u2593\u2593\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2591\u2591\u2593\u2593  \u2593\u2591\u2592\u2588\u2591
+
+             F L I N K - S Q L - C L I E N T
+
+      """
+    // scalastyle:on
+    )
+  }
+
 
   def getRandomOutputTopic(prefix: String): String = {
     prefix + "_" + Random.nextLong().toHexString
@@ -527,50 +609,4 @@ class SqlClient {
       collected += e
     }
   }
-
-  def printWelcome() {
-    println(
-      // scalastyle:off
-      """
-                         \u2592\u2593\u2588\u2588\u2593\u2588\u2588\u2592
-                     \u2593\u2588\u2588\u2588\u2588\u2592\u2592\u2588\u2593\u2592\u2593\u2588\u2588\u2588\u2593\u2592
-                  \u2593\u2588\u2588\u2588\u2593\u2591\u2591        \u2592\u2592\u2592\u2593\u2588\u2588\u2592  \u2592
-                \u2591\u2588\u2588\u2592   \u2592\u2592\u2593\u2593\u2588\u2593\u2593\u2592\u2591      \u2592\u2588\u2588\u2588\u2588
-                \u2588\u2588\u2592         \u2591\u2592\u2593\u2588\u2588\u2588\u2592    \u2592\u2588\u2592\u2588\u2592
-                  \u2591\u2593\u2588            \u2588\u2588\u2588   \u2593\u2591\u2592\u2588\u2588
-                    \u2593\u2588       \u2592\u2592\u2592\u2592\u2592\u2593\u2588\u2588\u2593\u2591\u2592\u2591\u2593\u2593\u2588
-                  \u2588\u2591 \u2588   \u2592\u2592\u2591       \u2588\u2588\u2588\u2593\u2593\u2588 \u2592\u2588\u2592\u2592\u2592
-                  \u2588\u2588\u2588\u2588\u2591   \u2592\u2593\u2588\u2593      \u2588\u2588\u2592\u2592\u2592 \u2593\u2588\u2588\u2588\u2592
-               \u2591\u2592\u2588\u2593\u2593\u2588\u2588       \u2593\u2588\u2592    \u2593\u2588\u2592\u2593\u2588\u2588\u2593 \u2591\u2588\u2591
-         \u2593\u2591\u2592\u2593\u2588\u2588\u2588\u2588\u2592 \u2588\u2588         \u2592\u2588    \u2588\u2593\u2591\u2592\u2588\u2592\u2591\u2592\u2588\u2592
-        \u2588\u2588\u2588\u2593\u2591\u2588\u2588\u2593  \u2593\u2588           \u2588   \u2588\u2593 \u2592\u2593\u2588\u2593\u2593\u2588\u2592
-      \u2591\u2588\u2588\u2593  \u2591\u2588\u2591            \u2588  \u2588\u2592 \u2592\u2588\u2588\u2588\u2588\u2588\u2593\u2592 \u2588\u2588\u2593\u2591\u2592
-     \u2588\u2588\u2588\u2591 \u2591 \u2588\u2591          \u2593 \u2591\u2588 \u2588\u2588\u2588\u2588\u2588\u2592\u2591\u2591    \u2591\u2588\u2591\u2593  \u2593\u2591
-    \u2588\u2588\u2593\u2588 \u2592\u2592\u2593\u2592          \u2593\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2593\u2591       \u2592\u2588\u2592 \u2592\u2593 \u2593\u2588\u2588\u2593
- \u2592\u2588\u2588\u2593 \u2593\u2588 \u2588\u2593\u2588       \u2591\u2592\u2588\u2588\u2588\u2588\u2588\u2593\u2593\u2592\u2591         \u2588\u2588\u2592\u2592  \u2588 \u2592  \u2593\u2588\u2592
- \u2593\u2588\u2593  \u2593\u2588 \u2588\u2588\u2593 \u2591\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2592              \u2592\u2588\u2588\u2593           \u2591\u2588\u2592
- \u2593\u2588    \u2588 \u2593\u2588\u2588\u2588\u2593\u2592\u2591              \u2591\u2593\u2593\u2593\u2588\u2588\u2588\u2593          \u2591\u2592\u2591 \u2593\u2588
- \u2588\u2588\u2593    \u2588\u2588\u2592    \u2591\u2592\u2593\u2593\u2588\u2588\u2588\u2593\u2593\u2593\u2593\u2593\u2588\u2588\u2588\u2588\u2588\u2588\u2593\u2592            \u2593\u2588\u2588\u2588  \u2588
-\u2593\u2588\u2588\u2588\u2592 \u2588\u2588\u2588   \u2591\u2593\u2593\u2592\u2591\u2591   \u2591\u2593\u2588\u2588\u2588\u2588\u2593\u2591                  \u2591\u2592\u2593\u2592  \u2588\u2593
-\u2588\u2593\u2592\u2592\u2593\u2593\u2588\u2588  \u2591\u2592\u2592\u2591\u2591\u2591\u2592\u2592\u2592\u2592\u2593\u2588\u2588\u2593\u2591                            \u2588\u2593
-\u2588\u2588 \u2593\u2591\u2592\u2588   \u2593\u2593\u2593\u2593\u2592\u2591\u2591  \u2592\u2588\u2593       \u2592\u2593\u2593\u2588\u2588\u2593    \u2593\u2592          \u2592\u2592\u2593
-\u2593\u2588\u2593 \u2593\u2592\u2588  \u2588\u2593\u2591  \u2591\u2592\u2593\u2593\u2588\u2588\u2592            \u2591\u2593\u2588\u2592   \u2592\u2592\u2592\u2591\u2592\u2592\u2593\u2588\u2588\u2588\u2588\u2588\u2592
- \u2588\u2588\u2591 \u2593\u2588\u2592\u2588\u2592  \u2592\u2593\u2593\u2592  \u2593\u2588                \u2588\u2591      \u2591\u2591\u2591\u2591   \u2591\u2588\u2592
- \u2593\u2588   \u2592\u2588\u2593   \u2591     \u2588\u2591                \u2592\u2588              \u2588\u2593
-  \u2588\u2593   \u2588\u2588         \u2588\u2591                 \u2593\u2593        \u2592\u2588\u2593\u2593\u2593\u2592\u2588\u2591
-   \u2588\u2593 \u2591\u2593\u2588\u2588\u2591       \u2593\u2592                  \u2593\u2588\u2593\u2592\u2591\u2591\u2591\u2592\u2593\u2588\u2591    \u2592\u2588
-    \u2588\u2588   \u2593\u2588\u2593\u2591      \u2592                    \u2591\u2592\u2588\u2592\u2588\u2588\u2592      \u2593\u2593
-     \u2593\u2588\u2592   \u2592\u2588\u2593\u2592\u2591                         \u2592\u2592 \u2588\u2592\u2588\u2593\u2592\u2592\u2591\u2591\u2592\u2588\u2588
-      \u2591\u2588\u2588\u2592    \u2592\u2593\u2593\u2592                     \u2593\u2588\u2588\u2593\u2592\u2588\u2592 \u2591\u2593\u2593\u2593\u2593\u2592\u2588\u2593
-        \u2591\u2593\u2588\u2588\u2592                          \u2593\u2591  \u2592\u2588\u2593\u2588  \u2591\u2591\u2592\u2592\u2592
-            \u2592\u2593\u2593\u2593\u2593\u2593\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2592\u2591\u2591\u2593\u2593  \u2593\u2591\u2592\u2588\u2591
-
-             F L I N K - S Q L - C L I E N T
-
-      """
-    // scalastyle:on
-    )
-
-  }
-
 }
