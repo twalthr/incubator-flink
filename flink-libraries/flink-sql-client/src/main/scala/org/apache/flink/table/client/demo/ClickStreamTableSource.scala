@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.demoSource
+package org.apache.flink.table.client.demo
 
 import org.apache.commons.lang3.RandomStringUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation

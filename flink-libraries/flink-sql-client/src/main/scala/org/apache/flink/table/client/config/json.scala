@@ -34,7 +34,7 @@ trait Validatable {
 
 case class ConfigNode(
   @BeanProperty @JsonProperty("output") output: String,
-  @BeanProperty @JsonProperty("classpath") classpath: Array[String],
+  @BeanProperty @JsonProperty("jar") jar: String,
   @BeanProperty @JsonProperty("watermark_interval") watermarkInterval: JLong,
   @BeanProperty @JsonProperty("defaults") defaults: DefaultsNode)
   extends Validatable {
@@ -80,16 +80,36 @@ case class KafkaDefaultsNode(
 }
 
 case class CatalogNode(
-  @BeanProperty @JsonProperty("tables") tables: util.List[TableNode])
+  @BeanProperty @JsonProperty("tables") tables: util.List[TableNode],
+  @BeanProperty @JsonProperty("functions") functions: util.List[FunctionNode])
   extends Validatable {
 
-  def this() = this(null)
+  def this() = this(null, null)
 
   override def validate(): Unit = {
     if (tables == null) {
       throw ValidationException("Schema configuration needs table definitions.")
     }
     tables.foreach(_.validate())
+    if (functions != null) {
+      functions.foreach(_.validate())
+    }
+  }
+}
+
+case class FunctionNode(
+  @BeanProperty @JsonProperty("name") name: String,
+  @BeanProperty @JsonProperty("class") clazz: String,
+  @BeanProperty @JsonProperty("parameters") parameters: util.List[Object])
+  extends Validatable {
+
+  override def validate(): Unit = {
+    if (name == null || name.isEmpty) {
+      throw ValidationException("Function needs a name.")
+    }
+    if (clazz == null || clazz.isEmpty) {
+      throw ValidationException("Function needs a class.")
+    }
   }
 }
 

@@ -1,8 +1,6 @@
 {
   "output": "kafka",
-  "classpath": [
-    "/Users/fhueske/test.jar"
-  ],
+  "jar": "",
   "watermarkInterval": 1000,
   "defaults": {
     "kafka": {

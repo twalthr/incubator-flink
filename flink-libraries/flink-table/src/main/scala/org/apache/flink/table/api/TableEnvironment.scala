@@ -488,12 +488,19 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
-    * Gets the names of all tables registered in this catalog.
+    * Gets the names of all tables registered in this environment.
     *
     * @return A list of the names of all registered tables.
     */
-  def listTables(): JList[String] = {
-    rootSchema.getTableNames.asScala.toList.asJava
+  def listTables(): Array[String] = {
+    rootSchema.getTableNames.asScala.toArray
+  }
+
+  /**
+    * Gets the names of all functions registered in this environment.
+    */
+  def listUserDefinedFunctions(): Array[String] = {
+    functionCatalog.getUserDefinedFunctions.toArray
   }
 
   /**

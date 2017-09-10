@@ -17,14 +17,48 @@
 # limitations under the License.
 ################################################################################
 
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
+################################################################################
+# Adopted from "flink" bash script
+################################################################################
 
+target="$0"
+# For the case, the executable has been directly symlinked, figure out
+# the correct bin path by following its symlink up to an upper bound.
+# Note: we can't use the readlink utility here if we want to be POSIX
+# compatible.
+iteration=0
+while [ -L "$target" ]; do
+    if [ "$iteration" -gt 100 ]; then
+        echo "Cannot resolve path: You have a cyclic symlink in $target."
+        break
+    fi
+    ls=`ls -ld -- "$target"`
+    target=`expr "$ls" : '.* -> \(.*\)$'`
+    iteration=$((iteration + 1))
+done
+
+# Convert relative path to absolute path
+bin=`dirname "$target"`
+
+# get flink config
 . "$bin"/config.sh
 
-FLINK_CLASSPATH=`constructFlinkClassPath`
+if [ "$FLINK_IDENT_STRING" = "" ]; then
+        FLINK_IDENT_STRING="$USER"
+fi
 
-if [[ ! "$FLINK_CLASSPATH" =~ .*flink-table.*.jar ]]; then
+CC_CLASSPATH=`constructFlinkClassPath`
+
+log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-client-$HOSTNAME.log
+log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
+
+export FLINK_ROOT_DIR
+export FLINK_CONF_DIR
+
+################################################################################
+
+# check for flink-table
+if [[ ! "$CC_CLASSPATH" =~ .*flink-table.*.jar ]]; then
     # write error message to stderr since stdout is stored as the classpath
     (>&2 echo "[ERROR] Flink table jar not found in classpath should be located in $FLINK_LIB_DIR.")
 
@@ -32,4 +66,5 @@ if [[ ! "$FLINK_CLASSPATH" =~ .*flink-table.*.jar ]]; then
     exit 1
 fi
 
-java -cp "$FLINK_CLASSPATH" org.apache.flink.table.client.SqlClient $@
+# Add HADOOP_CLASSPATH to allow the usage of Hadoop file systems
+exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.table.client.SqlClient "$@"

@@ -602,7 +602,7 @@ object UserDefinedFunctionUtils {
     * Compares parameter candidate classes with expected classes. If true, the parameters match.
     * Candidate can be null (acts as a wildcard).
     */
-  private def parameterTypeEquals(candidate: Class[_], expected: Class[_]): Boolean =
+  def parameterTypeEquals(candidate: Class[_], expected: Class[_]): Boolean =
   candidate == null ||
     candidate == expected ||
     expected == classOf[Object] ||
