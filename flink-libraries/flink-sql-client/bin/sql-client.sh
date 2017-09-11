@@ -58,9 +58,9 @@ export FLINK_CONF_DIR
 ################################################################################
 
 # check for flink-table
-if [[ ! "$CC_CLASSPATH" =~ .*flink-table.*.jar ]]; then
+if [[ ! "$CC_CLASSPATH" =~ .*flink-sql-client.*.jar ]]; then
     # write error message to stderr since stdout is stored as the classpath
-    (>&2 echo "[ERROR] Flink table jar not found in classpath should be located in $FLINK_LIB_DIR.")
+    (>&2 echo "[ERROR] Flink SQL client jar not found in classpath should be located in $FLINK_LIB_DIR.")
 
     # exit to force process failure
     exit 1

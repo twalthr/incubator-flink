@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.client
 
-import java.io.File
+import java.io.{File, IOException}
 import java.lang.Thread.UncaughtExceptionHandler
 import java.lang.{Boolean => JBoolean}
 import java.net.URLClassLoader
+import java.security.Permission
 import java.util.{Collections, Properties}
 
 import kafka.admin.{AdminUtils, RackAwareMode}
@@ -60,26 +61,32 @@ object SqlClient {
     val params = ParameterTool.fromArgs(args)
     val mode: String = params.get("mode", "cluster")
     val isEmbeddedMode: Boolean = mode.toLowerCase == "embedded"
-    val isClusterMode: Boolean = mode.toLowerCase == "cluster"
     val configPath: String = params.getRequired("config")
     val catalogPath: String = params.getRequired("catalog")
     val query: String = params.get("query", "")
-    val isCli: Boolean = query.isEmpty
+    val outputPath: String = params.get("output", "")
+    val usePrompt: Boolean = query.isEmpty
 
-    printWelcome(isCli)
-
-    if (isEmbeddedMode) {
-      printIf(isCli, "> Executing client in EMBEDDED mode.")
-    } else {
-      printIf(isCli, "> Executing client in CLUSTER mode.")
+    def info(str: String): Unit = {
+      if (usePrompt) {
+        println(str)
+      }
     }
 
-    printIf(isCli, "> Loading configuration from: " + configPath)
+    info(welcome())
+
+    if (isEmbeddedMode) {
+      info("> Executing client in EMBEDDED mode.")
+    } else {
+      info("> Executing client in CLUSTER mode.")
+    }
+
+    info("> Loading configuration from: " + configPath)
 
     // read config
     val config = ConfigParser.parseConfig(new File(configPath))
 
-    printIf(isCli, "> Loading catalog from: " + catalogPath)
+    info("> Loading catalog from: " + catalogPath)
 
     // initialize classloader
 
@@ -95,12 +102,12 @@ object SqlClient {
     // read catalog
     val (tables, functions) = readCatalog(catalogPath, classLoader)
 
-    printIf(isCli, "")
-    printIf(isCli, "> Welcome!")
-    printIf(isCli, "")
-    printIf(isCli, "> Please enter SQL query or Q to exit.")
-    printIf(isCli, "> Terminate a running query by pressing ENTER")
-    printIf(isCli, "> Commands: 'SHOW TABLES', 'SHOW FUNCTIONS', 'SELECT ...', 'EXPLAIN ...'")
+    info("""
+        |> Welcome!
+        |
+        |> Please enter SQL query or Q to exit.
+        |> Terminate a running query by pressing ENTER
+        |> Commands: 'SHOW TABLES', 'SHOW FUNCTIONS', 'SELECT ...', 'EXPLAIN ...'""".stripMargin)
 
     // create and configure stream exec environment
     // we are using the Java environment in order to support dynamically registration of functions
@@ -129,7 +136,7 @@ object SqlClient {
         }
     }
 
-    if (isCli) {
+    if (usePrompt) {
       // we have no way to gracefully stop the query.
       var continue: Boolean = true
       while (continue) {
@@ -138,31 +145,41 @@ object SqlClient {
         print("> ")
 
         // read action from CLI
-        val action = StdIn.readLine().trim
+        val action = try {
+          StdIn.readLine().trim
+        } catch {
+          case e: IOException =>
+            // fail silently
+          ""
+        }
 
         if (action == "Q") {
           continue = false
         } else {
-          val output = parseQuery(config, env, tEnv, action)
+          val output = parseQuery(config, env, tEnv, action, outputPath)
           output match {
-            case Some((outputThread, cleanUp)) =>
+            case Some(outputInfo) =>
               executeAsync(
                 isEmbeddedMode,
                 jarPath,
                 configPath,
                 catalogPath,
                 env,
-                outputThread,
-                cleanUp,
-                action)
-            case _ =>
+                action,
+                outputInfo)
+            case _ => // no output
           }
         }
       }
     } else {
-      parseQuery(config, env, tEnv, query)
+      parseQuery(config, env, tEnv, query, outputPath)
       // just execute it
-      env.execute()
+      try {
+        env.execute()
+      } catch {
+        case e: Throwable =>
+          println(s"> Query terminated with: $e")
+      }
     }
   }
 
@@ -172,10 +189,10 @@ object SqlClient {
       configPath: String,
       catalogPath: String,
       env: StreamExecutionEnvironment,
-      outputThread: Thread,
-      cleanUp: () => Unit,
-      query: String) {
-    outputThread.start()
+      query: String,
+      outputInfo: OutputInfo) {
+
+    outputInfo.thread.foreach(_.start())
 
     // create execution thread
     val exceptionHandler = new ExceptionHandler
@@ -187,11 +204,13 @@ object SqlClient {
           } else {
             CliFrontend.main(Array(
               "run", // run Flink job
+              "-q",
               "-c", "org.apache.flink.table.client.SqlClient", // use this client for submission
               jarPath, // ship jar
               "-mode", "embedded", // call execute in cluster configured environment
               "-config", configPath,
               "-catalog", catalogPath,
+              "-output", outputInfo.path,
               "-query", query)) // execute query immediately
           }
         }
@@ -206,29 +225,29 @@ object SqlClient {
     StdIn.readLine()
 
     // stop execution thread hard (there is no way to stop it gracefully).
-    execThread.interrupt()
-    execThread.join()
+    execThread.stop()
     exceptionHandler.collected.foreach { t =>
       println("> Terminated with exception:")
       t.printStackTrace(System.out)
     }
 
     // clean up
-    cleanUp()
+    outputInfo.cleanUp.foreach(c => c())
   }
 
   def parseQuery(
       config: ConfigNode,
       env: StreamExecutionEnvironment,
       tEnv: StreamTableEnvironment,
-      query: String)
-    : Option[(Thread, () => Unit)] = {
+      query: String,
+      outputPath: String)
+    : Option[OutputInfo] = {
 
     if (query.toUpperCase == "SHOW TABLES") {
-        tEnv.listTables().foreach { t =>
-          println(t)
-          println(tEnv.scan(t).getSchema)
-        }
+      tEnv.listTables().foreach { t =>
+        println(t)
+        println(tEnv.scan(t).getSchema)
+      }
     } else if (query.toUpperCase == "SHOW FUNCTIONS") {
       tEnv.listUserDefinedFunctions().foreach { t =>
         println(t)
@@ -250,7 +269,7 @@ object SqlClient {
     } else if (!query.isEmpty) {
 
       // parse query
-      val result: Option[Table] = try {
+      val table: Option[Table] = try {
         Some(tEnv.sql(query))
       } catch {
         case e: Exception =>
@@ -259,27 +278,27 @@ object SqlClient {
           None
       }
 
-      // ready to be executed or submitted
-      if (result.isDefined) {
+      // query with output
+      if (table.isDefined) {
 
         // prepare output
-        val (sink, outputThread, cleanUp) = config.output match {
+        val (sink, outputInfo) = config.output match {
           case "kafka" =>
-            createKafkaOutput(config)
+            createKafkaOutput(config, outputPath)
           case o@_ =>
             throw ValidationException(s"Unsupported output '$o'.")
         }
 
         try {
           // try to create append stream
-          tEnv.toAppendStream(result.get, classOf[Row])
+          tEnv.toAppendStream(table.get, classOf[Row])
             .map(new MapFunction[Row, String] {
               override def map(value: Row): String = value.toString
             })
             .addSink(sink)
         } catch {
           case _: Exception =>
-            tEnv.toRetractStream(result.get, classOf[Row])
+            tEnv.toRetractStream(table.get, classOf[Row])
               .map(new MapFunction[JTuple2[JBoolean, Row], String] {
 
                 def map(value: JTuple2[JBoolean, Row]): String = value.toString
@@ -287,10 +306,9 @@ object SqlClient {
               .addSink(sink)
         }
 
-        return Some(outputThread, cleanUp)
+        return Some(outputInfo)
       }
     }
-
     None
   }
 
@@ -418,9 +436,7 @@ object SqlClient {
     }
   }
 
-  def printWelcome(isCli: Boolean) {
-    printIf(
-      isCli,
+  def welcome(): String = {
       // scalastyle:off
       """
                          \u2592\u2593\u2588\u2588\u2593\u2588\u2588\u2592
@@ -460,56 +476,69 @@ object SqlClient {
 
       """
     // scalastyle:on
-    )
   }
-
 
   def getRandomOutputTopic(prefix: String): String = {
     prefix + "_" + Random.nextLong().toHexString
   }
 
-  def createKafkaOutput(config: ConfigNode): (SinkFunction[String], Thread, () => Unit) = {
-    val outputTopicPrefix = config.defaults.kafka.outputTopicPrefix
+  def createKafkaOutput(
+      config: ConfigNode,
+      topic: String)
+    : (SinkFunction[String], OutputInfo) = {
+
     val outputKafkaProps = new Properties()
     outputKafkaProps.putAll(config.defaults.kafka.properties)
 
-    // create output topic with 1 partition and replication 1
-    val outputTopicName = getRandomOutputTopic(outputTopicPrefix)
-    createKafkaTopic(outputTopicName, outputKafkaProps)
-
-    // create Kafka producer
-    val producer = new FlinkKafkaProducer010(
-      outputTopicName,
-      new SimpleStringSchema(),
-      outputKafkaProps)
-
-    // create a thread to print query results
-    val topicPrinter = new TopicPrinter(outputTopicName, outputKafkaProps)
-    val outputThread = new Thread(topicPrinter, "Topic Printer")
-
-    // register shutdown hook to stop output printer and delete output topic
-    val mainThread = Thread.currentThread()
-    Runtime.getRuntime.addShutdownHook(
-      new Thread() {
-        override def run(): Unit = {
-          // stop printing of query results
-          topicPrinter.stopPrinting()
-          // delete Kakfa output topic
-          deleteKafkaTopic(outputTopicName, outputKafkaProps)
-          mainThread.join()
-        }
-      }
-    )
-
-    // clean up procedure
-    val cleanUp = () => {
-      // stop printing of query results
-      topicPrinter.stopPrinting()
-      // delete Kafka output topic
-      deleteKafkaTopic(outputTopicName, outputKafkaProps)
+    // topic should already exists
+    if (!topic.isEmpty) {
+      // create Kafka producer
+      val producer = new FlinkKafkaProducer010(
+        topic,
+        new SimpleStringSchema(),
+        outputKafkaProps)
+      (producer, OutputInfo(topic, None, None))
     }
+    // topic needs to be created and maintained
+    else {
+      // create topic
+      val outputTopicPrefix = config.defaults.kafka.outputTopicPrefix
+      val topicName = getRandomOutputTopic(outputTopicPrefix)
+      // create output topic with 1 partition and replication 1
+      createKafkaTopic(topicName, outputKafkaProps)
 
-    (producer, outputThread, cleanUp)
+      // create Kafka producer
+      val producer = new FlinkKafkaProducer010(
+        topicName,
+        new SimpleStringSchema(),
+        outputKafkaProps)
+
+      // create a thread to print query results
+      val topicPrinter = new TopicPrinter(topicName, outputKafkaProps)
+      val outputThread = new Thread(topicPrinter, "Topic Printer")
+
+      // register shutdown hook to stop output printer and delete output topic
+//      Runtime.getRuntime.addShutdownHook(
+//        new Thread() {
+//          override def run(): Unit = {
+//            // stop printing of query results
+//            topicPrinter.stopPrinting()
+//            // delete Kakfa output topic
+//            deleteKafkaTopic(topicName, outputKafkaProps)
+//          }
+//        }
+//      )
+
+      // clean up procedure
+      val cleanUp = () => {
+        // stop printing of query results
+        topicPrinter.stopPrinting()
+        // delete Kafka output topic
+        deleteKafkaTopic(topicName, outputKafkaProps)
+      }
+
+      (producer, OutputInfo(topicName, Some(outputThread), Some(cleanUp)))
+    }
   }
 
   def createKafkaTopic(topicName: String, kafkaProps: Properties): Unit = {
@@ -609,4 +638,6 @@ object SqlClient {
       collected += e
     }
   }
+
+  case class OutputInfo(path: String, thread: Option[Thread], cleanUp: Option[() => Unit])
 }

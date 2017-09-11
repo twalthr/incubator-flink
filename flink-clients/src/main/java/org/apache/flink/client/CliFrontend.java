@@ -1135,12 +1135,12 @@ public class CliFrontend {
 							return cli.parseParameters(args);
 						}
 					});
-			System.exit(retCode);
+//			System.exit(retCode);
 		}
 		catch (Throwable t) {
 			LOG.error("Fatal error while running command line interface.", t);
-			t.printStackTrace();
-			System.exit(31);
+//			t.printStackTrace();
+//			System.exit(31);
 		}
 	}
 
