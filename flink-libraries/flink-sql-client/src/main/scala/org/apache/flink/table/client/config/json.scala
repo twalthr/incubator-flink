@@ -144,6 +144,7 @@ case class TableNode(
 
 case class SourceNode(
   @BeanProperty @JsonProperty("type") tpe: String,
+  @BeanProperty @JsonProperty("class") clazz: String,
   @BeanProperty @JsonProperty("properties") properties: util.Map[String, String])
   extends Validatable {
 
@@ -154,8 +155,11 @@ case class SourceNode(
       throw ValidationException(s"Source needs a type.")
     }
 
-    if (tpe.toLowerCase != "kafka" && tpe.toLowerCase != "demo") {
+    if (tpe.toLowerCase != "kafka" && tpe.toLowerCase != "demo" && tpe.toLowerCase != "custom") {
       throw ValidationException(s"Unsupported source type.")
+    }
+    if (tpe.toLowerCase == "custom" && clazz.isEmpty) {
+      throw ValidationException(s"Custom table source needs a class.")
     }
   }
 }

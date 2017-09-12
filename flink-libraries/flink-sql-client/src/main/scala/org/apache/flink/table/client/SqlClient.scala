@@ -357,10 +357,23 @@ object SqlClient {
             }
           }
           kafkaTableSource
+
         case "demo" => t.source.properties.get("table") match {
           case "clickstream" => new ClickStreamTableSource()
         }
 
+        case "custom" =>
+          val clazz = Class.forName(t.source.clazz, true, classLoader)
+          val propConst = clazz.getConstructors.toSeq.find { c =>
+            c.getParameterCount == 1 && c.getParameterTypes()(0) == classOf[Properties]
+          }
+
+          val inst = propConst match {
+            case Some(c) => c.newInstance(t.source.properties)
+            case None => clazz.newInstance()
+          }
+
+          inst.asInstanceOf[StreamTableSource[_]]
       }
       (t.name, tableSource)
     }
