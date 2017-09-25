@@ -112,6 +112,7 @@ object SqlClient {
     // create and configure stream exec environment
     // we are using the Java environment in order to support dynamically registration of functions
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     if (config.watermarkInterval != null) {
       env.getConfig.setAutoWatermarkInterval(config.watermarkInterval)
@@ -140,6 +141,8 @@ object SqlClient {
       // we have no way to gracefully stop the query.
       var continue: Boolean = true
       while (continue) {
+
+        Thread.sleep(1000L)
 
         println()
         print("> ")
@@ -268,9 +271,18 @@ object SqlClient {
       }
     } else if (!query.isEmpty) {
 
+      val select = if (query.toUpperCase.startsWith("EXECUTE ")) {
+        val path = query.substring(8)
+        val source = scala.io.Source.fromFile(path)
+        val lines = try source.mkString finally source.close()
+        lines.replace("\n", " ")
+      } else {
+        query
+      }
+
       // parse query
       val table: Option[Table] = try {
-        Some(tEnv.sql(query))
+        Some(tEnv.sql(select))
       } catch {
         case e: Exception =>
           println("> Query could not be parsed:")
@@ -369,7 +381,10 @@ object SqlClient {
           }
 
           val inst = propConst match {
-            case Some(c) => c.newInstance(t.source.properties)
+            case Some(c) =>
+              val props = new Properties()
+              props.putAll(t.source.properties)
+              c.newInstance(props)
             case None => clazz.newInstance()
           }
 

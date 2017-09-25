@@ -148,7 +148,7 @@ case class SourceNode(
   @BeanProperty @JsonProperty("properties") properties: util.Map[String, String])
   extends Validatable {
 
-  def this() = this(null, null)
+  def this() = this(null, null, null)
 
   override def validate(): Unit = {
     if (tpe == null) {
