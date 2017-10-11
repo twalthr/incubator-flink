@@ -1,0 +1,52 @@
+Explain SQL Client
+Show Jsons
+Start in Embedded mode
+
+Simple append query: show Taxi events
+Running aggregate: Avg passenger
+Scalar function: Cell id
+OVER: How many taxis are next to you?
+GROUP WINDOW: Popular Places
+
+Start in Cluster mode
+
+SELECT 1+1
+
+SELECT * FROM TaxiEvents
+
+SELECT rideId, DATE_FORMAT(eventTime, 'New ride on %W at %T !!!') FROM TaxiEvents WHERE isStart
+
+SELECT COUNT(*) FROM TaxiEvents WHERE isStart AND IsInNYC(startLon, startLat)
+
+SELECT AVG(passengerCnt) FROM TaxiEvents WHERE isStart AND IsInNYC(startLon, startLat)
+
+SELECT
+  'Change in cell: ' || CAST(ToCellId(endLon, endLat) AS VARCHAR),
+  COUNT(*) OVER (
+    PARTITION BY ToCellId(endLon, endLat) ORDER BY eventTime RANGE BETWEEN INTERVAL '10' MINUTE PRECEDING AND CURRENT ROW
+  )
+FROM (
+  SELECT * FROM TaxiEvents WHERE NOT isStart AND IsInNYC(endLon, endLat)
+)
+
+SELECT 'Change in cell: ' || CAST(ToCellId(endLon, endLat) AS VARCHAR), COUNT(*) OVER (PARTITION BY ToCellId(endLon, endLat) ORDER BY eventTime RANGE BETWEEN INTERVAL '5' MINUTE PRECEDING AND CURRENT ROW) FROM (SELECT * FROM TaxiEvents WHERE NOT isStart AND IsInNYC(endLon, endLat))
+
+SELECT ToCoords(cell), wstart, wend, isStart, popCnt
+FROM (
+	SELECT 
+		cell,
+		isStart,
+		HOP_START(eventTime, INTERVAL '5' MINUTE, INTERVAL '15' MINUTE) AS wstart,
+		HOP_END(eventTime, INTERVAL '5' MINUTE, INTERVAL '15' MINUTE) AS wend,
+		COUNT(isStart) AS popCnt " +
+	FROM (
+		SELECT
+			eventTime,
+			isStart,
+			CASE WHEN isStart THEN ToCellId(startLon, startLat) ELSE ToCellId(endLon, endLat) END AS cell
+		FROM TaxiRides
+		WHERE IsInNYC(startLon, startLat) AND isInNYC(endLon, endLat)
+	)
+	GROUP BY cell, isStart, HOP(eventTime, INTERVAL '5' MINUTE, INTERVAL '15' MINUTE)
+)
+WHERE popCnt > 20
