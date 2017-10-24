@@ -126,7 +126,6 @@ public class CEPMigrationTest {
 		}
 	}
 
-	@Ignore
 	@Test
 	public void testRestoreAfterBranchingPattern() throws Exception {
 
@@ -288,7 +287,6 @@ public class CEPMigrationTest {
 		}
 	}
 
-	@Ignore
 	@Test
 	public void testRestoreStartingNewPatternAfterMigration() throws Exception {
 
@@ -459,7 +457,6 @@ public class CEPMigrationTest {
 		}
 	}
 
-	@Ignore
 	@Test
 	public void testSinglePatternAfterMigration() throws Exception {
 
