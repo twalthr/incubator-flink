@@ -1,0 +1,54 @@
+sources:
+  - name: MyTable
+    schema:
+      - name: testField
+        type: VARCHAR
+      - name: testField2
+        type: VARCHAR
+      - name: testField3
+        type: VARCHAR
+      - name: testField4
+        type: VARCHAR
+      - name: testField5
+        type: VARCHAR
+      - name: testField6
+        type: VARCHAR
+      - name: testField7
+        type: VARCHAR
+    connector:
+      type: filesystem
+      path: "/Users/twalthr/flink/tmp/textFile"
+    format:
+      type: csv
+      fields:
+        - name: testField
+          type: VARCHAR
+        - name: testField2
+          type: VARCHAR
+        - name: testField3
+          type: VARCHAR
+        - name: testField4
+          type: VARCHAR
+        - name: testField5
+          type: VARCHAR
+        - name: testField6
+          type: VARCHAR
+        - name: testField7
+          type: VARCHAR
+      line-delimiter: "\n"
+
+execution:
+  type: streaming
+  parallelism: 1
+  max-parallelism: 16
+  min-idle-state-retention: 1000
+  max-idle-state-retention: 1000
+  result-mode: table
+
+deployment:
+  type: standalone # for YARN and other deployments we will simply forward the CLI options
+  response-timeout: 1000
+  #gateway-address: localhost
+  #gateway-port: 42428
+
+
