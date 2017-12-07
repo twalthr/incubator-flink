@@ -1,0 +1,53 @@
+sources:
+  - name: MyTable
+    schema:
+      - name: myField
+        type: VARCHAR
+      - name: myField2
+        type: INT
+    connector:
+      type: filesystem
+      path: "/path/to/csv"
+    encoding:
+      type: csv
+      fields:
+        - name: myField
+          type: VARCHAR
+        - name: myField2
+          type: INT
+      quote-character: ";"
+      field-delimiter: "#"
+      line-delimiter: "\r\n"
+    rowtime:
+      - name: rowtime
+        timestamp:
+          type: stream-record
+        watermark:
+          type: preserving
+    proctime: myproctime
+
+  - name: MyTable2
+    schema:
+      - name: myField
+        type: VARCHAR
+      - name: myField2
+        type: INT
+    connector:
+      type: filesystem
+      path: "/path/to/csv2"
+    encoding:
+      type: csv
+      fields:
+        - name: myField
+          type: VARCHAR
+        - name: myField2
+          type: INT
+
+execution:
+  type: streaming
+  parallelism: 8
+  max-parallelism: 16
+  min-idle-state-retention: 1000
+  max-idle-state-retention: 1000
+
+
