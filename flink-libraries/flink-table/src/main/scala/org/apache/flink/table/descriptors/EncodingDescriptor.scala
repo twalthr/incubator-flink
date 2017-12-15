@@ -16,26 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources.wmstrategies
+package org.apache.flink.table.descriptors
 
-import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.table.descriptors.DescriptorUtils.encoding
 
 /**
-  * A watermark strategy for rowtime attributes which are out-of-order by a bounded time interval.
+  * Describes an encoding of data.
   *
-  * Emits watermarks which are the maximum observed timestamp minus the specified delay.
-  *
-  * @param delay The delay by which watermarks are behind the maximum observed timestamp.
+  * @param tpe string identifier for the encoding
   */
-final class BoundedOutOfOrderTimestamps(val delay: Long) extends PeriodicWatermarkAssigner {
+abstract class EncodingDescriptor(private val tpe: String) extends Descriptor {
 
-  var maxTimestamp: Long = Long.MinValue + delay
-
-  override def nextTimestamp(timestamp: Long): Unit = {
-    if (timestamp > maxTimestamp) {
-      maxTimestamp = timestamp
+  /**
+    * Internal method for properties conversion.
+    */
+  final def addProperties(properties: NormalizedProperties): Unit = {
+    properties.putString(encoding("type"), tpe)
+    val encodingProperties = new NormalizedProperties()
+    addEncodingProperties(encodingProperties)
+    encodingProperties.getProperties.foreach { case (k, v) =>
+      properties.putString(encoding(k), v)
     }
   }
 
-  override def getWatermark: Watermark = new Watermark(maxTimestamp - delay)
+  /**
+    * Internal method for encoding properties conversion.
+    */
+  protected def addEncodingProperties(properties: NormalizedProperties): Unit
+
 }

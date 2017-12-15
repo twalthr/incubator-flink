@@ -48,6 +48,7 @@ import org.apache.flink.table.runtime.conversion._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFunction}
 import org.apache.flink.table.sinks._
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, Schema, StreamTableSourceDescriptor}
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 
@@ -97,17 +98,20 @@ abstract class StreamTableEnvironment(
   }
 
   /** Returns a unique table name according to the internal naming pattern. */
-  protected def createUniqueTableName(): String = "_DataStreamTable_" + nameCntr.getAndIncrement()
+  override protected def createUniqueTableName(): String =
+    "_DataStreamTable_" + nameCntr.getAndIncrement()
 
   /**
-    * Registers an external [[StreamTableSource]] in this [[TableEnvironment]]'s catalog.
-    * Registered tables can be referenced in SQL queries.
+    * Registers an internal [[StreamTableSource]] in this [[TableEnvironment]]'s catalog without
+    * name checking. Registered tables can be referenced in SQL queries.
     *
     * @param name        The name under which the [[TableSource]] is registered.
     * @param tableSource The [[TableSource]] to register.
     */
-  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
-    checkValidTableName(name)
+  override protected def registerTableSourceInternal(
+      name: String,
+      tableSource: TableSource[_])
+    : Unit = {
 
     tableSource match {
       case streamTableSource: StreamTableSource[_] =>
@@ -123,6 +127,16 @@ abstract class StreamTableEnvironment(
         throw new TableException("Only StreamTableSource can be registered in " +
           "StreamTableEnvironment")
     }
+  }
+
+  /**
+    * Creates a table from a descriptor that describes the resulting table schema, the source
+    * connector, the source encoding, and other properties.
+    *
+    * @param schema schema descriptor describing the table to create
+    */
+  def createTable(schema: Schema): StreamTableSourceDescriptor = {
+    new StreamTableSourceDescriptor(this, schema)
   }
 
   /**

@@ -137,11 +137,50 @@ case class CatalogAlreadyExistException(
 }
 
 /**
+  * Exception for not finding a [[org.apache.flink.table.sources.TableSourceFactory]] for the
+  * given properties.
+  *
+  * @param properties properties that describe the table source
+  * @param cause the cause
+  */
+case class NoMatchingTableSourceException(
+    properties: Map[String, String],
+    cause: Throwable)
+    extends RuntimeException(
+      s"Could not find a table source factory in the classpath satisfying the " +
+        s"following properties: \n${properties.map(e => e._1 + "=" +  e._2 ).mkString("\n")}",
+      cause) {
+
+  def this(properties: Map[String, String]) = this(properties, null)
+}
+
+/**
+  * Exception for finding more than one [[org.apache.flink.table.sources.TableSourceFactory]] for
+  * the given properties.
+  *
+  * @param properties properties that describe the table source
+  * @param cause the cause
+  */
+case class AmbiguousTableSourceException(
+    properties: Map[String, String],
+    cause: Throwable)
+    extends RuntimeException(
+      s"More than one table source factory in the classpath satisfying the " +
+        s"following properties: \n${properties.map(e => e._1 + "=" +  e._2 ).mkString("\n")}",
+      cause) {
+
+  def this(properties: Map[String, String]) = this(properties, null)
+}
+
+/**
   * Exception for not finding a [[TableSourceConverter]] for a given table type.
   *
   * @param tableType table type
   * @param cause the cause
+  * @deprecated Use table source factories instead.
   */
+@Deprecated
+@deprecated("Use table factories instead.")
 case class NoMatchedTableSourceConverterException(
     tableType: String,
     cause: Throwable)
@@ -156,7 +195,10 @@ case class NoMatchedTableSourceConverterException(
   *
   * @param tableType table type
   * @param cause the cause
+  * @deprecated Use table source factories instead.
   */
+@Deprecated
+@deprecated("Use table source factories instead.")
 case class AmbiguousTableSourceConverterException(
     tableType: String,
     cause: Throwable)

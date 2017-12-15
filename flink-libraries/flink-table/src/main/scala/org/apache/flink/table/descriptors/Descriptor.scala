@@ -16,26 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources.wmstrategies
-
-import org.apache.flink.streaming.api.watermark.Watermark
+package org.apache.flink.table.descriptors
 
 /**
-  * A watermark strategy for rowtime attributes which are out-of-order by a bounded time interval.
-  *
-  * Emits watermarks which are the maximum observed timestamp minus the specified delay.
-  *
-  * @param delay The delay by which watermarks are behind the maximum observed timestamp.
+  * A class that adds a set of string-based, normalized properties for describing a
+  * table source or table sink.
   */
-final class BoundedOutOfOrderTimestamps(val delay: Long) extends PeriodicWatermarkAssigner {
+abstract class Descriptor {
 
-  var maxTimestamp: Long = Long.MinValue + delay
+  /**
+    * Internal method for properties conversion.
+    */
+  def addProperties(properties: NormalizedProperties): Unit
 
-  override def nextTimestamp(timestamp: Long): Unit = {
-    if (timestamp > maxTimestamp) {
-      maxTimestamp = timestamp
-    }
-  }
-
-  override def getWatermark: Watermark = new Watermark(maxTimestamp - delay)
 }

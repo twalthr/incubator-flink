@@ -25,6 +25,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.CommonTestData
+import org.apache.flink.table.descriptors._
 import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
@@ -365,6 +366,43 @@ class TableSourceTest extends TableTestBase {
       .ignoreFirstLine()
       .ignoreParseErrors()
       .build()
+
+    val source2 = new CsvTableSource(
+      "/path/to/csv",
+      Array("myfield", "myfield2"),
+      Array(Types.STRING, Types.INT),
+      "#",
+      "\r\n",
+      ';',
+      true,
+      "%%",
+      true)
+
+    Assert.assertEquals(source1, source2)
+  }
+
+  @Test
+  def testCsvTableSourceDescriptor(): Unit = {
+    val util = streamTestUtil()
+    val source1 = util.tableEnv
+      .createTable(
+        Schema()
+          .field("myfield", Types.STRING)
+          .field("myfield2", Types.INT))
+      .withConnector(
+        FileSystem()
+          .path("/path/to/csv"))
+      .withEncoding(
+        CSV()
+          .field("myfield", Types.STRING)
+          .field("myfield2", Types.INT)
+          .quoteCharacter(';')
+          .fieldDelimiter("#")
+          .lineDelimiter("\r\n")
+          .commentPrefix("%%")
+          .ignoreFirstLine()
+          .ignoreParseErrors())
+      .toTableSource
 
     val source2 = new CsvTableSource(
       "/path/to/csv",

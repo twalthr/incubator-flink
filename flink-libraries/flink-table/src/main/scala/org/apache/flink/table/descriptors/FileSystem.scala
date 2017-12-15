@@ -16,26 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources.wmstrategies
-
-import org.apache.flink.streaming.api.watermark.Watermark
+package org.apache.flink.table.descriptors
 
 /**
-  * A watermark strategy for rowtime attributes which are out-of-order by a bounded time interval.
-  *
-  * Emits watermarks which are the maximum observed timestamp minus the specified delay.
-  *
-  * @param delay The delay by which watermarks are behind the maximum observed timestamp.
+  * Connector descriptor for a file system.
   */
-final class BoundedOutOfOrderTimestamps(val delay: Long) extends PeriodicWatermarkAssigner {
+class FileSystem extends ConnectorDescriptor("filesystem") {
 
-  var maxTimestamp: Long = Long.MinValue + delay
+  private var path: Option[String] = None
 
-  override def nextTimestamp(timestamp: Long): Unit = {
-    if (timestamp > maxTimestamp) {
-      maxTimestamp = timestamp
-    }
+  /**
+    * Sets the path to a file or directory in a file system.
+    *
+    * @param path the path a file or directory
+    */
+  def path(path: String): FileSystem = {
+    this.path = Some(path)
+    this
   }
 
-  override def getWatermark: Watermark = new Watermark(maxTimestamp - delay)
+  /**
+    * Internal method for properties conversion.
+    */
+  override protected def addConnectorProperties(properties: NormalizedProperties): Unit = {
+    path.foreach(properties.putString("path", _))
+  }
+}
+
+/**
+  * Connector descriptor for a file system.
+  */
+object FileSystem {
+
+  /**
+    * Connector descriptor for a file system.
+    */
+  def apply(): FileSystem = new FileSystem()
+  
 }

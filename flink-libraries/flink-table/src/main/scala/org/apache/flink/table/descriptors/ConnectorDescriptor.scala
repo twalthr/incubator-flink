@@ -16,26 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources.wmstrategies
+package org.apache.flink.table.descriptors
 
-import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.table.descriptors.DescriptorUtils.connector
 
 /**
-  * A watermark strategy for rowtime attributes which are out-of-order by a bounded time interval.
+  * Describes a connector to an other system.
   *
-  * Emits watermarks which are the maximum observed timestamp minus the specified delay.
-  *
-  * @param delay The delay by which watermarks are behind the maximum observed timestamp.
+  * @param tpe string identifier for the connector
   */
-final class BoundedOutOfOrderTimestamps(val delay: Long) extends PeriodicWatermarkAssigner {
+abstract class ConnectorDescriptor(private val tpe: String) extends Descriptor {
 
-  var maxTimestamp: Long = Long.MinValue + delay
-
-  override def nextTimestamp(timestamp: Long): Unit = {
-    if (timestamp > maxTimestamp) {
-      maxTimestamp = timestamp
+  /**
+    * Internal method for properties conversion.
+    */
+  final def addProperties(properties: NormalizedProperties): Unit = {
+    properties.putString(connector("type"), tpe)
+    val connectorProperties = new NormalizedProperties()
+    addConnectorProperties(connectorProperties)
+    connectorProperties.getProperties.foreach { case (k, v) =>
+      properties.putString(connector(k), v)
     }
   }
 
-  override def getWatermark: Watermark = new Watermark(maxTimestamp - delay)
+  /**
+    * Internal method for connector properties conversion.
+    */
+  protected def addConnectorProperties(properties: NormalizedProperties): Unit
+
 }

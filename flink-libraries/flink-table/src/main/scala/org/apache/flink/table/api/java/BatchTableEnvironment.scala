@@ -23,6 +23,7 @@ import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.api._
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
+import org.apache.flink.table.descriptors.{BatchTableSourceDescriptor, ConnectorDescriptor}
 
 /**
   * The [[TableEnvironment]] for a Java batch [[DataSet]]
