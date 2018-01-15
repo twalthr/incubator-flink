@@ -19,6 +19,8 @@
 package org.apache.flink.table.client.config;
 
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.descriptors.NormalizedProperties;
+import org.apache.flink.table.descriptors.TableSourceDescriptor;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,7 +28,7 @@ import java.util.Map;
 /**
  * Configuration of a table source.
  */
-public class Source {
+public class Source extends TableSourceDescriptor {
 
 	private String name;
 	private Map<String, String> properties;
@@ -57,5 +59,12 @@ public class Source {
 		final Map<String, Object> properties = new HashMap<>(config);
 		properties.remove(NAME);
 		return new Source((String) name, ConfigUtil.normalizeYaml(properties));
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public void addProperties(NormalizedProperties properties) {
+		this.properties.forEach(properties::putString);
 	}
 }

@@ -40,6 +40,9 @@ public class ConfigUtil {
 		// private
 	}
 
+	/**
+	 * Normalizes key-value properties from Yaml in the normalized format of the Table API.
+	 */
 	public static Map<String, String> normalizeYaml(Map<String, Object> yamlMap) {
 		final Map<String, String> normalized = new HashMap<>();
 		yamlMap.forEach((k, v) -> normalizeYamlObject(normalized, k, v));
@@ -62,6 +65,9 @@ public class ConfigUtil {
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Modified object mapper that converts to lower-case keys.
+	 */
 	public static class LowerCaseYamlMapper extends ObjectMapper {
 		public LowerCaseYamlMapper() {
 			super(new YAMLFactory() {

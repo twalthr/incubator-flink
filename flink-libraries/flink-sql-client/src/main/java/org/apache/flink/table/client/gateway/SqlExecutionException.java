@@ -18,26 +18,18 @@
 
 package org.apache.flink.table.client.gateway;
 
-import org.apache.flink.table.client.config.Environment;
-
 /**
- * Context describing a session.
+ * Exception thrown during the execution of SQL statements.
  */
-public class SessionContext {
+public class SqlExecutionException extends RuntimeException {
 
-	private final String name;
-	private final Environment environment;
+	private static final long serialVersionUID = 1L;
 
-	public SessionContext(String name, Environment environment) {
-		this.name = name;
-		this.environment = environment;
+	public SqlExecutionException(String message) {
+		super(message);
 	}
 
-	public String getName() {
-		return name;
-	}
-
-	public Environment getEnvironment() {
-		return environment;
+	public SqlExecutionException(String message, Throwable e) {
+		super(message, e);
 	}
 }

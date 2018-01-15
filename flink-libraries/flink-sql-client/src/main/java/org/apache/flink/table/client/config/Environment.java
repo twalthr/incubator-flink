@@ -22,6 +22,7 @@ import org.apache.flink.table.client.SqlClientException;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,11 @@ public class Environment {
 	private Map<String, Source> sources;
 
 	private Execution execution;
+
+	public Environment() {
+		this.sources = Collections.emptyMap();
+		this.execution = new Execution();
+	}
 
 	public Map<String, Source> getSources() {
 		return sources;
@@ -58,7 +64,29 @@ public class Environment {
 		return execution;
 	}
 
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Parses an environment file from an URL.
+	 */
 	public static Environment parse(URL url) throws IOException {
 		return new ConfigUtil.LowerCaseYamlMapper().readValue(url, Environment.class);
+	}
+
+	/**
+	 * Merges two environments. The properties of the first environment might be overwritten by the second one.
+	 */
+	public static Environment merge(Environment env1, Environment env2) {
+		final Environment mergedEnv = new Environment();
+
+		// merge sources
+		final Map<String, Source> sources = new HashMap<>(env1.getSources());
+		mergedEnv.getSources().putAll(env2.getSources());
+		mergedEnv.sources = sources;
+
+		// merge execution properties
+		mergedEnv.execution = Execution.merge(env1.getExecution(), env2.getExecution());
+
+		return mergedEnv;
 	}
 }

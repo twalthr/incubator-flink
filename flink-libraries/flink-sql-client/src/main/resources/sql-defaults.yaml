@@ -18,13 +18,6 @@ sources:
       quote-character: ";"
       field-delimiter: "#"
       line-delimiter: "\r\n"
-    rowtime:
-      - name: rowtime
-        timestamp:
-          type: stream-record
-        watermark:
-          type: preserving
-    proctime: myproctime
 
   - name: MyTable2
     schema:

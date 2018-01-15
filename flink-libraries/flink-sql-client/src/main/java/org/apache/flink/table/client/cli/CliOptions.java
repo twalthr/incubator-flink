@@ -21,7 +21,8 @@ package org.apache.flink.table.client.cli;
 import java.net.URL;
 
 /**
- * Command line options to configure the SQL client.
+ * Command line options to configure the SQL client. Arguments that have not been specified
+ * by the user are null.
  */
 public class CliOptions {
 

@@ -37,6 +37,7 @@ import org.jline.utils.InfoCmp;
 import java.io.IOException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 
 /**
  * SQL CLI client.
@@ -110,13 +111,12 @@ public class CliClient {
 			} catch (Throwable t) {
 				throw new SqlClientException("Could not read from command line.", t);
 			}
-			if (line == null) {
+			if (line == null || line.equals("")) {
 				continue;
 			}
 
 			// normalize string to figure out the main command
-			final String normalized = line.trim().toUpperCase().replace("(", "");
-			final String[] tokenized = normalized.split("\\s+");
+			final String[] tokenized = line.trim().split("\\s+");
 
 			if (commandMatch(tokenized, CliStrings.COMMAND_QUIT)) {
 				terminal.writer().append(CliStrings.MESSAGE_QUIT);
@@ -129,52 +129,57 @@ public class CliClient {
 			} else if (commandMatch(tokenized, CliStrings.COMMAND_SHOW_TABLES)) {
 				performShowTables();
 			} else if (commandMatch(tokenized, CliStrings.COMMAND_DESCRIBE)) {
-				performDescribe();
+				performDescribe(removeCommand(tokenized, CliStrings.COMMAND_DESCRIBE));
 			} else if (commandMatch(tokenized, CliStrings.COMMAND_EXPLAIN)) {
-				performExplain();
+				performExplain(removeCommand(tokenized, CliStrings.COMMAND_EXPLAIN));
 			} else if (commandMatch(tokenized, CliStrings.COMMAND_SELECT)) {
-				performSelect();
+				performSelect(line);
+			} else {
+				terminal.writer().println(CliStrings.messageError(CliStrings.MESSAGE_UNKNOWN_SQL));
 			}
 		}
 	}
 
 	private boolean commandMatch(String[] tokens, String command) {
+		// check for statement match
 		final String[] commandTokens = command.split(" ");
 		if (tokens.length < commandTokens.length) {
 			return false;
 		}
 		for (int i = 0; i < commandTokens.length; i++) {
-			if (!tokens[i].equals(commandTokens[i])) {
+			if (!tokens[i].equalsIgnoreCase(commandTokens[i])) {
 				return false;
 			}
 		}
 		return true;
 	}
 
+	private String removeCommand(String[] tokens, String command) {
+		final String[] commandTokens = command.split(" ");
+		return String.join(" ", Arrays.copyOfRange(tokens, commandTokens.length, tokens.length));
+	}
+
 	private void performClearTerminal() {
 		terminal.puts(InfoCmp.Capability.clear_screen);
-		terminal.flush();
 	}
 
 	private void performHelp() {
 		terminal.writer().println(CliStrings.MESSAGE_HELP);
-		terminal.flush();
 	}
 
 	private void performShowTables() {
-		translator.translateListTables().forEach((t) -> terminal.writer().println(t));
-		terminal.flush();
+		terminal.writer().println(translator.translateShowTables());
 	}
 
-	private void performDescribe() {
-		throw new SqlClientException("Not yet implemented.");
+	private void performDescribe(String argument) {
+		terminal.writer().println(translator.translateDescribeTable(argument));
 	}
 
-	private void performExplain() {
-		throw new SqlClientException("Not yet implemented.");
+	private void performExplain(String argument) {
+		terminal.writer().println(translator.translateExplainTable(argument));
 	}
 
-	private void performSelect() {
-		throw new SqlClientException("Not yet implemented.");
+	private void performSelect(String query) {
+		//translator.
 	}
 }

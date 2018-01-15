@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.util.ExceptionUtils;
+
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 
@@ -55,6 +57,7 @@ public final class CliStrings {
 		.ansiAppend(formatCommand(COMMAND_SHOW_TABLES, "Shows all registered tables."))
 		.ansiAppend(formatCommand(COMMAND_DESCRIBE, "Describes the schema of a table with the given name."))
 		.ansiAppend(formatCommand(COMMAND_EXPLAIN, "Describes the execution plan of a query or table with the given name."))
+		.ansiAppend(formatCommand(COMMAND_SELECT, "Executes a SQL SELECT query on the Flink cluster."))
 		.style(AttributedStyle.DEFAULT.underline())
 		.ansiAppend("\nHint")
 		.style(AttributedStyle.DEFAULT)
@@ -104,6 +107,45 @@ public final class CliStrings {
 		"        Welcome! Enter HELP to list all available commands. QUIT to exit.\n\n";
 
 	public static final String MESSAGE_QUIT = "Exiting " + CliStrings.CLI_NAME + "...";
+
+	public static final String MESSAGE_SQL_EXECUTION_ERROR = "Could not execute SQL statement.";
+
+	public static final String MESSAGE_EMPTY = "Result was empty.";
+
+	public static final String MESSAGE_UNKNOWN_SQL = "Unknown SQL statement.";
+
+	public static final String MESSAGE_UNKNOWN_TABLE= "Unknown table.";
+
+	public static String messageInfo(String message) {
+		return new AttributedStringBuilder()
+			.style(AttributedStyle.DEFAULT.bold().foreground(AttributedStyle.BLUE))
+			.append("[INFO] ")
+			.append(message)
+			.toAnsi();
+	}
+
+	public static String messageError(String message, Throwable t) {
+		return messageError(message, ExceptionUtils.stringifyException(t));
+	}
+
+	public static String messageError(String message) {
+		return messageError(message, (String) null);
+	}
+
+	public static String messageError(String message, String s) {
+		final AttributedStringBuilder builder = new AttributedStringBuilder()
+			.style(AttributedStyle.DEFAULT.bold().foreground(AttributedStyle.RED))
+			.append("[ERROR] ")
+			.append(message);
+
+		if (s != null) {
+			builder
+				.append(" Reason:\n")
+				.append(s);
+		}
+
+		return builder.toAnsi();
+	}
 
 	// --------------------------------------------------------------------------------------------
 

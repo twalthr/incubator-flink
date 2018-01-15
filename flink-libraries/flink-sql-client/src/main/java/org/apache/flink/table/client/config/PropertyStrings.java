@@ -16,10 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway;
+package org.apache.flink.table.client.config;
 
-/**
- * Executor that communicates to some distant local executor.
- */
-public class RemoteExecutor implements Executor {
+public final class PropertyStrings {
+
+	private PropertyStrings() {
+		// private
+	}
+
+	public static final String TYPE = "type";
+
+	public static final String EXECUTION_TYPE_STREAMING = "streaming";
+
+	public static final String EXECUTION_TYPE_BATCH = "batch";
 }

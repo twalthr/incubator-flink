@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SessionContext;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Translates the messages between the executor and CLI client. The result of the translator
@@ -38,6 +41,35 @@ public class CliTranslator {
 	}
 
 	public String translateShowTables() {
-		return this.executor.listTables(context);
+		return printOrError(() -> {
+			final List<String> tables = this.executor.listTables(context);
+			if (tables.size() == 0) {
+				return CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY);
+			} else {
+				return String.join("\n", tables);
+			}
+		});
+	}
+
+	public String translateDescribeTable(String name) {
+		return printOrError(() -> {
+			final TableSchema schema = this.executor.getTableSchema(context, name);
+			if (schema == null) {
+				return CliStrings.messageError(CliStrings.MESSAGE_UNKNOWN_TABLE);
+			}
+			return schema.toString();
+		});
+	}
+
+	public String translateExplainTable(String statement) {
+		return printOrError(() -> this.executor.explainStatement(context, statement));
+	}
+
+	private String printOrError(Supplier<String> r) {
+		try {
+			return r.get();
+		} catch (SqlExecutionException e) {
+			return CliStrings.messageError(CliStrings.MESSAGE_SQL_EXECUTION_ERROR, e);
+		}
 	}
 }

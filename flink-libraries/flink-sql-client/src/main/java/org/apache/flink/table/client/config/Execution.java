@@ -18,24 +18,45 @@
 
 package org.apache.flink.table.client.config;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Configuration of a table program execution.
  */
 public class Execution {
 
-	private Map<String, String> properties;
+	private final Map<String, String> properties;
+
+	public Execution() {
+		this.properties = Collections.emptyMap();
+	}
 
 	private Execution(Map<String, String> properties) {
 		this.properties = properties;
 	}
 
-	public Map<String, String> getProperties() {
-		return properties;
+	public boolean isStreamingExecution() {
+		return Objects.equals(
+			properties.getOrDefault(PropertyStrings.TYPE, PropertyStrings.EXECUTION_TYPE_STREAMING),
+			PropertyStrings.EXECUTION_TYPE_STREAMING);
 	}
+
+	// --------------------------------------------------------------------------------------------
 
 	public static Execution create(Map<String, Object> config) {
 		return new Execution(ConfigUtil.normalizeYaml(config));
+	}
+
+	/**
+	 * Merges two executions. The properties of the first execution might be overwritten by the second one.
+	 */
+	public static Execution merge(Execution exec1, Execution exec2) {
+		final Map<String, String> properties = new HashMap<>(exec1.properties);
+		properties.putAll(exec2.properties);
+
+		return new Execution(properties);
 	}
 }

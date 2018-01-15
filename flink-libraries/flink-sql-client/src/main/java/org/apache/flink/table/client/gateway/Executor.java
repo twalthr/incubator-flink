@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.client.gateway;
 
+import org.apache.flink.table.api.TableSchema;
+
 import java.util.List;
 
 /**
@@ -28,10 +30,22 @@ public interface Executor {
 	/**
 	 * Starts the executor and ensures that its is ready for commands to be executed.
 	 */
-	void start() throws Exception;
+	void start() throws SqlExecutionException;
 
 	/**
 	 * Lists all tables known to the executor.
 	 */
-	List<String> listTables(SessionContext context) throws Exception;
+	List<String> listTables(SessionContext context) throws SqlExecutionException;
+
+	/**
+	 * Returns the schema of a table or null if no table with this name exists.
+	 */
+	TableSchema getTableSchema(SessionContext context, String name) throws SqlExecutionException;
+
+	/**
+	 * Returns a string-based explanation about AST and execution plan of the given statement.
+	 */
+	String explainStatement(SessionContext context, String statement) throws SqlExecutionException;
+
+	void executeQuery(SessionContext context, String query) throws SqlExecutionException;
 }

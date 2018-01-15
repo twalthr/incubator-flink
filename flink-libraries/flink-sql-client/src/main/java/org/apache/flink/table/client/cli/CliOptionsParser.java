@@ -27,6 +27,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -44,6 +45,7 @@ public class CliOptionsParser {
 			.builder("c")
 			.required(false)
 			.longOpt("config")
+			.numberOfArgs(1)
 			.argName("configuration file")
 			.desc(
 				"The configuration to specify the behavior of the SQL client application.")
@@ -53,6 +55,7 @@ public class CliOptionsParser {
 			.builder("s")
 			.required(false)
 			.longOpt("session")
+			.numberOfArgs(1)
 			.argName("session identifier")
 			.desc(
 				"The identifier for a session. 'default' is the default identifier.")
@@ -62,6 +65,7 @@ public class CliOptionsParser {
 			.builder("j")
 			.required(false)
 			.longOpt("jar")
+			.numberOfArgs(1)
 			.argName("JAR file")
 			.desc(
 				"The JAR file to be imported into the session. The file might contain " +
@@ -73,6 +77,7 @@ public class CliOptionsParser {
 			.builder("e")
 			.required(false)
 			.longOpt("environment")
+			.numberOfArgs(1)
 			.argName("environment file")
 			.desc(
 				"The environment properties to be imported into the session. " +
@@ -83,6 +88,7 @@ public class CliOptionsParser {
 			.builder("d")
 			.required(false)
 			.longOpt("defaults")
+			.numberOfArgs(1)
 			.argName("environment file")
 			.desc(
 				"The environment properties with which every new session is initialized. " +
@@ -93,6 +99,7 @@ public class CliOptionsParser {
 			.builder("l")
 			.required(false)
 			.longOpt("libraries")
+			.numberOfArgs(1)
 			.argName("JAR directory")
 			.desc(
 				"The JAR files with which every new session is initialized. The files might " +
@@ -265,10 +272,16 @@ public class CliOptionsParser {
 
 	private static URL checkUrl(CommandLine line, Option option) {
 		if (line.hasOption(option.getOpt())) {
+			final String url = line.getOptionValue(option.getOpt());
 			try {
-				return new URL(line.getOptionValue(option.getOpt()));
+				return new URL(url);
 			} catch (MalformedURLException e) {
-				throw new SqlClientException("Invalid path for " + option.getLongOpt() + ".", e);
+				// try to enrich URL
+				final URL resourceUrl = Thread.currentThread().getContextClassLoader().getResource(url);
+				if (resourceUrl != null) {
+					return resourceUrl;
+				}
+				throw new SqlClientException("Invalid path for option '" + option.getLongOpt() + "': " + url, e);
 			}
 		}
 		return null;
