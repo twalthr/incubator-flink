@@ -65,6 +65,13 @@ public class CliTranslator {
 		return printOrError(() -> this.executor.explainStatement(context, statement));
 	}
 
+	public String translateSelect(String query) {
+		return printOrError(() -> {
+			this.executor.executeQuery(context, query);
+			return "TODO";
+		});
+	}
+
 	private String printOrError(Supplier<String> r) {
 		try {
 			return r.get();

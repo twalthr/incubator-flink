@@ -11,15 +11,17 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * SQL Client for submitting SQL statements. The client can be executed in two
  * modes: a gateway and embedded mode.
  *
- * - In gateway mode, the SQL CLI client connects to the REST API of the gateway and allows for
+ * <p>- In gateway mode, the SQL CLI client connects to the REST API of the gateway and allows for
  * managing queries via console.
  *
- * - In embedded mode, the SQL CLI is tightly coupled with the executor in a common process. This
+ * <p>- In embedded mode, the SQL CLI is tightly coupled with the executor in a common process. This
  * allows for submitting jobs without having to start an additional components.
  */
 public class SqlClient {
@@ -41,7 +43,19 @@ public class SqlClient {
 		if (isEmbedded) {
 			// create local executor with default environment
 			final Environment defaultEnv = readEnvironment(options.getDefaults());
-			final Executor executor = new LocalExecutor(defaultEnv);
+			final List<URL> jars;
+			if (options.getJars() != null) {
+				jars = options.getJars();
+			} else {
+				jars = Collections.emptyList();
+			}
+			final List<URL> libDirs;
+			if (options.getLibraryDirs() != null) {
+				libDirs = options.getLibraryDirs();
+			} else {
+				libDirs = Collections.emptyList();
+			}
+			final Executor executor = new LocalExecutor(defaultEnv, jars, libDirs);
 			executor.start();
 
 			// create CLI client with session environment

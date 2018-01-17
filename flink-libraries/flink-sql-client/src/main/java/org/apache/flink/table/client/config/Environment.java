@@ -36,9 +36,12 @@ public class Environment {
 
 	private Execution execution;
 
+	private Deployment deployment;
+
 	public Environment() {
 		this.sources = Collections.emptyMap();
 		this.execution = new Execution();
+		this.deployment = new Deployment();
 	}
 
 	public Map<String, Source> getSources() {
@@ -64,6 +67,14 @@ public class Environment {
 		return execution;
 	}
 
+	public void setDeployment(Map<String, Object> config) {
+		this.deployment = Deployment.create(config);
+	}
+
+	public Deployment getDeployment() {
+		return deployment;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -86,6 +97,9 @@ public class Environment {
 
 		// merge execution properties
 		mergedEnv.execution = Execution.merge(env1.getExecution(), env2.getExecution());
+
+		// merge deployment properties
+		mergedEnv.deployment = Deployment.merge(env1.getDeployment(), env2.getDeployment());
 
 		return mergedEnv;
 	}

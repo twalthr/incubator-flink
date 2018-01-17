@@ -38,10 +38,34 @@ public class Execution {
 		this.properties = properties;
 	}
 
+	// TODO add logger warnings if default value is used
+
 	public boolean isStreamingExecution() {
 		return Objects.equals(
 			properties.getOrDefault(PropertyStrings.TYPE, PropertyStrings.EXECUTION_TYPE_STREAMING),
 			PropertyStrings.EXECUTION_TYPE_STREAMING);
+	}
+
+	public boolean isBatchExecution() {
+		return Objects.equals(
+			properties.getOrDefault(PropertyStrings.TYPE, PropertyStrings.EXECUTION_TYPE_STREAMING),
+			PropertyStrings.EXECUTION_TYPE_BATCH);
+	}
+
+	public long getMinStateRetention() {
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MIN_STATE_RETENTION, Long.toString(Long.MIN_VALUE)));
+	}
+
+	public long getMaxStateRetention() {
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_STATE_RETENTION, Long.toString(Long.MIN_VALUE)));
+	}
+
+	public int getParallelism() {
+		return Integer.parseInt(properties.getOrDefault(PropertyStrings.EXECUTION_PARALLELISM, Integer.toString(1)));
+	}
+
+	public int getMaxParallelism() {
+		return Integer.parseInt(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_PARALLELISM, Integer.toString(128)));
 	}
 
 	// --------------------------------------------------------------------------------------------

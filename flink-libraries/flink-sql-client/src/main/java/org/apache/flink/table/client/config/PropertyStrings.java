@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.client.config;
 
+/**
+ * Strings used for key and values in an environment file.
+ */
 public final class PropertyStrings {
 
 	private PropertyStrings() {
@@ -29,4 +32,20 @@ public final class PropertyStrings {
 	public static final String EXECUTION_TYPE_STREAMING = "streaming";
 
 	public static final String EXECUTION_TYPE_BATCH = "batch";
+
+	public static final String EXECUTION_MIN_STATE_RETENTION = "min-idle-state-retention";
+
+	public static final String EXECUTION_MAX_STATE_RETENTION = "max-idle-state-retention";
+
+	public static final String EXECUTION_PARALLELISM = "parallelism";
+
+	public static final String EXECUTION_MAX_PARALLELISM = "max-parallelism";
+
+	public static final String DEPLOYMENT_TYPE_STANDALONE = "standalone";
+
+	public static final String DEPLOYMENT_RESPONSE_TIMEOUT = "response-timeout";
+
+	public static final String DEPLOYMENT_GATEWAY_ADDRESS = "client-address";
+
+	public static final String DEPLOYMENT_GATEWAY_PORT = "client-port";
 }

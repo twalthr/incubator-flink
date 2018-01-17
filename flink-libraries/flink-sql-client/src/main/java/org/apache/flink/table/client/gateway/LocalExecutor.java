@@ -18,52 +18,123 @@
 
 package org.apache.flink.table.client.gateway;
 
+import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.cli.CliFrontend;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.ClusterRetrieveException;
+import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
+import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.JobWithJars;
+import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.costs.DefaultCostEstimator;
+import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.SqlParserException;
+import org.apache.flink.table.api.BatchQueryConfig;
+import org.apache.flink.table.api.QueryConfig;
+import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.Execution;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceFactoryService;
 
+import java.io.File;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * Executor that performs the Flink communication locally.
+ * Executor that performs the Flink communication locally. The calls are blocking depending on the
+ * response time to the Flink cluster.
  */
 public class LocalExecutor implements Executor {
 
 	private final Environment environment;
-	private final Thread executorThread;
+	private final List<URL> dependencies;
+	private final Configuration flinkConfig;
+	private final ResultStore resultStore;
 
-	public LocalExecutor(Environment environment) {
+	public LocalExecutor(Environment environment, List<URL> jars, List<URL> libraries) {
 		this.environment = environment;
 
-		executorThread = new Thread("Flink SQL Client Executor");
+		try {
+			// find the configuration directory
+			final String flinkConfigDir = CliFrontend.getConfigurationDirectoryFromEnv();
+
+			// load the global configuration
+			flinkConfig = GlobalConfiguration.loadConfiguration(flinkConfigDir);
+		} catch (Exception e) {
+			throw new SqlClientException("Could not load Flink configuration.", e);
+		}
+
+		dependencies = new ArrayList<>();
+		try {
+			// find jar files
+			for (URL url : jars) {
+				JobWithJars.checkJarFile(url);
+				dependencies.add(url);
+			}
+
+			// find jar files in library directories
+			for (URL libUrl : libraries) {
+				final File dir = new File(libUrl.toURI());
+				if (!dir.isDirectory() || !dir.canRead()) {
+					throw new SqlClientException("Directory cannot be read: " + dir);
+				}
+				final File[] files = dir.listFiles();
+				if (files == null) {
+					throw new SqlClientException("Directory cannot be read: " + dir);
+				}
+				for (File f : files) {
+					// only consider jars
+					if (f.isFile() && f.getAbsolutePath().toLowerCase().endsWith(".jar")) {
+						final URL url = f.toURI().toURL();
+						JobWithJars.checkJarFile(url);
+						dependencies.add(url);
+					}
+				}
+			}
+		} catch (Exception e) {
+			throw new SqlClientException("Could not load all required JAR files.", e);
+		}
+
+		resultStore = new ResultStore(flinkConfig);
 	}
 
 	@Override
 	public void start() {
-		executorThread.start();
+		// nothing to do yet
 	}
 
 	@Override
 	public List<String> listTables(SessionContext context) throws SqlExecutionException {
-		final TableEnvironment tableEnv = getTableEnvironment(context);
+		final Environment env = getEnvironment(context);
+		final TableEnvironment tableEnv = getTableEnvironment(env);
 		return Arrays.asList(tableEnv.listTables());
 	}
 
 	@Override
 	public TableSchema getTableSchema(SessionContext context, String name) throws SqlExecutionException {
-		final TableEnvironment tableEnv = getTableEnvironment(context);
-
+		final Environment env = getEnvironment(context);
+		final TableEnvironment tableEnv = getTableEnvironment(env);
 		try {
 			return tableEnv.scan(name).getSchema();
 		} catch (TableException e) {
@@ -73,42 +144,127 @@ public class LocalExecutor implements Executor {
 
 	@Override
 	public String explainStatement(SessionContext context, String statement) throws SqlExecutionException {
-		final TableEnvironment tableEnv = getTableEnvironment(context);
+		final Environment env = getEnvironment(context);
+		final TableEnvironment tableEnv = getTableEnvironment(env);
 		try {
 			final Table table = tableEnv.sqlQuery(statement);
 			return tableEnv.explain(table);
-		} catch (TableException | SqlParserException | ValidationException e) {
-			throw new SqlExecutionException("Invalid SQL statement.", e);
+		} catch (Throwable t) {
+			// catch everything such that the query does not crash the executor
+			throw new SqlExecutionException("Invalid SQL statement.", t);
 		}
 	}
 
 	@Override
-	public void executeQuery(SessionContext context, String query) throws SqlExecutionException {
-		final TableEnvironment tableEnv = getTableEnvironment(context);
-		final Table table;
+	public String executeQuery(SessionContext context, String query) throws SqlExecutionException {
+		final Environment env = getEnvironment(context);
+
+		// deployment
+		final ClusterClient<?> clusterClient = prepareDeployment(env.getDeployment());
+		clusterClient.setDetached(true);
+
+		// initialize result store
+		resultStore.init(env);
+
+		// plan with jars
+		final FlinkPlan plan = createPlan(env, query, clusterClient);
+
+		final ClassLoader classLoader = JobWithJars.buildUserCodeClassLoader(
+			dependencies,
+			Collections.emptyList(),
+			this.getClass().getClassLoader());
+
+		// run
 		try {
-			table = tableEnv.sqlQuery(query);
-		} catch (TableException | SqlParserException | ValidationException e) {
-			throw new SqlExecutionException("Invalid SQL statement.", e);
+			JobSubmissionResult result = clusterClient.run(plan, dependencies, Collections.emptyList(), classLoader);
+			return result.getJobID().toString();
+		} catch (ProgramInvocationException e) {
+			throw new SqlExecutionException("Could not execute table program.", e);
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 
-	private TableEnvironment getTableEnvironment(SessionContext context) throws SqlExecutionException {
-		try {
-			final Environment env = Environment.merge(environment, context.getEnvironment());
+	private List<URL> collectJars() {
+		return Collections.emptyList();
+	}
 
+	private FlinkPlan createPlan(Environment env, String query, ClusterClient<?> clusterClient) {
+		final TableEnvironment tableEnv = getTableEnvironment(env);
+
+		// parse and validate query
+		final Table table;
+		try {
+			table = tableEnv.sqlQuery(query);
+		} catch (Throwable t) {
+			// catch everything such that the query does not crash the executor
+			throw new SqlExecutionException("Invalid SQL statement.", t);
+		}
+
+		// specify sink
+		final QueryConfig queryConfig = getQueryConfig(env.getExecution());
+		table.writeToSink(resultStore.getTableSink(), queryConfig);
+
+		// extract job graph
+		if (env.getExecution().isStreamingExecution()) {
+			return ((StreamTableEnvironment) tableEnv).execEnv().getStreamGraph();
+		} else {
+			final int parallelism = env.getExecution().getParallelism();
+
+			// create plan
+			final Plan plan = ((BatchTableEnvironment) tableEnv).execEnv().createProgramPlan();
+			final Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(),
+				clusterClient.getFlinkConfiguration());
+			return ClusterClient.getOptimizedPlan(compiler, plan, parallelism);
+		}
+	}
+
+	private ClusterClient<?> prepareDeployment(Deployment deploy) {
+
+		// change some configuration options for being more responsive
+		flinkConfig.setString(AkkaOptions.LOOKUP_TIMEOUT, deploy.getResponseTimeout() + " ms");
+		flinkConfig.setString(AkkaOptions.CLIENT_TIMEOUT, deploy.getResponseTimeout() + " ms");
+
+		// get cluster client
+		final ClusterClient<?> clusterClient;
+		if (deploy.isStandaloneDeployment()) {
+			clusterClient = getStandaloneClusterClient(flinkConfig);
+			clusterClient.setPrintStatusDuringExecution(false);
+		} else {
+			throw new SqlExecutionException("Unsupported deployment.");
+		}
+
+		return clusterClient;
+	}
+
+	private ClusterClient<?> getStandaloneClusterClient(Configuration configuration) {
+		final ClusterDescriptor<StandaloneClusterId> descriptor = new StandaloneClusterDescriptor(configuration);
+		try {
+			return descriptor.retrieve(StandaloneClusterId.getInstance());
+		} catch (ClusterRetrieveException e) {
+			throw new SqlExecutionException("Could not retrieve standalone cluster.", e);
+		}
+	}
+
+	private Environment getEnvironment(SessionContext context) {
+		return Environment.merge(environment, context.getEnvironment());
+	}
+
+	private TableEnvironment getTableEnvironment(Environment env) {
+		try {
 			final TableEnvironment tableEnv;
 			if (env.getExecution().isStreamingExecution()) {
 				final StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-				tableEnv = BatchTableEnvironment.getTableEnvironment(execEnv);
+				execEnv.setParallelism(env.getExecution().getParallelism());
+				execEnv.setMaxParallelism(env.getExecution().getMaxParallelism());
+				tableEnv = StreamTableEnvironment.getTableEnvironment(execEnv);
 			} else {
 				final ExecutionEnvironment execEnv = ExecutionEnvironment.getExecutionEnvironment();
+				execEnv.setParallelism(env.getExecution().getParallelism());
 				tableEnv = BatchTableEnvironment.getTableEnvironment(execEnv);
 			}
 
-			environment.getSources().forEach((name, source) -> {
+			env.getSources().forEach((name, source) -> {
 				TableSource<?> tableSource = TableSourceFactoryService.findTableSourceFactory(source);
 				tableEnv.registerTableSource(name, tableSource);
 			});
@@ -116,6 +272,18 @@ public class LocalExecutor implements Executor {
 			return tableEnv;
 		} catch (Exception e) {
 			throw new SqlExecutionException("Could not create table environment.", e);
+		}
+	}
+
+	private QueryConfig getQueryConfig(Execution exec) {
+		if (exec.isStreamingExecution()) {
+			final StreamQueryConfig config = new StreamQueryConfig();
+			final long minRetention = exec.getMinStateRetention();
+			final long maxRetention = exec.getMaxStateRetention();
+			config.withIdleStateRetentionTime(Time.milliseconds(minRetention), Time.milliseconds(maxRetention));
+			return config;
+		} else {
+			return new BatchQueryConfig();
 		}
 	}
 }

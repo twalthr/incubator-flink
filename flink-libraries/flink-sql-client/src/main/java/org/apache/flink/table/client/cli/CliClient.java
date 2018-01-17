@@ -34,6 +34,7 @@ import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp;
 
+import java.io.IOError;
 import java.io.IOException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -108,6 +109,9 @@ public class CliClient {
 			} catch (EndOfFileException e) {
 				// user cancelled application with Ctrl+D
 				break;
+			} catch (IOError e) {
+				// user cancelled application (e.g. IntelliJ cancel)
+				break;
 			} catch (Throwable t) {
 				throw new SqlClientException("Could not read from command line.", t);
 			}
@@ -180,6 +184,6 @@ public class CliClient {
 	}
 
 	private void performSelect(String query) {
-		//translator.
+		terminal.writer().println(translator.translateSelect(query));
 	}
 }

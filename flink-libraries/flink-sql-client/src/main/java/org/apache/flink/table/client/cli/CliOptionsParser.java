@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.client.SqlClientException;
 
 import org.apache.commons.cli.CommandLine;
@@ -28,9 +29,14 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import java.io.File;
-import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
+/**
+ * Parser for command line options.
+ */
 public class CliOptionsParser {
 
 	public static final Option OPTION_HELP = Option
@@ -61,18 +67,6 @@ public class CliOptionsParser {
 				"The identifier for a session. 'default' is the default identifier.")
 			.build();
 
-	public static final Option OPTION_JAR = Option
-			.builder("j")
-			.required(false)
-			.longOpt("jar")
-			.numberOfArgs(1)
-			.argName("JAR file")
-			.desc(
-				"The JAR file to be imported into the session. The file might contain " +
-				"user-defined classes needed for the execution of statements such as " +
-				"functions, table sources, or sinks.")
-			.build();
-
 	public static final Option OPTION_ENVIRONMENT = Option
 			.builder("e")
 			.required(false)
@@ -95,16 +89,28 @@ public class CliOptionsParser {
 				"Properties might be overwritten by session properties.")
 			.build();
 
-	public static final Option OPTION_LIBRARIES = Option
+	public static final Option OPTION_JAR = Option
+			.builder("j")
+			.required(false)
+			.longOpt("jar")
+			.numberOfArgs(1)
+			.argName("JAR file")
+			.desc(
+				"A JAR file to be imported into the session. The file might contain " +
+				"user-defined classes needed for the execution of statements such as " +
+				"functions, table sources, or sinks. Can be used multiple times.")
+			.build();
+
+	public static final Option OPTION_LIBRARY = Option
 			.builder("l")
 			.required(false)
-			.longOpt("libraries")
+			.longOpt("library")
 			.numberOfArgs(1)
 			.argName("JAR directory")
 			.desc(
-				"The JAR files with which every new session is initialized. The files might " +
+				"A JAR file directory with which every new session is initialized. The files might " +
 				"contain user-defined classes needed for the execution of statements such as " +
-				"functions, table sources, or sinks.")
+				"functions, table sources, or sinks. Can be used multiple times.")
 			.build();
 
 	private static final Options EMBEDDED_MODE_CLIENT_OPTIONS = getEmbeddedModeClientOptions(new Options());
@@ -120,9 +126,9 @@ public class CliOptionsParser {
 		buildGeneralOptions(options);
 		options.addOption(OPTION_SESSION);
 		options.addOption(OPTION_ENVIRONMENT);
-		options.addOption(OPTION_JAR);
 		options.addOption(OPTION_DEFAULTS);
-		options.addOption(OPTION_LIBRARIES);
+		options.addOption(OPTION_JAR);
+		options.addOption(OPTION_LIBRARY);
 		return options;
 	}
 
@@ -136,7 +142,8 @@ public class CliOptionsParser {
 	public static Options getGatewayModeGatewayOptions(Options options) {
 		buildGeneralOptions(options);
 		options.addOption(OPTION_DEFAULTS);
-		options.addOption(OPTION_LIBRARIES);
+		options.addOption(OPTION_JAR);
+		options.addOption(OPTION_LIBRARY);
 		return options;
 	}
 
@@ -219,10 +226,10 @@ public class CliOptionsParser {
 				line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
 				checkUrl(line, CliOptionsParser.OPTION_CONFIG),
 				checkSessionId(line),
-				checkUrl(line, CliOptionsParser.OPTION_JAR),
 				checkUrl(line, CliOptionsParser.OPTION_ENVIRONMENT),
 				checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
-				checkUrl(line, CliOptionsParser.OPTION_LIBRARIES)
+				checkUrls(line, CliOptionsParser.OPTION_JAR),
+				checkUrls(line, CliOptionsParser.OPTION_LIBRARY)
 			);
 		}
 		catch (ParseException e) {
@@ -238,10 +245,10 @@ public class CliOptionsParser {
 				line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
 				checkUrl(line, CliOptionsParser.OPTION_CONFIG),
 				checkSessionId(line),
-				checkUrl(line, CliOptionsParser.OPTION_JAR),
 				checkUrl(line, CliOptionsParser.OPTION_ENVIRONMENT),
 				null,
-				null
+				checkUrls(line, CliOptionsParser.OPTION_JAR),
+				checkUrls(line, CliOptionsParser.OPTION_LIBRARY)
 			);
 		}
 		catch (ParseException e) {
@@ -258,9 +265,9 @@ public class CliOptionsParser {
 				checkUrl(line, CliOptionsParser.OPTION_CONFIG),
 				null,
 				null,
-				null,
 				checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
-				checkUrl(line, CliOptionsParser.OPTION_LIBRARIES)
+				checkUrls(line, CliOptionsParser.OPTION_JAR),
+				checkUrls(line, CliOptionsParser.OPTION_LIBRARY)
 			);
 		}
 		catch (ParseException e) {
@@ -271,18 +278,26 @@ public class CliOptionsParser {
 	// --------------------------------------------------------------------------------------------
 
 	private static URL checkUrl(CommandLine line, Option option) {
+		final List<URL> urls = checkUrls(line, option);
+		if (urls != null && !urls.isEmpty()) {
+			return urls.get(0);
+		}
+		return null;
+	}
+
+	private static List<URL> checkUrls(CommandLine line, Option option) {
 		if (line.hasOption(option.getOpt())) {
-			final String url = line.getOptionValue(option.getOpt());
-			try {
-				return new URL(url);
-			} catch (MalformedURLException e) {
-				// try to enrich URL
-				final URL resourceUrl = Thread.currentThread().getContextClassLoader().getResource(url);
-				if (resourceUrl != null) {
-					return resourceUrl;
-				}
-				throw new SqlClientException("Invalid path for option '" + option.getLongOpt() + "': " + url, e);
-			}
+			final String[] urls = line.getOptionValues(option.getOpt());
+			return Arrays.stream(urls)
+				.distinct()
+				.map((url) -> {
+					try {
+						return Path.fromLocalFile(new File(url).getAbsoluteFile()).toUri().toURL();
+					} catch (Exception e) {
+						throw new SqlClientException("Invalid path for option '" + option.getLongOpt() + "': " + url, e);
+					}
+				})
+				.collect(Collectors.toList());
 		}
 		return null;
 	}

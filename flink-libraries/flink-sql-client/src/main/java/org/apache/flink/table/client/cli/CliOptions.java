@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.cli;
 
 import java.net.URL;
+import java.util.List;
 
 /**
  * Command line options to configure the SQL client. Arguments that have not been specified
@@ -29,19 +30,19 @@ public class CliOptions {
 	private final boolean isPrintHelp;
 	private final URL config;
 	private final String sessionId;
-	private final URL jar;
 	private final URL environment;
 	private final URL defaults;
-	private final URL libraries;
+	private final List<URL> jars;
+	private final List<URL> libraryDirs;
 
-	public CliOptions(boolean isPrintHelp, URL config, String sessionId, URL jar, URL environment, URL defaults, URL libraries) {
+	public CliOptions(boolean isPrintHelp, URL config, String sessionId, URL environment, URL defaults, List<URL> jars, List<URL> libraryDirs) {
 		this.isPrintHelp = isPrintHelp;
 		this.config = config;
 		this.sessionId = sessionId;
-		this.jar = jar;
 		this.environment = environment;
 		this.defaults = defaults;
-		this.libraries = libraries;
+		this.jars = jars;
+		this.libraryDirs = libraryDirs;
 	}
 
 	public boolean isPrintHelp() {
@@ -56,10 +57,6 @@ public class CliOptions {
 		return sessionId;
 	}
 
-	public URL getJar() {
-		return jar;
-	}
-
 	public URL getEnvironment() {
 		return environment;
 	}
@@ -68,7 +65,11 @@ public class CliOptions {
 		return defaults;
 	}
 
-	public URL getLibraries() {
-		return libraries;
+	public List<URL> getJars() {
+		return jars;
+	}
+
+	public List<URL> getLibraryDirs() {
+		return libraryDirs;
 	}
 }
