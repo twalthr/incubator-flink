@@ -39,14 +39,12 @@ public class ResultStore {
 		this.flinkConfig = flinkConfig;
 	}
 
-	public void init(Environment env) {
+	public void open(Environment env) {
 		if (currentEnv != null) {
 			throw new IllegalStateException("Result store already initialized.");
 		}
 		currentEnv = env;
-	}
 
-	public TableSink<?> getTableSink() {
 		if (!currentEnv.getExecution().isStreamingExecution()) {
 			throw new SqlExecutionException("Emission is only supported in streaming environments yet.");
 		}
@@ -54,9 +52,20 @@ public class ResultStore {
 		// create table sink
 		// determine gateway address (and port if possible)
 		collectTableSink = new CollectTableSink(getGatewayAddress(), getGatewayPort());
+	}
 
+	public TableSink<?> getTableSink() {
 		return collectTableSink;
 	}
+
+	public void close() {
+		if (collectTableSink != null) {
+			collectTableSink.close();
+		}
+		currentEnv = null;
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	private int getGatewayPort() {
 		// try to get address from deployment configuration

@@ -53,7 +53,7 @@ public class Deployment {
 	}
 
 	public int getGatewayPort() {
-		return Integer.parseInt(properties.getOrDefault(PropertyStrings.DEPLOYMENT_GATEWAY_PORT, Integer.toString(-1)));
+		return Integer.parseInt(properties.getOrDefault(PropertyStrings.DEPLOYMENT_GATEWAY_PORT, Integer.toString(0)));
 	}
 
 	// --------------------------------------------------------------------------------------------

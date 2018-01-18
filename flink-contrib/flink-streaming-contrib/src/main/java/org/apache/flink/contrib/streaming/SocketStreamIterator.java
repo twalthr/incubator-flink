@@ -70,7 +70,7 @@ public class SocketStreamIterator<T> implements Iterator<T> {
 	/**
 	 * Creates an iterator that returns the data from a socket stream with custom port and bind address.
 	 *
-	 * @param port port for the socket connection
+	 * @param port port for the socket connection (0 means automatic port selection)
 	 * @param address address for the socket connection
 	 * @param serializer serializer used for deserializing incoming records
 	 * @throws IOException thrown if socket cannot be opened

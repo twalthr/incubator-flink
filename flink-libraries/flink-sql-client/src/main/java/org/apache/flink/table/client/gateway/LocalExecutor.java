@@ -63,7 +63,7 @@ import java.util.List;
 
 /**
  * Executor that performs the Flink communication locally. The calls are blocking depending on the
- * response time to the Flink cluster.
+ * response time to the Flink cluster. Flink jobs are not blocking.
  */
 public class LocalExecutor implements Executor {
 
@@ -164,7 +164,7 @@ public class LocalExecutor implements Executor {
 		clusterClient.setDetached(true);
 
 		// initialize result store
-		resultStore.init(env);
+		resultStore.open(env);
 
 		// plan with jars
 		final FlinkPlan plan = createPlan(env, query, clusterClient);

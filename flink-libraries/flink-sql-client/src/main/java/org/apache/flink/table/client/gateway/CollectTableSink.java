@@ -18,24 +18,27 @@
 
 package org.apache.flink.table.client.gateway;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.contrib.streaming.CollectSink;
 import org.apache.flink.contrib.streaming.SocketStreamIterator;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.sinks.RetractStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 
+import java.io.IOException;
 import java.net.InetAddress;
+import java.util.Iterator;
 
 /**
  * Table sink for collecting the results locally.
  */
-public class CollectTableSink implements RetractStreamTableSink<Row> {
+public class CollectTableSink implements RetractStreamTableSink<Row>, Iterator<Tuple2<Boolean, Row>> {
 
 	private final InetAddress gatewayAddress;
 	private final int manualGatewayPort;
@@ -61,10 +64,9 @@ public class CollectTableSink implements RetractStreamTableSink<Row> {
 
 	@Override
 	public TableSink<Tuple2<Boolean, Row>> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		final CollectTableSink sink = new CollectTableSink(gatewayAddress, manualGatewayPort);
-		sink.fieldNames = fieldNames;
-		sink.fieldTypes = fieldTypes;
-		return sink;
+		this.fieldNames = fieldNames;
+		this.fieldTypes = fieldTypes;
+		return this;
 	}
 
 	@Override
@@ -78,19 +80,36 @@ public class CollectTableSink implements RetractStreamTableSink<Row> {
 		// create socket stream iterator
 		final TypeSerializer<Tuple2<Boolean, Row>> serializer = stream.getType().createSerializer(
 				stream.getExecutionEnvironment().getConfig());
+		try {
+			iterator = new SocketStreamIterator<>(manualGatewayPort, gatewayAddress, serializer);
+		} catch (IOException e) {
+			throw new SqlClientException("Could not open socket for result retrieval.", e);
+		}
 
-
-		dataStream.map(new MapFunction<Tuple2<Boolean, Row>, String>() {
-			@Override
-			public String map(Tuple2<Boolean, Row> value) throws Exception {
-				Thread.sleep(100000);
-				return null;
-			}
-		});
+		// add sink
+		stream
+			.addSink(new CollectSink<>(iterator.getBindAddress(), iterator.getPort(), serializer))
+			.setParallelism(1);
 	}
 
 	@Override
 	public TupleTypeInfo<Tuple2<Boolean, Row>> getOutputType() {
 		return new TupleTypeInfo<>(Types.BOOLEAN, getRecordType());
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public void close() {
+		iterator.close();
+	}
+
+	@Override
+	public boolean hasNext() {
+		return iterator.hasNext();
+	}
+
+	@Override
+	public Tuple2<Boolean, Row> next() {
+		return iterator.next();
 	}
 }

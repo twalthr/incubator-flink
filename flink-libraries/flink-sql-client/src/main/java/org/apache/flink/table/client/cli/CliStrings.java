@@ -32,9 +32,9 @@ public final class CliStrings {
 		// private
 	}
 
-	// --------------------------------------------------------------------------------------------
-
 	public static final String CLI_NAME = "Flink SQL CLI Client";
+
+	// --------------------------------------------------------------------------------------------
 
 	public static final String COMMAND_QUIT = "QUIT";
 
@@ -149,6 +149,10 @@ public final class CliStrings {
 
 		return builder.toAnsi();
 	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public static final String DISPLAY_RESULT_TITLE = "SQL Query Result";
 
 	// --------------------------------------------------------------------------------------------
 
