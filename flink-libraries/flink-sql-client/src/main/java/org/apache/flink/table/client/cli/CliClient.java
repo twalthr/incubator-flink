@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SessionContext;
@@ -31,22 +33,24 @@ import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.MaskingCallback;
 import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.DefaultParser;
-import org.jline.terminal.Size;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
-import org.jline.utils.Display;
 import org.jline.utils.InfoCmp.Capability;
 
 import java.io.IOError;
 import java.io.IOException;
+import java.text.AttributedString;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.key;
@@ -55,6 +59,10 @@ import static org.jline.keymap.KeyMap.key;
  * SQL CLI client.
  */
 public class CliClient {
+
+	private static final int PLAIN_MODE_WIDTH = 80;
+
+	private static final int PLAIN_MODE_HEIGHT = 30;
 
 	private final CliTranslator translator;
 
@@ -66,18 +74,38 @@ public class CliClient {
 
 	private final String rightPrompt;
 
-	private final Display display;
-
-	private final Size displaySize;
-
 	private final KeyMap<ResultOperation> resultKeys;
 
 	private final BindingReader resultKeyReader;
 
-	private final List<AttributedString> resultLines;
+	private final List<String> resultLines;
+
+	private static final List<Tuple2<String, Long>> REFRESH_INTERVALS = new ArrayList<>();
+
+	static {
+		REFRESH_INTERVALS.add(Tuple2.of("-", 0L));
+		REFRESH_INTERVALS.add(Tuple2.of("100 ms", 100L));
+		REFRESH_INTERVALS.add(Tuple2.of("500 ms", 100L));
+		REFRESH_INTERVALS.add(Tuple2.of("1 s", 1_000L));
+		REFRESH_INTERVALS.add(Tuple2.of("5 s", 5_000L));
+		REFRESH_INTERVALS.add(Tuple2.of("10 s", 10_000L));
+		REFRESH_INTERVALS.add(Tuple2.of("1 min", 60_000L));
+	}
 
 	private enum ResultOperation {
-		QUIT, REFRESH, GOTO, NEXT, PREV, LAST, FIRST, SEARCH, SEARCH_NEXT
+		QUIT, // leave result mode
+		REFRESH, // refresh current table page
+		GOTO, // enter table page number
+		NEXT, // next table page
+		PREV, // previous table page
+		LAST, // last table page
+		FIRST, // first table page
+		SEARCH, // search for string in current page and following pages
+		SEARCH_NEXT, // continue search
+		LEFT, // scroll left if row is large
+		RIGHT, // scroll right if row is large
+		INC_REFRESH, // increase refresh rate
+		DEC_REFRESH // decrease refresh rate
 	}
 
 	public CliClient(SessionContext context, Executor executor) {
@@ -115,8 +143,6 @@ public class CliClient {
 			.toAnsi();
 
 		// create display for results
-		display = new Display(terminal, true);
-		displaySize = terminal.getSize();
 		resultKeys = bindKeys();
 		resultKeyReader = new BindingReader(terminal.reader());
 		resultLines = new ArrayList<>();
@@ -159,7 +185,7 @@ public class CliClient {
 				terminal.flush();
 				break;
 			} else if (commandMatch(tokenized, CliStrings.COMMAND_CLEAR)) {
-				performClearTerminal();
+				clear();
 			} else if (commandMatch(tokenized, CliStrings.COMMAND_HELP)) {
 				performHelp();
 			} else if (commandMatch(tokenized, CliStrings.COMMAND_SHOW_TABLES)) {
@@ -195,10 +221,6 @@ public class CliClient {
 		return String.join(" ", Arrays.copyOfRange(tokens, commandTokens.length, tokens.length));
 	}
 
-	private void performClearTerminal() {
-		terminal.puts(Capability.clear_screen);
-	}
-
 	private void performHelp() {
 		terminal.writer().println(CliStrings.MESSAGE_HELP);
 	}
@@ -219,16 +241,11 @@ public class CliClient {
 		final Either<String, String> result = translator.translateSelect(query);
 		// print error
 		if (result.isRight()) {
-			terminal.writer().println(translator.translateSelect(query));
+			terminal.writer().println(result.right());
 		}
 		else {
 			// enter result mode
 			final String resultId = result.left();
-			displaySize.setColumns(terminal.getSize().getColumns());
-			displaySize.setRows(terminal.getSize().getRows());
-			display.clear(); // clear screen
-			display.reset(); // remove old lines
-			display.resize(displaySize.getRows(), displaySize.getColumns());
 
 			displayResult();
 
@@ -245,16 +262,53 @@ public class CliClient {
 		}
 	}
 
+	private void clear() {
+		if (isPlainMode()) {
+			for (int i = 0; i < 200; i++) { // large number of empty lines
+				terminal.writer().println();
+			}
+		} else {
+			terminal.puts(Capability.clear_screen);
+		}
+	}
+
+	private boolean isPlainMode() {
+		// check if terminal width can be determined
+		// e.g. IntelliJ IDEA terminal supports only plain mode
+		return terminal.getWidth() == 0 && terminal.getHeight() == 0;
+	}
+
+	private int getWidth() {
+		if (isPlainMode()) {
+			return PLAIN_MODE_WIDTH;
+		}
+		return terminal.getWidth();
+	}
+
+	private int getHeight() {
+		if (isPlainMode()) {
+			return PLAIN_MODE_HEIGHT;
+		}
+		return terminal.getHeight();
+	}
+
 	private void displayResult() {
-		final List<AttributedString> lines = new ArrayList<>();
+		final List<String> lines = new ArrayList<>();
+
+		clear();
 
 		// add header
-		lines.addAll(0, computeResultHeader());
+		lines.addAll(computeResultHeader());
 
 		// main content
-		lines.addAll(resultLines.stream().map((l) -> new Attr));
+		lines.addAll(resultLines);
 
 		// add footer
+		lines.addAll(computeResultFooter());
+
+		lines.forEach((l) -> terminal.writer().println(l));
+
+		terminal.flush();
 	}
 
 	private KeyMap<ResultOperation> bindKeys() {
@@ -268,11 +322,41 @@ public class CliClient {
 		keys.bind(ResultOperation.FIRST, "f", "F", key(terminal, Capability.key_beg));
 		keys.bind(ResultOperation.SEARCH, "s", "S", ctrl('f'));
 		keys.bind(ResultOperation.SEARCH_NEXT, key(terminal, Capability.key_enter), key(terminal, Capability.key_f5));
+		keys.bind(ResultOperation.LEFT, key(terminal, Capability.key_left));
+		keys.bind(ResultOperation.RIGHT, key(terminal, Capability.key_right));
+		keys.bind(ResultOperation.INC_REFRESH, "+");
+		keys.bind(ResultOperation.DEC_REFRESH, "-");
 		return keys;
 	}
 
-	private List<AttributedString> computeResultHeader() {
+	private List<String> computeResultHeader() {
 
+		// title line
+		AttributedStringBuilder sb = new AttributedStringBuilder();
+		sb.style(AttributedStyle.INVERSE);
+		final int totalMargin = getWidth() - CliStrings.RESULT_TITLE.length();
+		final int margin = totalMargin / 2;
+		for (int i = 0; i < margin; i++) {
+			sb.append(' ');
+		}
+		sb.append(CliStrings.RESULT_TITLE);
+		for (int i = 0; i < margin + (totalMargin % 2); i++) {
+			sb.append(' ');
+		}
+		final String titleLine = sb.toAnsi();
+
+		// page line
+		sb = new AttributedStringBuilder();
+		sb.style(AttributedStyle.INVERSE);
+		sb.append("  ");
+		sb.append(CliStrings.RESULT_REFRESH_INTERVAL);
+		final String pageLine = sb.toAnsi();
+
+		return Arrays.asList(titleLine, pageLine);
+	}
+
+	private List<String> computeResultFooter() {
+		return Collections.emptyList();
 	}
 
 

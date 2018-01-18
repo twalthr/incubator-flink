@@ -24,8 +24,6 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.types.Either;
 
-import org.jline.utils.AttributedString;
-
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -54,7 +52,7 @@ public class CliTranslator {
 		});
 	}
 
-	public AttributedString translateDescribeTable(String name) {
+	public String translateDescribeTable(String name) {
 		return printOrError(() -> {
 			final TableSchema schema = this.executor.getTableSchema(context, name);
 			if (schema == null) {
@@ -73,7 +71,7 @@ public class CliTranslator {
 	 */
 	public Either<String, String> translateSelect(String query) {
 		try {
-			return Either.Left(this.executor.executeQuery(context, query);
+			return Either.Left(this.executor.executeQuery(context, query));
 		} catch (SqlExecutionException e) {
 			return Either.Right(CliStrings.messageError(CliStrings.MESSAGE_SQL_EXECUTION_ERROR, e));
 		}

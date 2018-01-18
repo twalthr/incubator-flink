@@ -152,7 +152,10 @@ public final class CliStrings {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static final String DISPLAY_RESULT_TITLE = "SQL Query Result";
+	public static final String RESULT_TITLE = "SQL Query Result";
+	public static final String RESULT_REFRESH_INTERVAL = "Interval: ";
+	public static final String RESULT_PAGE = "Page: ";
+	public static final String RESULT_LAST_REFRESH = "Last Update: ";
 
 	// --------------------------------------------------------------------------------------------
 
