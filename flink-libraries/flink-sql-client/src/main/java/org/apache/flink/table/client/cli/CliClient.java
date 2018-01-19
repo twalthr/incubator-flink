@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.cli.CliTranslator.CliResultDescriptor;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.types.Either;
@@ -41,16 +41,12 @@ import org.jline.utils.InfoCmp.Capability;
 
 import java.io.IOError;
 import java.io.IOException;
-import java.text.AttributedString;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.key;
@@ -64,6 +60,8 @@ public class CliClient {
 
 	private static final int PLAIN_MODE_HEIGHT = 30;
 
+	private static final int MAX_COLUMN_WIDTH = 30;
+
 	private final CliTranslator translator;
 
 	private final Terminal terminal;
@@ -72,15 +70,25 @@ public class CliClient {
 
 	private final String prompt;
 
-	private final String rightPrompt;
-
 	private final KeyMap<ResultOperation> resultKeys;
 
 	private final BindingReader resultKeyReader;
 
-	private final List<String> resultLines;
+	private CliResultDescriptor resultDescriptor;
+
+	private List<String[]> resultLines;
+
+	private int resultRefreshInterval;
+
+	private int resultPageCount; // 0-based because an empty result has also 1 page
+
+	private int resultPage; // -1 = pick always the last page
+
+	private int resultHorizontalOffset;
 
 	private static final List<Tuple2<String, Long>> REFRESH_INTERVALS = new ArrayList<>();
+	private static final int LAST_PAGE = -1;
+	private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
 	static {
 		REFRESH_INTERVALS.add(Tuple2.of("-", 0L));
@@ -95,6 +103,9 @@ public class CliClient {
 	private enum ResultOperation {
 		QUIT, // leave result mode
 		REFRESH, // refresh current table page
+		UP, // row selection up
+		DOWN, // row selection down
+		OPEN, // shows a full row
 		GOTO, // enter table page number
 		NEXT, // next table page
 		PREV, // previous table page
@@ -137,11 +148,6 @@ public class CliClient {
 			.append("> ")
 			.toAnsi();
 
-		rightPrompt = new AttributedStringBuilder()
-			.style(AttributedStyle.DEFAULT.background(AttributedStyle.RED))
-			.append(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")))
-			.toAnsi();
-
 		// create display for results
 		resultKeys = bindKeys();
 		resultKeyReader = new BindingReader(terminal.reader());
@@ -160,7 +166,7 @@ public class CliClient {
 
 			String line;
 			try {
-				line = lineReader.readLine(prompt, rightPrompt, (MaskingCallback) null, null);
+				line = lineReader.readLine(prompt, null, (MaskingCallback) null, null);
 			} catch (UserInterruptException e) {
 				// user cancelled application with Ctrl+C
 				break;
@@ -238,14 +244,16 @@ public class CliClient {
 	}
 
 	private void performSelect(String query) {
-		final Either<String, String> result = translator.translateSelect(query);
+		final Either<CliResultDescriptor, String> result = translator.translateSelect(query);
 		// print error
 		if (result.isRight()) {
 			terminal.writer().println(result.right());
 		}
 		else {
 			// enter result mode
-			final String resultId = result.left();
+			enterResultMode(result.left());
+
+			resultLines = translator.translateResultRetrieval(resultDescriptor.getResultId(), true, 10, 0);
 
 			displayResult();
 
@@ -260,6 +268,18 @@ public class CliClient {
 			}
 
 		}
+	}
+
+	private void enterResultMode(CliResultDescriptor resultDescriptor) {
+		this.resultDescriptor = resultDescriptor;
+
+		resultRefreshInterval = 4;
+		resultPageCount = 0;
+		resultPage = LAST_PAGE;
+	}
+
+	private void leaveResultMode() {
+		this.resultDescriptor = null;
 	}
 
 	private void clear() {
@@ -297,14 +317,16 @@ public class CliClient {
 
 		clear();
 
+		final List<String> header = computeResultHeader();
+
 		// add header
 		lines.addAll(computeResultHeader());
 
 		// main content
-		lines.addAll(resultLines);
+		lines.addAll(computeResultLines());
 
 		// add footer
-		lines.addAll(computeResultFooter());
+		lines.addAll(computeResultFooter(lines.size()));
 
 		lines.forEach((l) -> terminal.writer().println(l));
 
@@ -315,13 +337,16 @@ public class CliClient {
 		final KeyMap<ResultOperation> keys = new KeyMap<>();
 		keys.bind(ResultOperation.QUIT, "q", "Q");
 		keys.bind(ResultOperation.REFRESH, "r", "R", key(terminal, Capability.key_f5));
+		keys.bind(ResultOperation.UP, "u", "U", key(terminal, Capability.key_up));
+		keys.bind(ResultOperation.DOWN, "d", "D", key(terminal, Capability.key_down));
+		keys.bind(ResultOperation.OPEN, "o", "O", key(terminal, Capability.key_enter));
 		keys.bind(ResultOperation.GOTO, "g", "G");
-		keys.bind(ResultOperation.NEXT, "n", "N", key(terminal, Capability.key_down));
-		keys.bind(ResultOperation.PREV, "p", "P", key(terminal, Capability.key_up));
+		keys.bind(ResultOperation.NEXT, "n", "N");
+		keys.bind(ResultOperation.PREV, "p", "P");
 		keys.bind(ResultOperation.LAST, "l", "L", key(terminal, Capability.key_end));
 		keys.bind(ResultOperation.FIRST, "f", "F", key(terminal, Capability.key_beg));
 		keys.bind(ResultOperation.SEARCH, "s", "S", ctrl('f'));
-		keys.bind(ResultOperation.SEARCH_NEXT, key(terminal, Capability.key_enter), key(terminal, Capability.key_f5));
+		keys.bind(ResultOperation.SEARCH_NEXT, key(terminal, Capability.key_f3));
 		keys.bind(ResultOperation.LEFT, key(terminal, Capability.key_left));
 		keys.bind(ResultOperation.RIGHT, key(terminal, Capability.key_right));
 		keys.bind(ResultOperation.INC_REFRESH, "+");
@@ -330,6 +355,8 @@ public class CliClient {
 	}
 
 	private List<String> computeResultHeader() {
+
+		// application header
 
 		// title line
 		AttributedStringBuilder sb = new AttributedStringBuilder();
@@ -348,15 +375,99 @@ public class CliClient {
 		// page line
 		sb = new AttributedStringBuilder();
 		sb.style(AttributedStyle.INVERSE);
-		sb.append("  ");
-		sb.append(CliStrings.RESULT_REFRESH_INTERVAL);
+		// left
+		final String left = CliStrings.DEFAULT_MARGIN + CliStrings.RESULT_REFRESH_INTERVAL + ' ' +
+			REFRESH_INTERVALS.get(resultRefreshInterval).f0;
+		// middle
+		final StringBuilder middleBuilder = new StringBuilder();
+		middleBuilder.append(CliStrings.RESULT_PAGE);
+		middleBuilder.append(' ');
+		if (resultPage == LAST_PAGE) {
+			middleBuilder.append(CliStrings.RESULT_LAST_PAGE);
+		} else {
+			middleBuilder.append(resultPage + 1);
+		}
+		middleBuilder.append(CliStrings.RESULT_PAGE_OF);
+		middleBuilder.append(resultPageCount + 1);
+		final String middle = middleBuilder.toString();
+		// right
+		final String right = CliStrings.RESULT_LAST_REFRESH + ' ' +
+			LocalTime.now().format(FORMATTER) + CliStrings.DEFAULT_MARGIN;
+		// all together
+		final int totalLeftSpace = getWidth() - middle.length();
+		final int leftSpace = totalLeftSpace / 2 - left.length();
+		sb.append(left);
+		for (int i = 0; i < leftSpace ; i++) {
+			sb.append(' ');
+		}
+		sb.append(middle);
+		final int rightSpacing = getWidth() - sb.length() - right.length();
+		for (int i = 0; i < rightSpacing; i++) {
+			sb.append(' ');
+		}
+		sb.append(right);
 		final String pageLine = sb.toAnsi();
 
-		return Arrays.asList(titleLine, pageLine);
+		return Arrays.asList(titleLine, pageLine, "\n");
 	}
 
 	private List<String> computeResultFooter() {
+
 		return Collections.emptyList();
+	}
+
+	private List<String> computeResultLines() {
+		final List<String> lines = new ArrayList<>();
+
+		final String[] columnNames = resultDescriptor.getColumnNames();
+
+		// determine maximum column width for each column
+		final int[] maxWidth = new int[columnNames.length];
+
+		for (int i = 0; i < columnNames.length; i++) {
+			// schema name
+			maxWidth[i] = Math.min(columnNames[i].length(), MAX_COLUMN_WIDTH);
+			// values
+			for (String[] values : resultLines) {
+				maxWidth[i] = Math.min(Math.max(maxWidth[i], values[i].length()), MAX_COLUMN_WIDTH);
+			}
+		}
+
+		// schema header
+		final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
+		schemaHeader.style(AttributedStyle.DEFAULT.bold());
+		for (int i = 0; i < columnNames.length; i++) {
+			schemaHeader.append(normalizeColumn(columnNames[i], maxWidth[i]));
+		}
+		lines.add(schemaHeader.toAnsi());
+
+		// values
+		for (String[] values : resultLines) {
+			final AttributedStringBuilder row = new AttributedStringBuilder();
+			for (int i = 0; i < columnNames.length; i++) {
+				row.append(normalizeColumn(values[i], maxWidth[i]));
+			}
+			lines.add(row.toAnsi());
+		}
+
+		return lines;
+	}
+
+	private String normalizeColumn(String col, int maxWidth) {
+		final StringBuilder sb = new StringBuilder();
+		sb.append(' ');
+		// limit column content
+		if (col.length() > maxWidth) {
+			sb.append(col, 0, maxWidth - 1);
+			sb.append('~');
+		} else {
+			sb.append(col);
+			// pad
+			while (sb.length() < maxWidth) {
+				sb.append(' ');
+			}
+		}
+		return sb.toString();
 	}
 
 

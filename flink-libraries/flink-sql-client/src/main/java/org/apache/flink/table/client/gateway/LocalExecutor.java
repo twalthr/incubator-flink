@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
@@ -156,7 +157,7 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
-	public String executeQuery(SessionContext context, String query) throws SqlExecutionException {
+	public ResultDescriptor executeQuery(SessionContext context, String query) throws SqlExecutionException {
 		final Environment env = getEnvironment(context);
 
 		// deployment
@@ -167,7 +168,7 @@ public class LocalExecutor implements Executor {
 		resultStore.open(env);
 
 		// plan with jars
-		final FlinkPlan plan = createPlan(env, query, clusterClient);
+		final Tuple2<FlinkPlan, TableSchema> plan = createPlan(env, query, clusterClient);
 
 		final ClassLoader classLoader = JobWithJars.buildUserCodeClassLoader(
 			dependencies,
@@ -176,8 +177,8 @@ public class LocalExecutor implements Executor {
 
 		// run
 		try {
-			JobSubmissionResult result = clusterClient.run(plan, dependencies, Collections.emptyList(), classLoader);
-			return result.getJobID().toString();
+			JobSubmissionResult result = clusterClient.run(plan.f0, dependencies, Collections.emptyList(), classLoader);
+			return new ResultDescriptor(result.getJobID().toString(), plan.f1);
 		} catch (ProgramInvocationException e) {
 			throw new SqlExecutionException("Could not execute table program.", e);
 		}
@@ -189,7 +190,7 @@ public class LocalExecutor implements Executor {
 		return Collections.emptyList();
 	}
 
-	private FlinkPlan createPlan(Environment env, String query, ClusterClient<?> clusterClient) {
+	private Tuple2<FlinkPlan, TableSchema> createPlan(Environment env, String query, ClusterClient<?> clusterClient) {
 		final TableEnvironment tableEnv = getTableEnvironment(env);
 
 		// parse and validate query
@@ -207,7 +208,8 @@ public class LocalExecutor implements Executor {
 
 		// extract job graph
 		if (env.getExecution().isStreamingExecution()) {
-			return ((StreamTableEnvironment) tableEnv).execEnv().getStreamGraph();
+			final FlinkPlan plan = ((StreamTableEnvironment) tableEnv).execEnv().getStreamGraph();
+			return Tuple2.of(plan, table.getSchema());
 		} else {
 			final int parallelism = env.getExecution().getParallelism();
 
@@ -215,7 +217,8 @@ public class LocalExecutor implements Executor {
 			final Plan plan = ((BatchTableEnvironment) tableEnv).execEnv().createProgramPlan();
 			final Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(),
 				clusterClient.getFlinkConfiguration());
-			return ClusterClient.getOptimizedPlan(compiler, plan, parallelism);
+			final FlinkPlan optimizedPlan = ClusterClient.getOptimizedPlan(compiler, plan, parallelism);
+			return Tuple2.of(optimizedPlan, table.getSchema());
 		}
 	}
 

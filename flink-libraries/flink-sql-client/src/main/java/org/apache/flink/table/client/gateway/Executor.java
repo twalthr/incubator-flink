@@ -48,7 +48,7 @@ public interface Executor {
 	String explainStatement(SessionContext context, String statement) throws SqlExecutionException;
 
 	/**
-	 * Submits a Flink job (detached) and returns the job id.
+	 * Submits a Flink job (detached) and returns the result descriptor.
 	 */
-	String executeQuery(SessionContext context, String query) throws SqlExecutionException;
+	ResultDescriptor executeQuery(SessionContext context, String query) throws SqlExecutionException;
 }

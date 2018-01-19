@@ -33,6 +33,7 @@ public final class CliStrings {
 	}
 
 	public static final String CLI_NAME = "Flink SQL CLI Client";
+	public static final String DEFAULT_MARGIN = " ";
 
 	// --------------------------------------------------------------------------------------------
 
@@ -153,9 +154,11 @@ public final class CliStrings {
 	// --------------------------------------------------------------------------------------------
 
 	public static final String RESULT_TITLE = "SQL Query Result";
-	public static final String RESULT_REFRESH_INTERVAL = "Interval: ";
-	public static final String RESULT_PAGE = "Page: ";
-	public static final String RESULT_LAST_REFRESH = "Last Update: ";
+	public static final String RESULT_REFRESH_INTERVAL = "Interval:";
+	public static final String RESULT_PAGE = "Page:";
+	public static final String RESULT_PAGE_OF = " of ";
+	public static final String RESULT_LAST_REFRESH = "Updated:";
+	public static final String RESULT_LAST_PAGE = "Last";
 
 	// --------------------------------------------------------------------------------------------
 
