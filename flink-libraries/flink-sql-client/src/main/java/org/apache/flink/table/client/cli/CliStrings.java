@@ -122,6 +122,10 @@ public final class CliStrings {
 
 	public static final String MESSAGE_RESULT_SNAPSHOT_ERROR = "Could not create a snapshot of the dynamic table.";
 
+	public static final String MESSAGE_RESULT_QUIT = "Result retrieval and table program cancelled.";
+
+	public static final String MESSAGE_RESULT_TIMEOUT = "Result retrieval reached timeout.";
+
 	public static String messageInfo(String message) {
 		return new AttributedStringBuilder()
 			.style(AttributedStyle.DEFAULT.bold().foreground(AttributedStyle.BLUE))

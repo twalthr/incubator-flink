@@ -29,6 +29,7 @@ import org.apache.flink.table.sinks.TableSink;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.HashMap;
 import java.util.Map;
 
 public class ResultStore {
@@ -39,6 +40,8 @@ public class ResultStore {
 
 	public ResultStore(Configuration flinkConfig) {
 		this.flinkConfig = flinkConfig;
+
+		results = new HashMap<>();
 	}
 
 	// TODO start clean up thread and retention config
@@ -54,6 +57,7 @@ public class ResultStore {
 
 	public void storeResult(String resultId, DynamicResult result) {
 		results.put(resultId, result);
+		result.open();
 	}
 
 	public DynamicResult getResult(String resultId) {

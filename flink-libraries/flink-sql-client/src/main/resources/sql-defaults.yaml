@@ -3,6 +3,8 @@ sources:
     schema:
       - name: testField
         type: VARCHAR
+      - name: testField2
+        type: INT
     connector:
       type: filesystem
       path: "/Users/twalthr/flink/tmp/textFile"
@@ -11,6 +13,8 @@ sources:
       fields:
         - name: testField
           type: VARCHAR
+        - name: testField2
+          type: INT
       line-delimiter: "\n"
 
 execution:

@@ -65,9 +65,9 @@ public class CliClient {
 
 	private static final int TOTAL_HEADER_HEIGHT = 4;
 
-	private static final
-
 	private final CliTranslator translator;
+
+	private final Thread terminalThread;
 
 	private final Terminal terminal;
 
@@ -95,18 +95,20 @@ public class CliClient {
 
 	private PageRefreshThread resultPageThread;
 
+	private String resultModeExitMessage;
+
 	private static final List<Tuple2<String, Long>> REFRESH_INTERVALS = new ArrayList<>();
 	private static final int LAST_PAGE = -1;
 	private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
 	static {
-		REFRESH_INTERVALS.add(Tuple2.of("-", 0L));
 		REFRESH_INTERVALS.add(Tuple2.of("100 ms", 100L));
 		REFRESH_INTERVALS.add(Tuple2.of("500 ms", 100L));
 		REFRESH_INTERVALS.add(Tuple2.of("1 s", 1_000L));
 		REFRESH_INTERVALS.add(Tuple2.of("5 s", 5_000L));
 		REFRESH_INTERVALS.add(Tuple2.of("10 s", 10_000L));
 		REFRESH_INTERVALS.add(Tuple2.of("1 min", 60_000L));
+		REFRESH_INTERVALS.add(Tuple2.of("-", 0L));
 	}
 
 	private enum ResultOperation {
@@ -119,7 +121,6 @@ public class CliClient {
 		NEXT, // next table page
 		PREV, // previous table page
 		LAST, // last table page
-		FIRST, // first table page
 		SEARCH, // search for string in current page and following pages
 		SEARCH_NEXT, // continue search
 		LEFT, // scroll left if row is large
@@ -136,6 +137,8 @@ public class CliClient {
 
 	public CliClient(SessionContext context, Executor executor) {
 		this.translator = new CliTranslator(context, executor);
+
+		terminalThread = Thread.currentThread();
 
 		try {
 			// initialize terminal
@@ -267,37 +270,69 @@ public class CliClient {
 		else {
 			// enter result mode
 			enterResultMode(result.left());
-
-			resultLines = translator.translateResultRetrieval(resultDescriptor.getResultId(), true, 10, 0);
-
-			displayResult();
-
-			while (true) {
-				final ResultOperation op = resultKeyReader.readBinding(resultKeys);
-				switch (op) {
-					case QUIT:
-						break;
-					default:
-						throw new SqlClientException("Invalid operation.");
-				}
-			}
-
 		}
 	}
 
 	private void enterResultMode(CliResultDescriptor resultDescriptor) {
 		this.resultDescriptor = resultDescriptor;
 
-		resultRefreshInterval = 4;
+		resultRefreshInterval = 3; // every 5s
 		resultPageCount = 0;
 		resultPage = LAST_PAGE;
 		resultOptions = ResultOptions.HELP;
 		resultPageThread = new PageRefreshThread();
+		resultPageThread.start();
+
+		displayResult();
+
+		while (this.resultDescriptor != null) {
+			ResultOperation op;
+			try {
+				op = resultKeyReader.readBinding(resultKeys, null, false);
+			} catch (IOError e) {
+				break;
+			}
+
+			// refresh loop
+			if (op == null) {
+				continue;
+			}
+
+			switch (op) {
+				case QUIT:
+					leaveResultMode(CliStrings.messageInfo(CliStrings.MESSAGE_RESULT_QUIT));
+					break;
+				case REFRESH:
+					refreshResults();
+					break;
+				case INC_REFRESH:
+					updateRefreshInterval(true);
+					break;
+				case DEC_REFRESH:
+					updateRefreshInterval(false);
+					break;
+				case NEXT:
+					navigatePage(true);
+					break;
+				case PREV:
+					navigatePage(false);
+					break;
+				case LAST:
+					navigateLastPage();
+					break;
+				default:
+					throw new SqlClientException("Invalid operation.");
+			}
+
+			displayResult();
+		}
+
+		clear();
+
+		terminal.writer().println(resultModeExitMessage);
 	}
 
-	private void leaveResultMode() {
-		this.resultDescriptor = null;
-	}
+
 
 	private void clear() {
 		if (isPlainMode()) {
@@ -329,30 +364,6 @@ public class CliClient {
 		return terminal.getHeight();
 	}
 
-	private void displayResult() {
-		final List<String> lines = new ArrayList<>();
-
-		clear();
-
-		final List<String> header = computeResultHeader();
-		header.forEach((l) -> terminal.writer().append(l));
-
-		final List<String> result = computeResultLines();
-		result.forEach((l) -> {
-			final String window = l.substring(resultOffsetX, resultOffsetX + getWidth());
-			terminal.writer().append(window);
-		});
-
-		final List<String> footer = computeResultFooter();
-		final int emptyHeight = getHeight() - header.size() - result.size() - footer.size();
-		for (int i = 0; i < emptyHeight; i++) {
-			terminal.writer().println();
-		}
-		footer.forEach((l) -> terminal.writer().append(l));
-
-		terminal.flush();
-	}
-
 	private KeyMap<ResultOperation> bindKeys() {
 		final KeyMap<ResultOperation> keys = new KeyMap<>();
 		keys.bind(ResultOperation.QUIT, "q", "Q");
@@ -364,7 +375,6 @@ public class CliClient {
 		keys.bind(ResultOperation.NEXT, "n", "N");
 		keys.bind(ResultOperation.PREV, "p", "P");
 		keys.bind(ResultOperation.LAST, "l", "L", key(terminal, Capability.key_end));
-		keys.bind(ResultOperation.FIRST, "f", "F", key(terminal, Capability.key_beg));
 		keys.bind(ResultOperation.SEARCH, "s", "S", ctrl('f'));
 		keys.bind(ResultOperation.SEARCH_NEXT, key(terminal, Capability.key_f3));
 		keys.bind(ResultOperation.LEFT, key(terminal, Capability.key_left));
@@ -419,11 +429,11 @@ public class CliClient {
 		sb.append(right);
 		final String pageLine = sb.toAnsi();
 
-		return Arrays.asList(titleLine, pageLine, "\n");
+		return Arrays.asList(titleLine, pageLine, "");
 	}
 
 	private List<String> computeResultFooter() {
-		// compute a fixed-size footer with two lines
+		// compute a fixed-size footer with one empty line and two lines
 		switch (resultOptions) {
 			case HELP:
 				final AttributedStringBuilder line1 = new AttributedStringBuilder();
@@ -433,13 +443,13 @@ public class CliClient {
 
 				final List<Tuple2<String, String>> options = getHelpOptions();
 				// we assume that every options has not more than 11 characters (+ key and space)
-				final int space = (getWidth() - CliStrings.DEFAULT_MARGIN.length() - (options.size() / 2) * 13) /
+				final int space = (getWidth() - CliStrings.DEFAULT_MARGIN.length() - (options.size() / 2 * 13)) /
 					(options.size() / 2);
 				final Iterator<Tuple2<String, String>> iter = options.iterator();
 				while (iter.hasNext()) {
 					// first line
 					Tuple2<String, String> option = iter.next();
-					line1.style(AttributedStyle.DEFAULT.bold());
+					line1.style(AttributedStyle.DEFAULT.inverse());
 					line1.append(option.f0);
 					line1.style(AttributedStyle.DEFAULT);
 					line1.append(' ');
@@ -448,7 +458,7 @@ public class CliClient {
 					// second line
 					if (iter.hasNext()) {
 						option = iter.next();
-						line2.style(AttributedStyle.DEFAULT.bold());
+						line2.style(AttributedStyle.DEFAULT.inverse());
 						line2.append(option.f0);
 						line2.style(AttributedStyle.DEFAULT);
 						line2.append(' ');
@@ -456,7 +466,7 @@ public class CliClient {
 						repeatChar(' ', (11 - option.f1.length()) + space, line2);
 					}
 				}
-				return Arrays.asList(line1.toAnsi(), line2.toAnsi());
+				return Arrays.asList("", line1.toAnsi(), line2.toAnsi());
 
 			case GOTO:
 				break;
@@ -477,14 +487,12 @@ public class CliClient {
 		options.add(Tuple2.of("-", CliStrings.RESULT_DEC_REFRESH));
 
 		options.add(Tuple2.of("G", CliStrings.RESULT_GOTO));
-		options.add(Tuple2.of("S", CliStrings.RESULT_SEARCH));
+		options.add(Tuple2.of("L", CliStrings.RESULT_LAST));
 
 		options.add(Tuple2.of("N", CliStrings.RESULT_NEXT));
 		options.add(Tuple2.of("P", CliStrings.RESULT_PREV));
 
-		options.add(Tuple2.of("L", CliStrings.RESULT_LAST));
-		options.add(Tuple2.of("F", CliStrings.RESULT_FIRST));
-
+		options.add(Tuple2.of("S", CliStrings.RESULT_SEARCH));
 		options.add(Tuple2.of("O", CliStrings.RESULT_OPEN));
 
 		return options;
@@ -511,9 +519,11 @@ public class CliClient {
 
 		// schema header
 		final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
-		schemaHeader.style(AttributedStyle.DEFAULT.underline());
 		for (int i = 0; i < columnNames.length; i++) {
-			schemaHeader.append(normalizeColumn(columnNames[i], maxWidth[i]));
+			schemaHeader.append(' ');
+			schemaHeader.style(AttributedStyle.DEFAULT.underline());
+			normalizeColumn(schemaHeader, columnNames[i], maxWidth[i]);
+			schemaHeader.style(AttributedStyle.DEFAULT);
 		}
 		lines.add(schemaHeader.toAnsi());
 
@@ -521,7 +531,8 @@ public class CliClient {
 		for (String[] values : resultLines) {
 			final AttributedStringBuilder row = new AttributedStringBuilder();
 			for (int i = 0; i < columnNames.length; i++) {
-				row.append(normalizeColumn(values[i], maxWidth[i]));
+				row.append(' ');
+				normalizeColumn(row, values[i], maxWidth[i]);
 			}
 			lines.add(row.toAnsi());
 		}
@@ -529,21 +540,15 @@ public class CliClient {
 		return lines;
 	}
 
-	private String normalizeColumn(String col, int maxWidth) {
-		final StringBuilder sb = new StringBuilder();
-		sb.append(' ');
+	private void normalizeColumn(AttributedStringBuilder sb, String col, int maxWidth) {
 		// limit column content
 		if (col.length() > maxWidth) {
 			sb.append(col, 0, maxWidth - 1);
 			sb.append('~');
 		} else {
+			repeatChar(' ', maxWidth - col.length(), sb);
 			sb.append(col);
-			// pad
-			while (sb.length() < maxWidth) {
-				sb.append(' ');
-			}
 		}
-		return sb.toString();
 	}
 
 	private void repeatChar(char c, int count, AttributedStringBuilder sb) {
@@ -553,7 +558,103 @@ public class CliClient {
 	}
 
 	private int getResultPageSize() {
-		return getHeight() - 3 - 2 - 1; // height - header - footer - result schema
+		return getHeight() - 3 - 3 - 1; // height - header - footer - result schema
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private synchronized void displayResult() {
+		final List<String> lines = new ArrayList<>();
+
+		clear();
+
+		final List<String> header = computeResultHeader();
+		header.forEach((l) -> terminal.writer().println(l));
+
+		final List<String> result = computeResultLines();
+		result.forEach((l) -> {
+			final String window = l.substring(resultOffsetX, Math.min(l.length(), resultOffsetX + getWidth()));
+			terminal.writer().println(window);
+		});
+
+		final List<String> footer = computeResultFooter();
+		final int emptyHeight = getHeight() - header.size() - result.size() - footer.size();
+		for (int i = 0; i < emptyHeight; i++) {
+			terminal.writer().println();
+		}
+		footer.forEach((l) -> terminal.writer().println(l));
+
+		terminal.flush();
+	}
+
+	private synchronized boolean refreshResults() {
+		final Either<Integer, String> snapshot = translator.translateResultSnapshot(
+			resultDescriptor.getResultId(), getResultPageSize());
+		if (snapshot.isLeft()) {
+			// update count & page
+			updatePageCount(snapshot.left());
+			return updatePage();
+		} else {
+			// an error occurred
+			leaveResultMode(snapshot.right());
+			return false;
+		}
+	}
+
+	private synchronized void leaveResultMode(String exitMessage) {
+		this.resultPageThread.cancel();
+		this.resultDescriptor = null;
+		this.resultModeExitMessage = exitMessage;
+		terminalThread.interrupt();
+	}
+
+	private synchronized void updatePageCount(int newPageCount) {
+		if (this.resultPage >= newPageCount) {
+			this.resultPage = LAST_PAGE;
+		}
+		this.resultPageCount = newPageCount;
+	}
+
+	private synchronized void updateRefreshInterval(boolean isInc) {
+		if (isInc) {
+			resultRefreshInterval = (resultRefreshInterval + 1) % REFRESH_INTERVALS.size();
+		} else {
+			resultRefreshInterval = (resultRefreshInterval - 1) % REFRESH_INTERVALS.size();
+			if (resultRefreshInterval < 0) {
+				resultRefreshInterval += REFRESH_INTERVALS.size();
+			}
+		}
+		resultPageThread.interrupt();
+	}
+
+	private synchronized boolean updatePage() {
+		final int page = resultPage == LAST_PAGE ? resultPageCount : resultPage;
+		final Either<List<String[]>, String> values = translator.translateResultValues(
+			resultDescriptor.getResultId(), page);
+		if (values.isLeft()) {
+			resultLines = values.left();
+			return true;
+		} else {
+			// error occurred
+			leaveResultMode(values.right());
+			return false;
+		}
+	}
+
+	private synchronized void navigatePage(boolean isNext) {
+		final int page = resultPage == LAST_PAGE ? resultPageCount : resultPage;
+		if (isNext && page < resultPageCount) {
+			resultPage = page + 1;
+			updatePage();
+		} else if (!isNext && page > 0) {
+			resultPage = page - 1;
+			updatePage();
+		}
+	}
+
+	private synchronized void navigateLastPage() {
+		resultPage = LAST_PAGE;
+		updatePage();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -565,9 +666,34 @@ public class CliClient {
 		@Override
 		public void run() {
 			while (isRunning) {
+				final long interval = REFRESH_INTERVALS.get(resultRefreshInterval).f1;
+				if (interval > 0) {
+					// refresh according to specified interval
+					if (isRunning) {
+						try {
+							Thread.sleep(interval);
+						} catch (InterruptedException e) {
+							continue;
+						}
+					}
 
+					if (refreshResults()) {
+						displayResult();
+					}
+				} else {
+					// keep the thread running but without refreshing
+					try {
+						Thread.sleep(100L);
+					} catch (InterruptedException e) {
+						// do nothing
+					}
+				}
 			}
-			resultPageCount = translator.translateResultSnapshot(resultDescriptor.getResultId(), getResultPageSize());
+		}
+
+		public void cancel() {
+			isRunning = false;
+			interrupt();
 		}
 	}
 }

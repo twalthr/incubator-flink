@@ -24,10 +24,12 @@ import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.types.Either;
+import org.apache.flink.types.Row;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * Translates the messages between the executor and CLI client. The result of the translator
@@ -88,6 +90,28 @@ public class CliTranslator {
 	public Either<Integer, String> translateResultSnapshot(String resultId, int pageSize) {
 		try {
 			return Either.Left(this.executor.snapshotResult(resultId, pageSize));
+		} catch (SqlExecutionException e) {
+			return Either.Right(CliStrings.messageError(CliStrings.MESSAGE_SQL_EXECUTION_ERROR, e));
+		}
+	}
+
+	public Either<List<String[]>, String> translateResultValues(String resultId, int page) {
+		try {
+			final List<Row> rows = this.executor.retrieveResult(resultId, page);
+			if (rows == null) {
+				return Either.Right(CliStrings.messageError(CliStrings.MESSAGE_RESULT_TIMEOUT));
+			}
+			final List<String[]> stringRows = rows
+				.stream()
+				.map((row) -> {
+					final String[] fields = new String[row.getArity()];
+					for (int i = 0; i < row.getArity(); i++) {
+						fields[i] = row.getField(i).toString();
+					}
+					return fields;
+				})
+				.collect(Collectors.toList());
+			return Either.Left(stringRows);
 		} catch (SqlExecutionException e) {
 			return Either.Right(CliStrings.messageError(CliStrings.MESSAGE_SQL_EXECUTION_ERROR, e));
 		}
