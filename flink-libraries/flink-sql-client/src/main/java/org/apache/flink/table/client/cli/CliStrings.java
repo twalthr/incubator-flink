@@ -120,6 +120,8 @@ public final class CliStrings {
 
 	public static final String MESSAGE_UNKNOWN_TABLE = "Unknown table.";
 
+	public static final String MESSAGE_RESULT_SNAPSHOT_ERROR = "Could not create a snapshot of the dynamic table.";
+
 	public static String messageInfo(String message) {
 		return new AttributedStringBuilder()
 			.style(AttributedStyle.DEFAULT.bold().foreground(AttributedStyle.BLUE))
@@ -154,11 +156,38 @@ public final class CliStrings {
 	// --------------------------------------------------------------------------------------------
 
 	public static final String RESULT_TITLE = "SQL Query Result";
-	public static final String RESULT_REFRESH_INTERVAL = "Interval:";
+
+	public static final String RESULT_REFRESH_INTERVAL = "Refresh:";
+
 	public static final String RESULT_PAGE = "Page:";
+
 	public static final String RESULT_PAGE_OF = " of ";
+
 	public static final String RESULT_LAST_REFRESH = "Updated:";
+
 	public static final String RESULT_LAST_PAGE = "Last";
+
+	public static final String RESULT_QUIT = "Quit";
+
+	public static final String RESULT_REFRESH = "Refresh";
+
+	public static final String RESULT_GOTO = "Goto Page";
+
+	public static final String RESULT_NEXT = "Next Page";
+
+	public static final String RESULT_PREV = "Prev Page";
+
+	public static final String RESULT_LAST = "Last Page";
+
+	public static final String RESULT_FIRST = "First Page";
+
+	public static final String RESULT_SEARCH = "Search";
+
+	public static final String RESULT_INC_REFRESH = "Inc Refresh"; // implementation assumes max length of 11
+
+	public static final String RESULT_DEC_REFRESH = "Dec Refresh";
+
+	public static final String RESULT_OPEN = "Open Row";
 
 	// --------------------------------------------------------------------------------------------
 

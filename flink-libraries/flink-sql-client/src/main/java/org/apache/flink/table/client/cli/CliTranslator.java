@@ -82,15 +82,15 @@ public class CliTranslator {
 		}
 	}
 
-	public List<String[]> translateResultRetrieval(String resultId, boolean refresh, int pageSize, int page) {
-		return Arrays.asList(
-			new String[] {"12", "17.0", "A looooooooooong String"},
-			new String[] {"12", "17.0", "A looooooooooong String"},
-			new String[] {"12", "17.0", "A looooooooooong String"},
-			new String[] {"12", "17.0", "A looooooooooong String"},
-			new String[] {"12", "17.0", "A looooooooooong String"},
-			new String[] {"12", "17.0", "A looooooooooong String"},
-			new String[] {"12", "17.0", "A looooooooooong String"});
+	/**
+	 * Returns either the number of pages or an error message.
+	 */
+	public Either<Integer, String> translateResultSnapshot(String resultId, int pageSize) {
+		try {
+			return Either.Left(this.executor.snapshotResult(resultId, pageSize));
+		} catch (SqlExecutionException e) {
+			return Either.Right(CliStrings.messageError(CliStrings.MESSAGE_SQL_EXECUTION_ERROR, e));
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

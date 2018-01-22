@@ -22,59 +22,54 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.sinks.TableSink;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.Map;
 
 public class ResultStore {
 
-	private Environment currentEnv;
 	private Configuration flinkConfig;
-	private CollectTableSink collectTableSink;
+
+	private Map<String, DynamicResult> results;
 
 	public ResultStore(Configuration flinkConfig) {
 		this.flinkConfig = flinkConfig;
 	}
 
-	public void open(Environment env) {
-		if (currentEnv != null) {
-			throw new IllegalStateException("Result store already initialized.");
-		}
-		currentEnv = env;
+	// TODO start clean up thread and retention config
 
-		if (!currentEnv.getExecution().isStreamingExecution()) {
+	public DynamicResult createResult(Environment env) {
+		if (!env.getExecution().isStreamingExecution()) {
 			throw new SqlExecutionException("Emission is only supported in streaming environments yet.");
 		}
 
-		// create table sink
 		// determine gateway address (and port if possible)
-		collectTableSink = new CollectTableSink(getGatewayAddress(), getGatewayPort());
+		return new DynamicResult(getGatewayAddress(env.getDeployment()), getGatewayPort(env.getDeployment()));
 	}
 
-	public TableSink<?> getTableSink() {
-		return collectTableSink;
+	public void storeResult(String resultId, DynamicResult result) {
+		results.put(resultId, result);
 	}
 
-	public void close() {
-		if (collectTableSink != null) {
-			collectTableSink.close();
-		}
-		currentEnv = null;
+	public DynamicResult getResult(String resultId) {
+		return results.get(resultId);
 	}
 
 	// --------------------------------------------------------------------------------------------
 
-	private int getGatewayPort() {
+	private int getGatewayPort(Deployment deploy) {
 		// try to get address from deployment configuration
-		return currentEnv.getDeployment().getGatewayPort();
+		return deploy.getGatewayPort();
 	}
 
-	private InetAddress getGatewayAddress() {
+	private InetAddress getGatewayAddress(Deployment deploy) {
 		// try to get address from deployment configuration
-		final String address = currentEnv.getDeployment().getGatewayAddress();
+		final String address = deploy.getGatewayAddress();
 
 		// use manually defined address
 		if (!address.isEmpty()) {
@@ -84,6 +79,7 @@ public class ResultStore {
 				throw new SqlClientException("Invalid gateway address '" + address + "' for result retrieval.", e);
 			}
 		} else {
+			// TODO cache this
 			// try to get the address by communicating to JobManager
 			final String jobManagerAddress= flinkConfig.getString(JobManagerOptions.ADDRESS);
 			final int jobManagerPort = flinkConfig.getInteger(JobManagerOptions.PORT);
@@ -91,7 +87,7 @@ public class ResultStore {
 				try {
 					return ConnectionUtils.findConnectingAddress(
 						new InetSocketAddress(jobManagerAddress, jobManagerPort),
-						currentEnv.getDeployment().getResponseTimeout(),
+						deploy.getResponseTimeout(),
 						400);
 				} catch (Exception e) {
 					throw new SqlClientException("Could not determine address of the gateway for result retrieval " +

@@ -52,8 +52,10 @@ import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.Execution;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceFactoryService;
+import org.apache.flink.types.Row;
 
 import java.io.File;
 import java.net.URL;
@@ -164,11 +166,11 @@ public class LocalExecutor implements Executor {
 		final ClusterClient<?> clusterClient = prepareDeployment(env.getDeployment());
 		clusterClient.setDetached(true);
 
-		// initialize result store
-		resultStore.open(env);
+		// initialize result
+		final DynamicResult result = resultStore.createResult(env);
 
-		// plan with jars
-		final Tuple2<FlinkPlan, TableSchema> plan = createPlan(env, query, clusterClient);
+		// create plan with jars
+		final Tuple2<FlinkPlan, TableSchema> plan = createPlan(env, query, result.getTableSink(), clusterClient);
 
 		final ClassLoader classLoader = JobWithJars.buildUserCodeClassLoader(
 			dependencies,
@@ -176,12 +178,37 @@ public class LocalExecutor implements Executor {
 			this.getClass().getClassLoader());
 
 		// run
+		final JobSubmissionResult jobResult;
 		try {
-			JobSubmissionResult result = clusterClient.run(plan.f0, dependencies, Collections.emptyList(), classLoader);
-			return new ResultDescriptor(result.getJobID().toString(), plan.f1);
+			jobResult = clusterClient.run(plan.f0, dependencies, Collections.emptyList(), classLoader);
 		} catch (ProgramInvocationException e) {
 			throw new SqlExecutionException("Could not execute table program.", e);
 		}
+
+		final String jobId = jobResult.getJobID().toString();
+
+		// store the result
+		resultStore.storeResult(jobId, result);
+
+		return new ResultDescriptor(jobId, plan.f1);
+	}
+
+	@Override
+	public int snapshotResult(String resultId, int pageSize) throws SqlExecutionException {
+		final DynamicResult result = resultStore.getResult(resultId);
+		if (result == null) {
+			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
+		}
+		return result.snapshot(pageSize);
+	}
+
+	@Override
+	public List<Row> retrieveResult(String resultId, int page) throws SqlExecutionException {
+		final DynamicResult result = resultStore.getResult(resultId);
+		if (result == null) {
+			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
+		}
+		return result.retrieve(page);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -190,7 +217,7 @@ public class LocalExecutor implements Executor {
 		return Collections.emptyList();
 	}
 
-	private Tuple2<FlinkPlan, TableSchema> createPlan(Environment env, String query, ClusterClient<?> clusterClient) {
+	private Tuple2<FlinkPlan, TableSchema> createPlan(Environment env, String query, TableSink<?> sink, ClusterClient<?> clusterClient) {
 		final TableEnvironment tableEnv = getTableEnvironment(env);
 
 		// parse and validate query
@@ -204,7 +231,7 @@ public class LocalExecutor implements Executor {
 
 		// specify sink
 		final QueryConfig queryConfig = getQueryConfig(env.getExecution());
-		table.writeToSink(resultStore.getTableSink(), queryConfig);
+		table.writeToSink(sink, queryConfig);
 
 		// extract job graph
 		if (env.getExecution().isStreamingExecution()) {

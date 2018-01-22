@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.types.Row;
 
 import java.util.List;
 
@@ -51,4 +52,15 @@ public interface Executor {
 	 * Submits a Flink job (detached) and returns the result descriptor.
 	 */
 	ResultDescriptor executeQuery(SessionContext context, String query) throws SqlExecutionException;
+
+	/**
+	 * Creates an immutable result snapshot of the running Flink job. Throws an exception if no Flink job can be found.
+	 * Returns the number of pages.
+	 */
+	int snapshotResult(String resultId, int pageSize) throws SqlExecutionException;
+
+	/**
+	 * Returns the rows that are part of the current page or null if the snapshot has been expired.
+	 */
+	List<Row> retrieveResult(String resultId, int page) throws SqlExecutionException;
 }
