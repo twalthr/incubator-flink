@@ -4,7 +4,17 @@ sources:
       - name: testField
         type: VARCHAR
       - name: testField2
-        type: INT
+        type: VARCHAR
+      - name: testField3
+        type: VARCHAR
+      - name: testField4
+        type: VARCHAR
+      - name: testField5
+        type: VARCHAR
+      - name: testField6
+        type: VARCHAR
+      - name: testField7
+        type: VARCHAR
     connector:
       type: filesystem
       path: "/Users/twalthr/flink/tmp/textFile"
@@ -14,7 +24,17 @@ sources:
         - name: testField
           type: VARCHAR
         - name: testField2
-          type: INT
+          type: VARCHAR
+        - name: testField3
+          type: VARCHAR
+        - name: testField4
+          type: VARCHAR
+        - name: testField5
+          type: VARCHAR
+        - name: testField6
+          type: VARCHAR
+        - name: testField7
+          type: VARCHAR
       line-delimiter: "\n"
 
 execution:

@@ -41,7 +41,7 @@ public final class CliStrings {
 
 	public static final String COMMAND_CLEAR = "CLEAR";
 
-	public static final String COMMAND_HELP = "HELP";
+	public static final String COMMAND_HELP = "OVERVIEW";
 
 	public static final String COMMAND_SHOW_TABLES = "SHOW TABLES";
 
@@ -108,7 +108,7 @@ public final class CliStrings {
 		"   | |    | | | | | |   <   ____) | |__| | |____  | |____| | |  __/ | | | |_ \n" +
 		"   |_|    |_|_|_| |_|_|\\_\\ |_____/ \\___\\_\\______|  \\_____|_|_|\\___|_| |_|\\__|\n" +
 		"          \n" +
-		"        Welcome! Enter HELP to list all available commands. QUIT to exit.\n\n";
+		"        Welcome! Enter OVERVIEW to list all available commands. QUIT to exit.\n\n";
 
 	public static final String MESSAGE_QUIT = "Exiting " + CliStrings.CLI_NAME + "...";
 
@@ -125,6 +125,20 @@ public final class CliStrings {
 	public static final String MESSAGE_RESULT_QUIT = "Result retrieval and table program cancelled.";
 
 	public static final String MESSAGE_RESULT_TIMEOUT = "Result retrieval reached timeout.";
+
+	public static final String MESSAGE_ENTER_PAGE = "Enter page number:";
+
+	public static final String MESSAGE_INPUT_HELP = new AttributedStringBuilder()
+		.append("Press ")
+		.style(AttributedStyle.DEFAULT.inverse())
+		.append("Enter")
+		.style(AttributedStyle.DEFAULT)
+		.append(" to submit. Press ")
+		.style(AttributedStyle.DEFAULT.inverse())
+		.append("ESC")
+		.style(AttributedStyle.DEFAULT)
+		.append(" or submit an empty string to cancel.")
+		.toAnsi();
 
 	public static String messageInfo(String message) {
 		return new AttributedStringBuilder()

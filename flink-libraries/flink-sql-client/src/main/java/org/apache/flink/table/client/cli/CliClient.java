@@ -35,6 +35,7 @@ import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.DefaultParser;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
+import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp.Capability;
@@ -49,7 +50,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.key;
 
 /**
@@ -77,11 +77,23 @@ public class CliClient {
 
 	private final KeyMap<ResultOperation> resultKeys;
 
+	private final KeyMap<ResultInputOperation> resultInputKeys;
+
+	private final KeyMap<ResultRowOperation> resultRowKeys;
+
 	private final BindingReader resultKeyReader;
+
+	private final BindingReader resultInputKeyReader;
+
+	private final BindingReader resultRowReader;
 
 	private CliResultDescriptor resultDescriptor;
 
+	private int resultWidth;
+
 	private List<String[]> resultLines;
+
+	private List<String[]> resultPreviousLines; // enables showing a diff
 
 	private int resultRefreshInterval;
 
@@ -91,14 +103,21 @@ public class CliClient {
 
 	private int resultOffsetX;
 
+	private int resultInputCursor;
+
+	private StringBuilder resultInput;
+
 	private ResultOptions resultOptions;
 
 	private PageRefreshThread resultPageThread;
+
+	private int resultSelectedLine;
 
 	private String resultModeExitMessage;
 
 	private static final List<Tuple2<String, Long>> REFRESH_INTERVALS = new ArrayList<>();
 	private static final int LAST_PAGE = -1;
+	private static final int NO_LINE_SELECTED = -1;
 	private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
 	static {
@@ -121,18 +140,34 @@ public class CliClient {
 		NEXT, // next table page
 		PREV, // previous table page
 		LAST, // last table page
-		SEARCH, // search for string in current page and following pages
-		SEARCH_NEXT, // continue search
 		LEFT, // scroll left if row is large
 		RIGHT, // scroll right if row is large
 		INC_REFRESH, // increase refresh rate
 		DEC_REFRESH // decrease refresh rate
 	}
 
+	private enum ResultInputOperation {
+		QUIT, // leave input
+		INSERT, // input
+		ENTER, // apply input
+		LEFT, // cursor navigation
+		RIGHT, // cursor navigation
+		BACKSPACE, // delete left
+		DEL // delete right
+	}
+
+	private enum ResultRowOperation {
+		QUIT, // leave row
+		UP,
+		DOWN,
+		LEFT,
+		RIGHT
+	}
+
 	private enum ResultOptions {
-		HELP, // show available commands
+		OVERVIEW, // show available commands
 		GOTO, // show field for entering page number
-		SEARCH // show field for searching
+		ROW // show an entire row
 	}
 
 	public CliClient(SessionContext context, Executor executor) {
@@ -169,7 +204,11 @@ public class CliClient {
 		// create display for results
 		resultKeys = bindKeys();
 		resultKeyReader = new BindingReader(terminal.reader());
-		resultLines = new ArrayList<>();
+		resultInput = new StringBuilder();
+		resultInputKeys = bindInputKeys();
+		resultInputKeyReader = new BindingReader(terminal.reader());
+		resultRowKeys = bindRowKeys();
+		resultRowReader = new BindingReader(terminal.reader());
 	}
 
 	public void attach() {
@@ -279,13 +318,17 @@ public class CliClient {
 		resultRefreshInterval = 3; // every 5s
 		resultPageCount = 0;
 		resultPage = LAST_PAGE;
-		resultOptions = ResultOptions.HELP;
+		resultOptions = ResultOptions.OVERVIEW;
 		resultPageThread = new PageRefreshThread();
 		resultPageThread.start();
 
+		resultLines = Collections.emptyList();
+		resultPreviousLines = Collections.emptyList();
+		resultSelectedLine = NO_LINE_SELECTED;
+
 		displayResult();
 
-		while (this.resultDescriptor != null) {
+		while (isResultMode()) {
 			ResultOperation op;
 			try {
 				op = resultKeyReader.readBinding(resultKeys, null, false);
@@ -320,6 +363,24 @@ public class CliClient {
 				case LAST:
 					navigateLastPage();
 					break;
+				case GOTO:
+					gotoPage();
+					break;
+				case OPEN:
+					openRow();
+					break;
+				case UP:
+					navigateLine(true);
+					break;
+				case DOWN:
+					navigateLine(false);
+					break;
+				case LEFT:
+					offsetLines(true);
+					break;
+				case RIGHT:
+					offsetLines(false);
+					break;
 				default:
 					throw new SqlClientException("Invalid operation.");
 			}
@@ -331,8 +392,6 @@ public class CliClient {
 
 		terminal.writer().println(resultModeExitMessage);
 	}
-
-
 
 	private void clear() {
 		if (isPlainMode()) {
@@ -368,38 +427,56 @@ public class CliClient {
 		final KeyMap<ResultOperation> keys = new KeyMap<>();
 		keys.bind(ResultOperation.QUIT, "q", "Q");
 		keys.bind(ResultOperation.REFRESH, "r", "R", key(terminal, Capability.key_f5));
-		keys.bind(ResultOperation.UP, "u", "U", key(terminal, Capability.key_up));
-		keys.bind(ResultOperation.DOWN, "d", "D", key(terminal, Capability.key_down));
+		keys.bind(ResultOperation.UP, "w", "W", key(terminal, Capability.key_up));
+		keys.bind(ResultOperation.DOWN, "s", "S", key(terminal, Capability.key_down));
+		keys.bind(ResultOperation.LEFT, "a", "A", key(terminal, Capability.key_left));
+		keys.bind(ResultOperation.RIGHT, "d", "D", key(terminal, Capability.key_right));
 		keys.bind(ResultOperation.OPEN, "o", "O", key(terminal, Capability.key_enter));
 		keys.bind(ResultOperation.GOTO, "g", "G");
 		keys.bind(ResultOperation.NEXT, "n", "N");
 		keys.bind(ResultOperation.PREV, "p", "P");
 		keys.bind(ResultOperation.LAST, "l", "L", key(terminal, Capability.key_end));
-		keys.bind(ResultOperation.SEARCH, "s", "S", ctrl('f'));
-		keys.bind(ResultOperation.SEARCH_NEXT, key(terminal, Capability.key_f3));
-		keys.bind(ResultOperation.LEFT, key(terminal, Capability.key_left));
-		keys.bind(ResultOperation.RIGHT, key(terminal, Capability.key_right));
 		keys.bind(ResultOperation.INC_REFRESH, "+");
 		keys.bind(ResultOperation.DEC_REFRESH, "-");
 		return keys;
 	}
 
-	private List<String> computeResultHeader() {
+	private KeyMap<ResultInputOperation> bindInputKeys() {
+		final KeyMap<ResultInputOperation> keys = new KeyMap<>();
+		keys.setUnicode(ResultInputOperation.INSERT);
+		for (char i = 32; i < 256; i++) {
+            keys.bind(ResultInputOperation.INSERT, Character.toString(i));
+        }
+		keys.bind(ResultInputOperation.QUIT, key(terminal, Capability.key_exit));
+		keys.bind(ResultInputOperation.ENTER, key(terminal, Capability.key_enter));
+		return keys;
+	}
+
+	private KeyMap<ResultRowOperation> bindRowKeys() {
+		final KeyMap<ResultRowOperation> keys = new KeyMap<>();
+		keys.setNomatch(ResultRowOperation.QUIT);
+		keys.bind(ResultRowOperation.UP, "w", "W", key(terminal, Capability.key_up));
+		keys.bind(ResultRowOperation.DOWN, "s", "S", key(terminal, Capability.key_down));
+		keys.bind(ResultRowOperation.LEFT, "a", "A", key(terminal, Capability.key_left));
+		keys.bind(ResultRowOperation.RIGHT, "d", "D", key(terminal, Capability.key_right));
+		return keys;
+	}
+
+	private List<AttributedString> computeResultHeader() {
 		// compute a fixed-size header with two lines and one empty line
 
 		// title line
-		AttributedStringBuilder sb = new AttributedStringBuilder();
-		sb.style(AttributedStyle.INVERSE);
+		final AttributedStringBuilder titleLine = new AttributedStringBuilder();
+		titleLine.style(AttributedStyle.INVERSE);
 		final int totalMargin = getWidth() - CliStrings.RESULT_TITLE.length();
 		final int margin = totalMargin / 2;
-		repeatChar(' ', margin, sb);
-		sb.append(CliStrings.RESULT_TITLE);
-		repeatChar(' ', margin + (totalMargin % 2), sb);
-		final String titleLine = sb.toAnsi();
+		repeatChar(' ', margin, titleLine);
+		titleLine.append(CliStrings.RESULT_TITLE);
+		repeatChar(' ', margin + (totalMargin % 2), titleLine);
 
 		// page line
-		sb = new AttributedStringBuilder();
-		sb.style(AttributedStyle.INVERSE);
+		final AttributedStringBuilder pageLine = new AttributedStringBuilder();
+		pageLine.style(AttributedStyle.INVERSE);
 		// left
 		final String left = CliStrings.DEFAULT_MARGIN + CliStrings.RESULT_REFRESH_INTERVAL + ' ' +
 			REFRESH_INTERVALS.get(resultRefreshInterval).f0;
@@ -421,26 +498,27 @@ public class CliClient {
 		// all together
 		final int totalLeftSpace = getWidth() - middle.length();
 		final int leftSpace = totalLeftSpace / 2 - left.length();
-		sb.append(left);
-		repeatChar(' ', leftSpace, sb);
-		sb.append(middle);
-		final int rightSpacing = getWidth() - sb.length() - right.length();
-		repeatChar(' ', rightSpacing, sb);
-		sb.append(right);
-		final String pageLine = sb.toAnsi();
+		pageLine.append(left);
+		repeatChar(' ', leftSpace, pageLine);
+		pageLine.append(middle);
+		final int rightSpacing = getWidth() - pageLine.length() - right.length();
+		repeatChar(' ', rightSpacing, pageLine);
+		pageLine.append(right);
 
-		return Arrays.asList(titleLine, pageLine, "");
+		return Arrays.asList(titleLine.toAttributedString(), pageLine.toAttributedString(), AttributedString.EMPTY);
 	}
 
-	private List<String> computeResultFooter() {
+	private List<AttributedString> computeResultFooter() {
 		// compute a fixed-size footer with one empty line and two lines
-		switch (resultOptions) {
-			case HELP:
-				final AttributedStringBuilder line1 = new AttributedStringBuilder();
-				final AttributedStringBuilder line2 = new AttributedStringBuilder();
-				line1.append(CliStrings.DEFAULT_MARGIN);
-				line2.append(CliStrings.DEFAULT_MARGIN);
 
+		final AttributedStringBuilder line1 = new AttributedStringBuilder();
+		final AttributedStringBuilder line2 = new AttributedStringBuilder();
+
+		line1.append(CliStrings.DEFAULT_MARGIN);
+		line2.append(CliStrings.DEFAULT_MARGIN);
+
+		switch (resultOptions) {
+			case OVERVIEW:
 				final List<Tuple2<String, String>> options = getHelpOptions();
 				// we assume that every options has not more than 11 characters (+ key and space)
 				final int space = (getWidth() - CliStrings.DEFAULT_MARGIN.length() - (options.size() / 2 * 13)) /
@@ -466,15 +544,28 @@ public class CliClient {
 						repeatChar(' ', (11 - option.f1.length()) + space, line2);
 					}
 				}
-				return Arrays.asList("", line1.toAnsi(), line2.toAnsi());
+				break;
 
 			case GOTO:
-				break;
+				// input
+				line1.append(CliStrings.MESSAGE_ENTER_PAGE);
+				line1.append(' ');
+				final String input = resultInput.toString();
+				line1.append(resultInput.substring(0, resultInputCursor));
+				line1.style(AttributedStyle.DEFAULT.inverse());
+				if (resultInputCursor < resultInput.length()) {
+					line1.append(resultInput.charAt(resultInputCursor));
+				} else {
+					line1.append(' '); // show the cursor at the end
+				}
+				line1.style(AttributedStyle.DEFAULT);
 
-			case SEARCH:
+				// help
+				line2.append(CliStrings.MESSAGE_INPUT_HELP);
 				break;
 		}
-		return Collections.emptyList();
+
+		return Arrays.asList(AttributedString.EMPTY, line1.toAttributedString(), line2.toAttributedString());
 	}
 
 	private List<Tuple2<String, String>> getHelpOptions() {
@@ -492,17 +583,23 @@ public class CliClient {
 		options.add(Tuple2.of("N", CliStrings.RESULT_NEXT));
 		options.add(Tuple2.of("P", CliStrings.RESULT_PREV));
 
-		options.add(Tuple2.of("S", CliStrings.RESULT_SEARCH));
 		options.add(Tuple2.of("O", CliStrings.RESULT_OPEN));
 
 		return options;
 	}
 
-	private List<String> computeResultLines() {
-		// compute variable-length result lines with 1 header line
+	private int computeLineWidth() {
+		final int[] columnWidths = computeColumnWidths();
 
-		final List<String> lines = new ArrayList<>();
+		int width = 0;
+		for (int columnWidth : columnWidths) {
+			width += 1 + columnWidth; // 1 for the space between column
+		}
 
+		return width;
+	}
+
+	private int[] computeColumnWidths() {
 		final String[] columnNames = resultDescriptor.getColumnNames();
 
 		// determine maximum column width for each column
@@ -517,24 +614,47 @@ public class CliClient {
 			}
 		}
 
+		return maxWidth;
+	}
+
+	private List<AttributedString> computeResultLines() {
+		// compute variable-length result lines with 1 header line
+
+		final List<AttributedString> lines = new ArrayList<>();
+
+		final String[] columnNames = resultDescriptor.getColumnNames();
+		final int[] columnWidths = computeColumnWidths();
+
 		// schema header
 		final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
 		for (int i = 0; i < columnNames.length; i++) {
 			schemaHeader.append(' ');
 			schemaHeader.style(AttributedStyle.DEFAULT.underline());
-			normalizeColumn(schemaHeader, columnNames[i], maxWidth[i]);
+			normalizeColumn(schemaHeader, columnNames[i], columnWidths[i]);
 			schemaHeader.style(AttributedStyle.DEFAULT);
 		}
-		lines.add(schemaHeader.toAnsi());
+		lines.add(schemaHeader.toAttributedString());
 
 		// values
-		for (String[] values : resultLines) {
+		for (int line = 0; line < resultLines.size(); line++) {
 			final AttributedStringBuilder row = new AttributedStringBuilder();
-			for (int i = 0; i < columnNames.length; i++) {
-				row.append(' ');
-				normalizeColumn(row, values[i], maxWidth[i]);
+			if (line == resultSelectedLine) {
+				row.style(AttributedStyle.DEFAULT.inverse());
 			}
-			lines.add(row.toAnsi());
+			for (int col = 0; col < columnNames.length; col++) {
+				row.append(' ');
+				// check if value was present before last update, if not, highlight it
+				// both inverse and bold does not work correctly
+				if (line != resultSelectedLine && (resultLines.size() > resultPreviousLines.size() ||
+						!resultLines.get(line)[col].equals(resultPreviousLines.get(line)[col]))) {
+					row.style(AttributedStyle.BOLD);
+					normalizeColumn(row, resultLines.get(line)[col], columnWidths[col]);
+					row.style(AttributedStyle.DEFAULT);
+				} else {
+					normalizeColumn(row, resultLines.get(line)[col], columnWidths[col]);
+				}
+			}
+			lines.add(row.toAttributedString());
 		}
 
 		return lines;
@@ -561,23 +681,150 @@ public class CliClient {
 		return getHeight() - 3 - 3 - 1; // height - header - footer - result schema
 	}
 
+	private boolean isResultMode() {
+		return resultDescriptor != null;
+	}
+
+	private List<AttributedString> formatRow() {
+		
+	}
+
 	// --------------------------------------------------------------------------------------------
 
+	private synchronized void openRow() {
+		resultOptions = ResultOptions.ROW;
+
+		while (isResultMode() && resultOptions == ResultOptions.ROW) {
+			ResultRowOperation op;
+			try {
+				op = resultInputKeyReader.readBinding(resultRowKeys, null, false);
+			} catch (IOError e) {
+				break;
+			}
+
+			if (op == null) {
+				continue;
+			}
+
+			switch (op) {
+				case QUIT:
+					resultOptions = ResultOptions.OVERVIEW;
+					break;
+
+				case UP:
+					break;
+
+				case DOWN:
+					break;
+
+				case LEFT:
+					break;
+
+				case RIGHT:
+					break;
+			}
+		}
+	}
+
+	private synchronized void gotoPage() {
+		resultOptions = ResultOptions.GOTO;
+		resultInputCursor = 0;
+		resultInput.setLength(0);
+
+		displayResult();
+
+		while (isResultMode() && resultOptions == ResultOptions.GOTO) {
+			ResultInputOperation op;
+			try {
+				op = resultInputKeyReader.readBinding(resultInputKeys, null, false);
+			} catch (IOError e) {
+				break;
+			}
+
+			if (op == null) {
+				continue;
+			}
+
+			switch (op) {
+				case QUIT:
+					resultInput.setLength(0);
+					resultOptions = ResultOptions.OVERVIEW;
+					break;
+
+				case INSERT:
+					final String s = resultInputKeyReader.getLastBinding();
+					resultInput.insert(resultInputCursor, s);
+					resultInputCursor += s.length();
+					break;
+
+				case DEL:
+					if (resultInputCursor < resultInput.length()) {
+						resultInput.deleteCharAt(resultInputCursor);
+					}
+					break;
+
+				case BACKSPACE:
+					if (resultInputCursor > 0) {
+						resultInput.deleteCharAt(resultInputCursor - 1);
+					}
+					break;
+
+				case LEFT:
+					if (resultInputCursor > 0) {
+						resultInputCursor--;
+					}
+					break;
+
+				case RIGHT:
+					if (resultInputCursor < resultInput.length()) {
+						resultInputCursor++;
+					}
+					break;
+
+				case ENTER:
+					// same as quit
+					if (resultInput.length() == 0) {
+						resultInput.setLength(0);
+						resultOptions = ResultOptions.OVERVIEW;
+					} else {
+						int page = 0;
+						try {
+							page = Integer.parseInt(resultInput.toString().trim());
+						} catch (NumberFormatException e) {
+							// do nothing and let user fix the wrong input
+						}
+						if (page > 0 && page <= resultPageCount) {
+							resultPage = page;
+							updatePage();
+						}
+						// do nothing and let user fix the wrong input
+					}
+					break;
+			}
+
+			displayResult();
+		}
+	}
+
 	private synchronized void displayResult() {
+		if (!isResultMode()) {
+			return;
+		}
+
 		final List<String> lines = new ArrayList<>();
 
 		clear();
 
-		final List<String> header = computeResultHeader();
-		header.forEach((l) -> terminal.writer().println(l));
+		final List<AttributedString> header = computeResultHeader();
+		header.forEach((l) -> terminal.writer().println(l.toAnsi()));
 
-		final List<String> result = computeResultLines();
+		final List<AttributedString> result = computeResultLines();
 		result.forEach((l) -> {
-			final String window = l.substring(resultOffsetX, Math.min(l.length(), resultOffsetX + getWidth()));
-			terminal.writer().println(window);
+			final AttributedString window = l.substring(resultOffsetX, Math.min(l.length(), resultOffsetX + getWidth()));
+			terminal.writer().println(window.toAnsi());
 		});
 
-		final List<String> footer = computeResultFooter();
+		final List<AttributedString> footer = computeResultFooter();
 		final int emptyHeight = getHeight() - header.size() - result.size() - footer.size();
 		for (int i = 0; i < emptyHeight; i++) {
 			terminal.writer().println();
@@ -632,7 +879,14 @@ public class CliClient {
 		final Either<List<String[]>, String> values = translator.translateResultValues(
 			resultDescriptor.getResultId(), page);
 		if (values.isLeft()) {
+			resultPreviousLines = resultLines;
 			resultLines = values.left();
+			// check if selected line is still valid
+			if (resultSelectedLine != NO_LINE_SELECTED) {
+				if (resultSelectedLine >= resultLines.size()) {
+					resultSelectedLine = NO_LINE_SELECTED;
+				}
+			}
 			return true;
 		} else {
 			// error occurred
@@ -649,6 +903,42 @@ public class CliClient {
 		} else if (!isNext && page > 0) {
 			resultPage = page - 1;
 			updatePage();
+		}
+	}
+
+	private synchronized void navigateLine(boolean isUp) {
+		if (isUp) {
+			if (resultSelectedLine == NO_LINE_SELECTED) {
+				resultSelectedLine = resultLines.size() - 1;
+			} else {
+				resultSelectedLine = (resultSelectedLine - 1) % resultLines.size();
+				if (resultSelectedLine < 0) {
+					resultSelectedLine += resultLines.size();
+				}
+			}
+		} else {
+			if (resultSelectedLine == NO_LINE_SELECTED) {
+				resultSelectedLine = 0;
+			} else {
+				resultSelectedLine = (resultSelectedLine + 1) % resultLines.size();
+				if (resultSelectedLine < 0) {
+					resultSelectedLine += resultLines.size();
+				}
+			}
+		}
+	}
+
+	private synchronized void offsetLines(boolean isLeft) {
+		final int width = getWidth();
+		final int maxOffset = Math.max(0, computeLineWidth() - getWidth());
+		if (isLeft) {
+			if (resultOffsetX > 0) {
+				resultOffsetX -= 1;
+			}
+		} else {
+			if (resultOffsetX < maxOffset) {
+				resultOffsetX += 1;
+			}
 		}
 	}
 
@@ -677,7 +967,7 @@ public class CliClient {
 						}
 					}
 
-					if (refreshResults()) {
+					if (isRunning && refreshResults()) {
 						displayResult();
 					}
 				} else {
