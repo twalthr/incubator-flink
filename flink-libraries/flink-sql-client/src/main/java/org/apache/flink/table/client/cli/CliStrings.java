@@ -128,6 +128,16 @@ public final class CliStrings {
 
 	public static final String MESSAGE_ENTER_PAGE = "Enter page number:";
 
+	public static final String MESSAGE_HEADER_ROW = "Row Summary";
+
+	public static final String MESSAGE_QUIT_ROW = new AttributedStringBuilder()
+		.append("Press ")
+		.style(AttributedStyle.DEFAULT.inverse())
+		.append("Q")
+		.style(AttributedStyle.DEFAULT)
+		.append(" to go back.")
+		.toAnsi();
+
 	public static final String MESSAGE_INPUT_HELP = new AttributedStringBuilder()
 		.append("Press ")
 		.style(AttributedStyle.DEFAULT.inverse())

@@ -89,7 +89,7 @@ public class CliClient {
 
 	private CliResultDescriptor resultDescriptor;
 
-	private int resultWidth;
+	private List<AttributedString> resultShownLines;
 
 	private List<String[]> resultLines;
 
@@ -102,6 +102,8 @@ public class CliClient {
 	private int resultPage; // -1 = pick always the last page
 
 	private int resultOffsetX;
+
+	private int resultOffsetY;
 
 	private int resultInputCursor;
 
@@ -325,6 +327,9 @@ public class CliClient {
 		resultLines = Collections.emptyList();
 		resultPreviousLines = Collections.emptyList();
 		resultSelectedLine = NO_LINE_SELECTED;
+		resultShownLines = Collections.emptyList();
+
+		updateShownResults();
 
 		displayResult();
 
@@ -376,10 +381,10 @@ public class CliClient {
 					navigateLine(false);
 					break;
 				case LEFT:
-					offsetLines(true);
+					offsetXLines(true);
 					break;
 				case RIGHT:
-					offsetLines(false);
+					offsetXLines(false);
 					break;
 				default:
 					throw new SqlClientException("Invalid operation.");
@@ -454,7 +459,7 @@ public class CliClient {
 
 	private KeyMap<ResultRowOperation> bindRowKeys() {
 		final KeyMap<ResultRowOperation> keys = new KeyMap<>();
-		keys.setNomatch(ResultRowOperation.QUIT);
+		keys.bind(ResultRowOperation.QUIT, "q", "Q", key(terminal, Capability.key_exit));
 		keys.bind(ResultRowOperation.UP, "w", "W", key(terminal, Capability.key_up));
 		keys.bind(ResultRowOperation.DOWN, "s", "S", key(terminal, Capability.key_down));
 		keys.bind(ResultRowOperation.LEFT, "a", "A", key(terminal, Capability.key_left));
@@ -476,34 +481,41 @@ public class CliClient {
 
 		// page line
 		final AttributedStringBuilder pageLine = new AttributedStringBuilder();
-		pageLine.style(AttributedStyle.INVERSE);
-		// left
-		final String left = CliStrings.DEFAULT_MARGIN + CliStrings.RESULT_REFRESH_INTERVAL + ' ' +
-			REFRESH_INTERVALS.get(resultRefreshInterval).f0;
-		// middle
-		final StringBuilder middleBuilder = new StringBuilder();
-		middleBuilder.append(CliStrings.RESULT_PAGE);
-		middleBuilder.append(' ');
-		if (resultPage == LAST_PAGE) {
-			middleBuilder.append(CliStrings.RESULT_LAST_PAGE);
+		if (resultOptions == ResultOptions.ROW) {
+			pageLine.style(AttributedStyle.INVERSE);
+			final String middle = CliStrings.MESSAGE_HEADER_ROW;
+			final int padding = getWidth() - middle.length();
+			repeatChar(' ', padding / 2, pageLine);
+			pageLine.append(middle);
+			repeatChar(' ', padding / 2 + padding % 2, pageLine);
 		} else {
-			middleBuilder.append(resultPage + 1);
+			pageLine.style(AttributedStyle.INVERSE);
+			// left
+			final String left = CliStrings.DEFAULT_MARGIN + CliStrings.RESULT_REFRESH_INTERVAL + ' ' + REFRESH_INTERVALS.get(resultRefreshInterval).f0;
+			// middle
+			final StringBuilder middleBuilder = new StringBuilder();
+			middleBuilder.append(CliStrings.RESULT_PAGE);
+			middleBuilder.append(' ');
+			if (resultPage == LAST_PAGE) {
+				middleBuilder.append(CliStrings.RESULT_LAST_PAGE);
+			} else {
+				middleBuilder.append(resultPage + 1);
+			}
+			middleBuilder.append(CliStrings.RESULT_PAGE_OF);
+			middleBuilder.append(resultPageCount + 1);
+			final String middle = middleBuilder.toString();
+			// right
+			final String right = CliStrings.RESULT_LAST_REFRESH + ' ' + LocalTime.now().format(FORMATTER) + CliStrings.DEFAULT_MARGIN;
+			// all together
+			final int totalLeftSpace = getWidth() - middle.length();
+			final int leftSpace = totalLeftSpace / 2 - left.length();
+			pageLine.append(left);
+			repeatChar(' ', leftSpace, pageLine);
+			pageLine.append(middle);
+			final int rightSpacing = getWidth() - pageLine.length() - right.length();
+			repeatChar(' ', rightSpacing, pageLine);
+			pageLine.append(right);
 		}
-		middleBuilder.append(CliStrings.RESULT_PAGE_OF);
-		middleBuilder.append(resultPageCount + 1);
-		final String middle = middleBuilder.toString();
-		// right
-		final String right = CliStrings.RESULT_LAST_REFRESH + ' ' +
-			LocalTime.now().format(FORMATTER) + CliStrings.DEFAULT_MARGIN;
-		// all together
-		final int totalLeftSpace = getWidth() - middle.length();
-		final int leftSpace = totalLeftSpace / 2 - left.length();
-		pageLine.append(left);
-		repeatChar(' ', leftSpace, pageLine);
-		pageLine.append(middle);
-		final int rightSpacing = getWidth() - pageLine.length() - right.length();
-		repeatChar(' ', rightSpacing, pageLine);
-		pageLine.append(right);
 
 		return Arrays.asList(titleLine.toAttributedString(), pageLine.toAttributedString(), AttributedString.EMPTY);
 	}
@@ -563,6 +575,10 @@ public class CliClient {
 				// help
 				line2.append(CliStrings.MESSAGE_INPUT_HELP);
 				break;
+
+			case ROW:
+				line1.append(CliStrings.MESSAGE_QUIT_ROW);
+				break;
 		}
 
 		return Arrays.asList(AttributedString.EMPTY, line1.toAttributedString(), line2.toAttributedString());
@@ -589,14 +605,7 @@ public class CliClient {
 	}
 
 	private int computeLineWidth() {
-		final int[] columnWidths = computeColumnWidths();
-
-		int width = 0;
-		for (int columnWidth : columnWidths) {
-			width += 1 + columnWidth; // 1 for the space between column
-		}
-
-		return width;
+		return resultShownLines.stream().mapToInt(AttributedString::length).max().orElse(0);
 	}
 
 	private int[] computeColumnWidths() {
@@ -678,7 +687,7 @@ public class CliClient {
 	}
 
 	private int getResultPageSize() {
-		return getHeight() - 3 - 3 - 1; // height - header - footer - result schema
+		return getHeight() - 3 - 3; // height - header - footer
 	}
 
 	private boolean isResultMode() {
@@ -686,18 +695,58 @@ public class CliClient {
 	}
 
 	private List<AttributedString> formatRow() {
-		
+		final List<AttributedString> lines = new ArrayList<>();
+
+		final AttributedStringBuilder sb = new AttributedStringBuilder();
+		final String[] row = resultLines.get(resultSelectedLine);
+		for (int i = 0; i < row.length; i++) {
+			final String name = resultDescriptor.getColumnNames()[i];
+			final String type = resultDescriptor.getColumnTypes()[i];
+
+			sb.setLength(0);
+			sb.append(CliStrings.DEFAULT_MARGIN);
+			sb.style(AttributedStyle.BOLD);
+			sb.append(name);
+			sb.append(" (");
+			sb.append(type);
+			sb.append(')');
+			sb.append(':');
+			lines.add(sb.toAttributedString());
+
+			sb.setLength(0);
+			sb.append(CliStrings.DEFAULT_MARGIN);
+			sb.style(AttributedStyle.DEFAULT);
+			sb.append(row[i]);
+			lines.add(sb.toAttributedString());
+
+			lines.add(AttributedString.EMPTY);
+		}
+
+		return lines.subList(resultOffsetY, Math.min(lines.size(), resultOffsetY + getResultPageSize()));
+	}
+
+	private void updateShownResults() {
+		resultShownLines = computeResultLines();
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	private synchronized void openRow() {
+		if (resultSelectedLine == NO_LINE_SELECTED) {
+			return;
+		}
+
 		resultOptions = ResultOptions.ROW;
+		resultOffsetX = 0;
+		resultOffsetY = 0;
+		resultShownLines = formatRow();
+
+		displayResult();
 
 		while (isResultMode() && resultOptions == ResultOptions.ROW) {
 			ResultRowOperation op;
 			try {
-				op = resultInputKeyReader.readBinding(resultRowKeys, null, false);
+				op = resultRowReader.readBinding(resultRowKeys, null, false);
 			} catch (IOError e) {
 				break;
 			}
@@ -712,17 +761,23 @@ public class CliClient {
 					break;
 
 				case UP:
+					offsetYLines(true);
 					break;
 
 				case DOWN:
+					offsetYLines(false);
 					break;
 
 				case LEFT:
+					offsetXLines(true);
 					break;
 
 				case RIGHT:
+					offsetXLines(false);
 					break;
 			}
+
+			displayResult();
 		}
 	}
 
@@ -815,17 +870,23 @@ public class CliClient {
 
 		clear();
 
+		// header part
 		final List<AttributedString> header = computeResultHeader();
 		header.forEach((l) -> terminal.writer().println(l.toAnsi()));
 
-		final List<AttributedString> result = computeResultLines();
-		result.forEach((l) -> {
-			final AttributedString window = l.substring(resultOffsetX, Math.min(l.length(), resultOffsetX + getWidth()));
-			terminal.writer().println(window.toAnsi());
+		// main part
+		resultShownLines.forEach((l) -> {
+			if (resultOffsetX < l.length()) {
+				final AttributedString window = l.substring(resultOffsetX, Math.min(l.length(), resultOffsetX + getWidth()));
+				terminal.writer().println(window.toAnsi());
+			} else {
+				terminal.writer().println();
+			}
 		});
 
+		// footer
 		final List<AttributedString> footer = computeResultFooter();
-		final int emptyHeight = getHeight() - header.size() - result.size() - footer.size();
+		final int emptyHeight = getHeight() - header.size() - resultShownLines.size() - footer.size();
 		for (int i = 0; i < emptyHeight; i++) {
 			terminal.writer().println();
 		}
@@ -836,7 +897,7 @@ public class CliClient {
 
 	private synchronized boolean refreshResults() {
 		final Either<Integer, String> snapshot = translator.translateResultSnapshot(
-			resultDescriptor.getResultId(), getResultPageSize());
+			resultDescriptor.getResultId(), getResultPageSize() - 1); // result size - schema
 		if (snapshot.isLeft()) {
 			// update count & page
 			updatePageCount(snapshot.left());
@@ -887,6 +948,11 @@ public class CliClient {
 					resultSelectedLine = NO_LINE_SELECTED;
 				}
 			}
+
+			if (resultOptions != ResultOptions.ROW) {
+				updateShownResults();
+			}
+
 			return true;
 		} else {
 			// error occurred
@@ -926,10 +992,11 @@ public class CliClient {
 				}
 			}
 		}
+
+		updateShownResults();
 	}
 
-	private synchronized void offsetLines(boolean isLeft) {
-		final int width = getWidth();
+	private synchronized void offsetXLines(boolean isLeft) {
 		final int maxOffset = Math.max(0, computeLineWidth() - getWidth());
 		if (isLeft) {
 			if (resultOffsetX > 0) {
@@ -938,6 +1005,19 @@ public class CliClient {
 		} else {
 			if (resultOffsetX < maxOffset) {
 				resultOffsetX += 1;
+			}
+		}
+	}
+
+	private synchronized void offsetYLines(boolean isUp) {
+		final int maxOffset = Math.max(0, resultShownLines.size() - getResultPageSize());
+		if (isUp) {
+			if (resultOffsetY > 0) {
+				resultOffsetY -= 1;
+			}
+		} else {
+			if (resultOffsetY < maxOffset) {
+				resultOffsetY += 1;
 			}
 		}
 	}

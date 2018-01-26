@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.typeutils.TypeStringUtils;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Row;
 
@@ -78,7 +80,8 @@ public class CliTranslator {
 			final ResultDescriptor resultDesc = this.executor.executeQuery(context, query);
 			return Either.Left(new CliResultDescriptor(
 				resultDesc.getResultId(),
-				resultDesc.getResultSchema().getColumnNames()));
+				resultDesc.getResultSchema().getColumnNames(),
+				resultDesc.getResultSchema().getTypes()));
 		} catch (SqlExecutionException e) {
 			return Either.Right(CliStrings.messageError(CliStrings.MESSAGE_SQL_EXECUTION_ERROR, e));
 		}
@@ -135,9 +138,14 @@ public class CliTranslator {
 
 		private String[] columnNames;
 
-		public CliResultDescriptor(String resultId, String[] columnNames) {
+		private String[] columnTypes;
+
+		public CliResultDescriptor(String resultId, String[] columnNames, TypeInformation<?>[] columnTypes) {
 			this.resultId = resultId;
 			this.columnNames = columnNames;
+			this.columnTypes = Arrays.stream(columnTypes)
+				.map(Object::toString)
+				.toArray(String[]::new);
 		}
 
 		public String getResultId() {
@@ -146,6 +154,10 @@ public class CliTranslator {
 
 		public String[] getColumnNames() {
 			return columnNames;
+		}
+
+		public String[] getColumnTypes() {
+			return columnTypes;
 		}
 	}
 }
