@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.client.cli;
 
+/**
+ * Simple parser for determining the type of command and its parameters.
+ */
 public final class SqlCommandParser {
 
 	private SqlCommandParser() {
@@ -70,6 +73,9 @@ public final class SqlCommandParser {
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Supported SQL commands.
+	 */
 	enum SqlCommand {
 		QUIT("quit"),
 		CLEAR("clear"),
@@ -90,6 +96,9 @@ public final class SqlCommandParser {
 		}
 	}
 
+	/**
+	 * Call of SQL command with operands and command type.
+	 */
 	public static class SqlCommandCall {
 		public final SqlCommand command;
 		public final String[] operands;

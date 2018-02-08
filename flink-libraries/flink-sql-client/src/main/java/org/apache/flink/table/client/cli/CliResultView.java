@@ -32,6 +32,9 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.cli.CliUtils.normalizeColumn;
 
+/**
+ * Abstract CLI view for showing results (either as changelog or table).
+ */
 public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> {
 
 	protected static final int MAX_COLUMN_WIDTH = 20;

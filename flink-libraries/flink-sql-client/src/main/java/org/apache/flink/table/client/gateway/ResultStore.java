@@ -33,6 +33,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Maintains dynamic results.
+ */
 public class ResultStore {
 
 	private Configuration flinkConfig;
@@ -96,7 +99,7 @@ public class ResultStore {
 		} else {
 			// TODO cache this
 			// try to get the address by communicating to JobManager
-			final String jobManagerAddress= flinkConfig.getString(JobManagerOptions.ADDRESS);
+			final String jobManagerAddress = flinkConfig.getString(JobManagerOptions.ADDRESS);
 			final int jobManagerPort = flinkConfig.getInteger(JobManagerOptions.PORT);
 			if (jobManagerAddress != null && !jobManagerAddress.isEmpty()) {
 				try {

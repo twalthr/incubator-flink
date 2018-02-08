@@ -32,6 +32,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.IntStream;
 
+/**
+ * Utilities for CLI formatting.
+ */
 public final class CliUtils {
 
 	public static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");

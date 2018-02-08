@@ -45,6 +45,9 @@ import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.esc;
 import static org.jline.keymap.KeyMap.key;
 
+/**
+ * CLI view for retrieving and displaying a changelog stream.
+ */
 public class CliChangelogResultView extends CliResultView<CliChangelogResultView.ResultChangelogOperation> {
 
 	private static final int DEFAULT_REFRESH_INTERVAL = 0; // as fast as possible
@@ -265,6 +268,9 @@ public class CliChangelogResultView extends CliResultView<CliChangelogResultView
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Available operations for this view.
+	 */
 	public enum ResultChangelogOperation {
 		QUIT, // leave view
 		REFRESH, // refresh

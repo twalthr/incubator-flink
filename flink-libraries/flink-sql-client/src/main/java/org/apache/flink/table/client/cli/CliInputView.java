@@ -40,6 +40,9 @@ import static org.jline.keymap.KeyMap.del;
 import static org.jline.keymap.KeyMap.esc;
 import static org.jline.keymap.KeyMap.key;
 
+/**
+ * CLI view for entering a string.
+ */
 public class CliInputView extends CliView<CliInputView.InputOperation, String> {
 
 	private final String inputTitle;
@@ -70,13 +73,13 @@ public class CliInputView extends CliView<CliInputView.InputOperation, String> {
 		keys.setUnicode(INSERT);
 		keys.setAmbiguousTimeout(200); // make ESC quicker
 		for (char i = 32; i < 256; i++) {
-            keys.bind(INSERT, Character.toString(i));
-        }
-        keys.bind(LEFT, key(client.getTerminal(), Capability.key_left));
+			keys.bind(INSERT, Character.toString(i));
+		}
+		keys.bind(LEFT, key(client.getTerminal(), Capability.key_left));
 		keys.bind(RIGHT, key(client.getTerminal(), Capability.key_right));
 		keys.bind(BACKSPACE, del());
 
-        if (client.isPlainTerminal()) {
+		if (client.isPlainTerminal()) {
 			keys.bind(ENTER, "\r", "$");
 			keys.bind(QUIT, key(client.getTerminal(), Capability.key_exit), "!");
 		} else {
@@ -233,6 +236,9 @@ public class CliInputView extends CliView<CliInputView.InputOperation, String> {
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Available operations for this view.
+	 */
 	public enum InputOperation {
 		QUIT, // leave input view
 		INSERT, // input

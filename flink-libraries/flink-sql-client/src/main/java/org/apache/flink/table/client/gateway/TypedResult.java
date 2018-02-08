@@ -18,6 +18,11 @@
 
 package org.apache.flink.table.client.gateway;
 
+/**
+ * Result with an attached type (actual payload, EOS, etc.).
+ *
+ * @param <P> type of payload
+ */
 public class TypedResult<P> {
 
 	private final Type type;
@@ -53,6 +58,9 @@ public class TypedResult<P> {
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Result types.
+	 */
 	public enum Type {
 		PAYLOAD,
 		EMPTY,

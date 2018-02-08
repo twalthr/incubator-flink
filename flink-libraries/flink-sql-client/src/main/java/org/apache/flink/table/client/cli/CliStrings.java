@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.util.ExceptionUtils;
-
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;

@@ -32,6 +32,9 @@ import java.util.stream.IntStream;
 import static org.jline.keymap.KeyMap.esc;
 import static org.jline.keymap.KeyMap.key;
 
+/**
+ * CLI view for visualizing a row.
+ */
 public class CliRowView extends CliView<CliRowView.RowOperation, Void> {
 
 	private String[] columnNames;
@@ -146,6 +149,9 @@ public class CliRowView extends CliView<CliRowView.RowOperation, Void> {
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Available operations for this view.
+	 */
 	public enum RowOperation {
 		QUIT, // leave row view
 		UP,

@@ -45,6 +45,9 @@ import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.esc;
 import static org.jline.keymap.KeyMap.key;
 
+/**
+ * CLI view for retrieving and displaying a table.
+ */
 public class CliTableResultView extends CliResultView<CliTableResultView.ResultTableOperation> {
 
 	private int pageCount;
@@ -338,6 +341,9 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Available operations for this view.
+	 */
 	public enum ResultTableOperation {
 		QUIT, // leave view
 		REFRESH, // refresh current table page
