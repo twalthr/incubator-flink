@@ -154,7 +154,7 @@ case class NoMatchingTableSourceException(
     cause: Throwable)
     extends RuntimeException(
       s"Could not find a table source factory in the classpath satisfying the " +
-        s"following properties: \n"+
+        s"following properties: \n" +
         s"${properties.map(e => DescriptorProperties.toString(e._1, e._2)).mkString("\n")}",
       cause) {
 
@@ -173,7 +173,7 @@ case class AmbiguousTableSourceException(
     cause: Throwable)
     extends RuntimeException(
       s"More than one table source factory in the classpath satisfying the " +
-        s"following properties: \n"+
+        s"following properties: \n" +
         s"${properties.map(e => DescriptorProperties.toString(e._1, e._2)).mkString("\n")}",
       cause) {
 
