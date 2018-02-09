@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommand;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -34,12 +35,17 @@ import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.DefaultParser;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
+import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp;
 
 import java.io.IOError;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
@@ -63,6 +69,8 @@ public class CliClient {
 	private static final int PLAIN_TERMINAL_WIDTH = 80;
 
 	private static final int PLAIN_TERMINAL_HEIGHT = 30;
+
+	private static final int SOURCE_MAX_SIZE = 50_000;
 
 	public CliClient(SessionContext context, Executor executor) {
 		this.context = context;
@@ -196,6 +204,8 @@ public class CliClient {
 					break;
 				case SELECT:
 					callSelect(cmdCall);
+				case SOURCE:
+					callSource(cmdCall);
 					break;
 			}
 		}
@@ -320,9 +330,47 @@ public class CliClient {
 		terminal.flush();
 	}
 
+	private void callSource(SqlCommandCall cmdCall) {
+		final String pathString = cmdCall.operands[0];
+
+		if (pathString.isEmpty()) {
+			printError(CliStrings.MESSAGE_INVALID_PATH);
+			return;
+		}
+
+		// load file
+		final String stmt;
+		try {
+			final Path path = Paths.get(pathString);
+			byte[] encoded = Files.readAllBytes(path);
+			stmt = new String(encoded, Charset.defaultCharset());
+		} catch (IOException e) {
+			printException(e);
+			return;
+		}
+
+		// limit the output a bit
+		if (stmt.length() > SOURCE_MAX_SIZE) {
+			printError(CliStrings.MESSAGE_MAX_SIZE_EXCEEDED);
+			return;
+		}
+
+		terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_WILL_EXECUTE).toAnsi());
+		terminal.writer().println(new AttributedString(stmt).toString());
+		terminal.flush();
+
+		// try to run it
+		callSelect(new SqlCommandCall(SqlCommand.SELECT, new String[] { stmt }));
+	}
+
 	// --------------------------------------------------------------------------------------------
 
-	private void printException(SqlExecutionException e) {
+	private void printException(Throwable t) {
+		terminal.writer().println(CliStrings.messageError(CliStrings.MESSAGE_SQL_EXECUTION_ERROR, t).toAnsi());
+		terminal.flush();
+	}
+
+	private void printError(String e) {
 		terminal.writer().println(CliStrings.messageError(CliStrings.MESSAGE_SQL_EXECUTION_ERROR, e).toAnsi());
 		terminal.flush();
 	}

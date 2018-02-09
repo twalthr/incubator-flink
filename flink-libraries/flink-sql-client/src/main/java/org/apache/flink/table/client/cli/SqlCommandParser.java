@@ -85,7 +85,8 @@ public final class SqlCommandParser {
 		EXPLAIN("explain"),
 		SELECT("select"),
 		SET("set"),
-		RESET("reset");
+		RESET("reset"),
+		SOURCE("source");
 
 		public final String command;
 		public final String[] tokens;
@@ -93,6 +94,11 @@ public final class SqlCommandParser {
 		SqlCommand(String command) {
 			this.command = command;
 			this.tokens = command.split(" ");
+		}
+
+		@Override
+		public String toString() {
+			return command.toUpperCase();
 		}
 	}
 
