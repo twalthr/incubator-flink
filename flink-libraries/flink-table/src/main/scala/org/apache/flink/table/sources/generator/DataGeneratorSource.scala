@@ -18,52 +18,61 @@
 
 package org.apache.flink.table.sources.generator
 
-import java.util
-import java.util.Collections
-
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.checkpoint.ListCheckpointed
 import org.apache.flink.streaming.api.functions.source.{RichParallelSourceFunction, SourceFunction}
+import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 
-class DataGeneratorSource(val maxCount: Long, fields: Array[GeneratedField])
+/**
+  * Row generating data source.
+  */
+class DataGeneratorSource(
+    val maxCount: Long,
+    generators: Array[DataGenerator[_]],
+    outputName: String,
+    outputCode: String)
   extends RichParallelSourceFunction[Row]
-  with ListCheckpointed[Long] {
+  with Compiler[MapFunction[Row, Row]]
+  with Logging {
 
-  private var subtaskCount:
-  private var row: Row = _
-  private var count: Long = 0L
+  private var context: DataGeneratorContext = _
+  private var data: Row = _
+  private var function: MapFunction[Row, Row] = _
 
   @volatile
   private var isRunning: Boolean = true
 
   override def open(parameters: Configuration): Unit = {
-    row = new Row(fields.length)
+    context = new DataGeneratorContext(maxCount, getRuntimeContext)
+    data = new Row(generators.length)
+    LOG.debug(s"Compiling MapFunction: $outputName \n\n Code:\n$outputCode")
+    val clazz = compile(getRuntimeContext.getUserCodeClassLoader, outputName, outputCode)
+    LOG.debug("Instantiating MapFunction.")
+    function = clazz.newInstance()
+    FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
+    FunctionUtils.openFunction(function, parameters)
   }
 
   override def run(ctx: SourceFunction.SourceContext[Row]): Unit = {
-    while (isRunning && count < maxCount) {
+    while (isRunning && context.localCount < context.localMaxCount) {
+      // generate data
       var i = 0
-      while (i < fields.length) {
-        row.setField(i, fields(i).next(count))
+      while (i < generators.length) {
+        data.setField(i, generators(i).generate(context))
         i += 1
       }
+      // transform data
       ctx.getCheckpointLock.synchronized {
-        ctx.collect(row)
+        ctx.collect(function.map(data))
       }
-      count += 1
+      context.localCount += 1
     }
   }
 
   override def cancel(): Unit = {
     isRunning = false
-  }
-
-  override def snapshotState(checkpointId: Long, timestamp: Long): util.List[Long] = {
-    Collections.singletonList(count)
-  }
-
-  override def restoreState(state: util.List[Long]): Unit = {
-
   }
 }

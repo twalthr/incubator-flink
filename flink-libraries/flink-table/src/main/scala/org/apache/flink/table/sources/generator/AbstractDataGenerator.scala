@@ -18,13 +18,15 @@
 
 package org.apache.flink.table.sources.generator
 
+import java.util.Random
+
 import org.apache.flink.table.descriptors.DescriptorProperties
 
-trait DataGenerator[T] extends Serializable {
+abstract class AbstractDataGenerator[T] extends DataGenerator[T] {
 
-  def configure(properties: DescriptorProperties): Unit
+  private val nullRandom: Random = _
 
-  def open(): Unit
-
-  def generate(context: DataGeneratorContext): T
+  override def configure(properties: DescriptorProperties): Unit = {
+    properties.getDouble()
+  }
 }

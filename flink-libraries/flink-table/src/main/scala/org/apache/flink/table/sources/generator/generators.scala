@@ -18,13 +18,32 @@
 
 package org.apache.flink.table.sources.generator
 
+import java.util.Random
+
 import org.apache.flink.table.descriptors.DescriptorProperties
 
-trait DataGenerator[T] extends Serializable {
+class IntGenerator extends DataGenerator[Integer] {
 
-  def configure(properties: DescriptorProperties): Unit
+  private val seed: Option[Long] = _
+  private val min: Int = Int.MinValue
+  private val max: Int = Int.MaxValue
 
-  def open(): Unit
+  private var random: Random = _
 
-  def generate(context: DataGeneratorContext): T
+  override def configure(properties: DescriptorProperties): Unit = {
+
+  }
+
+  override def open(): Unit = {
+    random = seed match {
+      case Some(s) => new Random(s)
+      case None => new Random()
+    }
+  }
+
+  override def generate(context: DataGeneratorContext): Integer = {
+    if () {
+
+    }
+  }
 }

@@ -18,13 +18,22 @@
 
 package org.apache.flink.table.sources.generator
 
-import org.apache.flink.table.descriptors.DescriptorProperties
+import org.apache.flink.api.common.functions.RuntimeContext
 
-trait DataGenerator[T] extends Serializable {
+class DataGeneratorContext(private val maxCount: Long, private val context: RuntimeContext) {
 
-  def configure(properties: DescriptorProperties): Unit
+  val localMaxCount: Long = {
+    var localMaxCount = Long.MaxValue
+    // split count by subtask
+    if (maxCount < Long.MaxValue) {
+      localMaxCount = maxCount / context.getNumberOfParallelSubtasks
+      // the first subtask takes the remaining
+      if (context.getIndexOfThisSubtask == 0) {
+        localMaxCount += maxCount % context.getNumberOfParallelSubtasks
+      }
+    }
+    localMaxCount
+  }
 
-  def open(): Unit
-
-  def generate(context: DataGeneratorContext): T
+  var localCount: Long = 0L
 }
