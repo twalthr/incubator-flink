@@ -30,8 +30,9 @@ import org.apache.flink.types.Row
   * Row generating data source.
   */
 class DataGeneratorSource(
-    val maxCount: Long,
+    maxCount: Long,
     generators: Array[DataGenerator[_]],
+    outputArity: Int,
     outputName: String,
     outputCode: String)
   extends RichParallelSourceFunction[Row]
@@ -46,8 +47,13 @@ class DataGeneratorSource(
   private var isRunning: Boolean = true
 
   override def open(parameters: Configuration): Unit = {
-    context = new DataGeneratorContext(maxCount, getRuntimeContext)
+    context = new DataGeneratorContext(
+      maxCount,
+      outputArity,
+      generators.length,
+      getRuntimeContext)
     data = new Row(generators.length)
+
     LOG.debug(s"Compiling MapFunction: $outputName \n\n Code:\n$outputCode")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, outputName, outputCode)
     LOG.debug("Instantiating MapFunction.")
@@ -61,7 +67,9 @@ class DataGeneratorSource(
       // generate data
       var i = 0
       while (i < generators.length) {
-        data.setField(i, generators(i).generate(context))
+        if (context.isGeneratorBlank(i)) {
+          data.setField(i, generators(i).generate(context))
+        }
         i += 1
       }
       // transform data

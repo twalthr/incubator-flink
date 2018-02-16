@@ -31,7 +31,7 @@ class IntGenerator extends DataGenerator[Integer] {
   private var random: Random = _
 
   override def configure(properties: DescriptorProperties): Unit = {
-
+    properties.getDouble()
   }
 
   override def open(): Unit = {
