@@ -18,13 +18,23 @@
 
 package org.apache.flink.table.sources.generator
 
-import org.apache.flink.table.descriptors.DescriptorProperties
+class SubtaskCountGenerator extends DataGenerator[Int] {
 
-trait DataGenerator[T] extends Serializable {
+  override def generate(context: DataGeneratorContext): Integer = {
+    context.subtaskCount
+  }
+}
 
-  def configure(properties: DescriptorProperties): Unit = {}
+class SubtaskIndexGenerator extends DataGenerator[Int] {
 
-  def open(): Unit = {}
+  override def generate(context: DataGeneratorContext): Integer = {
+    context.subtaskIndex
+  }
+}
 
-  def generate(context: DataGeneratorContext): T
+class RowNumberGenerator extends DataGenerator[Long] {
+
+  override def generate(context: DataGeneratorContext): Long = {
+    context.uniqueIndex
+  }
 }

@@ -21,25 +21,25 @@ package org.apache.flink.table.sources.generator
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.sources.generator.DataGeneratorValidator._
 
-class IntGenerator extends DataGenerator[Integer] {
+class IntGenerator extends DataGenerator[Int] {
 
-  private var min: Int = Int.MinValue
-  private var max: Int = Int.MaxValue
+  var min: Int = Int.MinValue
+  var max: Int = Int.MaxValue
 
   override def configure(properties: DescriptorProperties): Unit = {
     properties.getInt(MIN_VALUE).foreach(min = _)
     properties.getInt(MAX_VALUE).foreach(max = _)
   }
 
-  override def generate(context: DataGeneratorContext): Integer = {
+  override def generate(context: DataGeneratorContext): Int = {
     context.random.nextInt((max - min) + 1) + min
   }
 }
 
 class LongGenerator extends DataGenerator[Long] {
 
-  private var min: Long = Long.MinValue
-  private var max: Long = Long.MaxValue
+  var min: Long = Long.MinValue
+  var max: Long = Long.MaxValue
 
   override def configure(properties: DescriptorProperties): Unit = {
     properties.getLong(MIN_VALUE).foreach(min = _)
@@ -53,8 +53,8 @@ class LongGenerator extends DataGenerator[Long] {
 
 class ByteGenerator extends DataGenerator[Byte] {
 
-  private var min: Byte = Byte.MinValue
-  private var max: Byte = Byte.MaxValue
+  var min: Byte = Byte.MinValue
+  var max: Byte = Byte.MaxValue
 
   override def configure(properties: DescriptorProperties): Unit = {
     properties.getByte(MIN_VALUE).foreach(min = _)
@@ -69,8 +69,8 @@ class ByteGenerator extends DataGenerator[Byte] {
 
 class ShortGenerator extends DataGenerator[Short] {
 
-  private var min: Short = Short.MinValue
-  private var max: Short = Short.MaxValue
+  var min: Short = Short.MinValue
+  var max: Short = Short.MaxValue
 
   override def configure(properties: DescriptorProperties): Unit = {
     properties.getByte(MIN_VALUE).foreach(min = _)
@@ -85,8 +85,8 @@ class ShortGenerator extends DataGenerator[Short] {
 
 class DoubleGenerator extends DataGenerator[Double] {
 
-  private var min: Double = Double.MinValue
-  private var max: Double = Double.MaxValue
+  var min: Double = Double.MinValue
+  var max: Double = Double.MaxValue
 
   override def configure(properties: DescriptorProperties): Unit = {
     properties.getDouble(MIN_VALUE).foreach(min = _)
@@ -100,8 +100,8 @@ class DoubleGenerator extends DataGenerator[Double] {
 
 class FloatGenerator extends DataGenerator[Float] {
 
-  private var min: Float = Float.MinValue
-  private var max: Float = Float.MaxValue
+  var min: Float = Float.MinValue
+  var max: Float = Float.MaxValue
 
   override def configure(properties: DescriptorProperties): Unit = {
     properties.getFloat(MIN_VALUE).foreach(min = _)
@@ -113,27 +113,35 @@ class FloatGenerator extends DataGenerator[Float] {
   }
 }
 
-class ObjectArrayGenerator[E] extends DataGenerator[Array[E]] {
-
-  private var minLen: Int = 0
-  private var maxLen: Int = 10 // int max value would be too large
-
-  private var fieldGenerator: DataGenerator[E] = _
+class EnumGenerator[T] extends DataGenerator[T] {
+  var array: Array[T] = Array()
 
   override def configure(properties: DescriptorProperties): Unit = {
-    properties.getFloat(MIN_LENGTH).foreach(minLen = _)
-    properties.getFloat(MAX_LENGTH).foreach(maxLen = _)
-    DataGeneratorHub.createDataGenerator(properties.getPrefix())
-  }
-
-  override def generate(context: DataGeneratorContext): Array[E] = {
-    val len = if (minLen == maxLen) {
-      minLen
-    } else {
-      context.random.nextInt((maxLen - minLen) + 1) + minLen
-    }
-
-    java.lang.reflect.Array.newInstance()
+    // for category, tag, mail, url, color, department, company, domain
   }
 }
+
+//class ObjectArrayGenerator[E] extends DataGenerator[Array[E]] {
+//
+//  private var minLen: Int = 0
+//  private var maxLen: Int = 10 // int max value would be too large
+//
+//  private var fieldGenerator: DataGenerator[E] = _
+//
+//  override def configure(properties: DescriptorProperties): Unit = {
+//    properties.getFloat(MIN_LENGTH).foreach(minLen = _)
+//    properties.getFloat(MAX_LENGTH).foreach(maxLen = _)
+//    DataGeneratorHub.createDataGenerator(properties.getPrefix())
+//  }
+//
+//  override def generate(context: DataGeneratorContext): Array[E] = {
+//    val len = if (minLen == maxLen) {
+//      minLen
+//    } else {
+//      context.random.nextInt((maxLen - minLen) + 1) + minLen
+//    }
+//
+//    java.lang.reflect.Array.newInstance()
+//  }
+//}
 

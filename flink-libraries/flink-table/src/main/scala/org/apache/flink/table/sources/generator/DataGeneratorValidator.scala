@@ -14,5 +14,8 @@ object DataGeneratorValidator {
   val MIN_VALUE = "min-value"
   val MIN_LENGTH = "min-length"
   val MAX_LENGTH = "max-length"
+  val LOCALE_LANGUAGE = "language"
+  val LOCALE_COUNTRY = "country"
+  val LOCALE_VARIANT = "variant"
 
 }

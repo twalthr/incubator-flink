@@ -63,6 +63,13 @@ class DataGeneratorSource(
     function = clazz.newInstance()
     FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
     FunctionUtils.openFunction(function, parameters)
+
+    // open generators
+    var i = 0
+    while (i < generators.length) {
+      generators(i).open()
+      i += 1
+    }
   }
 
   override def run(ctx: SourceFunction.SourceContext[Row]): Unit = {

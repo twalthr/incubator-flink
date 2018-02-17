@@ -38,14 +38,17 @@ class DataGeneratorContext(
     case None => new Random()
   }
 
+  val subtaskIndex: Int = context.getIndexOfThisSubtask
+  val subtaskCount: Int = context.getNumberOfParallelSubtasks
+
   val localMaxCount: Long = {
     var localMaxCount = Long.MaxValue
     // split count by subtask
     if (maxCount < Long.MaxValue) {
-      localMaxCount = maxCount / context.getNumberOfParallelSubtasks
-      // the first subtask takes the remaining
-      if (context.getIndexOfThisSubtask == 0) {
-        localMaxCount += maxCount % context.getNumberOfParallelSubtasks
+      localMaxCount = maxCount / subtaskCount
+      // the first subtask takes the remainder
+      if (subtaskIndex == 0) {
+        localMaxCount += maxCount % subtaskCount
       }
     }
     localMaxCount
@@ -54,6 +57,22 @@ class DataGeneratorContext(
   var localCount: Long = 0L
   val localGeneratorBlankCounts: Array[Long] = new Array(generatorBlankProbability.length)
   val localFieldBlankCounts: Array[Long] = new Array(fieldBlankProbability.length)
+
+  def uniqueIndex: Long = {
+    // data is bounded so we can use a consecutive index
+    if (localMaxCount < Long.MaxValue) {
+      // the first subtask takes the remainder
+      val remainder = if (subtaskIndex > 0) { maxCount % subtaskCount } else { 0 }
+      val startIndex = (maxCount / subtaskCount) * subtaskIndex + remainder
+      startIndex + localCount
+    }
+    // use an index with gaps
+    else {
+      // build an index [2 byte subtask, 6 bytes local count]
+      // we only support clusters up to parallelism 32767
+      subtaskIndex.toLong << 48 | localCount & 0x00FFFFFFL
+    }
+  }
 
   def isGeneratorBlank(generator: Int): Boolean = {
     isAchievingRatio(generator, generatorBlankProbability, localGeneratorBlankCounts)
