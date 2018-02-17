@@ -19,8 +19,7 @@
 package org.apache.flink.table.descriptors
 
 import java.io.Serializable
-import java.lang.{Boolean => JBoolean, Double => JDouble, Integer => JInt, Long => JLong}
-import java.util
+import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
 import java.util.regex.Pattern
 
 import org.apache.commons.codec.binary.Base64
@@ -214,6 +213,24 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
 
   def getDouble(key: String): Option[Double] = getString(key) match {
     case Some(d) => Some(JDouble.parseDouble(d))
+
+    case None => None
+  }
+
+  def getFloat(key: String): Option[Float] = getString(key) match {
+    case Some(f) => Some(JFloat.parseFloat(f))
+
+    case None => None
+  }
+
+  def getByte(key: String): Option[Byte] = getString(key) match {
+    case Some(b) => Some(JByte.parseByte(b))
+
+    case None => None
+  }
+
+  def getShort(key: String): Option[Short] = getString(key) match {
+    case Some(b) => Some(JShort.parseShort(b))
 
     case None => None
   }

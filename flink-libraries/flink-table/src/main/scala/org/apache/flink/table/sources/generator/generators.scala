@@ -18,32 +18,122 @@
 
 package org.apache.flink.table.sources.generator
 
-import java.util.Random
-
 import org.apache.flink.table.descriptors.DescriptorProperties
+import org.apache.flink.table.sources.generator.DataGeneratorValidator._
 
 class IntGenerator extends DataGenerator[Integer] {
 
-  private val seed: Option[Long] = _
-  private val min: Int = Int.MinValue
-  private val max: Int = Int.MaxValue
-
-  private var random: Random = _
+  private var min: Int = Int.MinValue
+  private var max: Int = Int.MaxValue
 
   override def configure(properties: DescriptorProperties): Unit = {
-    properties.getDouble()
-  }
-
-  override def open(): Unit = {
-    random = seed match {
-      case Some(s) => new Random(s)
-      case None => new Random()
-    }
+    properties.getInt(MIN_VALUE).foreach(min = _)
+    properties.getInt(MAX_VALUE).foreach(max = _)
   }
 
   override def generate(context: DataGeneratorContext): Integer = {
-    if () {
-
-    }
+    context.random.nextInt((max - min) + 1) + min
   }
 }
+
+class LongGenerator extends DataGenerator[Long] {
+
+  private var min: Long = Long.MinValue
+  private var max: Long = Long.MaxValue
+
+  override def configure(properties: DescriptorProperties): Unit = {
+    properties.getLong(MIN_VALUE).foreach(min = _)
+    properties.getLong(MAX_VALUE).foreach(max = _)
+  }
+
+  override def generate(context: DataGeneratorContext): Long = {
+    min + (context.random.nextDouble() * (max - min + 1L)).toLong
+  }
+}
+
+class ByteGenerator extends DataGenerator[Byte] {
+
+  private var min: Byte = Byte.MinValue
+  private var max: Byte = Byte.MaxValue
+
+  override def configure(properties: DescriptorProperties): Unit = {
+    properties.getByte(MIN_VALUE).foreach(min = _)
+    properties.getByte(MAX_VALUE).foreach(max = _)
+  }
+
+  override def generate(context: DataGeneratorContext): Byte = {
+    val r: Byte = (min + context.random.nextInt().toByte * (max - min + 1.toByte)).toByte
+    r
+  }
+}
+
+class ShortGenerator extends DataGenerator[Short] {
+
+  private var min: Short = Short.MinValue
+  private var max: Short = Short.MaxValue
+
+  override def configure(properties: DescriptorProperties): Unit = {
+    properties.getByte(MIN_VALUE).foreach(min = _)
+    properties.getByte(MAX_VALUE).foreach(max = _)
+  }
+
+  override def generate(context: DataGeneratorContext): Short = {
+    val r: Short = (min + context.random.nextInt().toShort * (max - min + 1.toShort)).toShort
+    r
+  }
+}
+
+class DoubleGenerator extends DataGenerator[Double] {
+
+  private var min: Double = Double.MinValue
+  private var max: Double = Double.MaxValue
+
+  override def configure(properties: DescriptorProperties): Unit = {
+    properties.getDouble(MIN_VALUE).foreach(min = _)
+    properties.getDouble(MAX_VALUE).foreach(max = _)
+  }
+
+  override def generate(context: DataGeneratorContext): Double = {
+    min + (context.random.nextDouble() * (max - min + 1.0d))
+  }
+}
+
+class FloatGenerator extends DataGenerator[Float] {
+
+  private var min: Float = Float.MinValue
+  private var max: Float = Float.MaxValue
+
+  override def configure(properties: DescriptorProperties): Unit = {
+    properties.getFloat(MIN_VALUE).foreach(min = _)
+    properties.getFloat(MAX_VALUE).foreach(max = _)
+  }
+
+  override def generate(context: DataGeneratorContext): Float = {
+    min + (context.random.nextFloat() * (max - min + 1.0f))
+  }
+}
+
+class ObjectArrayGenerator[E] extends DataGenerator[Array[E]] {
+
+  private var minLen: Int = 0
+  private var maxLen: Int = 10 // int max value would be too large
+
+  private var fieldGenerator: DataGenerator[E] = _
+
+  override def configure(properties: DescriptorProperties): Unit = {
+    properties.getFloat(MIN_LENGTH).foreach(minLen = _)
+    properties.getFloat(MAX_LENGTH).foreach(maxLen = _)
+    DataGeneratorHub.createDataGenerator(properties.getPrefix())
+  }
+
+  override def generate(context: DataGeneratorContext): Array[E] = {
+    val len = if (minLen == maxLen) {
+      minLen
+    } else {
+      context.random.nextInt((maxLen - minLen) + 1) + minLen
+    }
+
+    java.lang.reflect.Array.newInstance()
+  }
+}
+

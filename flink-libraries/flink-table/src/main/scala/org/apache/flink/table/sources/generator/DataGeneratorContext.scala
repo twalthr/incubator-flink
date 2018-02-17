@@ -27,13 +27,13 @@ import org.apache.flink.api.common.functions.RuntimeContext
   * the blank ratio, counts etc.
   */
 class DataGeneratorContext(
-    private val blankSeed: Option[Long],
+    private val seed: Option[Long],
     private val maxCount: Long,
     private val fieldBlankProbability: Array[Double],
     private val generatorBlankProbability: Array[Double],
     private val context: RuntimeContext) {
 
-  val blankRandom: Random = blankSeed match {
+  val random: Random = seed match {
     case Some(s) => new Random(s)
     case None => new Random()
   }
@@ -56,79 +56,51 @@ class DataGeneratorContext(
   val localFieldBlankCounts: Array[Long] = new Array(fieldBlankProbability.length)
 
   def isGeneratorBlank(generator: Int): Boolean = {
-    val probability = generatorBlankProbability(generator)
-    if (probability == 0) {
-      return false // no blanks at all
-    }
-
-    val isBlank = blankRandom.nextDouble() <= probability
-    // maximum count is not set, always use probability
-    if (maxCount == Long.MaxValue) {
-      if (isBlank) {
-        localGeneratorBlankCounts(generator) += 1
-      }
-      isBlank
-    }
-    // use probability as long as it guaranteed that the ratio is achieved
-    else {
-      val expectedBlanks = localMaxCount * generatorBlankProbability(generator)
-      val actualBlanks = localGeneratorBlankCounts(generator)
-      val remaining = localMaxCount - localCount
-      // blank count reached
-      if (expectedBlanks == actualBlanks) {
-        false
-      }
-      // enough records remaining to achieve ratio
-      else if (actualBlanks + (remaining * probability) > expectedBlanks) {
-        if (isBlank) {
-          localGeneratorBlankCounts(generator) += 1
-        }
-        isBlank
-      }
-      // blanks needed to achieve ratio
-      else {
-        localGeneratorBlankCounts(generator) += 1
-        true
-      }
-    }
+    isAchievingRatio(generator, generatorBlankProbability, localGeneratorBlankCounts)
   }
 
   def isFieldBlank(field: Int): Boolean = {
+    isAchievingRatio(field, fieldBlankProbability, localFieldBlankCounts)
   }
 
-  private def maintainBlank(blankProbabilities:): Unit = {
-    val probability = generatorBlankProbability(generator)
+  private def isAchievingRatio(
+      idx: Int,
+      probabilities: Array[Double],
+      counts: Array[Long])
+    : Boolean = {
+
+    val probability = probabilities(idx)
     if (probability == 0) {
-      return false // no blanks at all
+      return false // nothing to achieve
     }
 
-    val isBlank = blankRandom.nextDouble() <= probability
+    val isAchieving = random.nextDouble() <= probability
     // maximum count is not set, always use probability
     if (maxCount == Long.MaxValue) {
-      if (isBlank) {
-        localGeneratorBlankCounts(generator) += 1
+      if (isAchieving) {
+        counts(idx) += 1
       }
-      isBlank
+      isAchieving
     }
     // use probability as long as it guaranteed that the ratio is achieved
     else {
-      val expectedBlanks = localMaxCount * generatorBlankProbability(generator)
-      val actualBlanks = localGeneratorBlankCounts(generator)
+      val expectedCounts = localMaxCount * probabilities(idx)
+      val actualCounts = counts(idx)
       val remaining = localMaxCount - localCount
-      // blank count reached
-      if (expectedBlanks == actualBlanks) {
+      // count reached
+      if (expectedCounts == actualCounts) {
         false
       }
       // enough records remaining to achieve ratio
-      else if (actualBlanks + (remaining * probability) > expectedBlanks) {
-        if (isBlank) {
-          localGeneratorBlankCounts(generator) += 1
+      else if (actualCounts + (remaining * probability) > expectedCounts) {
+        if (isAchieving) {
+          counts(idx) += 1
         }
-        isBlank
+        isAchieving
       }
-      // blanks needed to achieve ratio
+      // need to achieve ratio
       else {
-        localGeneratorBlankCounts(generator) += 1
+        counts(idx) += 1
         true
       }
     }

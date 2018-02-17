@@ -24,7 +24,7 @@ trait DataGenerator[T] extends Serializable {
 
   def configure(properties: DescriptorProperties): Unit
 
-  def open(): Unit
+  def open(): Unit = {}
 
   def generate(context: DataGeneratorContext): T
 }

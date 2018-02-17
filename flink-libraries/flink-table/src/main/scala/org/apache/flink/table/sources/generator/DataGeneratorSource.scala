@@ -30,9 +30,11 @@ import org.apache.flink.types.Row
   * Row generating data source.
   */
 class DataGeneratorSource(
+    seed: Option[Long],
     maxCount: Long,
+    fieldBlankProbability: Array[Double],
+    generatorBlankProbability: Array[Double],
     generators: Array[DataGenerator[_]],
-    outputArity: Int,
     outputName: String,
     outputCode: String)
   extends RichParallelSourceFunction[Row]
@@ -48,9 +50,10 @@ class DataGeneratorSource(
 
   override def open(parameters: Configuration): Unit = {
     context = new DataGeneratorContext(
+      seed,
       maxCount,
-      outputArity,
-      generators.length,
+      fieldBlankProbability,
+      generatorBlankProbability,
       getRuntimeContext)
     data = new Row(generators.length)
 
