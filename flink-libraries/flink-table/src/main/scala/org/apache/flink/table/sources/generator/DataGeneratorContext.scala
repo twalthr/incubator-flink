@@ -38,6 +38,8 @@ class DataGeneratorContext(
     case None => new Random()
   }
 
+  def hasSeed: Boolean = seed.isDefined
+
   val subtaskIndex: Int = context.getIndexOfThisSubtask
   val subtaskCount: Int = context.getNumberOfParallelSubtasks
 

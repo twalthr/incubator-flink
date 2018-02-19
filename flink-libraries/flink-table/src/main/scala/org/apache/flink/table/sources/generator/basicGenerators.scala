@@ -21,6 +21,13 @@ package org.apache.flink.table.sources.generator
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.sources.generator.DataGeneratorValidator._
 
+class BooleanGenerator extends DataGenerator[Boolean] {
+
+  override def generate(context: DataGeneratorContext): Boolean = {
+    context.random.nextBoolean()
+  }
+}
+
 class IntGenerator extends DataGenerator[Int] {
 
   var min: Int = Int.MinValue
@@ -113,11 +120,29 @@ class FloatGenerator extends DataGenerator[Float] {
   }
 }
 
+// --------------------------------------------------------------------------
+
 class EnumGenerator[T] extends DataGenerator[T] {
+
   var array: Array[T] = Array()
 
+  val intGenerator: DataGenerator[Int] = {
+    val gen = new IntGenerator
+    gen.min = 0
+    gen.max = array.length
+    gen
+  }
+
   override def configure(properties: DescriptorProperties): Unit = {
-    // for category, tag, mail, url, color, department, company, domain
+
+  }
+
+  override def generate(context: DataGeneratorContext): T = {
+    if (array.length == 0) {
+      null.asInstanceOf[T]
+    } else {
+      array(intGenerator.generate(context))
+    }
   }
 }
 
