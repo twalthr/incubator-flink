@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 
 import _root_.scala.collection.mutable.ArrayBuffer
+import _root_.java.util.Objects
 
 /**
   * A TableSchema represents a Table's structure.
@@ -135,8 +136,7 @@ class TableSchema(
   def canEqual(other: Any): Boolean = other.isInstanceOf[TableSchema]
 
   override def hashCode(): Int = {
-    val state = Seq(columnNames, columnTypes)
-    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+    Objects.hash(columnNames, columnTypes)
   }
 }
 
