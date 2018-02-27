@@ -74,8 +74,8 @@ class ExternalCatalogTable(
     val props = new DescriptorProperties()
     connectorDesc.addProperties(props)
     props
-      .getString(CONNECTOR_LEGACY_TYPE)
-      .getOrElse(throw new TableException("Could not find a legacy table type to return."))
+      .getOptionalString(CONNECTOR_LEGACY_TYPE)
+      .orElse(throw new TableException("Could not find a legacy table type to return."))
   }
 
   /**
@@ -89,8 +89,8 @@ class ExternalCatalogTable(
     val props = new DescriptorProperties()
     connectorDesc.addProperties(props)
     props
-      .getTableSchema(CONNECTOR_LEGACY_SCHEMA)
-      .getOrElse(throw new TableException("Could not find a legacy schema to return."))
+      .getOptionalTableSchema(CONNECTOR_LEGACY_SCHEMA)
+      .orElse(throw new TableException("Could not find a legacy schema to return."))
   }
 
   /**
@@ -105,7 +105,7 @@ class ExternalCatalogTable(
     val props = new DescriptorProperties(normalizeKeys = false)
     val legacyProps = new JHashMap[String, String]()
     connectorDesc.addProperties(props)
-    props.asScalaMap.flatMap { case (k, v) =>
+    props.asMap.asScala.flatMap { case (k, v) =>
       if (k.startsWith(CONNECTOR_LEGACY_PROPERTY)) {
         // remove "connector.legacy-property-"
         Some(legacyProps.put(k.substring(CONNECTOR_LEGACY_PROPERTY.length + 1), v))
@@ -138,7 +138,7 @@ class ExternalCatalogTable(
     metadataDesc match {
       case Some(meta) =>
         meta.addProperties(normalizedProps)
-        normalizedProps.getString(METADATA_COMMENT).orNull
+        normalizedProps.getOptionalString(METADATA_COMMENT).orElse(null)
       case None =>
         null
     }
@@ -157,7 +157,7 @@ class ExternalCatalogTable(
     metadataDesc match {
       case Some(meta) =>
         meta.addProperties(normalizedProps)
-        normalizedProps.getLong(METADATA_CREATION_TIME).map(v => Long.box(v)).orNull
+        normalizedProps.getOptionalLong(METADATA_CREATION_TIME).orElse(null)
       case None =>
         null
     }
@@ -176,7 +176,7 @@ class ExternalCatalogTable(
     metadataDesc match {
       case Some(meta) =>
         meta.addProperties(normalizedProps)
-        normalizedProps.getLong(METADATA_LAST_ACCESS_TIME).map(v => Long.box(v)).orNull
+        normalizedProps.getOptionalLong(METADATA_LAST_ACCESS_TIME).orElse(null)
       case None =>
         null
     }

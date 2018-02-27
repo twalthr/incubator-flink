@@ -134,6 +134,10 @@ class TableSchema(
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[TableSchema]
 
+  override def hashCode(): Int = {
+    val state = Seq(columnNames, columnTypes)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
 }
 
 object TableSchema {

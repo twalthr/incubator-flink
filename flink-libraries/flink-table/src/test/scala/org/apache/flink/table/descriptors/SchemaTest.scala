@@ -29,14 +29,14 @@ class SchemaTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidType(): Unit = {
-    verifyInvalidProperty(
+    addPropertyAndVerify(
       descriptors().get(0),
       "schema.fields.1.type", "dfghj")
   }
 
   @Test(expected = classOf[ValidationException])
   def testBothRowtimeAndProctime(): Unit = {
-    verifyInvalidProperty(
+    addPropertyAndVerify(
       descriptors().get(0),
       "schema.fields.2.rowtime.watermarks.type", "from-source")
   }
@@ -57,13 +57,7 @@ class SchemaTest extends DescriptorTestBase {
       .field("p", Types.SQL_TIMESTAMP).proctime()
       .field("r", Types.SQL_TIMESTAMP)
 
-    val desc3 = Schema()
-      .deriveFieldsAlphabetically()
-      .field("p", Types.SQL_TIMESTAMP).proctime()
-      .field("r", Types.SQL_TIMESTAMP).rowtime(
-        Rowtime().timestampsFromSource().watermarksFromSource())
-
-    util.Arrays.asList(desc1, desc2, desc3)
+    util.Arrays.asList(desc1, desc2)
   }
 
   override def validator(): DescriptorValidator = {
@@ -101,18 +95,6 @@ class SchemaTest extends DescriptorTestBase {
       "schema.fields.3.type" -> "TIMESTAMP"
     )
 
-    val props3 = Map(
-      "schema.property-version" -> "1",
-      "schema.derive-fields" -> "alphabetically",
-      "schema.fields.0.name" -> "p",
-      "schema.fields.0.type" -> "TIMESTAMP",
-      "schema.fields.0.proctime" -> "true",
-      "schema.fields.1.name" -> "r",
-      "schema.fields.1.type" -> "TIMESTAMP",
-      "schema.fields.1.rowtime.watermarks.type" -> "from-source",
-      "schema.fields.1.rowtime.timestamps.type" -> "from-source"
-    )
-
-    util.Arrays.asList(props1.asJava, props2.asJava, props3.asJava)
+    util.Arrays.asList(props1.asJava, props2.asJava)
   }
 }

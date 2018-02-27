@@ -39,13 +39,13 @@ object TableSourceFactoryService extends Logging {
 
   private lazy val loader = ServiceLoader.load(classOf[TableSourceFactory[_]])
 
-  def findTableSourceFactory(descriptor: TableSourceDescriptor): TableSource[_] = {
+  def findAndCreateTableSource(descriptor: TableSourceDescriptor): TableSource[_] = {
     val properties = new DescriptorProperties()
     descriptor.addProperties(properties)
-    findTableSourceFactory(properties.asScalaMap)
+    findAndCreateTableSource(properties.asMap.asScala.toMap)
   }
 
-  def findTableSourceFactory(properties: Map[String, String]): TableSource[_] = {
+  def findAndCreateTableSource(properties: Map[String, String]): TableSource[_] = {
     var matchingFactory: Option[(TableSourceFactory[_], Seq[String])] = None
     try {
       val iter = loader.iterator()
