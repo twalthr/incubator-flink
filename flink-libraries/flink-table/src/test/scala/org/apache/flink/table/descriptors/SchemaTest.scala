@@ -31,14 +31,14 @@ class SchemaTest extends DescriptorTestBase {
   def testInvalidType(): Unit = {
     addPropertyAndVerify(
       descriptors().get(0),
-      "schema.fields.1.type", "dfghj")
+      "schema.1.type", "dfghj")
   }
 
   @Test(expected = classOf[ValidationException])
   def testBothRowtimeAndProctime(): Unit = {
     addPropertyAndVerify(
       descriptors().get(0),
-      "schema.fields.2.rowtime.watermarks.type", "from-source")
+      "schema.2.rowtime.watermarks.type", "from-source")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -66,33 +66,31 @@ class SchemaTest extends DescriptorTestBase {
 
   override def properties(): util.List[util.Map[String, String]] = {
     val props1 = Map(
-      "schema.property-version" -> "1",
-      "schema.fields.0.name" -> "myField",
-      "schema.fields.0.type" -> "BOOLEAN",
-      "schema.fields.1.name" -> "otherField",
-      "schema.fields.1.type" -> "VARCHAR",
-      "schema.fields.1.from" -> "csvField",
-      "schema.fields.2.name" -> "p",
-      "schema.fields.2.type" -> "TIMESTAMP",
-      "schema.fields.2.proctime" -> "true",
-      "schema.fields.3.name" -> "r",
-      "schema.fields.3.type" -> "TIMESTAMP",
-      "schema.fields.3.rowtime.watermarks.type" -> "from-source",
-      "schema.fields.3.rowtime.timestamps.type" -> "from-source"
+      "schema.0.name" -> "myField",
+      "schema.0.type" -> "BOOLEAN",
+      "schema.1.name" -> "otherField",
+      "schema.1.type" -> "VARCHAR",
+      "schema.1.from" -> "csvField",
+      "schema.2.name" -> "p",
+      "schema.2.type" -> "TIMESTAMP",
+      "schema.2.proctime" -> "true",
+      "schema.3.name" -> "r",
+      "schema.3.type" -> "TIMESTAMP",
+      "schema.3.rowtime.watermarks.type" -> "from-source",
+      "schema.3.rowtime.timestamps.type" -> "from-source"
     )
 
     val props2 = Map(
-      "schema.property-version" -> "1",
-      "schema.fields.0.name" -> "myField",
-      "schema.fields.0.type" -> "BOOLEAN",
-      "schema.fields.1.name" -> "otherField",
-      "schema.fields.1.type" -> "VARCHAR",
-      "schema.fields.1.from" -> "csvField",
-      "schema.fields.2.name" -> "p",
-      "schema.fields.2.type" -> "TIMESTAMP",
-      "schema.fields.2.proctime" -> "true",
-      "schema.fields.3.name" -> "r",
-      "schema.fields.3.type" -> "TIMESTAMP"
+      "schema.0.name" -> "myField",
+      "schema.0.type" -> "BOOLEAN",
+      "schema.1.name" -> "otherField",
+      "schema.1.type" -> "VARCHAR",
+      "schema.1.from" -> "csvField",
+      "schema.2.name" -> "p",
+      "schema.2.type" -> "TIMESTAMP",
+      "schema.2.proctime" -> "true",
+      "schema.3.name" -> "r",
+      "schema.3.type" -> "TIMESTAMP"
     )
 
     util.Arrays.asList(props1.asJava, props2.asJava)

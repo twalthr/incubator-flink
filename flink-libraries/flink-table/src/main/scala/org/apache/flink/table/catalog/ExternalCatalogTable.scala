@@ -23,6 +23,7 @@ import java.util.{HashMap => JHashMap, Map => JMap}
 
 import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.catalog.ExternalCatalogTable._
+import org.apache.flink.table.descriptors.DescriptorProperties.toScala
 import org.apache.flink.table.descriptors.MetadataValidator.{METADATA_COMMENT, METADATA_CREATION_TIME, METADATA_LAST_ACCESS_TIME}
 import org.apache.flink.table.descriptors._
 import org.apache.flink.table.plan.stats.TableStats
@@ -73,9 +74,8 @@ class ExternalCatalogTable(
   lazy val tableType: String = {
     val props = new DescriptorProperties()
     connectorDesc.addProperties(props)
-    props
-      .getOptionalString(CONNECTOR_LEGACY_TYPE)
-      .orElse(throw new TableException("Could not find a legacy table type to return."))
+    toScala(props.getOptionalString(CONNECTOR_LEGACY_TYPE))
+      .getOrElse(throw new TableException("Could not find a legacy table type to return."))
   }
 
   /**
@@ -88,9 +88,8 @@ class ExternalCatalogTable(
   lazy val schema: TableSchema = {
     val props = new DescriptorProperties()
     connectorDesc.addProperties(props)
-    props
-      .getOptionalTableSchema(CONNECTOR_LEGACY_SCHEMA)
-      .orElse(throw new TableException("Could not find a legacy schema to return."))
+    toScala(props.getOptionalTableSchema(CONNECTOR_LEGACY_SCHEMA))
+      .getOrElse(throw new TableException("Could not find a legacy schema to return."))
   }
 
   /**

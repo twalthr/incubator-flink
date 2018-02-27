@@ -67,12 +67,11 @@ import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERM
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_DELAY;
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_SERIALIZED;
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_TYPE;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FIELDS;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FIELDS_FROM;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FIELDS_NAME;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FIELDS_PROCTIME;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FIELDS_TYPE;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_PROPERTY_VERSION;
+import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA;
+import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FROM;
+import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_NAME;
+import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_PROCTIME;
+import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 
 /**
  * Factory for creating configured instances of {@link KafkaJsonTableSource}.
@@ -89,7 +88,6 @@ public abstract class KafkaJsonTableSourceFactory implements TableSourceFactory<
 
 		context.put(CONNECTOR_PROPERTY_VERSION(), "1"); // backwards compatibility
 		context.put(FORMAT_PROPERTY_VERSION(), "1");
-		context.put(SCHEMA_PROPERTY_VERSION(), "1");
 
 		return context;
 	}
@@ -114,20 +112,20 @@ public abstract class KafkaJsonTableSourceFactory implements TableSourceFactory<
 		properties.add(FORMAT_DERIVE_SCHEMA());
 
 		// schema
-		properties.add(SCHEMA_FIELDS() + ".#." + SCHEMA_FIELDS_TYPE());
-		properties.add(SCHEMA_FIELDS() + ".#." + SCHEMA_FIELDS_NAME());
-		properties.add(SCHEMA_FIELDS() + ".#." + SCHEMA_FIELDS_FROM());
+		properties.add(SCHEMA() + ".#." + SCHEMA_TYPE());
+		properties.add(SCHEMA() + ".#." + SCHEMA_NAME());
+		properties.add(SCHEMA() + ".#." + SCHEMA_FROM());
 
 		// time attributes
-		properties.add(SCHEMA_FIELDS() + ".#." + SCHEMA_FIELDS_PROCTIME());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_TIMESTAMPS_TYPE());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_TIMESTAMPS_FROM());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_TIMESTAMPS_CLASS());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_TIMESTAMPS_SERIALIZED());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_WATERMARKS_TYPE());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_WATERMARKS_CLASS());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_WATERMARKS_SERIALIZED());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_WATERMARKS_DELAY());
+		properties.add(SCHEMA() + ".#." + SCHEMA_PROCTIME());
+		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_TYPE());
+		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_FROM());
+		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_CLASS());
+		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_SERIALIZED());
+		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_TYPE());
+		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_CLASS());
+		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_SERIALIZED());
+		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_DELAY());
 
 		return properties;
 	}
@@ -212,7 +210,7 @@ public abstract class KafkaJsonTableSourceFactory implements TableSourceFactory<
 		builder.forJsonSchema(formatSchema);
 
 		// schema
-		final TableSchema schema = params.getTableSchema(SCHEMA_FIELDS());
+		final TableSchema schema = params.getTableSchema(SCHEMA());
 		builder.withSchema(schema);
 
 		// proctime

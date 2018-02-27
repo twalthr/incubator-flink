@@ -806,8 +806,12 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     * Validates a table schema property.
     */
   def validateTableSchema(key: String, isOptional: Boolean): Unit = {
-    val nameValidation = (k: String) => validateString(k, isOptional = false, minLen = 1)
-    val typeValidation = (k: String) => validateType(k, isOptional = false)
+    val nameValidation = (prefix: String) => {
+      validateString(prefix + NAME, isOptional = false, minLen = 1)
+    }
+    val typeValidation = (prefix: String) => {
+      validateType(prefix + TYPE, isOptional = false)
+    }
 
     validateFixedIndexedProperties(
       key,

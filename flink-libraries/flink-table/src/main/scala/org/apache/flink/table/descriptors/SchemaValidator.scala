@@ -36,10 +36,8 @@ import scala.collection.mutable
 class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
-    properties.validateInt(SCHEMA_PROPERTY_VERSION, isOptional = true, 0, Integer.MAX_VALUE)
-
-    val names = properties.getIndexedProperty(SCHEMA_FIELDS, SCHEMA_FIELDS_NAME)
-    val types = properties.getIndexedProperty(SCHEMA_FIELDS, SCHEMA_FIELDS_TYPE)
+    val names = properties.getIndexedProperty(SCHEMA, SCHEMA_NAME)
+    val types = properties.getIndexedProperty(SCHEMA, SCHEMA_TYPE)
 
     if (names.isEmpty && types.isEmpty) {
       throw new ValidationException(
@@ -50,14 +48,14 @@ class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorVal
 
     for (i <- 0 until Math.max(names.size, types.size)) {
       properties
-        .validateString(s"$SCHEMA_FIELDS.$i.$SCHEMA_FIELDS_NAME", isOptional = false, minLen = 1)
+        .validateString(s"$SCHEMA.$i.$SCHEMA_NAME", isOptional = false, minLen = 1)
       properties
-        .validateType(s"$SCHEMA_FIELDS.$i.$SCHEMA_FIELDS_TYPE", isOptional = false)
+        .validateType(s"$SCHEMA.$i.$SCHEMA_TYPE", isOptional = false)
       properties
-        .validateString(s"$SCHEMA_FIELDS.$i.$SCHEMA_FIELDS_FROM", isOptional = true, minLen = 1)
+        .validateString(s"$SCHEMA.$i.$SCHEMA_FROM", isOptional = true, minLen = 1)
       // either proctime or rowtime
-      val proctime = s"$SCHEMA_FIELDS.$i.$SCHEMA_FIELDS_PROCTIME"
-      val rowtime = s"$SCHEMA_FIELDS.$i.$ROWTIME"
+      val proctime = s"$SCHEMA.$i.$SCHEMA_PROCTIME"
+      val rowtime = s"$SCHEMA.$i.$ROWTIME"
       if (properties.containsKey(proctime)) {
         // check the environment
         if (!isStreamEnvironment) {
@@ -75,7 +73,7 @@ class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorVal
         properties.validatePrefixExclusion(rowtime)
       } else if (properties.hasPrefix(rowtime)) {
         // check rowtime
-        val rowtimeValidator = new RowtimeValidator(s"$SCHEMA_FIELDS.$i.")
+        val rowtimeValidator = new RowtimeValidator(s"$SCHEMA.$i.")
         rowtimeValidator.validate(properties)
         // no proctime
         properties.validateExclusion(proctime)
@@ -87,12 +85,10 @@ class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorVal
 object SchemaValidator {
 
   val SCHEMA = "schema"
-  val SCHEMA_PROPERTY_VERSION = "schema.property-version"
-  val SCHEMA_FIELDS = "schema.fields"
-  val SCHEMA_FIELDS_NAME = "name"
-  val SCHEMA_FIELDS_TYPE = "type"
-  val SCHEMA_FIELDS_PROCTIME = "proctime"
-  val SCHEMA_FIELDS_FROM = "from"
+  val SCHEMA_NAME = "name"
+  val SCHEMA_TYPE = "type"
+  val SCHEMA_PROCTIME = "proctime"
+  val SCHEMA_FROM = "from"
 
   // utilities
 
@@ -100,14 +96,14 @@ object SchemaValidator {
     * Finds the proctime attribute if defined.
     */
   def deriveProctimeAttribute(properties: DescriptorProperties): Optional[String] = {
-    val names = properties.getIndexedProperty(SCHEMA_FIELDS, SCHEMA_FIELDS_NAME)
+    val names = properties.getIndexedProperty(SCHEMA, SCHEMA_NAME)
 
     for (i <- 0 until names.size) {
       val isProctime = toScala(
-        properties.getOptionalBoolean(s"$SCHEMA_FIELDS.$i.$SCHEMA_FIELDS_PROCTIME"))
+        properties.getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME"))
       isProctime.foreach { isSet =>
         if (isSet) {
-          return toJava(names.asScala.get(s"$SCHEMA_FIELDS.$i.$SCHEMA_FIELDS_NAME"))
+          return toJava(names.asScala.get(s"$SCHEMA.$i.$SCHEMA_NAME"))
         }
       }
     }
@@ -120,18 +116,18 @@ object SchemaValidator {
   def deriveRowtimeAttributes(properties: DescriptorProperties)
     : util.List[RowtimeAttributeDescriptor] = {
 
-    val names = properties.getIndexedProperty(SCHEMA_FIELDS, SCHEMA_FIELDS_NAME)
+    val names = properties.getIndexedProperty(SCHEMA, SCHEMA_NAME)
 
     var attributes = new mutable.ArrayBuffer[RowtimeAttributeDescriptor]()
 
     // check for rowtime in every field
     for (i <- 0 until names.size) {
       RowtimeValidator
-        .getRowtimeComponents(properties, s"$SCHEMA_FIELDS.$i.")
+        .getRowtimeComponents(properties, s"$SCHEMA.$i.")
         .foreach { case (extractor, strategy) =>
           // create descriptor
           attributes += new RowtimeAttributeDescriptor(
-            properties.getString(s"$SCHEMA_FIELDS.$i.$SCHEMA_FIELDS_NAME"),
+            properties.getString(s"$SCHEMA.$i.$SCHEMA_NAME"),
             extractor,
             strategy)
         }
@@ -150,18 +146,18 @@ object SchemaValidator {
 
     val mapping = mutable.Map[String, String]()
 
-    val schema = properties.getTableSchema(SCHEMA_FIELDS)
+    val schema = properties.getTableSchema(SCHEMA)
 
     // add all schema fields first for implicit mappings
     schema.getColumnNames.foreach { name =>
       mapping.put(name, name)
     }
 
-    val names = properties.getIndexedProperty(SCHEMA_FIELDS, SCHEMA_FIELDS_NAME)
+    val names = properties.getIndexedProperty(SCHEMA, SCHEMA_NAME)
 
     for (i <- 0 until names.size) {
-      val name = properties.getString(s"$SCHEMA_FIELDS.$i.$SCHEMA_FIELDS_NAME")
-      toScala(properties.getOptionalString(s"$SCHEMA_FIELDS.$i.$SCHEMA_FIELDS_FROM")) match {
+      val name = properties.getString(s"$SCHEMA.$i.$SCHEMA_NAME")
+      toScala(properties.getOptionalString(s"$SCHEMA.$i.$SCHEMA_FROM")) match {
 
         // add explicit mapping
         case Some(source) =>
@@ -170,10 +166,10 @@ object SchemaValidator {
         // implicit mapping or time
         case None =>
           val isProctime = properties
-            .getOptionalBoolean(s"$SCHEMA_FIELDS.$i.$SCHEMA_FIELDS_PROCTIME")
+            .getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME")
             .orElse(false)
           val isRowtime = properties
-            .containsKey(s"$SCHEMA_FIELDS.$i.$ROWTIME_TIMESTAMPS_TYPE")
+            .containsKey(s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_TYPE")
           // remove proctime/rowtime from mapping
           if (isProctime || isRowtime) {
             mapping.remove(name)
@@ -196,17 +192,17 @@ object SchemaValidator {
 
     val builder = TableSchema.builder()
 
-    val schema = properties.getTableSchema(SCHEMA_FIELDS)
+    val schema = properties.getTableSchema(SCHEMA)
 
     schema.getColumnNames.zip(schema.getTypes).zipWithIndex.foreach { case ((n, t), i) =>
       val isProctime = properties
-        .getOptionalBoolean(s"$SCHEMA_FIELDS.$i.$SCHEMA_FIELDS_PROCTIME")
+        .getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME")
         .orElse(false)
       val isRowtime = properties
-        .containsKey(s"$SCHEMA_FIELDS.$i.$ROWTIME_TIMESTAMPS_TYPE")
+        .containsKey(s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_TYPE")
       if (!isProctime && !isRowtime) {
         // check for a aliasing
-        val fieldName = properties.getOptionalString(s"$SCHEMA_FIELDS.$i.$SCHEMA_FIELDS_FROM")
+        val fieldName = properties.getOptionalString(s"$SCHEMA.$i.$SCHEMA_FROM")
           .orElse(n)
         builder.field(fieldName, t)
       }

@@ -26,7 +26,7 @@ import org.apache.flink.table.descriptors.CsvValidator._
 import org.apache.flink.table.descriptors.DescriptorProperties.toScala
 import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, CONNECTOR_TYPE_VALUE}
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
-import org.apache.flink.table.descriptors.SchemaValidator.{SCHEMA, SCHEMA_FIELDS, SCHEMA_PROPERTY_VERSION}
+import org.apache.flink.table.descriptors.SchemaValidator.SCHEMA
 import org.apache.flink.table.descriptors._
 import org.apache.flink.types.Row
 
@@ -41,7 +41,6 @@ class CsvTableSourceFactory extends TableSourceFactory[Row] {
     context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE)
     context.put(CONNECTOR_PROPERTY_VERSION, "1")
     context.put(FORMAT_PROPERTY_VERSION, "1")
-    context.put(SCHEMA_PROPERTY_VERSION, "1")
     context
   }
 
@@ -78,7 +77,7 @@ class CsvTableSourceFactory extends TableSourceFactory[Row] {
     val csvTableSourceBuilder = new CsvTableSource.Builder
 
     val formatSchema = params.getTableSchema(FORMAT_FIELDS)
-    val tableSchema = params.getTableSchema(SCHEMA_FIELDS)
+    val tableSchema = params.getTableSchema(SCHEMA)
 
     // the CsvTableSource needs some rework first
     // for now the schema must be equal to the encoding
