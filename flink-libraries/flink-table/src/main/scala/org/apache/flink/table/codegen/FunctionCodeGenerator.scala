@@ -145,9 +145,16 @@ class FunctionCodeGenerator(
       val baseClass = classOf[ProcessFunction[_, _]]
       val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
 
+      // add context to member area
+      val contextTypeTerm = classOf[ProcessFunction[Any, Any]#Context].getCanonicalName
+      reusableMemberStatements.add(s"private $contextTypeTerm $contextTerm;")
+
+      // add per record assignment
+      reusablePerRecordStatements.add(s"this.$contextTerm = $contextTerm;")
+
       (baseClass,
         s"void processElement(Object _in1, " +
-          s"org.apache.flink.streaming.api.functions.ProcessFunction.Context $contextTerm," +
+          s"$contextTypeTerm $contextTerm," +
           s"org.apache.flink.util.Collector $collectorTerm)",
         List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
     }
@@ -177,13 +184,14 @@ class FunctionCodeGenerator(
       |  public ${samHeader._2} throws Exception {
       |    ${samHeader._3.mkString("\n")}
       |    ${reusePerRecordCode()}
-      |    ${if (needsInputFields) {
-              reuseInputUnboxingCode()
-            } else {
-              "" // no unboxing needed
-            }
-          }
-      |   $bodyCode
+      |    ${
+              if (needsInputFields) {
+                reuseInputUnboxingCode()
+              } else {
+                "" // no unboxing needed
+              }
+           }
+      |    $bodyCode
       |  }
       |
       |  @Override

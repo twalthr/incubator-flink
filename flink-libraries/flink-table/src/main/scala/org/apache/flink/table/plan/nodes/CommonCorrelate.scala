@@ -139,11 +139,14 @@ trait CommonCorrelate {
       returnSchema.typeInfo,
       returnSchema.fieldNames)
 
-    val collectorCode = if (condition.isEmpty) {
-      s"""
+    val (collectorCode, needInputFields) = if (condition.isEmpty) {
+      val b = s"""
          |${crossResultExpr.code}
          |getCollector().collect(${crossResultExpr.resultTerm});
          |""".stripMargin
+
+      // we only need to access input fields if code is not split
+      (b, !crossResultExpr.hasCodeSplits)
     } else {
 
       // adjust indices of InputRefs to adhere to schema expected by generator
@@ -165,7 +168,7 @@ trait CommonCorrelate {
 
       filterGenerator.input1Term = filterGenerator.input2Term
       val filterCondition = filterGenerator.generateExpression(condition.get)
-      s"""
+      val b = s"""
          |${filterGenerator.reuseInputUnboxingCode()}
          |${filterCondition.code}
          |if (${filterCondition.resultTerm}) {
@@ -173,10 +176,14 @@ trait CommonCorrelate {
          |  getCollector().collect(${crossResultExpr.resultTerm});
          |}
          |""".stripMargin
+
+      // the condition expression needs to access input fields
+      (b, true)
     }
 
     generator.generateTableFunctionCollector(
       "TableFunctionCollector",
+      needInputFields,
       collectorCode,
       udtfTypeInfo)
   }

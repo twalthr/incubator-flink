@@ -56,12 +56,15 @@ class CollectorCodeGenerator(
     *
     * @param name Class name of the table function collector. Must not be unique but has to be a
     *             valid Java class identifier.
+    * @param needsInputFields flag to indicate if the given bodyCode needs to access not
+    *                         only inputs but also input fields.
     * @param bodyCode body code for the collector method
     * @param collectedType The type information of the element collected by the collector
     * @return instance of GeneratedCollector
     */
   def generateTableFunctionCollector(
     name: String,
+    needsInputFields: Boolean,
     bodyCode: String,
     collectedType: TypeInformation[Any])
   : GeneratedCollector = {
@@ -71,28 +74,34 @@ class CollectorCodeGenerator(
     val input2TypeClass = boxedTypeTermForTypeInfo(collectedType)
 
     val funcCode = j"""
-      public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
-
-        ${reuseMemberCode()}
-
-        public $className() throws Exception {
-          ${reuseInitCode()}
-        }
-
-        @Override
-        public void collect(Object record) throws Exception {
-          super.collect(record);
-          $input1TypeClass $input1Term = ($input1TypeClass) getInput();
-          $input2TypeClass $input2Term = ($input2TypeClass) record;
-          ${reuseInputUnboxingCode()}
-          $bodyCode
-        }
-
-        @Override
-        public void close() {
-        }
-      }
-    """.stripMargin
+      |public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
+      |
+      |  ${reuseMemberCode()}
+      |
+      |  public $className() throws Exception {
+      |    ${reuseInitCode()}
+      |  }
+      |
+      |  @Override
+      |  public void collect(Object record) throws Exception {
+      |    super.collect(record);
+      |    $input1TypeClass $input1Term = ($input1TypeClass) getInput();
+      |    $input2TypeClass $input2Term = ($input2TypeClass) record;
+      |    ${
+              if (needsInputFields) {
+                reuseInputUnboxingCode()
+              } else {
+                "" // no unboxing needed
+              }
+           }
+      |    $bodyCode
+      |  }
+      |
+      |  @Override
+      |  public void close() {
+      |  }
+      |}
+      |""".stripMargin
 
     GeneratedCollector(className, funcCode)
   }
