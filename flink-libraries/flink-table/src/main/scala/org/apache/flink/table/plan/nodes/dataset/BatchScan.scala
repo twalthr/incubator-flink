@@ -103,6 +103,7 @@ trait BatchScan extends CommonScan[Row] with DataSetRel {
     generator.generateFunction(
       "DataSetSourceConversion",
       classOf[MapFunction[Any, Row]],
+      !conversion.hasCodeSplits, // no input fields needed if code is split
       body,
       outputType)
   }

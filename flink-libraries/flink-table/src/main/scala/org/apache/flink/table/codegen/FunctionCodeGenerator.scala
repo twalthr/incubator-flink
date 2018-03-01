@@ -77,6 +77,8 @@ class FunctionCodeGenerator(
     * @param name Class name of the Function. Must not be unique but has to be a valid Java class
     *             identifier.
     * @param clazz Flink Function to be generated.
+    * @param needsInputFields flag to indicate if the given bodyCode needs to access not
+    *                         only inputs but also input fields.
     * @param bodyCode code contents of the SAM (Single Abstract Method). Inputs, collector, or
     *                 output record can be accessed via the given term methods.
     * @param returnType expected return type
@@ -87,6 +89,7 @@ class FunctionCodeGenerator(
   def generateFunction[F <: Function, T <: Any](
     name: String,
     clazz: Class[F],
+    needsInputFields: Boolean,
     bodyCode: String,
     returnType: TypeInformation[T])
   : GeneratedFunction[F, T] = {
@@ -141,6 +144,7 @@ class FunctionCodeGenerator(
     else if (clazz == classOf[ProcessFunction[_, _]]) {
       val baseClass = classOf[ProcessFunction[_, _]]
       val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
+
       (baseClass,
         s"void processElement(Object _in1, " +
           s"org.apache.flink.streaming.api.functions.ProcessFunction.Context $contextTerm," +
@@ -153,36 +157,41 @@ class FunctionCodeGenerator(
     }
 
     val funcCode = j"""
-      public class $funcName
-          extends ${samHeader._1.getCanonicalName} {
-
-        ${reuseMemberCode()}
-
-        public $funcName() throws Exception {
-          ${reuseInitCode()}
-        }
-
-        ${reuseConstructorCode(funcName)}
-
-        @Override
-        public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
-          ${reuseOpenCode()}
-        }
-
-        @Override
-        public ${samHeader._2} throws Exception {
-          ${samHeader._3.mkString("\n")}
-          ${reusePerRecordCode()}
-          ${reuseInputUnboxingCode()}
-          $bodyCode
-        }
-
-        @Override
-        public void close() throws Exception {
-          ${reuseCloseCode()}
-        }
-      }
-    """.stripMargin
+      |public class $funcName
+      |    extends ${samHeader._1.getCanonicalName} {
+      |
+      |  ${reuseMemberCode()}
+      |
+      |  public $funcName() throws Exception {
+      |    ${reuseInitCode()}
+      |  }
+      |
+      |  ${reuseConstructorCode(funcName)}
+      |
+      |  @Override
+      |  public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
+      |    ${reuseOpenCode()}
+      |  }
+      |
+      |  @Override
+      |  public ${samHeader._2} throws Exception {
+      |    ${samHeader._3.mkString("\n")}
+      |    ${reusePerRecordCode()}
+      |    ${if (needsInputFields) {
+              reuseInputUnboxingCode()
+            } else {
+              "" // no unboxing needed
+            }
+          }
+      |   $bodyCode
+      |  }
+      |
+      |  @Override
+      |  public void close() throws Exception {
+      |    ${reuseCloseCode()}
+      |  }
+      |}
+      |""".stripMargin
 
     GeneratedFunction(funcName, returnType, funcCode)
   }

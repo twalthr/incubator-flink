@@ -92,3 +92,17 @@ case class GeneratedInput[F <: InputFormat[_, _], T <: Any](
   * @param code code of the generated Collector.
   */
 case class GeneratedCollector(name: String, code: String)
+
+/**
+  * Describes a generated result.
+  *
+  * @param resultTerm term to access the result
+  * @param code code necessary to produce resultTerm
+  * @param resultType type of the resultTerm
+  * @param hasCodeSplits indicator if the result is split into multiple methods
+  */
+case class GeneratedResult(
+  resultTerm: String,
+  code: String,
+  resultType: TypeInformation[_],
+  hasCodeSplits: Boolean)

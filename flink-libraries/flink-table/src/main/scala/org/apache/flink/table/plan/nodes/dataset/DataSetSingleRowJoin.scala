@@ -167,13 +167,13 @@ class DataSetSingleRowJoin(
         .getRowType
         .getFieldList
         .map(field => getRowType.getFieldNames.indexOf(field.getName))
-        .map(i => s"${conversion.resultTerm}.setField($i,null);")
+        .map(i => s"${conversion.resultTerm}.setField($i, null);")
 
         s"""
            |${condition.code}
            |${conversion.code}
-           |if(!${condition.resultTerm}){
-           |${notSuitedToCondition.mkString("\n")}
+           |if (!${condition.resultTerm}) {
+           |  ${notSuitedToCondition.mkString("\n")}
            |}
            |${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
            |""".stripMargin
@@ -182,6 +182,7 @@ class DataSetSingleRowJoin(
     val genFunction = codeGenerator.generateFunction(
       ruleDescription,
       classOf[FlatJoinFunction[Row, Row, Row]],
+      needsInputFields = true, // for the condition
       joinMethodBody,
       returnType)
 

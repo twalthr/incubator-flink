@@ -48,16 +48,19 @@ trait CommonCalc {
       calcProjection)
 
     // only projection
-    val body = if (calcCondition.isEmpty) {
-      s"""
+    val (body, needsInputFields) = if (calcCondition.isEmpty) {
+      val b = s"""
         |${projection.code}
         |${generator.collectorTerm}.collect(${projection.resultTerm});
         |""".stripMargin
+
+      // we only need to access input fields if code is not split
+      (b, !projection.hasCodeSplits)
     }
     else {
       val filterCondition = generator.generateExpression(calcCondition.get)
       // only filter
-      if (projection == null) {
+      val b = if (projection == null) {
         s"""
           |${filterCondition.code}
           |if (${filterCondition.resultTerm}) {
@@ -75,11 +78,15 @@ trait CommonCalc {
           |}
           |""".stripMargin
       }
+
+      // the filter expression needs to access input fields
+      (b, true)
     }
 
     generator.generateFunction(
       ruleDescription,
       functionClass,
+      needsInputFields,
       body,
       returnSchema.typeInfo)
   }

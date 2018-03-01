@@ -456,27 +456,34 @@ object WindowJoinUtil {
       returnType.fieldNames)
 
     // if other condition is none, then output the result directly
-    val body = otherCondition match {
+    val (body, needsInputFields) = otherCondition match {
       case None =>
-        s"""
+        val b = s"""
            |${conversion.code}
            |${generator.collectorTerm}.collect(${conversion.resultTerm});
            |""".stripMargin
+
+        // we only need to access input fields if code is not split
+        (b, !conversion.hasCodeSplits)
       case Some(remainCondition) =>
         // generate code for remaining condition
         val genCond = generator.generateExpression(remainCondition)
-        s"""
+        val b = s"""
            |${genCond.code}
            |if (${genCond.resultTerm}) {
            |  ${conversion.code}
            |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
            |}
            |""".stripMargin
+
+        // the condition expression needs to access input fields
+        (b, true)
     }
 
     generator.generateFunction(
       ruleDescription,
       classOf[FlatJoinFunction[Row, Row, Row]],
+      needsInputFields,
       body,
       returnType.typeInfo)
   }

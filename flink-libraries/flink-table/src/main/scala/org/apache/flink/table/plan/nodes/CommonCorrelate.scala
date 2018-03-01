@@ -73,6 +73,7 @@ trait CommonCorrelate {
          |${call.resultTerm}.setCollector($collectorTerm);
          |${call.code}
          |""".stripMargin
+    var hasCodeSplits = false
 
     if (joinType == SemiJoinType.LEFT) {
       // left outer join
@@ -86,7 +87,7 @@ trait CommonCorrelate {
           NO_CODE,
           x.resultType)
       }
-      val outerResultExpr = functionGenerator.generateResultExpression(
+      val outerResult = functionGenerator.generateResultExpression(
         input1AccessExprs ++ input2NullExprs,
         returnSchema.typeInfo,
         returnSchema.fieldNames)
@@ -94,10 +95,11 @@ trait CommonCorrelate {
         s"""
            |boolean hasOutput = $collectorTerm.isCollected();
            |if (!hasOutput) {
-           |  ${outerResultExpr.code}
-           |  ${functionGenerator.collectorTerm}.collect(${outerResultExpr.resultTerm});
+           |  ${outerResult.code}
+           |  ${functionGenerator.collectorTerm}.collect(${outerResult.resultTerm});
            |}
            |""".stripMargin
+      hasCodeSplits = outerResult.hasCodeSplits
     } else if (joinType != SemiJoinType.INNER) {
       throw TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
     }
@@ -105,8 +107,9 @@ trait CommonCorrelate {
     functionGenerator.generateFunction(
       ruleDescription,
       functionClass,
-      body,
-      returnSchema.typeInfo)
+      needsInputFields = true, // the call needs to access input fields
+      bodyCode = body,
+      returnType = returnSchema.typeInfo)
   }
 
   /**

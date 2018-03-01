@@ -231,6 +231,7 @@ class DataSetJoin(
     val genFunction = generator.generateFunction(
       ruleDescription,
       classOf[FlatJoinFunction[Row, Row, Row]],
+      needsInputFields = true, // for the condition
       body,
       resultType)
 
@@ -524,6 +525,7 @@ class DataSetJoin(
     predGenerator.generateFunction(
       "OuterJoinPredicate",
       classOf[JoinFunction[Row, Row, JBool]],
+      needsInputFields = true, // for the predicate
       predCode,
       Types.BOOLEAN)
   }
@@ -550,6 +552,7 @@ class DataSetJoin(
     conversionGenerator.generateFunction(
       "OuterJoinConverter",
       classOf[JoinFunction[Row, Row, Row]],
+      !conversion.hasCodeSplits, // no input fields needed if code is split
       convCode,
       resultType)
   }

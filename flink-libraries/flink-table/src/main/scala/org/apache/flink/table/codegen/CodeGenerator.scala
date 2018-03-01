@@ -109,31 +109,38 @@ abstract class CodeGenerator(
 
   // set of member statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  protected val reusableMemberStatements = mutable.LinkedHashSet[String]()
+  protected val reusableMemberStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
 
   // set of constructor statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  protected val reusableInitStatements = mutable.LinkedHashSet[String]()
+  protected val reusableInitStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
 
   // set of open statements for RichFunction that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  protected val reusableOpenStatements = mutable.LinkedHashSet[String]()
+  protected val reusableOpenStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
 
   // set of close statements for RichFunction that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  protected val reusableCloseStatements = mutable.LinkedHashSet[String]()
+  protected val reusableCloseStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
 
   // set of statements that will be added only once per record
   // we use a LinkedHashSet to keep the insertion order
-  protected val reusablePerRecordStatements = mutable.LinkedHashSet[String]()
+  protected val reusablePerRecordStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
 
   // map of initial input unboxing expressions that will be added only once
   // (inputTerm, index) -> expr
-  protected val reusableInputUnboxingExprs = mutable.Map[(String, Int), GeneratedExpression]()
+  protected val reusableInputUnboxingExprs: mutable.Map[(String, Int), GeneratedExpression] =
+    mutable.Map[(String, Int), GeneratedExpression]()
 
   // set of constructor statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  protected val reusableConstructorStatements = mutable.LinkedHashSet[(String, String)]()
+  protected val reusableConstructorStatements: mutable.LinkedHashSet[(String, String)] =
+    mutable.LinkedHashSet[(String, String)]()
 
   /**
     * @return code block of statements that need to be placed in the member area of the Function
@@ -251,7 +258,7 @@ abstract class CodeGenerator(
       returnType: TypeInformation[_ <: Any],
       resultFieldNames: Seq[String],
       rowtimeExpression: Option[RexNode] = None)
-    : GeneratedExpression = {
+    : GeneratedResult = {
 
     val input1AccessExprs = input1Mapping.map {
       case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER |
@@ -317,7 +324,7 @@ abstract class CodeGenerator(
       returnType: TypeInformation[_ <: Any],
       resultFieldNames: Seq[String],
       rexNodes: Seq[RexNode])
-    : GeneratedExpression = {
+    : GeneratedResult = {
     val fieldExprs = rexNodes.map(generateExpression)
     generateResultExpression(fieldExprs, returnType, resultFieldNames)
   }
@@ -336,7 +343,7 @@ abstract class CodeGenerator(
       fieldExprs: Seq[GeneratedExpression],
       returnType: TypeInformation[_ <: Any],
       resultFieldNames: Seq[String])
-    : GeneratedExpression = {
+    : GeneratedResult = {
     // initial type check
     if (returnType.getArity != fieldExprs.length) {
       throw new CodeGenException(
@@ -384,7 +391,7 @@ abstract class CodeGenerator(
     returnType match {
       case ri: RowTypeInfo =>
         addReusableOutRecord(ri)
-        val resultSetters: String = boxedFieldExprs.zipWithIndex map {
+        val resultSetters = boxedFieldExprs.zipWithIndex map {
           case (fieldExpr, i) =>
             if (nullCheck) {
               s"""
@@ -403,13 +410,15 @@ abstract class CodeGenerator(
               |$outRecordTerm.setField($i, ${fieldExpr.resultTerm});
               |""".stripMargin
             }
-        } mkString "\n"
+        }
 
-        GeneratedExpression(outRecordTerm, "false", resultSetters, returnType)
+        val (isSplit, code) = generateCodeSplits(resultSetters)
+
+        GeneratedResult(outRecordTerm, code, returnType, isSplit)
 
       case pt: PojoTypeInfo[_] =>
         addReusableOutRecord(pt)
-        val resultSetters: String = boxedFieldExprs.zip(resultFieldNames) map {
+        val resultSetters = boxedFieldExprs.zip(resultFieldNames) map {
           case (fieldExpr, fieldName) =>
             val accessor = getFieldAccessor(pt.getTypeClass, fieldName)
 
@@ -474,13 +483,15 @@ abstract class CodeGenerator(
                     |""".stripMargin
                 }
               }
-          } mkString "\n"
+          }
 
-        GeneratedExpression(outRecordTerm, "false", resultSetters, returnType)
+        val (isSplit, code) = generateCodeSplits(resultSetters)
+
+        GeneratedResult(outRecordTerm, code, returnType, isSplit)
 
       case tup: TupleTypeInfo[_] =>
         addReusableOutRecord(tup)
-        val resultSetters: String = boxedFieldExprs.zipWithIndex map {
+        val resultSetters = boxedFieldExprs.zipWithIndex map {
           case (fieldExpr, i) =>
             val fieldName = "f" + i
             if (nullCheck) {
@@ -500,11 +511,13 @@ abstract class CodeGenerator(
                 |$outRecordTerm.$fieldName = ${fieldExpr.resultTerm};
                 |""".stripMargin
             }
-        } mkString "\n"
+        }
 
-        GeneratedExpression(outRecordTerm, "false", resultSetters, returnType)
+        val (isSplit, code) = generateCodeSplits(resultSetters)
 
-      case cc: CaseClassTypeInfo[_] =>
+        GeneratedResult(outRecordTerm, code, returnType, isSplit)
+
+      case _: CaseClassTypeInfo[_] =>
         val fieldCodes: String = boxedFieldExprs.map(_.code).mkString("\n")
         val constructorParams: String = boxedFieldExprs.map(_.resultTerm).mkString(", ")
         val resultTerm = newName(outRecordTerm)
@@ -528,9 +541,10 @@ abstract class CodeGenerator(
             |$returnTypeTerm $resultTerm = new $returnTypeTerm($constructorParams);
             |""".stripMargin
 
-        GeneratedExpression(resultTerm, "false", resultCode, returnType)
+        // case classes are not splittable
+        GeneratedResult(resultTerm, resultCode, returnType, hasCodeSplits = false)
 
-      case t: TypeInformation[_] =>
+      case _: TypeInformation[_] =>
         val fieldExpr = boxedFieldExprs.head
         val nullCheckCode = if (nullCheck) {
           s"""
@@ -547,7 +561,8 @@ abstract class CodeGenerator(
             |$nullCheckCode
             |""".stripMargin
 
-        GeneratedExpression(fieldExpr.resultTerm, "false", resultCode, returnType)
+        // other types are not splittable
+        GeneratedResult(fieldExpr.resultTerm, resultCode, returnType, hasCodeSplits = false)
 
       case _ =>
         throw new CodeGenException(s"Unsupported result type: $returnType")
@@ -1023,6 +1038,47 @@ abstract class CodeGenerator(
   // ----------------------------------------------------------------------------------------------
   // generator helping methods
   // ----------------------------------------------------------------------------------------------
+
+  private def generateCodeSplits(splits: Seq[String]): (Boolean, String) = {
+    val totalLen = splits.map(_.length + 1).sum // 1 for a line break
+    if (totalLen > config.getMaxGeneratedCodeLength) {
+      // add split methods to the member area and return the code necessary to call those methods
+      val methodCalls = splits.zipWithIndex.map { case (split, idx) =>
+        val methodName = s"split_$idx"
+
+        // create parameters
+        val params = if (input2.isEmpty) {
+          val typeTerm1 = boxedTypeTermForTypeInfo(input1)
+          s"$typeTerm1 $input1Term"
+        } else {
+          val typeTerm1 = boxedTypeTermForTypeInfo(input1)
+          val typeTerm2 = boxedTypeTermForTypeInfo(input2.get)
+          s"$typeTerm1 $input1Term, $typeTerm2 $input2Term"
+        }
+
+        val method =
+          s"""
+            |private final void $methodName($params) throws Exception {
+            |  ${reuseInputUnboxingCode()}
+            |  $split
+            |}
+            |""".stripMargin
+        reusableMemberStatements.add(method)
+
+        // create method call
+        if (input2.isEmpty) {
+          s"$methodName($input1Term);"
+        } else {
+          s"$methodName($input1Term, $input2Term);"
+        }
+      }
+
+      (true, methodCalls.mkString("\n"))
+    } else {
+      // don't split
+      (false, splits.mkString("\n"))
+    }
+  }
 
   private def generateFieldAccess(refExpr: GeneratedExpression, index: Int): GeneratedExpression = {
 

@@ -152,27 +152,35 @@ class DataStreamJoin(
       schema.typeInfo,
       schema.fieldNames)
 
-    val body = if (joinInfo.isEqui) {
+    val (body, needsInputFields) = if (joinInfo.isEqui) {
       // only equality condition
-      s"""
+      val b = s"""
          |${conversion.code}
          |${generator.collectorTerm}.collect(${conversion.resultTerm});
          |""".stripMargin
+
+      // we only need to access input fields if code is not split
+      (b, !conversion.hasCodeSplits)
     } else {
       val nonEquiPredicates = joinInfo.getRemaining(this.cluster.getRexBuilder)
       val condition = generator.generateExpression(nonEquiPredicates)
-      s"""
+
+      val b = s"""
          |${condition.code}
          |if (${condition.resultTerm}) {
          |  ${conversion.code}
          |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
          |}
          |""".stripMargin
+
+      // the condition expression needs to access input fields
+      (b, true)
     }
 
     val genFunction = generator.generateFunction(
       ruleDescription,
       classOf[FlatJoinFunction[Row, Row, Row]],
+      needsInputFields,
       body,
       returnType)
 

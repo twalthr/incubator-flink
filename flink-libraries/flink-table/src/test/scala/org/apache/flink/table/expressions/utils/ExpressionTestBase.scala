@@ -107,12 +107,12 @@ abstract class ExpressionTestBase {
   def functions: Map[String, ScalarFunction] = Map()
 
   @Before
-  def resetTestExprs() = {
+  def resetTestExprs(): Unit = {
     testExprs.clear()
   }
 
   @After
-  def evaluateExprs() = {
+  def evaluateExprs(): Unit = {
     val relBuilder = context._1
     val config = new TableConfig()
     val generator = new FunctionCodeGenerator(config, false, typeInfo)
@@ -122,20 +122,21 @@ abstract class ExpressionTestBase {
 
     // generate code
     val resultType = new RowTypeInfo(Seq.fill(testExprs.size)(STRING_TYPE_INFO): _*)
-    val genExpr = generator.generateResultExpression(
+    val genResult = generator.generateResultExpression(
       resultType,
       resultType.getFieldNames,
       stringTestExprs)
 
     val bodyCode =
       s"""
-        |${genExpr.code}
-        |return ${genExpr.resultTerm};
+        |${genResult.code}
+        |return ${genResult.resultTerm};
         |""".stripMargin
 
     val genFunc = generator.generateFunction[MapFunction[Any, Row], Row](
       "TestFunction",
       classOf[MapFunction[Any, Row]],
+      !genResult.hasCodeSplits, // no input fields needed if code is split
       bodyCode,
       resultType)
 

@@ -122,6 +122,7 @@ trait StreamScan extends CommonScan[CRow] with DataStreamRel {
     generator.generateFunction(
       "DataStreamSourceConversion",
       classOf[ProcessFunction[Any, Row]],
+      !conversion.hasCodeSplits,
       body,
       outputType)
   }

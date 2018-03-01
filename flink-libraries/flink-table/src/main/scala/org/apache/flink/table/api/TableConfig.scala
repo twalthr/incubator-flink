@@ -42,6 +42,12 @@ class TableConfig {
   private var calciteConfig = CalciteConfig.DEFAULT
 
   /**
+    * Specifies a threshold where generated code will be split into sub-function calls. Java has a
+    * maximum method length of 64 KB. This setting allows for finer granularity if necessary.
+    */
+  private var maxGeneratedCodeLength: Int = 0 // 48 KB
+
+  /**
    * Sets the timezone for date/time/timestamp conversions.
    */
   def setTimeZone(timeZone: TimeZone): Unit = {
@@ -77,6 +83,22 @@ class TableConfig {
     */
   def setCalciteConfig(calciteConfig: CalciteConfig): Unit = {
     this.calciteConfig = calciteConfig
+  }
+
+  /**
+    * Returns the current threshold where generated code will be split into sub-function calls.
+    * Java has a maximum method length of 64 KB. This setting allows for finer granularity if
+    * necessary. Default is 48 KB.
+    */
+  def getMaxGeneratedCodeLength: Int = maxGeneratedCodeLength
+
+  /**
+    * Returns the current threshold where generated code will be split into sub-function calls.
+    * Java has a maximum method length of 64 KB. This setting allows for finer granularity if
+    * necessary. Default is 48 KB.
+    */
+  def setMaxGeneratedCodeLength(maxGeneratedCodeLength: Int): Unit = {
+    this.maxGeneratedCodeLength = maxGeneratedCodeLength
   }
 }
 

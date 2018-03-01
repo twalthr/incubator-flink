@@ -95,6 +95,7 @@ class ExpressionReducer(config: TableConfig)
     val generatedFunction = generator.generateFunction[MapFunction[Row, Row], Row](
       "ExpressionReducer",
       classOf[MapFunction[Row, Row]],
+      !result.hasCodeSplits,
       s"""
         |${result.code}
         |return ${result.resultTerm};

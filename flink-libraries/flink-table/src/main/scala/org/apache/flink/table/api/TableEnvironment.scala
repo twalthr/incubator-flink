@@ -1072,6 +1072,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     val generated = generator.generateFunction(
       functionName,
       classOf[MapFunction[Row, OUT]],
+      !conversion.hasCodeSplits,
       body,
       requestedTypeInfo)
 
