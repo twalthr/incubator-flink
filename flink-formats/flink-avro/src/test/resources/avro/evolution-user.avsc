@@ -1,0 +1,25 @@
+[
+{"namespace": "org.apache.flink.formats.avro.generated",
+ "type": "record",
+ "name": "Address",
+ "fields": [
+     {"name": "num", "type": "int"},
+     {"name": "street", "type": "string"},
+     {"name": "city", "type": "string"},
+     {"name": "state", "type": "string"},
+     {"name": "zip", "type": "string"}
+  ]
+},
+{"namespace": "org.apache.flink.formats.avro.generated",
+ "type": "record",
+ "name": "EvolutionUser",
+ "fields": [
+     {"name": "name", "type": "string"},
+     // the address field is removed
+     //{"name": "address", "type": ["null", "Address"]},
+     {"name": "priority", "type": {"type": "enum", "name": "Priority", "symbols" : ["LOW", "MIDDLE", "HIGH"]}},
+     // the age field is added
+     {"name": "age", "type": ["null", "int"]},
+     {"name": "properties", "type": {"type": "map", "values": "string"}}
+  ]
+}]
