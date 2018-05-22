@@ -1,0 +1,180 @@
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for org.apache.flink:flink-table_2.11:jar:1.6-SNAPSHOT
+[WARNING] 'artifactId' contains an expression but should be a constant. @ org.apache.flink:flink-table_${scala.binary.version}:[unknown-version], /Users/twalthr/flink/flink/flink-libraries/flink-table/pom.xml, line 30, column 14
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] 
+[INFO] Using the MultiThreadedBuilder implementation with a thread count of 8
+[INFO] 
+[INFO] -----------------< org.apache.flink:flink-table_2.11 >------------------
+[INFO] Building flink-table 1.6-SNAPSHOT
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] *****************************************************************
+[WARNING] * Your build is requesting parallel execution, but project      *
+[WARNING] * contains the following plugin(s) that have goals not marked   *
+[WARNING] * as @threadSafe to support parallel building.                  *
+[WARNING] * While this /may/ work fine, please look for plugin updates    *
+[WARNING] * and/or request plugins be made thread-safe.                   *
+[WARNING] * If reporting an issue, report it against the plugin in        *
+[WARNING] * question, not against maven-core                              *
+[WARNING] *****************************************************************
+[WARNING] The following plugins are not marked @threadSafe in flink-table:
+[WARNING] org.commonjava.maven.plugins:directory-maven-plugin:0.1
+[WARNING] org.scalastyle:scalastyle-maven-plugin:1.0.0
+[WARNING] Enable debug to see more precisely which goals are not marked @threadSafe.
+[WARNING] *****************************************************************
+[INFO] 
+[INFO] --- maven-clean-plugin:3.0.0:clean (default-clean) @ flink-table_2.11 ---
+[INFO] Deleting /Users/twalthr/flink/flink/flink-libraries/flink-table/target
+[INFO] 
+[INFO] --- maven-checkstyle-plugin:2.17:check (validate) @ flink-table_2.11 ---
+[INFO] 
+[INFO] --- maven-enforcer-plugin:3.0.0-M1:enforce (enforce-maven) @ flink-table_2.11 ---
+[INFO] 
+[INFO] --- maven-enforcer-plugin:3.0.0-M1:enforce (dependency-convergence) @ flink-table_2.11 ---
+[INFO] 
+[INFO] --- directory-maven-plugin:0.1:highest-basedir (directories) @ flink-table_2.11 ---
+[INFO] Highest basedir set to: /Users/twalthr/flink/flink
+[INFO] 
+[INFO] --- maven-remote-resources-plugin:1.5:process (process-resource-bundles) @ flink-table_2.11 ---
+[INFO] 
+[INFO] --- maven-resources-plugin:2.7:resources (default-resources) @ flink-table_2.11 ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 2 resources
+[INFO] Copying 3 resources
+[INFO] 
+[INFO] --- scala-maven-plugin:3.2.2:add-source (scala-compile-first) @ flink-table_2.11 ---
+[INFO] Add Source directory: /Users/twalthr/flink/flink/flink-libraries/flink-table/src/main/scala
+[INFO] Add Test Source directory: /Users/twalthr/flink/flink/flink-libraries/flink-table/src/test/scala
+[INFO] 
+[INFO] --- scala-maven-plugin:3.2.2:compile (scala-compile-first) @ flink-table_2.11 ---
+[INFO] /Users/twalthr/flink/flink/flink-libraries/flink-table/src/main/java:-1: info: compiling
+[INFO] /Users/twalthr/flink/flink/flink-libraries/flink-table/src/main/scala:-1: info: compiling
+[INFO] Compiling 416 source files to /Users/twalthr/flink/flink/flink-libraries/flink-table/target/classes at 1526637997858
+[WARNING] warning: While parsing annotations in /Users/twalthr/.m2/repository/org/apache/calcite/calcite-core/1.16.0/calcite-core-1.16.0.jar(org/apache/calcite/model/JsonSchema.class), could not find NAME in enum <none>.
+[INFO] This is likely due to an implementation restriction: an annotation argument cannot refer to a member of the annotated class (SI-7014).
+[WARNING] warning: there were 63 deprecation warnings; re-run with -deprecation for details
+[WARNING] warning: there were 24 feature warnings; re-run with -feature for details
+[WARNING] three warnings found
+[INFO] prepare-compile in 0 s
+[INFO] compile in 31 s
+[INFO] 
+[INFO] --- maven-compiler-plugin:3.1:compile (default-compile) @ flink-table_2.11 ---
+[INFO] Compiling 7 source files to /Users/twalthr/flink/flink/flink-libraries/flink-table/target/classes
+[WARNING] /Users/twalthr/flink/flink/flink-libraries/flink-table/src/main/java/org/apache/flink/table/annotation/TableType.java:[21,38] org.apache.flink.table.catalog.TableSourceConverter in org.apache.flink.table.catalog has been deprecated
+[INFO] 
+[INFO] --- maven-resources-plugin:2.7:testResources (default-testResources) @ flink-table_2.11 ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 3 resources
+[INFO] Copying 3 resources
+[INFO] 
+[INFO] --- scala-maven-plugin:3.2.2:testCompile (scala-test-compile) @ flink-table_2.11 ---
+[INFO] /Users/twalthr/flink/flink/flink-libraries/flink-table/src/test/java:-1: info: compiling
+[INFO] /Users/twalthr/flink/flink/flink-libraries/flink-table/src/test/scala:-1: info: compiling
+[INFO] Compiling 230 source files to /Users/twalthr/flink/flink/flink-libraries/flink-table/target/test-classes at 1526638030119
+[WARNING] warning: While parsing annotations in /Users/twalthr/.m2/repository/org/apache/calcite/calcite-core/1.16.0/calcite-core-1.16.0.jar(org/apache/calcite/model/JsonSchema.class), could not find NAME in enum <none>.
+[INFO] This is likely due to an implementation restriction: an annotation argument cannot refer to a member of the annotated class (SI-7014).
+[WARNING] /Users/twalthr/flink/flink/flink-libraries/flink-table/src/test/scala/org/apache/flink/table/runtime/harness/HarnessTestBase.scala:368: warning: non-variable type argument org.apache.flink.table.runtime.types.CRow in type pattern org.apache.flink.streaming.runtime.streamrecord.StreamRecord[org.apache.flink.table.runtime.types.CRow] is unchecked since it is eliminated by erasure
+[WARNING]         case (r1: StreamRecord[CRow], r2: StreamRecord[CRow]) =>
+[WARNING]                   ^
+[WARNING] /Users/twalthr/flink/flink/flink-libraries/flink-table/src/test/scala/org/apache/flink/table/runtime/harness/HarnessTestBase.scala:368: warning: non-variable type argument org.apache.flink.table.runtime.types.CRow in type pattern org.apache.flink.streaming.runtime.streamrecord.StreamRecord[org.apache.flink.table.runtime.types.CRow] is unchecked since it is eliminated by erasure
+[WARNING]         case (r1: StreamRecord[CRow], r2: StreamRecord[CRow]) =>
+[WARNING]                                           ^
+[WARNING] /Users/twalthr/flink/flink/flink-libraries/flink-table/src/test/scala/org/apache/flink/table/runtime/harness/HarnessTestBase.scala:370: warning: non-variable type argument org.apache.flink.table.runtime.types.CRow in type pattern org.apache.flink.streaming.runtime.streamrecord.StreamRecord[org.apache.flink.table.runtime.types.CRow] is unchecked since it is eliminated by erasure
+[WARNING]         case (_: Watermark, _: StreamRecord[CRow]) => -1
+[WARNING]                                ^
+[WARNING] /Users/twalthr/flink/flink/flink-libraries/flink-table/src/test/scala/org/apache/flink/table/runtime/harness/HarnessTestBase.scala:371: warning: non-variable type argument org.apache.flink.table.runtime.types.CRow in type pattern org.apache.flink.streaming.runtime.streamrecord.StreamRecord[org.apache.flink.table.runtime.types.CRow] is unchecked since it is eliminated by erasure
+[WARNING]         case (_: StreamRecord[CRow], _: Watermark) => 1
+[WARNING]                  ^
+[WARNING] warning: there were 22 deprecation warnings; re-run with -deprecation for details
+[WARNING] warning: there were 8 feature warnings; re-run with -feature for details
+[WARNING] 7 warnings found
+[INFO] prepare-compile in 0 s
+[INFO] compile in 54 s
+[INFO] 
+[INFO] --- maven-compiler-plugin:3.1:testCompile (default-testCompile) @ flink-table_2.11 ---
+[INFO] Compiling 10 source files to /Users/twalthr/flink/flink/flink-libraries/flink-table/target/test-classes
+[WARNING] /Users/twalthr/flink/flink/flink-libraries/flink-table/src/test/java/org/apache/flink/table/runtime/utils/JavaUserDefinedAggFunctions.java:[37,23] copy() in org.apache.flink.api.java.tuple.Tuple2 overrides <T>copy() in org.apache.flink.api.java.tuple.Tuple
+  return type requires unchecked conversion from org.apache.flink.api.java.tuple.Tuple2<java.lang.Long,java.lang.Integer> to T
+[WARNING] /Users/twalthr/flink/flink/flink-libraries/flink-table/src/test/java/org/apache/flink/table/runtime/utils/JavaUserDefinedAggFunctions.java:[230,105] unchecked cast
+  required: java.util.Map.Entry<java.lang.String,java.lang.Integer>
+  found:    java.lang.Object
+[INFO] 
+[INFO] --- maven-surefire-plugin:2.18.1:test (default-test) @ flink-table_2.11 ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- maven-jar-plugin:2.4:jar (default-jar) @ flink-table_2.11 ---
+[INFO] Building jar: /Users/twalthr/flink/flink/flink-libraries/flink-table/target/flink-table_2.11-1.6-SNAPSHOT.jar
+[INFO] 
+[INFO] --- maven-site-plugin:3.5.1:attach-descriptor (attach-descriptor) @ flink-table_2.11 ---
+[INFO] 
+[INFO] --- maven-jar-plugin:2.4:test-jar (default) @ flink-table_2.11 ---
+[INFO] Building jar: /Users/twalthr/flink/flink/flink-libraries/flink-table/target/flink-table_2.11-1.6-SNAPSHOT-tests.jar
+[INFO] 
+[INFO] --- maven-shade-plugin:3.0.0:shade (shade-flink) @ flink-table_2.11 ---
+[INFO] Including commons-configuration:commons-configuration:jar:1.7 in the shaded jar.
+[INFO] Including commons-collections:commons-collections:jar:3.2.2 in the shaded jar.
+[INFO] Including commons-lang:commons-lang:jar:2.6 in the shaded jar.
+[INFO] Excluding commons-logging:commons-logging:jar:1.1.3 from the shaded jar.
+[INFO] Excluding commons-digester:commons-digester:jar:1.8.1 from the shaded jar.
+[INFO] Excluding commons-beanutils:commons-beanutils:jar:1.8.3 from the shaded jar.
+[INFO] Including org.slf4j:jcl-over-slf4j:jar:1.7.7 in the shaded jar.
+[INFO] Including commons-codec:commons-codec:jar:1.10 in the shaded jar.
+[INFO] Including org.apache.commons:commons-lang3:jar:3.3.2 in the shaded jar.
+[INFO] Including org.codehaus.janino:janino:jar:3.0.7 in the shaded jar.
+[INFO] Including org.codehaus.janino:commons-compiler:jar:3.0.7 in the shaded jar.
+[INFO] Including com.google.guava:guava:jar:18.0 in the shaded jar.
+[INFO] Including org.apache.calcite:calcite-core:jar:1.16.0 in the shaded jar.
+[INFO] Including org.apache.calcite.avatica:avatica-core:jar:1.11.0 in the shaded jar.
+[INFO] Including org.apache.calcite:calcite-linq4j:jar:1.16.0 in the shaded jar.
+[INFO] Including com.esri.geometry:esri-geometry-api:jar:2.0.0 in the shaded jar.
+[INFO] Excluding com.yahoo.datasketches:sketches-core:jar:0.9.0 from the shaded jar.
+[INFO] Excluding com.yahoo.datasketches:memory:jar:0.9.0 from the shaded jar.
+[INFO] Including net.hydromatic:aggdesigner-algorithm:jar:6.0 in the shaded jar.
+[INFO] Including org.reflections:reflections:jar:0.9.10 in the shaded jar.
+[INFO] Excluding org.javassist:javassist:jar:3.19.0-GA from the shaded jar.
+[INFO] Including joda-time:joda-time:jar:2.5 in the shaded jar.
+[INFO] Including org.apache.flink:force-shading:jar:1.6-SNAPSHOT in the shaded jar.
+[WARNING] calcite-core-1.16.0.jar, flink-table_2.11-1.6-SNAPSHOT.jar define 4 overlapping classes: 
+[WARNING]   - org.apache.calcite.sql2rel.AuxiliaryConverter$Impl
+[WARNING]   - org.apache.calcite.sql2rel.AuxiliaryConverter
+[WARNING]   - org.apache.calcite.rel.rules.AggregateReduceFunctionsRule
+[WARNING]   - org.apache.calcite.rel.rules.AggregateReduceFunctionsRule$1
+[WARNING] avatica-core-1.11.0.jar, flink-table_2.11-1.6-SNAPSHOT.jar define 3 overlapping classes: 
+[WARNING]   - org.apache.calcite.avatica.util.DateTimeUtils
+[WARNING]   - org.apache.calcite.avatica.util.DateTimeUtils$PrecisionTime
+[WARNING]   - org.apache.calcite.avatica.util.DateTimeUtils$1
+[WARNING] maven-shade-plugin has detected that some class files are
+[WARNING] present in two or more JARs. When this happens, only one
+[WARNING] single version of the class is copied to the uber jar.
+[WARNING] Usually this is not harmful and you can skip these warnings,
+[WARNING] otherwise try to manually exclude artifacts based on
+[WARNING] mvn dependency:tree -Ddetail=true and the above output.
+[WARNING] See http://maven.apache.org/plugins/maven-shade-plugin/
+[INFO] Replacing original artifact with shaded artifact.
+[INFO] Replacing /Users/twalthr/flink/flink/flink-libraries/flink-table/target/flink-table_2.11-1.6-SNAPSHOT.jar with /Users/twalthr/flink/flink/flink-libraries/flink-table/target/flink-table_2.11-1.6-SNAPSHOT-shaded.jar
+[INFO] Replacing original test artifact with shaded test artifact.
+[INFO] Replacing /Users/twalthr/flink/flink/flink-libraries/flink-table/target/flink-table_2.11-1.6-SNAPSHOT-tests.jar with /Users/twalthr/flink/flink/flink-libraries/flink-table/target/flink-table_2.11-1.6-SNAPSHOT-shaded-tests.jar
+[INFO] Dependency-reduced POM written at: /Users/twalthr/flink/flink/flink-libraries/flink-table/target/dependency-reduced-pom.xml
+[INFO] 
+[INFO] --- maven-surefire-plugin:2.18.1:test (integration-tests) @ flink-table_2.11 ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- scalastyle-maven-plugin:1.0.0:check (default) @ flink-table_2.11 ---
+[WARNING] Scalastyle:check is skipped as scalastyle.skip=true
+[INFO] 
+[INFO] --- maven-install-plugin:2.5.2:install (default-install) @ flink-table_2.11 ---
+[INFO] Installing /Users/twalthr/flink/flink/flink-libraries/flink-table/target/flink-table_2.11-1.6-SNAPSHOT.jar to /Users/twalthr/.m2/repository/org/apache/flink/flink-table_2.11/1.6-SNAPSHOT/flink-table_2.11-1.6-SNAPSHOT.jar
+[INFO] Installing /Users/twalthr/flink/flink/flink-libraries/flink-table/target/dependency-reduced-pom.xml to /Users/twalthr/.m2/repository/org/apache/flink/flink-table_2.11/1.6-SNAPSHOT/flink-table_2.11-1.6-SNAPSHOT.pom
+[INFO] Installing /Users/twalthr/flink/flink/flink-libraries/flink-table/target/flink-table_2.11-1.6-SNAPSHOT-tests.jar to /Users/twalthr/.m2/repository/org/apache/flink/flink-table_2.11/1.6-SNAPSHOT/flink-table_2.11-1.6-SNAPSHOT-tests.jar
+[INFO] Installing /Users/twalthr/flink/flink/flink-libraries/flink-table/target/flink-table_2.11-1.6-SNAPSHOT-tests.jar to /Users/twalthr/.m2/repository/org/apache/flink/flink-table_2.11/1.6-SNAPSHOT/flink-table_2.11-1.6-SNAPSHOT-tests.jar
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 01:43 min (Wall Clock)
+[INFO] Finished at: 2018-05-18T12:08:17+02:00
+[INFO] ------------------------------------------------------------------------

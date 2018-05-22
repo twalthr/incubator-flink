@@ -18,11 +18,16 @@
 
 package org.apache.flink.examples.java8.wordcount;
 
+import org.apache.flink.MyAnnotation;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.util.Collector;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 
@@ -41,6 +46,7 @@ import java.util.Arrays;
  * </ul>
  *
  */
+@MyAnnotation
 public class WordCount {
 
 	// *************************************************************************
@@ -56,22 +62,21 @@ public class WordCount {
 		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
+		MapFunction<String, Tuple1<String>> map = (d) -> new Tuple1<>("");
+
 		// get input data
 		DataSet<String> text = getTextDataSet(env);
 
 		DataSet<Tuple2<String, Integer>> counts =
 				// normalize and split each line
-				text.map(line -> line.toLowerCase().split("\\W+"))
+				text
+//				.map(new org.apache.flink.ProxyMapFunction<String, Tuple1<String>>(map){})
+				.map(map)
+				.map((line) -> line.toString().toLowerCase().split("\\W+"))
 				// convert split line in pairs (2-tuples) containing: (word,1)
-				.flatMap((String[] tokens, Collector<Tuple2<String, Integer>> out) -> {
-					// emit the pairs with non-zero-length words
-					Arrays.stream(tokens)
-					.filter(t -> t.length() > 0)
-					.forEach(t -> out.collect(new Tuple2<>(t, 1)));
-				})
-				// group by the tuple field "0" and sum up tuple field "1"
-				.groupBy(0)
-				.sum(1);
+				.flatMap((tokens, out) -> {
+					out.collect(new Tuple2<>("", 1));
+				});
 
 		// emit result
 		if (fileOutput) {
@@ -83,6 +88,9 @@ public class WordCount {
 		// execute program
 		env.execute("WordCount Example");
 	}
+
+
+
 
 	// *************************************************************************
 	//     UTIL METHODS
