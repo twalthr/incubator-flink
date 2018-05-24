@@ -40,23 +40,11 @@ under the License.
 				<artifactId>guava</artifactId>
 				<version>19.0</version>
 			</dependency>
-			<!-- Common dependency among commons-configuration -->
-			<dependency>
-				<groupId>commons-beanutils</groupId>
-				<artifactId>commons-beanutils</artifactId>
-				<version>1.8.3</version>
-			</dependency>
 			<!-- Common dependency of calcite-core and janino -->
 			<dependency>
 				<groupId>org.codehaus.janino</groupId>
 				<artifactId>commons-compiler</artifactId>
 				<version>3.0.7</version>
-			</dependency>
-			<!-- Common dependency of aggdesigner-algorithm and commons-configuration -->
-			<dependency>
-				<groupId>commons-lang</groupId>
-				<artifactId>commons-lang</artifactId>
-				<version>2.6</version>
 			</dependency>
 			<!-- Common dependency of calcite-core and flink-table -->
 			<dependency>
@@ -82,12 +70,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-jackson</artifactId>
 			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>jcl-over-slf4j</artifactId>
-			<version>${slf4j.version}</version>
 		</dependency>
 
 		<!-- Used for base64 encoding of UDFs -->
