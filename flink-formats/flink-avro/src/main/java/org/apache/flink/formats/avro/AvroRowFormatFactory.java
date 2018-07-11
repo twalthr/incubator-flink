@@ -63,11 +63,7 @@ public class AvroRowFormatFactory implements SerializationSchemaFactory<Row>, De
 
 	@Override
 	public DeserializationSchema<Row> createDeserializationSchema(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		descriptorProperties.putProperties(properties);
-
-		// validate
-		new AvroValidator().validate(descriptorProperties);
+		final DescriptorProperties descriptorProperties = validateAndGetProperties(properties);
 
 		// create and configure
 		if (descriptorProperties.containsKey(AvroValidator.FORMAT_RECORD_CLASS)) {
@@ -80,11 +76,7 @@ public class AvroRowFormatFactory implements SerializationSchemaFactory<Row>, De
 
 	@Override
 	public SerializationSchema<Row> createSerializationSchema(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		descriptorProperties.putProperties(properties);
-
-		// validate
-		new AvroValidator().validate(descriptorProperties);
+		final DescriptorProperties descriptorProperties = validateAndGetProperties(properties);
 
 		// create and configure
 		if (descriptorProperties.containsKey(AvroValidator.FORMAT_RECORD_CLASS)) {
@@ -93,5 +85,15 @@ public class AvroRowFormatFactory implements SerializationSchemaFactory<Row>, De
 		} else {
 			return new AvroRowSerializationSchema(descriptorProperties.getString(AvroValidator.FORMAT_AVRO_SCHEMA));
 		}
+	}
+
+	private static DescriptorProperties validateAndGetProperties(Map<String, String> propertiesMap) {
+		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+		descriptorProperties.putProperties(propertiesMap);
+
+		// validate
+		new AvroValidator().validate(descriptorProperties);
+
+		return descriptorProperties;
 	}
 }

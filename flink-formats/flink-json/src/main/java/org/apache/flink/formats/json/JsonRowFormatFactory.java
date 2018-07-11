@@ -67,11 +67,7 @@ public class JsonRowFormatFactory implements SerializationSchemaFactory<Row>, De
 
 	@Override
 	public DeserializationSchema<Row> createDeserializationSchema(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		descriptorProperties.putProperties(properties);
-
-		// validate
-		new JsonValidator().validate(descriptorProperties);
+		final DescriptorProperties descriptorProperties = validateAndGetProperties(properties);
 
 		// create and configure
 		final JsonRowDeserializationSchema schema = new JsonRowDeserializationSchema(createTypeInformation(descriptorProperties));
@@ -84,17 +80,23 @@ public class JsonRowFormatFactory implements SerializationSchemaFactory<Row>, De
 
 	@Override
 	public SerializationSchema<Row> createSerializationSchema(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		descriptorProperties.putProperties(properties);
-
-		// validate
-		new JsonValidator().validate(descriptorProperties);
+		final DescriptorProperties descriptorProperties = validateAndGetProperties(properties);
 
 		// create and configure
 		return new JsonRowSerializationSchema(createTypeInformation(descriptorProperties));
 	}
 
-	private TypeInformation<Row> createTypeInformation(DescriptorProperties descriptorProperties) {
+	private static DescriptorProperties validateAndGetProperties(Map<String, String> propertiesMap) {
+		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+		descriptorProperties.putProperties(propertiesMap);
+
+		// validate
+		new JsonValidator().validate(descriptorProperties);
+
+		return descriptorProperties;
+	}
+
+	private static TypeInformation<Row> createTypeInformation(DescriptorProperties descriptorProperties) {
 		if (descriptorProperties.containsKey(JsonValidator.FORMAT_SCHEMA)) {
 			return (RowTypeInfo) descriptorProperties.getType(JsonValidator.FORMAT_SCHEMA);
 		} else if (descriptorProperties.containsKey(JsonValidator.FORMAT_JSON_SCHEMA)) {
