@@ -21,7 +21,7 @@ package org.apache.flink.table.sinks
 import java.util
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.connectors.{DiscoverableTableFactory, TableSinkFactory}
+import org.apache.flink.table.factories.{TableFactory, TableSinkFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
 import org.apache.flink.table.descriptors.CsvValidator._
 import org.apache.flink.table.descriptors.DescriptorProperties._
@@ -34,7 +34,7 @@ import org.apache.flink.types.Row
 /**
   * Factory for creating configured instances of [[CsvTableSink]].
   */
-class CsvTableSinkFactory extends TableSinkFactory[Row] with DiscoverableTableFactory {
+class CsvTableSinkFactory extends TableSinkFactory[Row] with TableFactory {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -69,7 +69,7 @@ class CsvTableSinkFactory extends TableSinkFactory[Row] with DiscoverableTableFa
     // validate
     new FileSystemValidator().validate(params)
     new CsvValidator().validate(params)
-    new SchemaValidator().validate(params)
+    new SchemaValidator(true, false, false).validate(params)
 
     // build
     val csvTableSinkBuilder = new CsvTableSink.Builder

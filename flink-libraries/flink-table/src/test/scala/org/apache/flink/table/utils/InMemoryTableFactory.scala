@@ -21,7 +21,7 @@ package org.apache.flink.table.utils
 import java.util
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.connectors.{DiscoverableTableFactory, TableSinkFactory, TableSourceFactory}
+import org.apache.flink.table.factories.{TableFactory, TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.types.Row
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION
@@ -43,15 +43,15 @@ import org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE
 import org.apache.flink.table.sinks.TableSink
 
 class InMemoryTableFactory extends TableSourceFactory[Row]
-  with TableSinkFactory[Row] with DiscoverableTableFactory {
+  with TableSinkFactory[Row] with TableFactory {
   override def createTableSink(properties: util.Map[String, String]): TableSink[Row] = {
     val params: DescriptorProperties = new DescriptorProperties(true)
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(true).validate(params)
+    new SchemaValidator(true, true, true).validate(params)
 
-    val tableSchema = SchemaValidator.deriveTableSinkSchema(params);
+    val tableSchema = SchemaValidator.deriveTableSinkSchema(params)
 
     new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink()
       .configure(tableSchema.getColumnNames, tableSchema.getTypes)
@@ -62,9 +62,9 @@ class InMemoryTableFactory extends TableSourceFactory[Row]
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(true).validate(params)
+    new SchemaValidator(true, true, true).validate(params)
 
-    val tableSchema = SchemaValidator.deriveTableSourceSchema(params);
+    val tableSchema = SchemaValidator.deriveTableSourceSchema(params)
 
     // proctime
     val proctimeAttributeOpt = SchemaValidator.deriveProctimeAttribute(params)
