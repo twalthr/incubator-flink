@@ -48,7 +48,6 @@ object TableFactoryService extends Logging {
     * @return the matching factory
     */
   def find[T](factoryClass: Class[T], descriptor: Descriptor): T = {
-    Preconditions.checkNotNull(factoryClass)
     Preconditions.checkNotNull(descriptor)
 
     val descriptorProperties = new DescriptorProperties()
@@ -66,13 +65,12 @@ object TableFactoryService extends Logging {
     * @return the matching factory
     */
   def find[T](factoryClass: Class[T], descriptor: Descriptor, classLoader: ClassLoader): T = {
-    Preconditions.checkNotNull(factoryClass)
     Preconditions.checkNotNull(descriptor)
     Preconditions.checkNotNull(classLoader)
 
     val descriptorProperties = new DescriptorProperties()
     descriptor.addProperties(descriptorProperties)
-    findInternal(factoryClass, descriptorProperties.asMap, None)
+    findInternal(factoryClass, descriptorProperties.asMap, Some(classLoader))
   }
 
   /**
@@ -84,9 +82,6 @@ object TableFactoryService extends Logging {
     * @return the matching factory
     */
   def find[T](factoryClass: Class[T], propertyMap: JMap[String, String]): T = {
-    Preconditions.checkNotNull(factoryClass)
-    Preconditions.checkNotNull(propertyMap)
-
     findInternal(factoryClass, propertyMap, None)
   }
 
@@ -104,8 +99,6 @@ object TableFactoryService extends Logging {
       propertyMap: JMap[String, String],
       classLoader: ClassLoader)
     : T = {
-    Preconditions.checkNotNull(factoryClass)
-    Preconditions.checkNotNull(propertyMap)
     Preconditions.checkNotNull(classLoader)
 
     findInternal(factoryClass, propertyMap, Some(classLoader))
@@ -126,25 +119,24 @@ object TableFactoryService extends Logging {
       classLoader: Option[ClassLoader])
     : T = {
 
+    Preconditions.checkNotNull(factoryClass)
+    Preconditions.checkNotNull(propertyMap)
+
     val properties = propertyMap.asScala.toMap
 
-    // discover table factories
     val foundFactories = discoverFactories(classLoader)
 
-    // filter by factory class
     val classFactories = filterByFactoryClass(
       factoryClass,
       properties,
       foundFactories)
 
-    // find matching context
     val contextFactories = filterByContext(
       factoryClass,
       properties,
       foundFactories,
       classFactories)
 
-    // filter by supported keys
     filterBySupportedProperties(
       factoryClass,
       properties,
@@ -158,7 +150,6 @@ object TableFactoryService extends Logging {
     * @return all factories in the classpath
     */
   private def discoverFactories[T](classLoader: Option[ClassLoader]): Seq[TableFactory] = {
-    val foundFactories = mutable.ArrayBuffer[TableFactory]()
     try {
       val iterator = classLoader match {
         case Some(customClassLoader) =>
@@ -167,61 +158,12 @@ object TableFactoryService extends Logging {
         case None =>
           defaultLoader.iterator()
       }
-
-      while (iterator.hasNext) {
-        val factory = iterator.next()
-        foundFactories += factory
-      }
-
-      foundFactories
+      iterator.asScala.toSeq
     } catch {
       case e: ServiceConfigurationError =>
         LOG.error("Could not load service provider for table factories.", e)
         throw new TableException("Could not load service provider for table factories.", e)
     }
-  }
-
-  /**
-    * Filters for factories with matching context.
-    *
-    * @return all matching factories
-    */
-  private def filterByContext[T](
-      factoryClass: Class[T],
-      properties: Map[String, String],
-      foundFactories: Seq[TableFactory],
-      classFactories: Seq[TableFactory])
-    : Seq[TableFactory] = {
-
-    val matchingFactories = mutable.ArrayBuffer[TableFactory]()
-
-    classFactories.foreach { factory =>
-      val requestedContext = normalizeContext(factory)
-
-      val plainContext = mutable.Map[String, String]()
-      plainContext ++= requestedContext
-      // we remove the version for now until we have the first backwards compatibility case
-      // with the version we can provide mappings in case the format changes
-      plainContext.remove(CONNECTOR_PROPERTY_VERSION)
-      plainContext.remove(FORMAT_PROPERTY_VERSION)
-      plainContext.remove(METADATA_PROPERTY_VERSION)
-      plainContext.remove(STATISTICS_PROPERTY_VERSION)
-
-      // check if required context is met
-      if (plainContext.forall(e => properties.contains(e._1) && properties(e._1) == e._2)) {
-        matchingFactories += factory
-      }
-    }
-
-    if (matchingFactories.isEmpty) {
-      throw new NoMatchingTableFactoryException(
-        "No context matches.",
-        factoryClass,
-        foundFactories,
-        properties)
-    }
-
-    matchingFactories
   }
 
   /**
@@ -242,6 +184,45 @@ object TableFactoryService extends Logging {
         properties)
     }
     classFactories
+  }
+
+  /**
+    * Filters for factories with matching context.
+    *
+    * @return all matching factories
+    */
+  private def filterByContext[T](
+      factoryClass: Class[T],
+      properties: Map[String, String],
+      foundFactories: Seq[TableFactory],
+      classFactories: Seq[TableFactory])
+    : Seq[TableFactory] = {
+
+    val matchingFactories = classFactories.filter { factory =>
+      val requestedContext = normalizeContext(factory)
+
+      val plainContext = mutable.Map[String, String]()
+      plainContext ++= requestedContext
+      // we remove the version for now until we have the first backwards compatibility case
+      // with the version we can provide mappings in case the format changes
+      plainContext.remove(CONNECTOR_PROPERTY_VERSION)
+      plainContext.remove(FORMAT_PROPERTY_VERSION)
+      plainContext.remove(METADATA_PROPERTY_VERSION)
+      plainContext.remove(STATISTICS_PROPERTY_VERSION)
+
+      // check if required context is met
+      plainContext.forall(e => properties.contains(e._1) && properties(e._1) == e._2)
+    }
+
+    if (matchingFactories.isEmpty) {
+      throw new NoMatchingTableFactoryException(
+        "No context matches.",
+        factoryClass,
+        foundFactories,
+        properties)
+    }
+
+    matchingFactories
   }
 
   /**
