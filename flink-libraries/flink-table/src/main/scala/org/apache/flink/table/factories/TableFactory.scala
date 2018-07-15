@@ -23,8 +23,8 @@ import java.util
 /**
   * A factory to create different table-related instances from string-based properties. This
   * factory is used with Java's Service Provider Interfaces (SPI) for discovering. A factory is
-  * called with a set of normalized properties that describe the desired format. The factory allows
-  * for matching to the given set of properties.
+  * called with a set of normalized properties that describe the desired configuration. The factory
+  * allows for matching to the given set of properties.
   *
   * Classes that implement this interface can be added to the
   * "META_INF/services/org.apache.flink.table.factories.TableFactory" file of a JAR file in
@@ -33,7 +33,8 @@ import java.util
 trait TableFactory {
 
   /**
-    * Specifies the context that this factory has been implemented for.
+    * Specifies the context that this factory has been implemented for. The framework guarantees to
+    * only match for this factory if the specified set of properties and values are met.
     *
     * Typical properties might be:
     *   - connector.type
@@ -54,6 +55,9 @@ trait TableFactory {
     * list must not contain the keys that are specified by the context.
     *
     * Example properties might be:
+    *   - schema.#.type
+    *   - schema.#.name
+    *   - connector.topic
     *   - format.line-delimiter
     *   - format.ignore-parse-errors
     *   - format.fields.#.type
