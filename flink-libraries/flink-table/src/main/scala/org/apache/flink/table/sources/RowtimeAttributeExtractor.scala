@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.sources
 
+import java.util.Objects
+
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor
 import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy
 
@@ -27,15 +29,30 @@ import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy
   * @param attributeName The name of the rowtime attribute.
   * @param timestampExtractor The timestamp extractor to derive the values of the attribute.
   * @param watermarkStrategy The watermark strategy associated with the attribute.
-  * @deprecated Use [[RowtimeAttributeExtractor]] for table sources instead.
   */
-@Deprecated
-@deprecated
-class RowtimeAttributeDescriptor(
-    attributeName: String,
-    timestampExtractor: TimestampExtractor,
-    watermarkStrategy: WatermarkStrategy)
-  extends RowtimeAttributeExtractor(
-    attributeName,
-    timestampExtractor,
-    watermarkStrategy)
+class RowtimeAttributeExtractor(
+  private val attributeName: String,
+  private val timestampExtractor: TimestampExtractor,
+  private val watermarkStrategy: WatermarkStrategy) {
+
+  /** Returns the name of the rowtime attribute. */
+  def getAttributeName: String = attributeName
+
+  /** Returns the [[TimestampExtractor]] for the attribute. */
+  def getTimestampExtractor: TimestampExtractor = timestampExtractor
+
+  /** Returns the [[WatermarkStrategy]] for the attribute. */
+  def getWatermarkStrategy: WatermarkStrategy = watermarkStrategy
+
+  override def equals(other: Any): Boolean = other match {
+    case that: RowtimeAttributeExtractor =>
+        Objects.equals(attributeName, that.attributeName) &&
+        Objects.equals(timestampExtractor, that.timestampExtractor) &&
+        Objects.equals(watermarkStrategy, that.watermarkStrategy)
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    Objects.hash(attributeName, timestampExtractor, watermarkStrategy)
+  }
+}
