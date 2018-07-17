@@ -31,7 +31,7 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.connectors.{DefinedFieldMapping, DefinedProctimeAttribute, DefinedRowtimeAttributes, RowtimeAttributeDescriptor}
+import org.apache.flink.table.connectors.{DefinedFieldMapping, DefinedProctimeAttribute, DefinedRowtimeAttributes}
 import org.apache.flink.table.expressions.{Cast, ResolvedFieldReference}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 

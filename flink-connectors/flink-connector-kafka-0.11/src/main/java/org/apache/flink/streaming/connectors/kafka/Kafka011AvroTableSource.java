@@ -21,7 +21,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.connectors.RowtimeAttributeDescriptor;
+import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;

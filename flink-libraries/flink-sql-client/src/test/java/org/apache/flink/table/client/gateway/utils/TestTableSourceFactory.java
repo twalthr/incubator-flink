@@ -29,7 +29,7 @@ import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.connectors.DefinedProctimeAttribute;
 import org.apache.flink.table.connectors.DefinedRowtimeAttributes;
-import org.apache.flink.table.connectors.RowtimeAttributeDescriptor;
+import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 

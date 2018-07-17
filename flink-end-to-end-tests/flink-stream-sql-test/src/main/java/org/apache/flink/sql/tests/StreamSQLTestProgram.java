@@ -38,7 +38,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.connectors.DefinedFieldMapping;
 import org.apache.flink.table.connectors.DefinedRowtimeAttributes;
-import org.apache.flink.table.connectors.RowtimeAttributeDescriptor;
+import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.BoundedOutOfOrderTimestamps;

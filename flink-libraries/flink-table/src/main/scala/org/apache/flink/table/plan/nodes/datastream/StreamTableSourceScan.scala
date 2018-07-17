@@ -28,11 +28,10 @@ import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks,
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.connectors.RowtimeAttributeDescriptor
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.table.sources._
+import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, _}
 import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 

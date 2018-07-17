@@ -32,7 +32,7 @@ import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.connectors.DefinedFieldMapping;
 import org.apache.flink.table.connectors.DefinedProctimeAttribute;
 import org.apache.flink.table.connectors.DefinedRowtimeAttributes;
-import org.apache.flink.table.connectors.RowtimeAttributeDescriptor;
+import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.tsextractors.StreamRecordTimestamp;
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor;
