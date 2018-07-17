@@ -35,7 +35,7 @@ import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sinks.StreamTableSink;
-import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
+import org.apache.flink.table.connectors.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;

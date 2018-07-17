@@ -22,6 +22,7 @@ import org.apache.flink.api.scala.DataSet
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.connectors.DefinedFieldMapping
 import org.apache.flink.table.util.TableConnectorUtil
 
 /**

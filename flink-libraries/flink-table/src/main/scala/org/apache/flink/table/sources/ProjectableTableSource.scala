@@ -20,6 +20,7 @@ package org.apache.flink.table.sources
 
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.connectors.DefinedFieldMapping
 
 /**
   * Adds support for projection push-down to a [[TableSource]].

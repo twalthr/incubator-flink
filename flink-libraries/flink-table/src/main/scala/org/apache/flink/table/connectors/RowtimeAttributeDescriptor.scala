@@ -16,49 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.connectors
 
-import java.util
 import java.util.Objects
-import javax.annotation.Nullable
 
-import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor
 import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy
-
-/**
-  * Extends a [[TableSource]] to specify a processing time attribute.
-  */
-trait DefinedProctimeAttribute {
-
-  /**
-    * Returns the name of a processing time attribute or null if no processing time attribute is
-    * present.
-    *
-    * The referenced attribute must be present in the [[TableSchema]] of the [[TableSource]] and of
-    * type [[Types.SQL_TIMESTAMP]].
-    */
-  @Nullable
-  def getProctimeAttribute: String
-}
-
-/**
-  * Extends a [[TableSource]] to specify rowtime attributes via a
-  * [[RowtimeAttributeDescriptor]].
-  */
-trait DefinedRowtimeAttributes {
-
-  /**
-    * Returns a list of [[RowtimeAttributeDescriptor]] for all rowtime attributes of the table.
-    *
-    * All referenced attributes must be present in the [[TableSchema]] of the [[TableSource]] and of
-    * type [[Types.SQL_TIMESTAMP]].
-    *
-    * @return A list of [[RowtimeAttributeDescriptor]].
-    */
-  def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor]
-}
 
 /**
   * Describes a rowtime attribute of a [[TableSource]].

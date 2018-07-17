@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.connectors
 
 import java.util.{Map => JMap}
 import javax.annotation.Nullable
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor
 
 /**

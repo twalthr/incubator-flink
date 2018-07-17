@@ -48,7 +48,7 @@ import org.apache.flink.table.factories.utils.TestDeserializationSchema;
 import org.apache.flink.table.factories.utils.TestSerializationSchema;
 import org.apache.flink.table.factories.utils.TestTableFormat;
 import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
+import org.apache.flink.table.connectors.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceUtil;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
