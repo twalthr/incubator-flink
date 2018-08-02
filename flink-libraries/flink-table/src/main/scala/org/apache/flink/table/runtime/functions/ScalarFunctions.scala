@@ -23,6 +23,12 @@ import java.lang.StringBuilder
 
 /**
   * Built-in scalar runtime functions.
+  *
+  * NOTE: Before you add functions here, check if Calcite provides it in
+  * [[org.apache.calcite.runtime.SqlFunctions]]. Furthermore, make sure to implement the function
+  * efficiently. Sometimes it makes sense to create a
+  * [[org.apache.flink.table.codegen.calls.CallGenerator]] instead to avoid massive object
+  * creation and reuse instances.
   */
 class ScalarFunctions {}
 
@@ -30,14 +36,6 @@ object ScalarFunctions {
 
   def power(a: Double, b: JBigDecimal): Double = {
     Math.pow(a, b.doubleValue())
-  }
-
-  def atan2(a: Double, b: JBigDecimal): Double = {
-    Math.atan2(a, b.doubleValue())
-  }
-
-  def atan2(a: JBigDecimal, b: JBigDecimal): Double = {
-    Math.atan2(a.doubleValue(), b.doubleValue())
   }
 
   /**

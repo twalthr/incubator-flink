@@ -304,13 +304,7 @@ object FunctionGenerator {
     ATAN2,
     Seq(DOUBLE_TYPE_INFO, DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,
-    BuiltInMethods.ATAN2)
-
-  addSqlFunctionMethod(
-    ATAN2,
-    Seq(DOUBLE_TYPE_INFO, BIG_DEC_TYPE_INFO),
-    DOUBLE_TYPE_INFO,
-    BuiltInMethods.ATAN2_DEC)
+    BuiltInMethods.ATAN2_DOUBLE_DOUBLE)
 
   addSqlFunctionMethod(
     ATAN2,

@@ -243,11 +243,18 @@ case class Atan(child: Expression) extends UnaryExpression {
   }
 }
 
-case class Atan2(left: Expression, right: Expression) extends BinaryExpression with InputTypeSpec {
+case class Atan2(y: Expression, x: Expression) extends BinaryExpression {
+
+  override private[flink] def left = y
+
+  override private[flink] def right = x
+
   override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
-    BIG_DEC_TYPE_INFO :: BIG_DEC_TYPE_INFO :: Nil
+  override private[flink] def validateInput() = {
+    TypeCheckUtils.assertNumericExpr(y.resultType, "atan2")
+    TypeCheckUtils.assertNumericExpr(x.resultType, "atan2")
+  }
 
   override def toString: String = s"atan2($left, $right)"
 

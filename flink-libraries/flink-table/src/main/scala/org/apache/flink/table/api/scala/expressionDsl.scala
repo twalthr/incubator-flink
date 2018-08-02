@@ -1175,6 +1175,11 @@ object randInteger {
   * Returns NULL if any argument is NULL.
   */
 object concat {
+
+  /**
+    * Returns the string that results from concatenating the arguments.
+    * Returns NULL if any argument is NULL.
+    */
   def apply(string: Expression, strings: Expression*): Expression = {
     Concat(Seq(string) ++ strings)
   }
@@ -1184,8 +1189,12 @@ object concat {
   * Calculates the arc tangent of a given coordinate.
   */
 object atan2 {
-  def apply(expr: Expression, other: Expression): Expression = {
-    Atan2(expr, other)
+
+  /**
+    * Calculates the arc tangent of a given coordinate.
+    */
+  def apply(y: Expression, x: Expression): Expression = {
+    Atan2(y, x)
   }
 }
 
