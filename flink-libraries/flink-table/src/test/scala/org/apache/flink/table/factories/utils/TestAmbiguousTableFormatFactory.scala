@@ -20,6 +20,7 @@ package org.apache.flink.table.factories.utils
 
 import java.util
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.descriptors.FormatDescriptorValidator
 import org.apache.flink.table.factories.{TableFormatFactory, TableFormatFactoryServiceTest}
 import org.apache.flink.types.Row
@@ -48,5 +49,9 @@ class TestAmbiguousTableFormatFactory extends TableFormatFactory[Row] {
     properties.add(TableFormatFactoryServiceTest.COMMON_PATH)
     properties.add(TableFormatFactoryServiceTest.SPECIAL_PATH)
     properties
+  }
+
+  override def createRecordType(properties: util.Map[String, String]): TypeInformation[Row] = {
+    throw new UnsupportedOperationException
   }
 }

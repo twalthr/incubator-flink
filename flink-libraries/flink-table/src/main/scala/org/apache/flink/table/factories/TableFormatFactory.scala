@@ -20,6 +20,8 @@ package org.apache.flink.table.factories
 
 import java.util
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+
 /**
   * A factory to create configured table format instances based on string-based properties. See
   * also [[TableFactory]] for more information.
@@ -61,5 +63,14 @@ trait TableFormatFactory[T] extends TableFactory {
     * @see See also [[TableFactory.supportedProperties()]] for more information.
     */
   def supportedProperties(): util.List[String]
+
+  /**
+    * Returns the type that a format produces for Table API & SQL queries or consumes for emitting
+    * into external systems.
+    *
+    * @param properties normalized properties describing the format
+    * @return type information describing a record
+    */
+  def createRecordType(properties: util.Map[String, String]): TypeInformation[T]
 
 }

@@ -20,6 +20,8 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.descriptors.AvroValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
@@ -59,6 +61,17 @@ public class AvroRowFormatFactory implements SerializationSchemaFactory<Row>, De
 		properties.add(AvroValidator.FORMAT_RECORD_CLASS);
 		properties.add(AvroValidator.FORMAT_AVRO_SCHEMA);
 		return properties;
+	}
+
+	@Override
+	public TypeInformation<Row> createRecordType(Map<String, String> properties) {
+		final DescriptorProperties descriptorProperties = validateAndGetProperties(properties);
+		if (descriptorProperties.containsKey(AvroValidator.FORMAT_RECORD_CLASS)) {
+			return AvroSchemaConverter.convertToTypeInfo(
+				descriptorProperties.getClass(AvroValidator.FORMAT_RECORD_CLASS, SpecificRecord.class));
+		}
+		return AvroSchemaConverter.convertToTypeInfo(
+			descriptorProperties.getString(AvroValidator.FORMAT_AVRO_SCHEMA));
 	}
 
 	@Override

@@ -66,6 +66,11 @@ public class JsonRowFormatFactory implements SerializationSchemaFactory<Row>, De
 	}
 
 	@Override
+	public TypeInformation<Row> createRecordType(Map<String, String> properties) {
+		return createTypeInformation(validateAndGetProperties(properties));
+	}
+
+	@Override
 	public DeserializationSchema<Row> createDeserializationSchema(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = validateAndGetProperties(properties);
 
@@ -80,10 +85,8 @@ public class JsonRowFormatFactory implements SerializationSchemaFactory<Row>, De
 
 	@Override
 	public SerializationSchema<Row> createSerializationSchema(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = validateAndGetProperties(properties);
-
 		// create and configure
-		return new JsonRowSerializationSchema(createTypeInformation(descriptorProperties));
+		return new JsonRowSerializationSchema(createRecordType(properties));
 	}
 
 	private static DescriptorProperties validateAndGetProperties(Map<String, String> propertiesMap) {

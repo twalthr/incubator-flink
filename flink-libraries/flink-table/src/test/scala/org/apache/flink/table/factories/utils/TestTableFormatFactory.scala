@@ -21,6 +21,7 @@ package org.apache.flink.table.factories.utils
 import java.util
 
 import org.apache.flink.api.common.serialization.{DeserializationSchema, SerializationSchema}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.descriptors.{DescriptorProperties, FormatDescriptorValidator, SchemaValidator}
 import org.apache.flink.table.factories.{DeserializationSchemaFactory, SerializationSchemaFactory, TableFormatFactoryServiceTest}
 import org.apache.flink.types.Row
@@ -55,23 +56,23 @@ class TestTableFormatFactory
     properties
   }
 
+  override def createRecordType(properties: util.Map[String, String]): TypeInformation[Row] = {
+    val props = new DescriptorProperties(true)
+    props.putProperties(properties)
+    SchemaValidator.deriveFormatFields(props).toRowType
+  }
+
   override def createDeserializationSchema(
       properties: util.Map[String, String])
     : DeserializationSchema[Row] = {
 
-    val props = new DescriptorProperties(true)
-    props.putProperties(properties)
-    val schema = SchemaValidator.deriveFormatFields(props)
-    new TestDeserializationSchema(schema.toRowType)
+    new TestDeserializationSchema(createRecordType(properties))
   }
 
   override def createSerializationSchema(
       properties: util.Map[String, String])
     : SerializationSchema[Row] = {
 
-    val props = new DescriptorProperties(true)
-    props.putProperties(properties)
-    val schema = SchemaValidator.deriveFormatFields(props)
-    new TestSerializationSchema(schema.toRowType)
+    new TestSerializationSchema(createRecordType(properties))
   }
 }

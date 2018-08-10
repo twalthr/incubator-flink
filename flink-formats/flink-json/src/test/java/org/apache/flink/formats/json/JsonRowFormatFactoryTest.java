@@ -63,7 +63,11 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		"  'required': ['name', 'count', 'time']" +
 		"}";
 
-	private static final TypeInformation<Row> SCHEMA = Types.ROW(
+	private static final TypeInformation<Row> JSON_SCHEMA_TYPE = Types.ROW(
+		new String[]{"name", "count", "time"},
+		new TypeInformation[]{Types.STRING(), Types.DECIMAL(), Types.SQL_TIMESTAMP()});
+
+	private static final TypeInformation<Row> SCHEMA_TYPE = Types.ROW(
 		new String[]{"field1", "field2"},
 		new TypeInformation[]{Types.BOOLEAN(), Types.INT()});
 
@@ -71,12 +75,14 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 	public void testSchema() {
 		final Map<String, String> properties = toMap(
 			new Json()
-				.schema(SCHEMA)
+				.schema(SCHEMA_TYPE)
 				.failOnMissingField(false));
 
 		testSchemaSerializationSchema(properties);
 
 		testSchemaDeserializationSchema(properties);
+
+		testSchemaRecordType(properties);
 	}
 
 	@Test
@@ -89,6 +95,8 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		testJsonSchemaSerializationSchema(properties);
 
 		testJsonSchemaDeserializationSchema(properties);
+
+		testJsonSchemaRecordType(properties);
 	}
 
 	@Test
@@ -106,21 +114,35 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		testSchemaDeserializationSchema(properties);
 	}
 
+	private void testSchemaRecordType(Map<String, String> properties) {
+		final TypeInformation<?> actual = TableFactoryService
+			.find(DeserializationSchemaFactory.class, properties)
+			.createRecordType(properties);
+		assertEquals(SCHEMA_TYPE, actual);
+	}
+
 	private void testSchemaDeserializationSchema(Map<String, String> properties) {
-		final DeserializationSchema<?> actual2 = TableFactoryService
+		final DeserializationSchema<?> actual = TableFactoryService
 			.find(DeserializationSchemaFactory.class, properties)
 			.createDeserializationSchema(properties);
-		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema(SCHEMA);
-		expected2.setFailOnMissingField(false);
-		assertEquals(expected2, actual2);
+		final JsonRowDeserializationSchema expected = new JsonRowDeserializationSchema(SCHEMA_TYPE);
+		expected.setFailOnMissingField(false);
+		assertEquals(expected, actual);
 	}
 
 	private void testSchemaSerializationSchema(Map<String, String> properties) {
-		final SerializationSchema<?> actual1 = TableFactoryService
+		final SerializationSchema<?> actual = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)
 			.createSerializationSchema(properties);
-		final SerializationSchema expected1 = new JsonRowSerializationSchema(SCHEMA);
-		assertEquals(expected1, actual1);
+		final SerializationSchema expected = new JsonRowSerializationSchema(SCHEMA_TYPE);
+		assertEquals(expected, actual);
+	}
+
+	private void testJsonSchemaRecordType(Map<String, String> properties) {
+		final TypeInformation<?> actual = TableFactoryService
+			.find(DeserializationSchemaFactory.class, properties)
+			.createRecordType(properties);
+		assertEquals(JSON_SCHEMA_TYPE, actual);
 	}
 
 	private void testJsonSchemaDeserializationSchema(Map<String, String> properties) {
