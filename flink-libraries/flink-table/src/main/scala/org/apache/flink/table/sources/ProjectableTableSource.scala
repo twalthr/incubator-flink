@@ -40,8 +40,9 @@ trait ProjectableTableSource[T] {
     * produced [[DataSet]] ([[BatchTableSource.getDataSet(]]) or [[DataStream]]
     * ([[StreamTableSource.getDataStream]]).
     *
-    * If the [[TableSource]] implements the [[DefinedFieldMapping]] interface, it might
-    * be necessary to adjust the mapping as well.
+    * If the [[TableSource]] implements the
+    * [[org.apache.flink.table.connectors.DefinedFieldMapping]] interface, it might be necessary to
+    * adjust the mapping as well.
     *
     * IMPORTANT: This method must return a true copy and must not modify the original table source
     * object.

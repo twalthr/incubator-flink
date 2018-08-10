@@ -42,8 +42,9 @@ trait NestedFieldsProjectableTableSource[T] {
     * removing or reordering first level fields. The type of the first level fields must not be
     * changed.
     *
-    * If the [[TableSource]] implements the [[DefinedFieldMapping]] interface, it might
-    * be necessary to adjust the mapping as well.
+    * If the [[TableSource]] implements the
+    * [[org.apache.flink.table.connectors.DefinedFieldMapping]] interface, it might be necessary
+    * to adjust the mapping as well.
     *
     * The nestedFields parameter contains all nested fields that are accessed by the query.
     * This information can be used to only read and set the accessed fields.

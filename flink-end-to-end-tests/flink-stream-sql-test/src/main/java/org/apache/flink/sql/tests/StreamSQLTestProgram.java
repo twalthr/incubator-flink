@@ -36,7 +36,8 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.sources.DefinedFieldMapping;
+import org.apache.flink.table.connectors.DefinedFieldMapping;
+import org.apache.flink.table.connectors.TableConnectorUtil;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -48,6 +49,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -208,6 +210,11 @@ public class StreamSQLTestProgram {
 			mapping.put("ts", "f1");
 			mapping.put("payload", "f2");
 			return mapping;
+		}
+
+		@Override
+		public Optional<Map<String[], String[]>> getNestedFieldMapping() {
+			return TableConnectorUtil.generateNestedFieldMapping(getFieldMapping());
 		}
 	}
 

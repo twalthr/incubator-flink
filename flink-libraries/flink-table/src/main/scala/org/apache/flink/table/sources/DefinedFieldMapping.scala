@@ -18,12 +18,8 @@
 
 package org.apache.flink.table.sources
 
-import java.util.{Map => JMap}
-import javax.annotation.Nullable
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.sources.tsextractors.TimestampExtractor
 
 /**
   * The [[DefinedFieldMapping]] interface provides a mapping for the fields of the table schema
@@ -35,25 +31,11 @@ import org.apache.flink.table.sources.tsextractors.TimestampExtractor
   *
   * If the fields cannot or should not be implicitly mapped by name, an explicit mapping can be
   * provided by implementing this interface.
+  *
   * If a mapping is provided, all fields must be explicitly mapped.
+  *
+  * @deprecated Use [[org.apache.flink.table.connectors.DefinedFieldMapping]] instead.
   */
-trait DefinedFieldMapping {
-
-  /**
-    * Returns the mapping for the fields of the [[TableSource]]'s [[TableSchema]] to the fields of
-    * its return type [[TypeInformation]].
-    *
-    * The mapping is done based on field names, e.g., a mapping "name" -> "f1" maps the schema field
-    * "name" to the field "f1" of the return type, for example in this case the second field of a
-    * [[org.apache.flink.api.java.tuple.Tuple]].
-    *
-    * The returned mapping must map all fields (except proctime and rowtime fields) to the return
-    * type. It can also provide a mapping for fields which are not in the [[TableSchema]] to make
-    * fields in the physical [[TypeInformation]] accessible for a [[TimestampExtractor]].
-    *
-    * @return A mapping from [[TableSchema]] fields to [[TypeInformation]] fields or
-    *         null if no mapping is necessary.
-    */
-  @Nullable
-  def getFieldMapping: JMap[String, String]
-}
+@Deprecated
+@deprecated
+trait DefinedFieldMapping extends org.apache.flink.table.connectors.DefinedFieldMapping

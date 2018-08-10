@@ -19,7 +19,7 @@
 package org.apache.flink.table.utils
 
 import java.util
-import java.util.{Collections, List => JList}
+import java.util.Collections
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -27,7 +27,7 @@ import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.connectors.DefinedProctimeAttribute
+import org.apache.flink.table.connectors.{DefinedFieldMapping, DefinedProctimeAttribute}
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField

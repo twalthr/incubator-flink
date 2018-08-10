@@ -31,7 +31,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connectors.DefinedProctimeAttribute;
 import org.apache.flink.table.connectors.TableConnectorUtil;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.sources.DefinedFieldMapping;
+import org.apache.flink.table.connectors.DefinedFieldMapping;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -193,6 +193,11 @@ public abstract class KafkaTableSource implements
 	@Override
 	public Map<String, String> getFieldMapping() {
 		return fieldMapping.orElse(null);
+	}
+
+	@Override
+	public Optional<Map<String[], String[]>> getNestedFieldMapping() {
+		return TableConnectorUtil.generateNestedFieldMapping(getFieldMapping());
 	}
 
 	@Override

@@ -19,6 +19,7 @@
 package org.apache.flink.table.connectors
 
 import java.sql.Timestamp
+import java.util.{Optional, Map => JMap}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptCluster
@@ -33,10 +34,11 @@ import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.{Cast, ResolvedFieldReference}
 import org.apache.flink.table.sinks.TableSink
-import org.apache.flink.table.sources.{DefinedFieldMapping, DefinedRowtimeAttributes, RowtimeAttributeDescriptor, TableSource}
+import org.apache.flink.table.sources.{DefinedRowtimeAttributes, RowtimeAttributeDescriptor, TableSource}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * Util class for [[TableSource]] and [[TableSink]].
@@ -51,6 +53,24 @@ object TableConnectorUtil {
     } else {
       s"$className(${fields.mkString(", ")})"
     }
+  }
+
+  /**
+    * Generates a nested field mapping for [[DefinedFieldMapping]] until we update to Scala 2.12
+    * which allows default implementations for Java interfaces.
+    */
+  def generateNestedFieldMapping(
+      fieldMapping: JMap[String, String])
+    : Optional[JMap[Array[String], Array[String]]] = {
+
+    if (fieldMapping == null) {
+      return Optional.empty()
+    }
+    val map = mutable.Map[Array[String], Array[String]]()
+    fieldMapping.asScala.foreach{ case (k, v) =>
+      map.put(Array(k), Array(v))
+    }
+    Optional.of(map.asJava)
   }
 
   /** Returns true if the [[TableSource]] has a rowtime attribute. */

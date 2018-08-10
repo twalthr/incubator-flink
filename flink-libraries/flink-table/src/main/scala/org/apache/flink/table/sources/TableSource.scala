@@ -34,7 +34,7 @@ import org.apache.flink.table.connectors.TableConnectorUtil
   *
   * By default, the fields of the [[TableSchema]] are implicitly mapped by name to the fields of the
   * return type [[TypeInformation]]. An explicit mapping can be defined by implementing the
-  * [[DefinedFieldMapping]] interface.
+  * [[org.apache.flink.table.connectors.DefinedFieldMapping]] interface.
   *
   * @tparam T The return type of the [[TableSource]].
   */
