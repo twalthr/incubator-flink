@@ -29,19 +29,12 @@ import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy
 
 /**
   * Extends a [[TableSource]] to specify a processing time attribute.
+  *
+  * @deprecated Use [[org.apache.flink.table.connectors.DefinedProctimeAttribute]] instead.
   */
-trait DefinedProctimeAttribute {
-
-  /**
-    * Returns the name of a processing time attribute or null if no processing time attribute is
-    * present.
-    *
-    * The referenced attribute must be present in the [[TableSchema]] of the [[TableSource]] and of
-    * type [[Types.SQL_TIMESTAMP]].
-    */
-  @Nullable
-  def getProctimeAttribute: String
-}
+@Deprecated
+@deprecated
+trait DefinedProctimeAttribute extends org.apache.flink.table.connectors.DefinedProctimeAttribute
 
 /**
   * Extends a [[TableSource]] to specify rowtime attributes via a

@@ -132,7 +132,8 @@ object TableSourceUtil {
 
     // validate proctime attribute
     tableSource match {
-      case p: DefinedProctimeAttribute if p.getProctimeAttribute != null =>
+      case p: org.apache.flink.table.connectors.DefinedProctimeAttribute
+          if p.getProctimeAttribute != null =>
         val proctimeAttribute = p.getProctimeAttribute
         val proctimeIdx = schema.getColumnNames.indexOf(proctimeAttribute)
         // ensure that field exists
@@ -442,7 +443,8 @@ object TableSourceUtil {
   /** Returns the proctime attribute of the [[TableSource]] if it is defined. */
   private def getProctimeAttribute(tableSource: TableSource[_]): Option[String] = {
     tableSource match {
-      case p: DefinedProctimeAttribute if p.getProctimeAttribute != null =>
+      case p: org.apache.flink.table.connectors.DefinedProctimeAttribute
+          if p.getProctimeAttribute != null =>
         Some(p.getProctimeAttribute)
       case _ =>
         None

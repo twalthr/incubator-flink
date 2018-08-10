@@ -27,7 +27,7 @@ import org.apache.flink.table.client.gateway.local.DependencyTest;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
-import org.apache.flink.table.sources.DefinedProctimeAttribute;
+import org.apache.flink.table.connectors.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
