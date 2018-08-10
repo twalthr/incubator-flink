@@ -164,18 +164,17 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 
 		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA());
 		final String topic = descriptorProperties.getString(CONNECTOR_TOPIC);
-		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(descriptorProperties);
 		final List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors =
 			SchemaValidator.deriveRowtimeAttributes(descriptorProperties);
 
 		// see also FLINK-9870
-		if (proctime.isPresent() || !rowtimeAttributeDescriptors.isEmpty() ||
-				checkForCustomFieldMapping(descriptorProperties, schema)) {
-			throw new TableException("Time attributes and custom field mappings are not supported yet.");
+		if (!rowtimeAttributeDescriptors.isEmpty() || checkForCustomFieldMapping(descriptorProperties, schema)) {
+			throw new TableException("Event-time attributes and custom field mappings are not supported yet.");
 		}
 
 		return createKafkaTableSink(
 			schema,
+			SchemaValidator.deriveProctimeAttribute(descriptorProperties),
 			topic,
 			getKafkaProperties(descriptorProperties),
 			getFlinkKafkaPartitioner(descriptorProperties),
@@ -227,13 +226,15 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	/**
 	 * Constructs the version-specific Kafka table sink.
 	 *
-	 * @param schema      Schema of the produced table.
-	 * @param topic       Kafka topic to consume.
-	 * @param properties  Properties for the Kafka consumer.
-	 * @param partitioner Partitioner to select Kafka partition for each item.
+	 * @param schema            Schema of the produced table.
+	 * @param proctimeAttribute Field name of the processing time attribute.
+	 * @param topic             Kafka topic to consume.
+	 * @param properties        Properties for the Kafka consumer.
+	 * @param partitioner       Partitioner to select Kafka partition for each item.
 	 */
 	protected abstract KafkaTableSink createKafkaTableSink(
 		TableSchema schema,
+		Optional<String> proctimeAttribute,
 		String topic,
 		Properties properties,
 		Optional<FlinkKafkaPartitioner<Row>> partitioner,

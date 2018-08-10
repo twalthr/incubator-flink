@@ -83,6 +83,7 @@ public class Kafka010TableSourceSinkFactoryTest extends KafkaTableSourceSinkFact
 	@Override
 	protected KafkaTableSink getExpectedKafkaTableSink(
 			TableSchema schema,
+			Optional<String> proctimeAttribute,
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<Row>> partitioner,
@@ -90,6 +91,7 @@ public class Kafka010TableSourceSinkFactoryTest extends KafkaTableSourceSinkFact
 
 		return new Kafka010TableSink(
 			schema,
+			proctimeAttribute,
 			topic,
 			properties,
 			partitioner,

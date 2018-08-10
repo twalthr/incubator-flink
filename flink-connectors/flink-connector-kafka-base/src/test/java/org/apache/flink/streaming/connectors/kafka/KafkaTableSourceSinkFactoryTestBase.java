@@ -193,6 +193,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 
 		final KafkaTableSink expected = getExpectedKafkaTableSink(
 			schema,
+			Optional.of(PROC_TIME),
 			TOPIC,
 			KAFKA_PROPERTIES,
 			Optional.of(new FlinkFixedPartitioner<>()),
@@ -212,7 +213,8 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 				new Schema()
 					.field(FRUIT_NAME, Types.STRING())
 					.field(COUNT, Types.DECIMAL())
-					.field(EVENT_TIME, Types.SQL_TIMESTAMP()))
+					.field(EVENT_TIME, Types.SQL_TIMESTAMP())
+					.field(PROC_TIME, Types.SQL_TIMESTAMP()).proctime())
 			.inAppendMode();
 
 		final Map<String, String> propertiesMap = DescriptorProperties.toJavaMap(testDesc);
@@ -299,6 +301,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 
 	protected abstract KafkaTableSink getExpectedKafkaTableSink(
 		TableSchema schema,
+		Optional<String> proctimeAttribute,
 		String topic,
 		Properties properties,
 		Optional<FlinkKafkaPartitioner<Row>> partitioner,

@@ -37,12 +37,14 @@ public class Kafka011TableSink extends KafkaTableSink {
 
 	public Kafka011TableSink(
 			TableSchema schema,
+			Optional<String> proctimeAttribute,
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<Row>> partitioner,
 			SerializationSchema<Row> serializationSchema) {
 		super(
 			schema,
+			proctimeAttribute,
 			topic,
 			properties,
 			partitioner,

@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connectors.DefinedProctimeAttribute;
 import org.apache.flink.table.connectors.TableConnectorUtil;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.types.Row;
@@ -43,12 +44,17 @@ import java.util.Properties;
  * override {@link #createKafkaProducer(String, Properties, SerializationSchema, Optional)}}.
  */
 @Internal
-public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
+public abstract class KafkaTableSink implements
+	AppendStreamTableSink<Row>,
+	DefinedProctimeAttribute {
 
 	// TODO make all attributes final and mandatory once we drop support for format-specific table sinks
 
 	/** The schema of the table. */
 	private final Optional<TableSchema> schema;
+
+	/** Field name of the processing time attribute if a processing time field is defined. */
+	private Optional<String> proctimeAttribute;
 
 	/** The Kafka topic to write to. */
 	protected final String topic;
@@ -68,6 +74,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 
 	protected KafkaTableSink(
 			TableSchema schema,
+			Optional<String> proctimeAttribute,
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<Row>> partitioner,
@@ -94,6 +101,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 			Properties properties,
 			FlinkKafkaPartitioner<Row> partitioner) {
 		this.schema = Optional.empty();
+		this.proctimeAttribute = Optional.empty();
 		this.topic = Preconditions.checkNotNull(topic, "topic");
 		this.properties = Preconditions.checkNotNull(properties, "properties");
 		this.partitioner = Optional.of(Preconditions.checkNotNull(partitioner, "partitioner"));
@@ -161,6 +169,12 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 			.build();
 	}
 
+	@Override
+	public String getProctimeAttribute() {
+		return proctimeAttribute.orElse(null);
+	}
+
+	@Override
 	public String[] getFieldNames() {
 		return schema.map(TableSchema::getColumnNames).orElse(fieldNames);
 	}

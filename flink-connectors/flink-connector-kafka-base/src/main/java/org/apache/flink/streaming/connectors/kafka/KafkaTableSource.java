@@ -69,7 +69,7 @@ public abstract class KafkaTableSource implements
 	/** The schema of the table. */
 	private final TableSchema schema;
 
-	/** Field name of the processing time attribute, null if no processing time field is defined. */
+	/** Field name of the processing time attribute if a processing time field is defined. */
 	private Optional<String> proctimeAttribute;
 
 	/** Descriptor for a rowtime attribute. */

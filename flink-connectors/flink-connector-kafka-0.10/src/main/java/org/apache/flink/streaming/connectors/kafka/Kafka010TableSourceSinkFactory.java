@@ -75,6 +75,7 @@ public class Kafka010TableSourceSinkFactory extends KafkaTableSourceSinkFactoryB
 	@Override
 	protected KafkaTableSink createKafkaTableSink(
 			TableSchema schema,
+			Optional<String> proctimeAttribute,
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<Row>> partitioner,
@@ -82,6 +83,7 @@ public class Kafka010TableSourceSinkFactory extends KafkaTableSourceSinkFactoryB
 
 		return new Kafka010TableSink(
 			schema,
+			proctimeAttribute,
 			topic,
 			properties,
 			partitioner,
