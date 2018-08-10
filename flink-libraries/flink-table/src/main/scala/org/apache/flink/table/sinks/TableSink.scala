@@ -19,7 +19,7 @@
 package org.apache.flink.table.sinks
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.{Table, TableSchema}
 
 /** A [[TableSink]] specifies how to emit a [[Table]] to an external
   * system or location.
@@ -33,16 +33,37 @@ trait TableSink[T] {
   /**
     * Returns the type expected by this [[TableSink]].
     *
-    * This type should depend on the types returned by [[getFieldNames]].
+    * This type should depend on the types returned by [[getTableSchema]].
     *
     * @return The type expected by this [[TableSink]].
     */
   def getOutputType: TypeInformation[T]
 
-  /** Returns the names of the table fields. */
+  /**
+    * Returns the schema of the consumed table.
+    *
+    * @return The [[TableSchema]] of the consumed table.
+    */
+  def getTableSchema: TableSchema = TableSchema.builder()
+    .fields(getFieldNames, getFieldTypes)
+    .build()
+
+  /**
+    * Returns the names of the table fields.
+    *
+    * @deprecated Use [[getTableSchema]] instead.
+    */
+  @Deprecated
+  @deprecated
   def getFieldNames: Array[String]
 
-  /** Returns the types of the table fields. */
+  /**
+    * Returns the types of the table fields.
+    *
+    * @deprecated Use [[getTableSchema]] instead.
+    */
+  @Deprecated
+  @deprecated
   def getFieldTypes: Array[TypeInformation[_]]
 
   /**

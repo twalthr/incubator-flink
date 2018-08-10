@@ -17,14 +17,14 @@
  */
 package org.apache.flink.table.api
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
-
-import _root_.scala.collection.mutable.ArrayBuffer
 import _root_.java.util.Objects
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.types.Row
+
+import _root_.scala.collection.mutable.ArrayBuffer
 
 /**
   * A TableSchema represents a Table's structure.
@@ -211,6 +211,13 @@ class TableSchemaBuilder {
     fieldTypes.append(tpe)
     this
   }
+
+  def fields(names: Array[String], types: Array[TypeInformation[_]]): TableSchemaBuilder = {
+    fieldNames.appendAll(names)
+    fieldTypes.appendAll(types)
+    this
+  }
+
 
   def build(): TableSchema = {
     new TableSchema(fieldNames.toArray, fieldTypes.toArray)

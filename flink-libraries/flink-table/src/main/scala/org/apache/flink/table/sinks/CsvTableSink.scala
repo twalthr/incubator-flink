@@ -80,7 +80,10 @@ class CsvTableSink(
       sink.setParallelism(numFiles.get)
     }
 
-    sink.name(TableConnectorUtil.generateRuntimeName(this.getClass, getFieldNames))
+    sink.name(
+      TableConnectorUtil.generateRuntimeName(
+        this.getClass,
+        getTableSchema.getColumnNames))
   }
 
   override def emitDataStream(dataStream: DataStream[Row]): Unit = {

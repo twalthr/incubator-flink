@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.cassandra;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
@@ -53,6 +54,11 @@ public class CassandraAppendTableSink implements AppendStreamTableSink<Row> {
 	@Override
 	public TypeInformation<Row> getOutputType() {
 		return new RowTypeInfo(fieldTypes);
+	}
+
+	@Override
+	public TableSchema getTableSchema() {
+		return TableSchema.builder().fields(getFieldNames(), getFieldTypes()).build();
 	}
 
 	@Override

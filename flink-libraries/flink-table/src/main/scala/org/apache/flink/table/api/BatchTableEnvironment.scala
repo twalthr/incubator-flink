@@ -232,14 +232,11 @@ abstract class BatchTableEnvironment(
   private def registerTableSinkInternal(name: String, configuredSink: TableSink[_]): Unit = {
     // validate
     checkValidTableName(name)
-    if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
+    if (configuredSink.getTableSchema == null) {
       throw new TableException("Table sink is not configured.")
     }
-    if (configuredSink.getFieldNames.length == 0) {
+    if (configuredSink.getTableSchema.getColumnNames.length == 0) {
       throw new TableException("Field names must not be empty.")
-    }
-    if (configuredSink.getFieldNames.length != configuredSink.getFieldTypes.length) {
-      throw new TableException("Same number of field names and types required.")
     }
 
     // register

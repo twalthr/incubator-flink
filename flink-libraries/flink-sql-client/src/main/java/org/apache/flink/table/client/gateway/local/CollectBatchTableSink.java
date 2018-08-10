@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
@@ -46,6 +47,11 @@ public class CollectBatchTableSink implements BatchTableSink<Row> {
 	@Override
 	public TypeInformation<Row> getOutputType() {
 		return Types.ROW_NAMED(fieldNames, fieldTypes);
+	}
+
+	@Override
+	public TableSchema getTableSchema() {
+		return TableSchema.builder().fields(getFieldNames(), getFieldTypes()).build();
 	}
 
 	@Override

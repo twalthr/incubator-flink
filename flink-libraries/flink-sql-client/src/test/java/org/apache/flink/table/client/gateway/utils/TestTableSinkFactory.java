@@ -107,6 +107,11 @@ public class TestTableSinkFactory implements StreamTableSinkFactory<Row> {
 		}
 
 		@Override
+		public TableSchema getTableSchema() {
+			return TableSchema.builder().fields(getFieldNames(), getFieldTypes()).build();
+		}
+
+		@Override
 		public String[] getFieldNames() {
 			return schema.getColumnNames();
 		}

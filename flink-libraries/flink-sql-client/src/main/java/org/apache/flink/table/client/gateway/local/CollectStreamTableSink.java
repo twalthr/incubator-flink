@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.experimental.CollectSink;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.RetractStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
@@ -47,6 +48,11 @@ public class CollectStreamTableSink implements RetractStreamTableSink<Row> {
 		this.targetAddress = targetAddress;
 		this.targetPort = targetPort;
 		this.serializer = serializer;
+	}
+
+	@Override
+	public TableSchema getTableSchema() {
+		return TableSchema.builder().fields(getFieldNames(), getFieldTypes()).build();
 	}
 
 	@Override

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.TableSink;
@@ -74,6 +75,11 @@ public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTab
 	@Override
 	public TypeInformation<Row> getOutputType() {
 		return new RowTypeInfo(fieldTypes, fieldNames);
+	}
+
+	@Override
+	public TableSchema getTableSchema() {
+		return TableSchema.builder().fields(getFieldNames(), getFieldTypes()).build();
 	}
 
 	@Override
