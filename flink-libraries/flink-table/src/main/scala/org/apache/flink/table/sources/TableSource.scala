@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.sources
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.util.TableConnectorUtil
+import org.apache.flink.table.connectors.TableConnectorUtil
 
 /**
   * Defines an external table with the schema that is provided by [[TableSource#getTableSchema]].

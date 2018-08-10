@@ -26,6 +26,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment, TableException, Types}
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.connectors.TableConnectorUtil
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.sources._
@@ -43,7 +44,7 @@ class BatchTableSourceScan(
 
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    TableSourceUtil.getRelDataType(
+    TableConnectorUtil.getRelDataType(
       tableSource,
       selectedFields,
       streaming = false,
@@ -82,7 +83,7 @@ class BatchTableSourceScan(
       tableEnv: BatchTableEnvironment,
       queryConfig: BatchQueryConfig): DataSet[Row] = {
 
-    val fieldIndexes = TableSourceUtil.computeIndexMapping(
+    val fieldIndexes = TableConnectorUtil.computeIndexMapping(
       tableSource,
       isStreamTable = false,
       selectedFields)
@@ -100,7 +101,7 @@ class BatchTableSourceScan(
     }
 
     // get expression to extract rowtime attribute
-    val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
+    val rowtimeExpression: Option[RexNode] = TableConnectorUtil.getRowtimeExtractionExpression(
       tableSource,
       selectedFields,
       cluster,

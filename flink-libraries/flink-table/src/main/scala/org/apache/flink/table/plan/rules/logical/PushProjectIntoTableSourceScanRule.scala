@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.rules.logical
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.connectors.TableConnectorUtil
 import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.sources._
@@ -43,7 +44,8 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
     val source = scan.tableSource
 
     val accessedLogicalFields = RexProgramExtractor.extractRefInputFields(calc.getProgram)
-    val accessedPhysicalFields = TableSourceUtil.getPhysicalIndexes(source, accessedLogicalFields)
+    val accessedPhysicalFields = TableConnectorUtil
+      .getPhysicalIndexes(source, accessedLogicalFields)
 
     // only continue if fields are projected or reordered.
     // eager reordering can remove a calc operator.

@@ -36,6 +36,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartiti
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
+import org.apache.flink.table.connectors.TableConnectorUtil;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Kafka;
 import org.apache.flink.table.descriptors.Rowtime;
@@ -50,7 +51,6 @@ import org.apache.flink.table.factories.utils.TestTableFormat;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceUtil;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
 import org.apache.flink.types.Row;
@@ -144,7 +144,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			StartupMode.SPECIFIC_OFFSETS,
 			specificOffsets);
 
-		TableSourceUtil.validateTableSource(expected);
+		TableConnectorUtil.validateTableSource(expected);
 
 		// construct table source using descriptors and table source factory
 

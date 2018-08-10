@@ -27,9 +27,10 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.connectors.TableConnectorUtil
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.schema.TableSourceSinkTable
-import org.apache.flink.table.sources.{FilterableTableSource, TableSource, TableSourceUtil}
+import org.apache.flink.table.sources.{FilterableTableSource, TableSource}
 
 import scala.collection.JavaConverters._
 
@@ -57,7 +58,7 @@ class FlinkLogicalTableSourceScan(
       case _ => false
     }
 
-    TableSourceUtil.getRelDataType(tableSource, selectedFields, streamingTable, flinkTypeFactory)
+    TableConnectorUtil.getRelDataType(tableSource, selectedFields, streamingTable, flinkTypeFactory)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {

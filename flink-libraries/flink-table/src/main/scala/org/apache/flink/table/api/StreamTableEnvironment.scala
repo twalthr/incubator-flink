@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
+import org.apache.flink.table.connectors.TableConnectorUtil
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
@@ -49,7 +50,7 @@ import org.apache.flink.table.runtime.conversion._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFunction}
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 
 import _root_.scala.collection.JavaConverters._
@@ -118,7 +119,7 @@ abstract class StreamTableEnvironment(
       // check for proper stream table source
       case streamTableSource: StreamTableSource[_] =>
         // check that event-time is enabled if table source includes rowtime attributes
-        if (TableSourceUtil.hasRowtimeAttribute(streamTableSource) &&
+        if (TableConnectorUtil.hasRowtimeAttribute(streamTableSource) &&
           execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
             throw TableException(
               s"A rowtime attribute requires an EventTime time characteristic in stream " +

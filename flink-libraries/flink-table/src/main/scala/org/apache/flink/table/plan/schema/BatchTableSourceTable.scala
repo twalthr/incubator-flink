@@ -20,8 +20,9 @@ package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.connectors.TableConnectorUtil
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{BatchTableSource, TableSourceUtil}
+import org.apache.flink.table.sources.BatchTableSource
 
 class BatchTableSourceTable[T](
     tableSource: BatchTableSource[T],
@@ -30,10 +31,10 @@ class BatchTableSourceTable[T](
     tableSource,
     statistic) {
 
-  TableSourceUtil.validateTableSource(tableSource)
+  TableConnectorUtil.validateTableSource(tableSource)
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    TableSourceUtil.getRelDataType(
+    TableConnectorUtil.getRelDataType(
       tableSource,
       None,
       streaming = false,

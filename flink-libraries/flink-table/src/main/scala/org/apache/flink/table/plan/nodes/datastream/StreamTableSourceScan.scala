@@ -28,11 +28,12 @@ import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks,
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.connectors.TableConnectorUtil
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sources._
-import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PunctuatedWatermarkAssigner, PreserveWatermarks}
+import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
@@ -47,7 +48,7 @@ class StreamTableSourceScan(
 
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    TableSourceUtil.getRelDataType(
+    TableConnectorUtil.getRelDataType(
       tableSource,
       selectedFields,
       streaming = true,
@@ -86,7 +87,7 @@ class StreamTableSourceScan(
       tableEnv: StreamTableEnvironment,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
-    val fieldIndexes = TableSourceUtil.computeIndexMapping(
+    val fieldIndexes = TableConnectorUtil.computeIndexMapping(
       tableSource,
       isStreamTable = true,
       selectedFields)
@@ -104,7 +105,7 @@ class StreamTableSourceScan(
     }
 
     // get expression to extract rowtime attribute
-    val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
+    val rowtimeExpression: Option[RexNode] = TableConnectorUtil.getRowtimeExtractionExpression(
       tableSource,
       selectedFields,
       cluster,
@@ -122,7 +123,7 @@ class StreamTableSourceScan(
 
     // generate watermarks for rowtime indicator
     val rowtimeDesc: Option[RowtimeAttributeDescriptor] =
-      TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, selectedFields)
+      TableConnectorUtil.getRowtimeAttributeDescriptor(tableSource, selectedFields)
 
     val withWatermarks = if (rowtimeDesc.isDefined) {
       val rowtimeFieldIdx = outputSchema.fieldNames.indexOf(rowtimeDesc.get.getAttributeName)

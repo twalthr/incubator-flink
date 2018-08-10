@@ -26,10 +26,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.TableSchemaBuilder;
-import org.apache.flink.table.connectors.DefinedProctimeAttribute;
+import org.apache.flink.table.connectors.TableConnectorUtil;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
-import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 

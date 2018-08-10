@@ -31,10 +31,9 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.connectors.DefinedProctimeAttribute
+import org.apache.flink.table.connectors.{DefinedProctimeAttribute, TableConnectorUtil}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, TableSinkBase}
 import org.apache.flink.table.sources._
-import org.apache.flink.table.util.TableConnectorUtil
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.connectors
 
 import java.sql.Timestamp
 
@@ -32,12 +32,26 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.{Cast, ResolvedFieldReference}
+import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.sources.{DefinedFieldMapping, DefinedRowtimeAttributes, RowtimeAttributeDescriptor, TableSource}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import scala.collection.JavaConverters._
 
-/** Util class for [[TableSource]]. */
-object TableSourceUtil {
+/**
+  * Util class for [[TableSource]] and [[TableSink]].
+  */
+object TableConnectorUtil {
+
+  /** Returns the table connector name used for log and web UI */
+  def generateRuntimeName(clazz: Class[_], fields: Array[String]): String = {
+    val className = clazz.getSimpleName
+    if (null == fields) {
+      s"$className(*)"
+    } else {
+      s"$className(${fields.mkString(", ")})"
+    }
+  }
 
   /** Returns true if the [[TableSource]] has a rowtime attribute. */
   def hasRowtimeAttribute(tableSource: TableSource[_]): Boolean =
