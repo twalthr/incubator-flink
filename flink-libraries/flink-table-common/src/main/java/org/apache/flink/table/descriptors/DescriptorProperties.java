@@ -32,8 +32,10 @@ import org.apache.flink.table.utils.TypeStringUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -162,6 +164,18 @@ class DescriptorProperties {
 		checkNotNull(key);
 		checkNotNull(schema);
 
+		final String[] fieldNames = schema.getFieldNames();
+		final TypeInformation<?>[] fieldTypes = schema.getFieldTypes();
+
+		final List<List<String>> values = new ArrayList<>();
+		for (int i = 0; i < schema.getFieldCount(); i++) {
+			values.add(Arrays.asList(fieldNames[i], normalizeTypeInfo(fieldTypes[i])));
+		}
+
+		putIndexedFixedProperties(
+			key,
+			Arrays.asList(TABLE_SCHEMA_NAME, TABLE_SCHEMA_TYPE),
+			values);
 	}
 
 	/**
@@ -185,12 +199,12 @@ class DescriptorProperties {
 	 *
 	 * <p>The arity of each propertyValue must match the arity of propertyKeys.
 	 */
-	public void putIndexedFixedProperties(String key, List<String> propertyKeys, List<List<String>> propertyValues) {
+	public void putIndexedFixedProperties(String key, List<String> propertyKeys, List<List<String>> subKeyValues) {
 		checkNotNull(key);
 		checkNotNull(propertyKeys);
-		checkNotNull(propertyValues);
-		for (int idx = 0; idx < propertyValues.size(); idx++) {
-			final List<String> values = propertyValues.get(idx);
+		checkNotNull(subKeyValues);
+		for (int idx = 0; idx < subKeyValues.size(); idx++) {
+			final List<String> values = subKeyValues.get(idx);
 			if (values == null || values.size() != propertyKeys.size()) {
 				throw new ValidationException("Values must have same arity as keys.");
 			}
@@ -446,9 +460,19 @@ class DescriptorProperties {
 		return getOptionalShort(key).orElseThrow(exceptionSupplier(key));
 	}
 
-	// TODO getOptionalType(key: String): Optional[TypeInformation[_]]
+	/**
+	 * Returns the type information under the given key if it exists.
+	 */
+	public Optional<TypeInformation<?>> getOptionalType(String key) {
+		return optionalGet(key).map(TypeStringUtils::readTypeInfo);
+	}
 
-	// TODO getType(key: String): TypeInformation[_]
+	/**
+	 * Returns the type information under the given existing key.
+	 */
+	public TypeInformation<?> getType(String key) {
+		return getOptionalType(key).orElseThrow(exceptionSupplier(key));
+	}
 
 	/**
 	 * Returns a table schema under the given key if it exists.
@@ -473,9 +497,7 @@ class DescriptorProperties {
 			final String name = optionalGet(nameKey).orElseThrow(exceptionSupplier(nameKey));
 
 			final TypeInformation<?> type = optionalGet(typeKey)
-				.map((value) -> {
-					return Types.VOID; // TODO TypeStringUtils.readTypeInfo
-				})
+				.map(TypeStringUtils::readTypeInfo)
 				.orElseThrow(exceptionSupplier(typeKey));
 
 			schemaBuilder.field(name, type);
@@ -1300,5 +1322,9 @@ class DescriptorProperties {
 			.map(e -> toString(e.getKey(), e.getValue()))
 			.sorted()
 			.collect(Collectors.joining("\n"));
+	}
+
+	public static String normalizeTypeInfo(TypeInformation<?> typeInfo) {
+		return ""; // TODO implement
 	}
 }
