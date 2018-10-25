@@ -21,6 +21,7 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.base.StringComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.MemorySize;
@@ -35,9 +36,12 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -154,7 +158,11 @@ class DescriptorProperties {
 		put(key, Character.toString(c));
 	}
 
-	// TODO putTableSchema(key: String, schema: TableSchema): Unit
+	public void putTableSchema(String key, TableSchema schema) {
+		checkNotNull(key);
+		checkNotNull(schema);
+
+	}
 
 	/**
 	 * Adds a Flink {@link MemorySize} under the given key.
@@ -164,8 +172,6 @@ class DescriptorProperties {
 		checkNotNull(size);
 		put(key, size.toString());
 	}
-
-	// TODO putTableSchema(key: String, nameAndType: JList[JTuple2[String, String]]): Unit
 
 	/**
 	 * Adds an indexed sequence of properties (with sub-properties) under a common key.
@@ -1135,8 +1141,69 @@ class DescriptorProperties {
 
 	// --------------------------------------------------------------------------------------------
 
-	public
+	/**
+	 * Returns if the given key is contained.
+	 */
+	public boolean containsKey(String key) {
+		return properties.containsKey(key);
+	}
 
+	/**
+	 * Returns if a given prefix exists in the properties.
+	 */
+	public boolean hasPrefix(String prefix) {
+		return properties.keySet().stream().anyMatch(k -> k.startsWith(prefix));
+	}
+
+	/**
+	 * Returns the properties as a map copy.
+	 */
+	public Map<String, String> asMap() {
+		final Map<String, String> copy = new HashMap<>(properties);
+		return Collections.unmodifiableMap(copy);
+	}
+
+	/**
+	 * Returns the properties as a map copy with a prefix key.
+	 */
+	public Map<String, String> asPrefixedMap(String prefix) {
+		return properties.entrySet().stream()
+			.collect(Collectors.toMap(e -> prefix + e.getKey(), Map.Entry::getValue));
+	}
+
+	/**
+	 * Returns a new properties instance with the given keys removed.
+	 */
+	public DescriptorProperties withoutKeys(List<String> keys) {
+		final Set<String> keySet = new HashSet<>(keys);
+		final DescriptorProperties copy = new DescriptorProperties(normalizeKeys);
+		properties.entrySet().stream()
+			.filter(e -> !keySet.contains(e.getKey()))
+			.forEach(e -> copy.properties.put(e.getKey(), e.getValue()));
+		return copy;
+	}
+
+	@Override
+	public String toString() {
+		return toString(properties);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		DescriptorProperties that = (DescriptorProperties) o;
+		return Objects.equals(properties, that.properties);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(properties);
+	}
 
 	// --------------------------------------------------------------------------------------------
 
@@ -1218,5 +1285,20 @@ class DescriptorProperties {
 	 */
 	public static Consumer<String> noValidation() {
 		return EMPTY_CONSUMER;
+	}
+
+	public static String toString(String str) {
+		return str; // TODO String escape utils!
+	}
+
+	public static String toString(String key, String value) {
+		return toString(key) + '=' + toString(value);
+	}
+
+	public static String toString(Map<String, String> propertyMap) {
+		return propertyMap.entrySet().stream()
+			.map(e -> toString(e.getKey(), e.getValue()))
+			.sorted()
+			.collect(Collectors.joining("\n"));
 	}
 }
