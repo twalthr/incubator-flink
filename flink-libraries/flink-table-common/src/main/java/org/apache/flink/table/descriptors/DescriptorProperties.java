@@ -22,11 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.utils.TypeStringUtils;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -35,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -62,6 +66,8 @@ class DescriptorProperties {
 	private static final String TABLE_SCHEMA_NAME = "name";
 
 	private static final String TABLE_SCHEMA_TYPE = "type";
+
+	private static final Consumer<String> EMPTY_CONSUMER = (value) -> {};
 
 	private final boolean normalizeKeys;
 
@@ -871,10 +877,238 @@ class DescriptorProperties {
 		validateComparable(key, isOptional, min, max, "short", Short::valueOf);
 	}
 
-	public void validateVariableIndexedProperties(String key, boolean allowEmpty) {
+	/**
+	 * Validation for fixed indexed properties.
+	 *
+	 * <p>For example:
+	 *
+	 * <pre>
+	 *     schema.fields.0.type = INT, schema.fields.0.name = test
+	 *     schema.fields.1.type = LONG, schema.fields.1.name = test2
+	 * </pre>
+	 *
+	 * <p>The subKeyValidation map must define e.g. "type" and "name" and a validation logic for the given full key.
+	 */
+	public void validateFixedIndexedProperties(String key, boolean allowEmpty, Map<String, Consumer<String>> subKeyValidation) {
+		// determine max index
+		final int maxIndex = extractMaxIndex(key, "\\.(.*)");
 
+		if (maxIndex < 0 && !allowEmpty) {
+			throw new ValidationException("Property key '" + key + "' must not be empty.");
+		}
+
+		// validate
+		for (int i = 0; i < maxIndex; i++) {
+			for (Map.Entry<String, Consumer<String>> subKey : subKeyValidation.entrySet()) {
+				final String fullKey = key + '.' + i + '.' + subKey.getKey();
+				if (properties.containsKey(fullKey)) {
+					// run validation logic
+					subKey.getValue().accept(fullKey);
+				} else {
+					throw new ValidationException("Required property key '" + fullKey + "' is missing.");
+				}
+			}
+		}
 	}
 
+	/**
+	 * Validates a table schema property.
+	 */
+	public void validateTableSchema(String key, boolean isOptional) {
+		final Consumer<String> nameValidation = (name) -> validateString(name, false, 1);
+		final Consumer<String> typeValidation = (name) -> validateType(name, false, false);
+
+		final Map<String, Consumer<String>> subKeys = new HashMap<>();
+		subKeys.put(TABLE_SCHEMA_NAME, nameValidation);
+		subKeys.put(TABLE_SCHEMA_TYPE, typeValidation);
+
+		validateFixedIndexedProperties(
+			key,
+			isOptional,
+			subKeys
+		);
+	}
+
+	/**
+	 * Validates a Flink {@link MemorySize}.
+	 *
+	 * <p>The precision defines the allowed minimum unit in bytes (e.g. 1024 would only allow KB).
+	 */
+	public void validateMemorySize(String key, boolean isOptional, int precision) {
+		validateMemorySize(key, isOptional, precision, 0L, Long.MAX_VALUE);
+	}
+
+	/**
+	 * Validates a Flink {@link MemorySize}. The boundaries are inclusive and in bytes.
+	 *
+	 * <p>The precision defines the allowed minimum unit in bytes (e.g. 1024 would only allow KB).
+	 */
+	public void validateMemorySize(String key, boolean isOptional, int precision, long min) {
+		validateMemorySize(key, isOptional, precision, min, Long.MAX_VALUE);
+	}
+
+	/**
+	 * Validates a Flink {@link MemorySize}. The boundaries are inclusive and in bytes.
+	 *
+	 * <p>The precision defines the allowed minimum unit in bytes (e.g. 1024 would only allow KB).
+	 */
+	public void validateMemorySize(String key, boolean isOptional, int precision, long min, long max) {
+		Preconditions.checkArgument(precision > 0);
+
+		validateComparable(
+			key,
+			isOptional,
+			min,
+			max,
+			"memory size (in bytes)",
+			(value) -> {
+				final long bytes = MemorySize.parse(value, MemorySize.MemoryUnit.BYTES).getBytes();
+				if (bytes % precision != 0) {
+					throw new ValidationException(
+						"Memory size for key '" + key + "' must be a multiple of " + precision + " bytes but was: " + value);
+				}
+				return bytes;
+			}
+		);
+	}
+
+	/**
+	 * Validates an enum property with a set of validation logic for each enum value.
+	 */
+	public void validateEnum(String key, boolean isOptional, Map<String, Consumer<String>> enumValidation) {
+		if (!properties.containsKey(key)) {
+			if (!isOptional) {
+				throw new ValidationException("Could not find required property '" + key + "'.");
+			}
+		} else {
+			final String value = properties.get(key);
+			if (!enumValidation.containsKey(value)) {
+				throw new ValidationException(
+					"Unknown value for property '" + key + "'.\n" +
+					"Supported values are " + enumValidation.keySet() + " but was: " + value);
+			} else {
+				// run validation logic
+				enumValidation.get(value).accept(key);
+			}
+		}
+	}
+
+	/**
+	 * Validates an enum property with a set of enum values.
+	 */
+	public void validateEnumValues(String key, boolean isOptional, List<String> values) {
+		validateEnum(
+			key,
+			isOptional,
+			values.stream().collect(Collectors.toMap(v -> v, v -> noValidation())));
+	}
+
+	/**
+	 * Validates a type property.
+	 */
+	public void validateType(String key, boolean requireRow, boolean isOptional) {
+		if (!properties.containsKey(key)) {
+			if (!isOptional) {
+				throw new ValidationException("Could not find required property '" + key + "'.");
+			}
+		} else {
+			final String value = properties.get(key);
+			// we don't validate the string but let the parser do the work for us
+			// it throws a validation exception
+			final TypeInformation<?> typeInfo = TypeStringUtils.readTypeInfo(value);
+			if (requireRow && !(typeInfo instanceof RowTypeInfo)) {
+				throw new ValidationException(
+					"Row type information expected for key '" + key + "' but was: " + value);
+			}
+		}
+	}
+
+	/**
+	 * Validates an array of values.
+	 *
+	 * <p>For example:
+	 *
+	 * <pre>
+	 *     primary-key.0 = field1
+	 *     primary-key.1 = field2
+	 * </pre>
+	 *
+	 * <p>leads to: List(field1, field2)
+	 *
+	 * <p>or:
+	 *
+	 * <pre>
+	 *     primary-key = field1
+	 * </pre>
+	 *
+	 * <p>The validation consumer gets the key of the current value e.g. "primary-key.1".
+	 */
+	public void validateArray(String key, Consumer<String> elementValidation, int minLength) {
+		validateArray(key, elementValidation, minLength, Integer.MAX_VALUE);
+	}
+
+	/**
+	 * Validates an array of values.
+	 *
+	 * <p>For example:
+	 *
+	 * <pre>
+	 *     primary-key.0 = field1
+	 *     primary-key.1 = field2
+	 * </pre>
+	 *
+	 * <p>leads to: List(field1, field2)
+	 *
+	 * <p>or:
+	 *
+	 * <pre>
+	 *     primary-key = field1
+	 * </pre>
+	 *
+	 * <p>The validation consumer gets the key of the current value e.g. "primary-key.1".
+	 */
+	public void validateArray(String key, Consumer<String> elementValidation, int minLength, int maxLength) {
+
+		// determine max index
+		final int maxIndex = extractMaxIndex(key, "");
+
+		if (maxIndex < 0) {
+			// check for a single element array
+			if (properties.containsKey(key)) {
+				elementValidation.accept(key);
+			} else if (minLength > 0) {
+				throw new ValidationException("Could not find required property array for key '" + key + "'.");
+			}
+		} else {
+			// do not allow a single element array
+			if (properties.containsKey(key)) {
+				throw new ValidationException("Invalid property array for key '" + key +"'.");
+			}
+
+			final int size = maxIndex + 1;
+			if (size < minLength) {
+				throw new ValidationException(
+					"Array for key '" + key + "' must not have less than " + minLength + " elements but was: " + size);
+			}
+
+			if (size > maxLength) {
+				throw new ValidationException(
+					"Array for key '" + key + "' must not have more than " + maxLength + " elements but was: " + size);
+			}
+		}
+
+		// validate array elements
+		for (int i = 0; i < maxIndex; i++) {
+			final String fullKey = key + '.' + i;
+			if (properties.containsKey(fullKey)) {
+				// run validation logic
+				elementValidation.accept(fullKey);
+			} else {
+				throw new ValidationException(
+					"Required array element at index '" + i + "' for key '" + key + "' is missing.");
+			}
+		}
+	}
 
 
 	// --------------------------------------------------------------------------------------------
@@ -948,5 +1182,14 @@ class DescriptorProperties {
 				throw new ValidationException("Property '" + key + "' must be a " + typeName + " value but was: " + value);
 			}
 		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Returns an empty validation logic.
+	 */
+	public static Consumer<String> noValidation() {
+		return EMPTY_CONSUMER;
 	}
 }
