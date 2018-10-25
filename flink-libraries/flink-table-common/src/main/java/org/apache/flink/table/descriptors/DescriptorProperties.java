@@ -1110,6 +1110,33 @@ class DescriptorProperties {
 		}
 	}
 
+	/**
+	 * Validates that the given prefix is not included in these properties.
+	 */
+	public void validatePrefixExclusion(String prefix) {
+		properties.keySet().stream()
+			.filter(k -> k.startsWith(prefix))
+			.findFirst()
+			.ifPresent((k) -> {
+				throw new ValidationException(
+					"Properties with prefix '" + prefix + "' are not allowed in this context. " +
+					"But property '" + k + "' was found.");
+			});
+	}
+
+	/**
+	 * Validates that the given key is not included in these properties.
+	 */
+	public void validateExclusion(String key) {
+		if (properties.containsKey(key)) {
+			throw new ValidationException("Property '" + key + "' is not allowed in this context.");
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public
+
 
 	// --------------------------------------------------------------------------------------------
 
