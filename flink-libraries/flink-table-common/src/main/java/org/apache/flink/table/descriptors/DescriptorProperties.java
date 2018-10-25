@@ -20,19 +20,16 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.common.typeutils.base.StringComparator;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.TypeStringUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
-import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,7 +48,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -160,6 +156,9 @@ class DescriptorProperties {
 		put(key, Character.toString(c));
 	}
 
+	/**
+	 * Adds a table schema under the given key.
+	 */
 	public void putTableSchema(String key, TableSchema schema) {
 		checkNotNull(key);
 		checkNotNull(schema);
@@ -169,7 +168,7 @@ class DescriptorProperties {
 
 		final List<List<String>> values = new ArrayList<>();
 		for (int i = 0; i < schema.getFieldCount(); i++) {
-			values.add(Arrays.asList(fieldNames[i], normalizeTypeInfo(fieldTypes[i])));
+			values.add(Arrays.asList(fieldNames[i], TypeStringUtils.writeTypeInfo(fieldTypes[i])));
 		}
 
 		putIndexedFixedProperties(
@@ -197,19 +196,19 @@ class DescriptorProperties {
 	 *     schema.fields.1.type = LONG, schema.fields.1.name = test2
 	 * </pre>
 	 *
-	 * <p>The arity of each propertyValue must match the arity of propertyKeys.
+	 * <p>The arity of each subKeyValues must match the arity of propertyKeys.
 	 */
-	public void putIndexedFixedProperties(String key, List<String> propertyKeys, List<List<String>> subKeyValues) {
+	public void putIndexedFixedProperties(String key, List<String> subKeys, List<List<String>> subKeyValues) {
 		checkNotNull(key);
-		checkNotNull(propertyKeys);
+		checkNotNull(subKeys);
 		checkNotNull(subKeyValues);
 		for (int idx = 0; idx < subKeyValues.size(); idx++) {
 			final List<String> values = subKeyValues.get(idx);
-			if (values == null || values.size() != propertyKeys.size()) {
+			if (values == null || values.size() != subKeys.size()) {
 				throw new ValidationException("Values must have same arity as keys.");
 			}
 			for (int keyIdx = 0; keyIdx < values.size(); keyIdx++) {
-				put(key + '.' + idx + '.' + propertyKeys.get(keyIdx), values.get(keyIdx));
+				put(key + '.' + idx + '.' + subKeys.get(keyIdx), values.get(keyIdx));
 			}
 		}
 	}
@@ -224,15 +223,15 @@ class DescriptorProperties {
 	 *                                 schema.fields.1.name = test2
 	 * </pre>
 	 *
-	 * <p>The arity of the propertySets can differ.
+	 * <p>The arity of the subKeyValues can differ.
 	 */
-	public void putIndexedVariableProperties(String key, List<Map<String, String>> propertySets) {
+	public void putIndexedVariableProperties(String key, List<Map<String, String>> subKeyValues) {
 		checkNotNull(key);
-		checkNotNull(propertySets);
-		for (int idx = 0; idx < propertySets.size(); idx++) {
-			final Map<String, String> propertySet = propertySets.get(idx);
-			for (Map.Entry<String, String> keyValue : propertySet.entrySet()) {
-				put(key + '.' + idx + '.' + keyValue.getKey(), keyValue.getValue());
+		checkNotNull(subKeyValues);
+		for (int idx = 0; idx < subKeyValues.size(); idx++) {
+			final Map<String, String> values = subKeyValues.get(idx);
+			for (Map.Entry<String, String> value : values.entrySet()) {
+				put(key + '.' + idx + '.' + value.getKey(), value.getValue());
 			}
 		}
 	}
@@ -680,8 +679,9 @@ class DescriptorProperties {
 		return getOptionalArray(key, keyMapper).orElseThrow(exceptionSupplier(key));
 	}
 
-	// TODO getPrefix(prefixKey: String): JMap[String, String] not needed?
-
+	/**
+	 * Returns if a value under key is exactly equal to the given value.
+	 */
 	public boolean isValue(String key, String value) {
 		return optionalGet(key).orElseThrow(exceptionSupplier(key)).equals(value);
 	}
@@ -706,18 +706,16 @@ class DescriptorProperties {
 	 * Validates a string property. The boundaries are inclusive.
 	 */
 	public void validateString(String key, boolean isOptional, int minLen, int maxLen) {
-		if (!properties.containsKey(key)) {
-			if (!isOptional) {
-				throw new ValidationException("Could not find required property '" + key + "'.");
-			}
-		} else {
-			final String value = properties.get(key);
-			final int length = value.length();
-			if (length < minLen || length > maxLen) {
-				throw new ValidationException(
-					"Property '" + key +"' must have a length between " + minLen + " and " + maxLen + " but was: " + value);
-			}
-		}
+		validateOptional(
+			key,
+			isOptional,
+			(value) -> {
+				final int length = value.length();
+				if (length < minLen || length > maxLen) {
+					throw new ValidationException(
+						"Property '" + key +"' must have a length between " + minLen + " and " + maxLen + " but was: " + value);
+				}
+			});
 	}
 
 	/**
@@ -766,33 +764,30 @@ class DescriptorProperties {
 	 * Validates that a certain value is present under the given key.
 	 */
 	public void validateValue(String key, String value, boolean isOptional) {
-		if (!properties.containsKey(key)) {
-			if (!isOptional) {
-				throw new ValidationException("Could not find required property '" + key + "'.");
-			}
-		} else {
-			if (!properties.get(key).equals(value)) {
-				throw new ValidationException(
-					"Could not find required value '" + value + "' for property '" + key + "'.");
-			}
-		}
+		validateOptional(
+			key,
+			isOptional,
+			(v) -> {
+				if (!v.equals(value)) {
+					throw new ValidationException(
+						"Could not find required value '" + value + "' for property '" + key + "'.");
+				}
+			});
 	}
 
 	/**
 	 * Validates that a boolean value is present under the given key.
 	 */
 	public void validateBoolean(String key, boolean isOptional) {
-		if (!properties.containsKey(key)) {
-			if (!isOptional) {
-				throw new ValidationException("Could not find required property '" + key + "'.");
-			}
-		} else {
-			final String value = properties.get(key);
-			if (!value.equalsIgnoreCase("true") && !value.equalsIgnoreCase("false")) {
-				throw new ValidationException(
-					"Property '" + key + "' must be a boolean value (true/false) but was: " + value);
-			}
-		}
+		validateOptional(
+			key,
+			isOptional,
+			(value) -> {
+				if (!value.equalsIgnoreCase("true") && !value.equalsIgnoreCase("false")) {
+					throw new ValidationException(
+						"Property '" + key + "' must be a boolean value (true/false) but was: " + value);
+				}
+			});
 	}
 
 	/**
@@ -820,19 +815,17 @@ class DescriptorProperties {
 	 * Validates a big decimal property.
 	 */
 	public void validateBigDecimal(String key, boolean isOptional) {
-		if (!properties.containsKey(key)) {
-			if (!isOptional) {
-				throw new ValidationException("Could not find required property '" + key + "'.");
-			}
-		} else {
-			final String value = properties.get(key);
-			try {
-				new BigDecimal(value);
-			} catch (Exception e) {
-				throw new ValidationException(
-					"Property '" + key + "' must be a big decimal value but was: " + value);
-			}
-		}
+		validateOptional(
+			key,
+			isOptional,
+			(value) -> {
+				try {
+					new BigDecimal(value);
+				} catch (Exception e) {
+					throw new ValidationException(
+						"Property '" + key + "' must be a big decimal value but was: " + value);
+				}
+			});
 	}
 
 	/**
@@ -1004,21 +997,19 @@ class DescriptorProperties {
 	 * Validates an enum property with a set of validation logic for each enum value.
 	 */
 	public void validateEnum(String key, boolean isOptional, Map<String, Consumer<String>> enumValidation) {
-		if (!properties.containsKey(key)) {
-			if (!isOptional) {
-				throw new ValidationException("Could not find required property '" + key + "'.");
-			}
-		} else {
-			final String value = properties.get(key);
-			if (!enumValidation.containsKey(value)) {
-				throw new ValidationException(
-					"Unknown value for property '" + key + "'.\n" +
-					"Supported values are " + enumValidation.keySet() + " but was: " + value);
-			} else {
-				// run validation logic
-				enumValidation.get(value).accept(key);
-			}
-		}
+		validateOptional(
+			key,
+			isOptional,
+			(value) -> {
+				if (!enumValidation.containsKey(value)) {
+					throw new ValidationException(
+						"Unknown value for property '" + key + "'.\n" +
+						"Supported values are " + enumValidation.keySet() + " but was: " + value);
+				} else {
+					// run validation logic
+					enumValidation.get(value).accept(key);
+				}
+			});
 	}
 
 	/**
@@ -1035,20 +1026,18 @@ class DescriptorProperties {
 	 * Validates a type property.
 	 */
 	public void validateType(String key, boolean requireRow, boolean isOptional) {
-		if (!properties.containsKey(key)) {
-			if (!isOptional) {
-				throw new ValidationException("Could not find required property '" + key + "'.");
-			}
-		} else {
-			final String value = properties.get(key);
-			// we don't validate the string but let the parser do the work for us
-			// it throws a validation exception
-			final TypeInformation<?> typeInfo = TypeStringUtils.readTypeInfo(value);
-			if (requireRow && !(typeInfo instanceof RowTypeInfo)) {
-				throw new ValidationException(
-					"Row type information expected for key '" + key + "' but was: " + value);
-			}
-		}
+		validateOptional(
+			key,
+			isOptional,
+			(value) -> {
+				// we don't validate the string but let the parser do the work for us
+				// it throws a validation exception
+				final TypeInformation<?> typeInfo = TypeStringUtils.readTypeInfo(value);
+				if (requireRow && !(typeInfo instanceof RowTypeInfo)) {
+					throw new ValidationException(
+						"Row type information expected for key '" + key + "' but was: " + value);
+				}
+			});
 	}
 
 	/**
@@ -1229,9 +1218,6 @@ class DescriptorProperties {
 
 	// --------------------------------------------------------------------------------------------
 
-	/**
-	 * Adds a property.
-	 */
 	private void put(String key, String value) {
 		if (properties.containsKey(key)) {
 		  throw new ValidationException("Property already present: " + key);
@@ -1245,6 +1231,17 @@ class DescriptorProperties {
 
 	private Optional<String> optionalGet(String key) {
 		return Optional.ofNullable(properties.get(key));
+	}
+
+	private void validateOptional(String key, boolean isOptional, Consumer<String> valueValidation) {
+		if (!properties.containsKey(key)) {
+			if (!isOptional) {
+				throw new ValidationException("Could not find required property '" + key + "'.");
+			}
+		} else {
+			final String value = properties.get(key);
+			valueValidation.accept(value);
+		}
 	}
 
 	private Supplier<TableException> exceptionSupplier(String key) {
@@ -1310,7 +1307,7 @@ class DescriptorProperties {
 	}
 
 	public static String toString(String str) {
-		return str; // TODO String escape utils!
+		return EncodingUtils.escapeJava(str).replace("\\/", "/"); // '/' must not be escaped
 	}
 
 	public static String toString(String key, String value) {
@@ -1322,9 +1319,5 @@ class DescriptorProperties {
 			.map(e -> toString(e.getKey(), e.getValue()))
 			.sorted()
 			.collect(Collectors.joining("\n"));
-	}
-
-	public static String normalizeTypeInfo(TypeInformation<?> typeInfo) {
-		return ""; // TODO implement
 	}
 }
