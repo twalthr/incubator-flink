@@ -30,7 +30,14 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+  * Utilities to convert {@link TypeInformation} into a string representation and back.
+  */
 public class TypeStringUtils {
 
 	private static final String VARCHAR = "VARCHAR";
@@ -60,9 +67,6 @@ public class TypeStringUtils {
 	private static final String PRIMITIVE_ARRAY = "PRIMITIVE_ARRAY";
 	private static final String OBJECT_ARRAY = "OBJECT_ARRAY";
 
-	public static TypeInformation<?> readTypeInfo(String typeString) {
-		return null;
-	}
 
 	public static String writeTypeInfo(TypeInformation<?> typeInfo) {
 		if (typeInfo.equals(Types.STRING)) {
@@ -145,7 +149,333 @@ public class TypeStringUtils {
 			final String valueTypeInfo = writeTypeInfo(mapTypeInfo.getValueTypeInfo());
 			return MAP + '<' + keyTypeInfo + ", " + valueTypeInfo + '>';
 		} else {
-			return ANY + '<' + typeInfo.getTypeClass().getName() + ", " + serialize(typeInfo) + '>';
+			return ANY + '<' + typeInfo.getTypeClass().getName() + ", " +
+				EncodingUtils.encodeObjectToString(typeInfo) + '>';
+		}
+	}
+
+	public static TypeInformation<?> readTypeInfo(String typeString) {
+		final List<Token> tokens = tokenize(typeString);
+		final TokenConverter converter = new TokenConverter(tokens);
+		return converter.convert();
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static boolean isDelimiter(char character) {
+		return Character.isWhitespace(character) || character == ',' ||
+			character == '<' || character == '>' || character == '(' || character == ')';
+	}
+
+	private static List<Token> tokenize(String typeString) {
+		final char[] chars = typeString.toCharArray();
+
+		final List<Token> tokens = new ArrayList<>();
+		for (int cursor = 0; cursor < chars.length; cursor++) {
+			char curChar = chars[cursor];
+			if (curChar == '<' || curChar == '(') {
+				tokens.add(new Token(TokenType.BEGIN, Character.toString(curChar), cursor));
+			} else if (curChar == '>' || curChar == ')') {
+				tokens.add(new Token(TokenType.END, Character.toString(curChar), cursor));
+			} else if (curChar == ',') {
+				tokens.add(new Token(TokenType.SEPARATOR, Character.toString(curChar), cursor));
+			} else if (!Character.isWhitespace(curChar)) {
+				// parse literal
+				final StringBuilder literal = new StringBuilder();
+				boolean isEscaped = false;
+				while (cursor < chars.length && (!isDelimiter(chars[cursor]) || isEscaped)) {
+					curChar = chars[cursor++];
+					if (!isEscaped && curChar == '`') {
+						isEscaped = true;
+					} else if (isEscaped && curChar == '`' && cursor + 1 < chars.length && chars[cursor + 1] == '`') {
+						// escaped backtick using "`Hello `` World`"
+						cursor++;
+						literal.append(curChar);
+					} else if (isEscaped && curChar == '`') {
+						break;
+					} else {
+						literal.append(curChar);
+					}
+				}
+				cursor -= 1;
+				tokens.add(new Token(TokenType.LITERAL, literal.toString(), cursor));
+			}
+		}
+
+		return tokens;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private enum TokenType {
+		LITERAL, BEGIN, END, SEPARATOR
+	}
+
+	private static class Token {
+		public final TokenType type;
+		public final String literal;
+		public final int cursorPosition;
+
+		public Token(TokenType type, String literal, int cursorPosition) {
+			this.type = type;
+			this.literal = literal;
+			this.cursorPosition = cursorPosition;
+		}
+	}
+
+	private static class TokenConverter {
+
+		private List<Token> tokens;
+		private int lastValidToken;
+		private int currentToken;
+
+		public TokenConverter(List<Token> tokens) {
+			this.tokens = tokens;
+			this.lastValidToken = -1;
+			this.currentToken = -1;
+		}
+
+		public TypeInformation<?> convert() {
+			nextToken(TokenType.LITERAL);
+			final TypeInformation<?> typeInfo = convertType();
+			if (hasRemainingTokens()) {
+				nextToken();
+				throw parsingError("Unexpected token: " + token().literal);
+			}
+			return typeInfo;
+		}
+
+		private TypeInformation<?> convertType() {
+			final TypeInformation<?> typeInfo;
+			switch (token().literal) {
+				case VARCHAR:
+				case STRING:
+					return Types.STRING;
+				case BOOLEAN:
+					return Types.BOOLEAN;
+				case TINYINT:
+				case BYTE:
+					return Types.BYTE;
+				case SMALLINT:
+				case SHORT:
+					return Types.SHORT;
+				case INT:
+					return Types.INT;
+				case BIGINT:
+				case LONG:
+					return Types.LONG;
+				case FLOAT:
+					return Types.FLOAT;
+				case DOUBLE:
+					return Types.DOUBLE;
+				case DECIMAL:
+					return Types.BIG_DEC;
+				case DATE:
+				case SQL_DATE:
+					return Types.SQL_DATE;
+				case TIMESTAMP:
+				case SQL_TIMESTAMP:
+					return Types.SQL_TIMESTAMP;
+				case TIME:
+				case SQL_TIME:
+					return Types.SQL_TIME;
+				case ROW:
+					return convertRow();
+				case ANY:
+					return convertAny();
+				case POJO:
+					return convertPojo();
+				case MAP:
+					return convertMap();
+				case MULTISET:
+					return convertMultiset();
+				case PRIMITIVE_ARRAY:
+					return convertPrimitiveArray();
+				case OBJECT_ARRAY:
+					return convertObjectArray();
+				default:
+					throw parsingError("Unsupported type: " + token().literal);
+			}
+		}
+
+		private TypeInformation<?> convertRow() {
+			nextToken(TokenType.BEGIN);
+
+			// check if ROW<INT, INT> or ROW<name INT, other INT>
+			if (isNextToken(2, TokenType.LITERAL)) {
+				// named row
+				final List<String> names = new ArrayList<>();
+				final List<TypeInformation<?>> types = new ArrayList<>();
+				while (hasRemainingTokens()) {
+					nextToken(TokenType.LITERAL);
+					names.add(token().literal);
+
+					nextToken(TokenType.LITERAL);
+					types.add(convertType());
+
+					if (isNextToken(1, TokenType.END)) {
+						break;
+					}
+					nextToken(TokenType.SEPARATOR);
+				}
+
+				nextToken(TokenType.END);
+
+				return Types.ROW_NAMED(
+					names.toArray(new String[0]),
+					types.toArray(new TypeInformation<?>[0]));
+			} else {
+				// unnamed row
+				final List<TypeInformation<?>> types = new ArrayList<>();
+				while (hasRemainingTokens()) {
+					nextToken(TokenType.LITERAL);
+					types.add(convertType());
+
+					if (isNextToken(1, TokenType.END)) {
+						break;
+					}
+					nextToken(TokenType.SEPARATOR);
+				}
+
+				nextToken(TokenType.END);
+
+				return Types.ROW(types.toArray(new TypeInformation<?>[0]));
+			}
+		}
+
+		private TypeInformation<?> convertAny() {
+			nextToken(TokenType.BEGIN);
+
+			// check if ANY(class) or ANY(class, serialized)
+			if (isNextToken(2, TokenType.SEPARATOR)) {
+				// any type information
+				nextToken(TokenType.LITERAL);
+				final String className = token().literal;
+
+				nextToken(TokenType.SEPARATOR);
+
+				nextToken(TokenType.LITERAL);
+				final String serialized = token().literal;
+
+				nextToken(TokenType.END);
+
+				final Class<?> clazz = EncodingUtils.loadClass(className);
+				final TypeInformation<?> typeInfo = EncodingUtils.decodeStringToObject(serialized, TypeInformation.class);
+				if (!clazz.equals(typeInfo.getTypeClass())) {
+					throw new ValidationException("Class '" + clazz + "' does no correspond to serialized data.");
+				}
+				return typeInfo;
+			} else {
+				// generic type information
+				nextToken(TokenType.LITERAL);
+				final String className = token().literal;
+
+				nextToken(TokenType.END);
+
+				final Class<?> clazz = EncodingUtils.loadClass(className);
+				return Types.GENERIC(clazz);
+			}
+		}
+
+		private TypeInformation<?> convertPojo() {
+			nextToken(TokenType.BEGIN);
+
+			nextToken(TokenType.LITERAL);
+			final String className = token().literal;
+
+			nextToken(TokenType.END);
+
+			final Class<?> clazz = EncodingUtils.loadClass(className);
+			return Types.POJO(clazz);
+		}
+
+		private TypeInformation<?> convertMap() {
+			nextToken(TokenType.BEGIN);
+
+			nextToken(TokenType.LITERAL);
+			final TypeInformation<?> keyTypeInfo = convertType();
+
+			nextToken(TokenType.SEPARATOR);
+
+			nextToken(TokenType.LITERAL);
+			final TypeInformation<?> valueTypeInfo = convertType();
+
+			nextToken(TokenType.END);
+
+			return Types.MAP(keyTypeInfo, valueTypeInfo);
+		}
+
+		private TypeInformation<?> convertMultiset() {
+			nextToken(TokenType.BEGIN);
+
+			nextToken(TokenType.LITERAL);
+			final TypeInformation<?> elementTypeInfo = convertType();
+
+			nextToken(TokenType.END);
+
+			return new MultisetTypeInfo<>(elementTypeInfo);
+		}
+
+		private TypeInformation<?> convertPrimitiveArray() {
+			nextToken(TokenType.BEGIN);
+
+			nextToken(TokenType.LITERAL);
+			final TypeInformation<?> elementTypeInfo = convertType();
+
+			nextToken(TokenType.END);
+
+			return Types.PRIMITIVE_ARRAY(elementTypeInfo);
+		}
+
+		private TypeInformation<?> convertObjectArray() {
+			nextToken(TokenType.BEGIN);
+
+			nextToken(TokenType.LITERAL);
+			final TypeInformation<?> elementTypeInfo = convertType();
+
+			nextToken(TokenType.END);
+
+			return Types.OBJECT_ARRAY(elementTypeInfo);
+		}
+
+		private void nextToken(TokenType type) {
+			nextToken();
+			final Token nextToken = tokens.get(currentToken);
+			if (nextToken.type != type) {
+				throw parsingError(type.name() + " expected but was: " + nextToken.type);
+			}
+		}
+
+		private void nextToken() {
+			this.currentToken++;
+			if (currentToken >= tokens.size()) {
+				throw parsingError("Unexpected end.");
+			}
+			lastValidToken = this.currentToken - 1;
+		}
+
+		private boolean isNextToken(int lookAhead, TokenType type) {
+			return currentToken + lookAhead < tokens.size() &&
+				tokens.get(currentToken + lookAhead).type == type;
+		}
+
+		private int lastCursor() {
+			if (lastValidToken < 0) {
+				return 0;
+			}
+			return tokens.get(lastValidToken).cursorPosition;
+		}
+
+		private ValidationException parsingError(String cause) {
+			throw new ValidationException("Could not parse type information at " + lastCursor() + ": " + cause);
+		}
+
+		private Token token() {
+			return tokens.get(currentToken);
+		}
+
+		private boolean hasRemainingTokens() {
+			return currentToken + 1 < tokens.size();
 		}
 	}
 }

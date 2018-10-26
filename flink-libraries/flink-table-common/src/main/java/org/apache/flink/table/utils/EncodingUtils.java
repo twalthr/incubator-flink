@@ -18,9 +18,15 @@
 
 package org.apache.flink.table.utils;
 
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.util.InstantiationUtil;
+
 import java.io.IOException;
+import java.io.Serializable;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 /**
  * General utilities for string-encoding. This class is used to avoid additional dependencies
@@ -28,8 +34,55 @@ import java.io.Writer;
  */
 public abstract class EncodingUtils {
 
+	private static Base64.Encoder BASE64_ENCODER = java.util.Base64.getUrlEncoder().withoutPadding();
+
+	private static Base64.Decoder BASE64_DECODER = java.util.Base64.getUrlDecoder();
+
 	private EncodingUtils() {
 		// do not instantiate
+	}
+
+	public static String encodeObjectToString(Serializable obj) {
+		try {
+			final byte[] bytes = InstantiationUtil.serializeObject(obj);
+			return new String(BASE64_ENCODER.encode(bytes), StandardCharsets.UTF_8);
+		} catch (Exception e) {
+			throw new ValidationException(
+				"Unable to serialize object '" + obj.toString() + "' of class '" + obj.getClass().getName() + "'.");
+		}
+	}
+
+	public static <T extends Serializable> T decodeStringToObject(String base64String, Class<T> baseClass) {
+		return decodeStringToObject(base64String, baseClass, Thread.currentThread().getContextClassLoader());
+	}
+
+	public static <T extends Serializable> T decodeStringToObject(String base64String, Class<T> baseClass, ClassLoader classLoader) {
+		try {
+			final byte[] bytes = BASE64_DECODER.decode(base64String.getBytes(StandardCharsets.UTF_8));
+			final T instance = InstantiationUtil.deserializeObject(bytes, classLoader);
+			if (instance != null && !baseClass.isAssignableFrom(instance.getClass())) {
+				throw new ValidationException(
+					"Object '" + instance + "' does not match expected base class '" + baseClass +
+						"' but is of class '" + instance.getClass() + "'.");
+			}
+			return instance;
+		} catch (Exception e) {
+			throw new ValidationException(
+				"Unable to deserialize string '" + base64String + "' of base class '" + baseClass.getName() + "'.");
+		}
+	}
+
+	public static Class<?> loadClass(String qualifiedName, ClassLoader classLoader) {
+		try {
+			return Class.forName(qualifiedName, true, classLoader);
+		} catch (Exception e) {
+			throw new ValidationException("Class '" + qualifiedName + "' could not be loaded. " +
+				"Please note that inner classes must be globally accessible and declared static.", e);
+		}
+	}
+
+	public static Class<?> loadClass(String qualifiedName) {
+		return loadClass(qualifiedName, Thread.currentThread().getContextClassLoader());
 	}
 
 	// --------------------------------------------------------------------------------------------
