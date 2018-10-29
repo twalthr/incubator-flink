@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
@@ -111,11 +110,15 @@ public abstract class EncodingUtils {
 		return MD5_MESSAGE_DIGEST.digest(string.getBytes(UTF_8));
 	}
 
+	public static String hex(String string) {
+		return hex(string.getBytes(UTF_8));
+	}
+
 	public static String hex(byte[] bytes) {
 		// adopted from https://stackoverflow.com/a/9855338
-		char[] hexChars = new char[bytes.length * 2];
+		final char[] hexChars = new char[bytes.length * 2];
 		for (int j = 0; j < bytes.length; j++) {
-			int v = bytes[j] & 0xFF;
+			final int v = bytes[j] & 0xFF;
 			hexChars[j * 2] = HEX_CHARS[v >>> 4];
 			hexChars[j * 2 + 1] = HEX_CHARS[v & 0x0F];
 		}
@@ -134,6 +137,7 @@ public abstract class EncodingUtils {
 	// Java String Escaping
 	//
 	// copied from o.a.commons.lang.StringEscapeUtils (commons-lang:commons-lang:2.4)
+	// but without escaping forward slashes.
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -240,10 +244,11 @@ public abstract class EncodingUtils {
 						out.write('\\');
 						out.write('\\');
 						break;
-					case '/':
-						out.write('\\');
-						out.write('/');
-						break;
+					// MODIFICATION: Flink removes invalid escaping of forward slashes!
+					// case '/':
+					//	out.write('\\');
+					//	out.write('/');
+					//	break;
 					default:
 						out.write(ch);
 						break;

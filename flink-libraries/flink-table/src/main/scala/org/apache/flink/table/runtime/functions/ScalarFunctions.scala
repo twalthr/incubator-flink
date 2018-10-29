@@ -19,10 +19,8 @@ package org.apache.flink.table.runtime.functions
 
 import java.lang.{StringBuilder, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
-import java.nio.charset.StandardCharsets
 import java.util.regex.{Matcher, Pattern}
 
-import org.apache.commons.codec.binary.Hex
 import org.apache.commons.lang3.StringUtils
 import org.apache.flink.table.utils.EncodingUtils
 
@@ -281,13 +279,13 @@ object ScalarFunctions {
   /**
     * Returns the hex string of a long argument.
     */
-  def hex(x: Long): String = JLong.toHexString(x).toUpperCase()
+  def hex(string: Long): String = JLong.toHexString(string).toUpperCase()
 
   /**
     * Returns the hex string of a string argument.
     */
-  def hex(x: String): String =
-    Hex.encodeHexString(x.getBytes(StandardCharsets.UTF_8)).toUpperCase()
+  def hex(string: String): String =
+    EncodingUtils.hex(string).toUpperCase()
 
   /**
     * Returns an UUID string using Java utilities.

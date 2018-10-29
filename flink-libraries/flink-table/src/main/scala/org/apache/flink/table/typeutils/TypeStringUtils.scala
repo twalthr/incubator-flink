@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.typeutils
 
-import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils._
@@ -97,7 +96,7 @@ object TypeStringUtils extends JavaTokenParsers with PackratParsers {
 
   lazy val escapedFieldName: PackratParser[String] = stringLiteral ^^ { s =>
     val unquoted = s.substring(1, s.length - 1)
-    StringEscapeUtils.unescapeJava(unquoted)
+    unquoted // TODO fix this
   }
 
   lazy val fieldName: PackratParser[String] = escapedFieldName | ident
@@ -207,7 +206,7 @@ object TypeStringUtils extends JavaTokenParsers with PackratParsers {
 
         // escape field name if it contains spaces
         val name = if (!f._1.matches("\\S+")) {
-          "\"" + StringEscapeUtils.escapeJava(f._1) + "\""
+          "\"" + EncodingUtils.escapeJava(f._1) + "\""
         } else {
           f._1
         }

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.table.codegen.CodeGenUtils.newName
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallWithStmtIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.utils.EncodingUtils
 
 class HashCalcCallGen(algName: String) extends CallGenerator {
 
@@ -70,7 +71,7 @@ class HashCalcCallGen(algName: String) extends CallGenerator {
             |${initStmt.getOrElse("")}
             |$md.update(${terms.head}.getBytes(${classOf[StandardCharsets].getCanonicalName}.UTF_8));
             |""".stripMargin
-        val result = s"${classOf[Hex].getCanonicalName}.encodeHexString($md.digest())"
+        val result = s"${classOf[EncodingUtils].getCanonicalName}.hex($md.digest())"
         (Some(auxiliaryStmt), result)
     }
   }

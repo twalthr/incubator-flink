@@ -183,4 +183,22 @@ object TypeCheckUtils {
       }
     }
   }
+
+  /**
+    * Checks if a class is a Java primitive wrapper.
+    */
+  def isPrimitiveWrapper(clazz: Class[_]): Boolean = {
+    clazz == classOf[java.lang.Boolean] ||
+    clazz == classOf[java.lang.Byte] ||
+    clazz == classOf[java.lang.Character] ||
+    clazz == classOf[java.lang.Short] ||
+    clazz == classOf[java.lang.Integer] ||
+    clazz == classOf[java.lang.Long] ||
+    clazz == classOf[java.lang.Double] ||
+    clazz == classOf[java.lang.Float]
+  }
+
+  def isAssignable(): Unit = {
+    
+  }
 }

@@ -26,7 +26,6 @@ import java.util.function.{BiConsumer, Consumer, Function, Supplier}
 import java.util.regex.Pattern
 import java.util.{Optional, List => JList, Map => JMap}
 
-import org.apache.commons.lang.StringEscapeUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -1529,7 +1528,7 @@ object DescriptorProperties {
   }
 
   def toString(keyOrValue: String): String = {
-    StringEscapeUtils.escapeJava(keyOrValue).replace("\\/", "/") // '/' must not be escaped
+    EncodingUtils.escapeJava(keyOrValue)
   }
 
   def toString(key: String, value: String): String = {

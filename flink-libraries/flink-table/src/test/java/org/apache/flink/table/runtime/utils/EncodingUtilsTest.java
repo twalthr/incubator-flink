@@ -47,6 +47,19 @@ public class EncodingUtilsTest {
 		assertEquals(string, EncodingUtils.decodeBase64ToString(base64));
 	}
 
+	@Test
+	public void testMd5Hex() {
+		final String string = "Hello, world! How are you? 高精确";
+		assertEquals("983abac84e994b4ba73be177e5cc298b", EncodingUtils.hex(EncodingUtils.md5(string)));
+	}
+
+	@Test
+	public void testJavaEscaping() {
+		assertEquals("\\\\hello\\\"world'space/", EncodingUtils.escapeJava("\\hello\"world'space/"));
+	}
+
+	// --------------------------------------------------------------------------------------------
+
 	private static class MyPojo implements Serializable {
 
 		private int number;
