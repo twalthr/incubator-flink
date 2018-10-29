@@ -31,11 +31,11 @@ import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, 
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.GeneratedAggregationsFunction
 import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.aggfunctions.{IntSumWithRetractAggFunction, LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
 import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.utils.EncodingUtils
 import org.junit.Rule
 import org.junit.rules.ExpectedException
 
@@ -47,13 +47,13 @@ class HarnessTestBase {
   def thrown = expectedException
 
   val longMinWithRetractAggFunction: String =
-    UserDefinedFunctionUtils.serialize(new LongMinWithRetractAggFunction)
+    EncodingUtils.encodeObjectToString(new LongMinWithRetractAggFunction)
 
   val longMaxWithRetractAggFunction: String =
-    UserDefinedFunctionUtils.serialize(new LongMaxWithRetractAggFunction)
+    EncodingUtils.encodeObjectToString(new LongMaxWithRetractAggFunction)
 
   val intSumWithRetractAggFunction: String =
-    UserDefinedFunctionUtils.serialize(new IntSumWithRetractAggFunction)
+    EncodingUtils.encodeObjectToString(new IntSumWithRetractAggFunction)
 
   protected val MinMaxRowType = new RowTypeInfo(Array[TypeInformation[_]](
     LONG_TYPE_INFO,

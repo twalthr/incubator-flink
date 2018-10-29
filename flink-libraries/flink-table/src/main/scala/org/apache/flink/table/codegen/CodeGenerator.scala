@@ -44,6 +44,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.table.utils.EncodingUtils
 import org.joda.time.format.DateTimeFormatter
 
 import scala.collection.JavaConversions._
@@ -1610,7 +1611,7 @@ abstract class CodeGenerator(
     */
   def addReusableFunction(function: UserDefinedFunction, contextTerm: String = null): String = {
     val classQualifier = function.getClass.getCanonicalName
-    val functionSerializedData = UserDefinedFunctionUtils.serialize(function)
+    val functionSerializedData = EncodingUtils.encodeObjectToString(function)
     val fieldTerm = s"function_${function.functionIdentifier}"
 
     val fieldFunction =

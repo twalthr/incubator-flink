@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.commons.codec.Charsets
-import org.apache.commons.codec.binary.Hex
+import java.nio.charset.StandardCharsets
+
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.table.codegen.CodeGenUtils.newName
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallWithStmtIfArgsNotNull
@@ -68,7 +68,7 @@ class HashCalcCallGen(algName: String) extends CallGenerator {
         val auxiliaryStmt =
           s"""
             |${initStmt.getOrElse("")}
-            |$md.update(${terms.head}.getBytes(${classOf[Charsets].getCanonicalName}.UTF_8));
+            |$md.update(${terms.head}.getBytes(${classOf[StandardCharsets].getCanonicalName}.UTF_8));
             |""".stripMargin
         val result = s"${classOf[Hex].getCanonicalName}.encodeHexString($md.digest())"
         (Some(auxiliaryStmt), result)

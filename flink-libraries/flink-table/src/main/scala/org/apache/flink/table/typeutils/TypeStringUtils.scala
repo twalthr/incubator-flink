@@ -18,17 +18,13 @@
 
 package org.apache.flink.table.typeutils
 
-import java.io.Serializable
-
-import org.apache.commons.codec.binary.Base64
 import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, TypeInformation}
-import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.descriptors.DescriptorProperties.normalizeTypeInfo
-import org.apache.flink.util.InstantiationUtil
+import org.apache.flink.table.utils.EncodingUtils
 
 import _root_.scala.language.implicitConversions
 import _root_.scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
@@ -142,14 +138,8 @@ object TypeStringUtils extends JavaTokenParsers with PackratParsers {
   lazy val any: PackratParser[TypeInformation[_]] =
     ANY ~ leftBracket ~ qualifiedName ~ "," ~ base64Url ~ rightBracket ^^ {
       case _ ~ _ ~ typeClass ~ _ ~ serialized ~ _=>
-        val clazz = loadClass(typeClass)
-        val typeInfo = deserialize(serialized)
-
-        if (clazz != typeInfo.getTypeClass) {
-          throw new ValidationException(
-            s"Class '$typeClass' does no correspond to serialized data.")
-        }
-        typeInfo
+        val clazz = loadClass(typeClass).asInstanceOf[Class[TypeInformation[_]]]
+        EncodingUtils.decodeStringToObject(serialized, clazz)
     }
 
   lazy val genericMap: PackratParser[TypeInformation[_]] =
@@ -259,27 +249,10 @@ object TypeStringUtils extends JavaTokenParsers with PackratParsers {
       s"${MAP.key}<$normalizedKey, $normalizedValue>"
 
     case any: TypeInformation[_] =>
-      s"${ANY.key}<${any.getTypeClass.getName}, ${serialize(any)}>"
+      s"${ANY.key}<${any.getTypeClass.getName}, ${EncodingUtils.encodeObjectToString(any)}>"
   }
 
   // ----------------------------------------------------------------------------------------------
-
-  private def serialize(obj: Serializable): String = {
-    try {
-      val byteArray = InstantiationUtil.serializeObject(obj)
-      Base64.encodeBase64URLSafeString(byteArray)
-    } catch {
-      case e: Exception =>
-        throw new ValidationException(s"Unable to serialize type information '$obj' with " +
-          s"class '${obj.getClass.getName}'.", e)
-    }
-  }
-
-  private def deserialize(data: String): TypeInformation[_] = {
-    val byteData = Base64.decodeBase64(data)
-    InstantiationUtil
-      .deserializeObject[TypeInformation[_]](byteData, Thread.currentThread.getContextClassLoader)
-  }
 
   private def throwError(msg: String, next: Input): Nothing = {
     val improvedMsg = msg.replace("string matching regex `\\z'", "End of type information")

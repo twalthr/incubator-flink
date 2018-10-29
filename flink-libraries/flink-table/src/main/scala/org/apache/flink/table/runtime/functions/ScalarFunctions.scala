@@ -20,11 +20,11 @@ package org.apache.flink.table.runtime.functions
 import java.lang.{StringBuilder, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.nio.charset.StandardCharsets
-import java.util.regex.Matcher
-import java.util.regex.Pattern
+import java.util.regex.{Matcher, Pattern}
 
-import org.apache.commons.codec.binary.{Base64, Hex}
+import org.apache.commons.codec.binary.Hex
 import org.apache.commons.lang3.StringUtils
+import org.apache.flink.table.utils.EncodingUtils
 
 import scala.annotation.varargs
 
@@ -269,14 +269,14 @@ object ScalarFunctions {
   /**
     * Returns the base string decoded with base64.
     */
-  def fromBase64(str: String): String =
-    new String(Base64.decodeBase64(str), StandardCharsets.UTF_8)
+  def fromBase64(base64: String): String =
+    EncodingUtils.decodeBase64ToString(base64)
 
   /**
     * Returns the base64-encoded result of the input string.
     */
-  def toBase64(base: String): String =
-    Base64.encodeBase64String(base.getBytes(StandardCharsets.UTF_8))
+  def toBase64(string: String): String =
+    EncodingUtils.encodeStringToBase64(string)
 
   /**
     * Returns the hex string of a long argument.

@@ -22,11 +22,10 @@ import java.io.Serializable
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
 import java.math.{BigDecimal => JBigDecimal}
 import java.util
-import java.util.function.{BiConsumer, Consumer, Supplier, Function}
+import java.util.function.{BiConsumer, Consumer, Function, Supplier}
 import java.util.regex.Pattern
 import java.util.{Optional, List => JList, Map => JMap}
 
-import org.apache.commons.codec.binary.Base64
 import org.apache.commons.lang.StringEscapeUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
@@ -35,8 +34,9 @@ import org.apache.flink.configuration.MemorySize
 import org.apache.flink.table.api.{TableException, TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.DescriptorProperties.{NAME, TYPE, normalizeTableSchema, toJava}
 import org.apache.flink.table.typeutils.TypeStringUtils
-import org.apache.flink.util.{InstantiationUtil, Preconditions}
+import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.util.Preconditions.checkNotNull
+import org.apache.flink.util.{InstantiationUtil, Preconditions}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -1518,32 +1518,14 @@ object DescriptorProperties {
     if (error != null) {
       throw new ValidationException(s"Class '${obj.getClass.getName}' is not supported: $error")
     }
-    try {
-      val byteArray = InstantiationUtil.serializeObject(obj)
-      Base64.encodeBase64URLSafeString(byteArray)
-    } catch {
-      case e: Exception =>
-        throw new ValidationException(
-          s"Unable to serialize class '${obj.getClass.getCanonicalName}'.", e)
-    }
+    EncodingUtils.encodeObjectToString(obj)
   }
 
-  def deserialize[T](data: String, expected: Class[T]): T = {
-    try {
-      val byteData = Base64.decodeBase64(data)
-      val obj = InstantiationUtil.deserializeObject[T](
-        byteData,
-        Thread.currentThread.getContextClassLoader)
-      if (!expected.isAssignableFrom(obj.getClass)) {
-        throw new ValidationException(
-          s"Serialized data contains an object of unexpected type. " +
-          s"Expected '${expected.getName}' but was '${obj.getClass.getName}'")
-      }
-      obj
-    } catch {
-      case e: Exception =>
-        throw new ValidationException(s"Could not deserialize data: '$data'", e)
-    }
+  def deserialize[T <: Serializable](data: String, expected: Class[T]): T = {
+    EncodingUtils.decodeStringToObject(
+      data,
+      expected,
+      Thread.currentThread().getContextClassLoader)
   }
 
   def toString(keyOrValue: String): String = {
