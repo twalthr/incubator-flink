@@ -21,6 +21,7 @@ package org.apache.flink.table.api.stream.sql.validation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
 
@@ -133,6 +134,33 @@ class JoinValidationTest extends TableTestBase {
         |FROM MyTable t1, MyTable2 t2
         |WHERE t1.a = t2.a AND t1.proctime > t2.proctime
         | """.stripMargin
+
+    streamUtil.verifySql(sql, "n/a")
+  }
+
+  /** Rowtime attributes cannot be accessed in filter conditions yet. */
+  @Test(expected = classOf[TableException])
+  def testJoinWithRowtimeCondition(): Unit = {
+    val sql =
+      """
+        |SELECT t2.a
+        |FROM MyTable t1 JOIN MyTable2 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.c > t2.c - INTERVAL '5' SECOND
+        |""".stripMargin
+
+    streamUtil.verifySql(sql, "n/a")
+  }
+
+  /** Rowtime attributes cannot be accessed in projection yet. */
+  @Test(expected = classOf[TableException])
+  def testJoinWithRowtimeProjection(): Unit = {
+    val sql =
+      """
+        |SELECT t2.a, t2.c
+        |FROM MyTable t1 JOIN MyTable2 t2 ON
+        |  t1.a = t2.a
+        |""".stripMargin
 
     streamUtil.verifySql(sql, "n/a")
   }
