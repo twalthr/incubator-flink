@@ -154,7 +154,7 @@ class JoinValidationTest extends TableTestBase {
 
   /** Rowtime attributes cannot be accessed in filter conditions yet. */
   @Test(expected = classOf[TableException])
-  def testJoinWithComplexRowtimeCondition(): Unit = {
+  def testJoinWithRowtimeConditionFromComplexQuery(): Unit = {
     val util = streamTestUtil()
 
     util.addTable[(Long, Long)]("MyTable1", 'id, 'eventTs.rowtime)
