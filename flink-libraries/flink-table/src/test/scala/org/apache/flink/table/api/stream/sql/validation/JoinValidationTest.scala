@@ -152,6 +152,41 @@ class JoinValidationTest extends TableTestBase {
     streamUtil.verifySql(sql, "n/a")
   }
 
+  /** Rowtime attributes cannot be accessed in filter conditions yet. */
+  @Test(expected = classOf[TableException])
+  def testJoinWithComplexRowtimeCondition(): Unit = {
+    val util = streamTestUtil()
+
+    util.addTable[(Long, Long)]("MyTable1", 'id, 'eventTs.rowtime)
+
+    util.addTable[(Long, Long)]("MyTable2", 'id, 'eventTs.rowtime)
+
+    val sql1 =
+      """SELECT
+        |  id,
+        |  eventTs AS t1,
+        |  COUNT(*) OVER (
+        |    PARTITION BY id ORDER BY eventTs ROWS BETWEEN 100 PRECEDING AND CURRENT ROW
+        |  ) AS cnt1
+        |FROM MyTable1
+        |""".stripMargin
+    val sql2 =
+      """SELECT DISTINCT
+        |  id AS r_id,
+        |  eventTs AS t2,
+        |  COUNT(*) OVER (
+        |    PARTITION BY id ORDER BY eventTs ROWS BETWEEN 50 PRECEDING AND CURRENT ROW
+        |  ) AS cnt2
+        |FROM MyTable2
+        |""".stripMargin
+
+    val left = util.tableEnv.sqlQuery(sql1)
+    val right = util.tableEnv.sqlQuery(sql2)
+    val result = left.join(right).where("id === r_id && t1 === t2").select("id, t1")
+
+    util.verifyTable(result, "n/a")
+  }
+
   /** Rowtime attributes cannot be accessed in projection yet. */
   @Test(expected = classOf[TableException])
   def testJoinWithRowtimeProjection(): Unit = {
