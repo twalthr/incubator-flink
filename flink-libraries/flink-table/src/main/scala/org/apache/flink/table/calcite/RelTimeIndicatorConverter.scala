@@ -29,7 +29,9 @@ import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, _}
 import org.apache.flink.table.functions.sql.ProctimeSqlFunction
 import org.apache.flink.table.plan.logical.rel.{LogicalTemporalTableJoin, LogicalWindowAggregate}
+import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.plan.util.RelDefaultShuttle
 import org.apache.flink.table.validate.BasicOperatorTable
 
 import scala.collection.JavaConversions._
@@ -41,14 +43,11 @@ import scala.collection.mutable
   * time attribute is accessed for a calculation, it will be materialized. Forwarding is allowed in
   * some cases, but not all.
   */
-class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
+class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelDefaultShuttle {
 
   val materializerUtils = new RexTimeIndicatorMaterializerUtils(rexBuilder)
 
-  override def visit(intersect: LogicalIntersect): RelNode =
-    throw new TableException("Logical intersect in a stream environment is not supported yet.")
-
-  override def visit(union: LogicalUnion): RelNode = {
+  def convert(union: FlinkLogicalUnion): FlinkLogicalUnion = {
     // visit children and update inputs
     val inputs = union.getInputs.map(_.accept(this))
 
@@ -83,21 +82,19 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         "Union fields with time attributes have different types.")
     }
 
-    LogicalUnion.create(inputs, union.all)
+    FlinkLogicalUnion.create(inputs, union.all)
   }
 
-  override def visit(aggregate: LogicalAggregate): RelNode = convertAggregate(aggregate)
-
-  override def visit(minus: LogicalMinus): RelNode =
-    throw new TableException("Logical minus in a stream environment is not supported yet.")
-
-  override def visit(sort: LogicalSort): RelNode = {
-
+  def convert(sort: FlinkLogicalSort): FlinkLogicalSort = {
     val input = sort.getInput.accept(this)
-    LogicalSort.create(input, sort.collation, sort.offset, sort.fetch)
+    FlinkLogicalSort.create(
+      input,
+      sort.collation,
+      sort.offset,
+      sort.fetch)
   }
 
-  override def visit(matchRel: LogicalMatch): RelNode = {
+  def convert(matchRel: FlinkLogicalMatch): FlinkLogicalMatch = {
     // visit children and update inputs
     val input = matchRel.getInput.accept(this)
 
@@ -123,10 +120,9 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     }
 
     // materialize all output types
-    // TODO allow passing through for rowtime accessor function, once introduced
     val outputType = materializerUtils.getRowTypeWithoutIndicators(matchRel.getRowType)
 
-    LogicalMatch.create(
+    FlinkLogicalMatch.create(
       input,
       outputType,
       matchRel.getPattern,
@@ -142,23 +138,26 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       interval)
   }
 
-  override def visit(other: RelNode): RelNode = other match {
+  def convert(aggregate: FlinkLogicalAggregate): FlinkLogicalAggregate = convertAggregate(aggregate)
+
+  def convert(scan: FlinkLogicalTableFunctionScan): FlinkLogicalTableFunctionScan = scan
+
+  def convert(aggregate: FlinkLogicalWindowAggregate): FlinkLogicalWindowAggregate = {
+    FlinkLogicalWindowAggregate.create(
+      aggregate.getWindow,
+      aggregate.getNamedProperties,
+      convertAggregate(aggregate))
+  }
+
+  def convert(other: RelNode): RelNode = other match {
 
     case uncollect: Uncollect =>
       // visit children and update inputs
       val input = uncollect.getInput.accept(this)
       Uncollect.create(uncollect.getTraitSet, input, uncollect.withOrdinality)
 
-    case scan: LogicalTableFunctionScan =>
-      scan
-
     case aggregate: LogicalWindowAggregate =>
-      val convAggregate = convertAggregate(aggregate)
 
-      LogicalWindowAggregate.create(
-        aggregate.getWindow,
-        aggregate.getNamedProperties,
-        convAggregate)
 
     case temporalTableJoin: LogicalTemporalTableJoin =>
       visit(temporalTableJoin)
@@ -288,7 +287,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     rowType.getFieldList.exists(field => isRowtimeIndicatorType(field.getType))
   }
 
-  private def convertAggregate(aggregate: Aggregate): LogicalAggregate = {
+  private def convertAggregate(aggregate: Aggregate): FlinkLogicalAggregate = {
     // visit children and update inputs
     val input = aggregate.getInput.accept(this)
 
@@ -369,6 +368,8 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
     indicesToMaterialize.toSet
   }
+
+  override def visitNode(node: RelNode): RelNode = convert(node)
 }
 
 object RelTimeIndicatorConverter {

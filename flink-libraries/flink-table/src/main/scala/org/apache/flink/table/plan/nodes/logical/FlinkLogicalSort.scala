@@ -97,5 +97,23 @@ class FlinkLogicalSortConverter
 }
 
 object FlinkLogicalSort {
+
   val CONVERTER: RelOptRule = new FlinkLogicalSortConverter
+
+  def create(
+      child: RelNode,
+      collation: RelCollation,
+      sortOffset: RexNode,
+      sortFetch: RexNode)
+    : FlinkLogicalSort = {
+    val cluster: RelOptCluster = child.getCluster
+    val traitSet: RelTraitSet = cluster.traitSetOf(FlinkConventions.LOGICAL)
+    new FlinkLogicalSort(
+      cluster,
+      traitSet,
+      child,
+      collation,
+      sortOffset,
+      sortFetch)
+  }
 }

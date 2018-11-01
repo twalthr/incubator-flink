@@ -807,11 +807,13 @@ abstract class StreamTableEnvironment(
     val temporalTableJoinPlan = optimizeConvertToTemporalJoin(convSubQueryPlan)
     val fullNode = optimizeConvertTableReferences(temporalTableJoinPlan)
     val decorPlan = RelDecorrelator.decorrelateQuery(fullNode)
-    val planWithMaterializedTimeAttributes =
-      RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
-    val normalizedPlan = optimizeNormalizeLogicalPlan(planWithMaterializedTimeAttributes)
+    val normalizedPlan = optimizeNormalizeLogicalPlan(decorPlan)
     val logicalPlan = optimizeLogicalPlan(normalizedPlan)
-    val physicalPlan = optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASTREAM)
+    val planWithMaterializedTimeAttributes =
+      RelTimeIndicatorConverter.convert(logicalPlan, getRelBuilder.getRexBuilder)
+    val physicalPlan = optimizePhysicalPlan(
+      planWithMaterializedTimeAttributes,
+      FlinkConventions.DATASTREAM)
     optimizeDecoratePlan(physicalPlan, updatesAsRetraction)
   }
 

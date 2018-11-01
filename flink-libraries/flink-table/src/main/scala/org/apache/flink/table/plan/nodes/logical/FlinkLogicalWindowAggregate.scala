@@ -140,5 +140,10 @@ class FlinkLogicalWindowAggregateConverter
 }
 
 object FlinkLogicalWindowAggregate {
+
   val CONVERTER = new FlinkLogicalWindowAggregateConverter
+
+  def create(): Unit = {
+
+  }
 }

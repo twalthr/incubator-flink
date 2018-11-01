@@ -29,6 +29,8 @@ import org.apache.calcite.rel.logical.LogicalMatch
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
+import scala.collection.mutable
+
 class FlinkLogicalMatch(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -128,5 +130,42 @@ private class FlinkLogicalMatchConverter
 }
 
 object FlinkLogicalMatch {
+
   val CONVERTER: ConverterRule = new FlinkLogicalMatchConverter()
+
+  def create(
+      input: RelNode,
+      rowType: RelDataType,
+      pattern: RexNode,
+      strictStart: Boolean,
+      strictEnd: Boolean,
+      patternDefinitions: util.Map[String, RexNode],
+      measures: util.Map[String, RexNode],
+      after: RexNode,
+      subsets: util.Map[String, _ <: util.SortedSet[String]],
+      allRows: Boolean,
+      partitionKeys: util.List[RexNode],
+      orderKeys: RelCollation,
+      interval: RexNode)
+    : FlinkLogicalMatch = {
+
+    val cluster: RelOptCluster = input.getCluster
+    val traitSet: RelTraitSet = cluster.traitSetOf(FlinkConventions.LOGICAL)
+    new FlinkLogicalMatch(
+      cluster,
+      traitSet,
+      input: RelNode,
+      rowType: RelDataType,
+      pattern: RexNode,
+      strictStart: Boolean,
+      strictEnd: Boolean,
+      patternDefinitions: util.Map[String, RexNode],
+      measures: util.Map[String, RexNode],
+      after: RexNode,
+      subsets: util.Map[String, _ <: util.SortedSet[String]],
+      allRows: Boolean,
+      partitionKeys: util.List[RexNode],
+      orderKeys: RelCollation,
+      interval: RexNode)
+  }
 }
