@@ -78,13 +78,13 @@ abstract class NonWindowJoin(
   protected var curProcessTime: Long = _
 
   override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling JoinFunction: $genJoinFuncName \n\n " +
-                s"Code:\n$genJoinFuncCode")
+    LOG.debug(s"Compiling JoinFunction: $genJoinFuncName \n\n Code:\n$genJoinFuncCode")
     val clazz = compile(
       getRuntimeContext.getUserCodeClassLoader,
       genJoinFuncName,
       genJoinFuncCode)
 
+    LOG.debug("Instantiating JoinFunction.")
     joinFunction = clazz.newInstance()
     FunctionUtils.setFunctionRuntimeContext(joinFunction, getRuntimeContext)
     FunctionUtils.openFunction(joinFunction, parameters)
