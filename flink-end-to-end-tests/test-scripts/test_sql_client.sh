@@ -23,18 +23,17 @@ KAFKA_CONNECTOR_VERSION="2.0"
 KAFKA_VERSION="2.0.0"
 CONFLUENT_VERSION="5.0.0"
 CONFLUENT_MAJOR_VERSION="5.0"
-LIB_DIR_NAME="sql-jars-kafka"
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka-common.sh $KAFKA_VERSION $CONFLUENT_VERSION $CONFLUENT_MAJOR_VERSION
 source "$(dirname "$0")"/elasticsearch-common.sh
 
+SQL_TOOLBOX_JAR=$END_TO_END_DIR/flink-sql-client-test/target/SqlToolbox.jar
+SQL_JARS_DIR=$END_TO_END_DIR/flink-sql-client-test/target/sql-jars
+
 ################################################################################
 # Verify existing SQL jars
 ################################################################################
-
-SQL_TOOLBOX_JAR=$END_TO_END_DIR/flink-sql-client-test/target/SqlToolbox.jar
-SQL_JARS_DIR=$END_TO_END_DIR/flink-sql-client-test/target/$LIB_DIR_NAME
 
 EXTRACTED_JAR=$TEST_DATA_DIR/extracted
 
@@ -94,23 +93,18 @@ setup_kafka_dist
 start_kafka_cluster
 
 create_kafka_topic 1 1 test-json
-create_kafka_topic 1 1 test-avro
 
 # put JSON data into Kafka
 echo "Sending messages to Kafka..."
 
-send_messages_to_kafka '{"timestamp": "2018-03-12 08:00:00", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' test-json
-# duplicate
-send_messages_to_kafka '{"timestamp": "2018-03-12 08:10:00", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' test-json
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:00:00", "user": "Bob", "event": { "type": "WARNING", "message": "This is another warning."}}' test-json
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:10:00", "user": "Alice", "event": { "type": "INFO", "message": "This is a info."}}' test-json
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:20:00", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' test-json
-# duplicate
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' test-json
-# filtered in results
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": null, "event": { "type": "WARNING", "message": "This is a bad message because the user is missing."}}' test-json
-# pending in results
-send_messages_to_kafka '{"timestamp": "2018-03-12 10:40:00", "user": "Bob", "event": { "type": "ERROR", "message": "This is an error."}}' test-json
+send_messages_to_kafka '{"timestamp": "2018-03-12 08:00:00", "user": "Alice"}' test-json
+send_messages_to_kafka '{"timestamp": "2018-03-12 08:10:00", "user": "Alice"}' test-json
+send_messages_to_kafka '{"timestamp": "2018-03-12 09:00:00", "user": "Bob"}' test-json
+send_messages_to_kafka '{"timestamp": "2018-03-12 09:10:00", "user": "Alice"}' test-json
+send_messages_to_kafka '{"timestamp": "2018-03-12 09:20:00", "user": "Steve"}' test-json
+send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": "Steve"}' test-json
+send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": null}' test-json
+send_messages_to_kafka '{"timestamp": "2018-03-12 10:40:00", "user": "Bob"}' test-json
 
 # prepare Elasticsearch
 echo "Preparing Elasticsearch..."
@@ -122,16 +116,23 @@ setup_elasticsearch $DOWNLOAD_URL
 wait_elasticsearch_working
 
 ################################################################################
-# Run a SQL statement
+# Prepare Flink
 ################################################################################
 
-echo "Testing SQL statement..."
-
-# prepare Flink
 echo "Preparing Flink..."
 
 start_cluster
 start_taskmanagers 2
+
+################################################################################
+# Run SQL statements
+################################################################################
+
+echo "Testing SQL statements..."
+
+JSON_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "json" )
+KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka_" )
+ELASTICSEARCH_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "elasticsearch6" )
 
 # create session environment file
 RESULT=$TEST_DATA_DIR/result
@@ -139,7 +140,7 @@ SQL_CONF=$TEST_DATA_DIR/sql-client-session.conf
 
 cat > $SQL_CONF << EOF
 tables:
-  - name: JsonSourceTable
+  - name: RowtimeSourceTable
     type: source-table
     update-mode: append
     schema:
@@ -154,8 +155,6 @@ tables:
             delay: 2000
       - name: user
         type: VARCHAR
-      - name: event
-        type: ROW<type VARCHAR, message VARCHAR>
     connector:
       type: kafka
       version: "$KAFKA_CONNECTOR_VERSION"
@@ -177,19 +176,7 @@ tables:
             },
             "user": {
               "type": ["string", "null"]
-            },
-            "event": {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "type": "string"
-                },
-                "message": {
-                  "type": "string"
-                }
-              }
             }
-          }
         }
   - name: ElasticsearchUpsertSinkTable
     type: sink-table
@@ -287,7 +274,9 @@ EOF
 )
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
-  --library $SQL_JARS_DIR \
+  --jar $KAFKA_SQL_JAR \
+  --jar $JSON_SQL_JAR \
+  --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
   --update "$SQL_STATEMENT_4" | grep "Job ID:" | sed 's/.* //g')
@@ -304,7 +293,7 @@ INSERT INTO ElasticsearchAppendSinkTable
   SELECT 1 as user_id, T.userName as user_name, cast(1 as BIGINT) as user_count
   FROM (
     SELECT user, rowtime
-    FROM JsonSourceTable
+    FROM RowtimeSourceTable
     WHERE user IS NOT NULL)
   MATCH_RECOGNIZE (
     ORDER BY rowtime
@@ -318,7 +307,9 @@ EOF
 )
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
-  --library $SQL_JARS_DIR \
+  --jar $KAFKA_SQL_JAR \
+  --jar $JSON_SQL_JAR \
+  --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
   --update "$SQL_STATEMENT_5" | grep "Job ID:" | sed 's/.* //g')

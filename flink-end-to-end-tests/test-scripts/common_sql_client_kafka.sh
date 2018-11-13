@@ -17,55 +17,14 @@
 # limitations under the License.
 ################################################################################
 
-set -Eeuo pipefail
-
 KAFKA_CONNECTOR_VERSION="$1"
 KAFKA_VERSION="$2"
 CONFLUENT_VERSION="$3"
 CONFLUENT_MAJOR_VERSION="$4"
-LIB_DIR_NAME="$5"
+KAFKA_SQL_JAR="$5"
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka-common.sh $KAFKA_VERSION $CONFLUENT_VERSION $CONFLUENT_MAJOR_VERSION
-
-################################################################################
-# Verify existing SQL jars
-################################################################################
-
-SQL_TOOLBOX_JAR=$END_TO_END_DIR/flink-sql-client-test/target/SqlToolbox.jar
-SQL_JARS_DIR=$END_TO_END_DIR/flink-sql-client-test/target/$LIB_DIR_NAME
-
-EXTRACTED_JAR=$TEST_DATA_DIR/extracted
-
-mkdir -p $EXTRACTED_JAR
-
-for SQL_JAR in $SQL_JARS_DIR/*.jar; do
-  echo "Checking SQL JAR: $SQL_JAR"
-  (cd $EXTRACTED_JAR && jar xf $SQL_JAR)
-
-  # check for proper shading
-  for EXTRACTED_FILE in $(find $EXTRACTED_JAR -type f); do
-
-    if ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/org/apache/flink"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/META-INF"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/LICENSE"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/NOTICE"* ]] ; then
-      echo "Bad file in JAR: $EXTRACTED_FILE"
-      exit 1
-    fi
-  done
-
-  # check for proper factory
-  if [ ! -f $EXTRACTED_JAR/META-INF/services/org.apache.flink.table.factories.TableFactory ]; then
-    echo "No table factory found in JAR: $SQL_JAR"
-    exit 1
-  fi
-
-  # clean up
-  rm -r $EXTRACTED_JAR/*
-done
-
-rm -r $EXTRACTED_JAR
 
 ################################################################################
 # Prepare connectors
@@ -83,7 +42,7 @@ trap sql_cleanup INT
 trap sql_cleanup EXIT
 
 # prepare Kafka
-echo "Preparing Kafka..."
+echo "Preparing Kafka $KAFKA_VERSION..."
 
 setup_kafka_dist
 
@@ -93,7 +52,7 @@ create_kafka_topic 1 1 test-json
 create_kafka_topic 1 1 test-avro
 
 # put JSON data into Kafka
-echo "Sending messages to Kafka..."
+echo "Sending messages to Kafka $KAFKA_VERSION..."
 
 send_messages_to_kafka '{"timestamp": "2018-03-12 08:00:00", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' test-json
 # duplicate
@@ -109,16 +68,26 @@ send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": null, "even
 send_messages_to_kafka '{"timestamp": "2018-03-12 10:40:00", "user": "Bob", "event": { "type": "ERROR", "message": "This is an error."}}' test-json
 
 ################################################################################
-# Run a SQL statement
+# Prepare Flink
 ################################################################################
 
-echo "Testing SQL statement..."
-
-# prepare Flink
 echo "Preparing Flink..."
 
 start_cluster
 start_taskmanagers 2
+
+################################################################################
+# Run SQL statements
+################################################################################
+
+echo "Testing SQL statements..."
+
+SQL_TOOLBOX_JAR=$END_TO_END_DIR/flink-sql-client-test/target/SqlToolbox.jar
+SQL_JARS_DIR=$END_TO_END_DIR/flink-sql-client-test/target/sql-jars
+
+AVRO_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "avro" )
+JSON_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "json" )
+KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "${KAFKA_SQL_JAR}_" )
 
 # create session environment file
 RESULT=$TEST_DATA_DIR/result
@@ -253,7 +222,7 @@ EOF
 
 # submit SQL statements
 
-echo "Executing SQL: Kafka JSON -> Kafka Avro"
+echo "Executing SQL: Kafka $KAFKA_VERSION JSON -> Kafka $KAFKA_VERSION Avro"
 
 SQL_STATEMENT_1=$(cat << EOF
 INSERT INTO AvroBothTable
@@ -274,12 +243,14 @@ EOF
 echo "$SQL_STATEMENT_1"
 
 $FLINK_DIR/bin/sql-client.sh embedded \
-  --library $SQL_JARS_DIR \
+  --jar $KAFKA_SQL_JAR \
+  --jar $JSON_SQL_JAR \
+  --jar $AVRO_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
   --update "$SQL_STATEMENT_1"
 
-echo "Executing SQL: Kafka Avro -> Filesystem CSV"
+echo "Executing SQL: Kafka $KAFKA_VERSION Avro -> Filesystem CSV"
 
 SQL_STATEMENT_2=$(cat << EOF
 INSERT INTO CsvSinkTable
@@ -291,7 +262,9 @@ EOF
 echo "$SQL_STATEMENT_2"
 
 $FLINK_DIR/bin/sql-client.sh embedded \
-  --library $SQL_JARS_DIR \
+  --jar $KAFKA_SQL_JAR \
+  --jar $JSON_SQL_JAR \
+  --jar $AVRO_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
   --update "$SQL_STATEMENT_2"
@@ -307,4 +280,4 @@ for i in {1..10}; do
   sleep 5
 done
 
-check_result_hash "SQL Client Kafka" $RESULT "0a1bf8bf716069b7269f575f87a802c0"
+check_result_hash "SQL Client Kafka $KAFKA_VERSION" $RESULT "0a1bf8bf716069b7269f575f87a802c0"
