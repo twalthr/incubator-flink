@@ -796,7 +796,7 @@ Group windows are defined in the `GROUP BY` clause of a SQL query. Just like que
   </tbody>
 </table>
 
-### Match_recognize
+### Pattern Recognition
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -813,7 +813,7 @@ Group windows are defined in the `GROUP BY` clause of a SQL query. Just like que
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Search for given event pattern in an incoming stream. For more though description see <a href="streaming/match_recognize.html">Detecting event patterns</a></p>
+        <p>Searches for a given pattern in a streaming table according to the MATCH_RECOGNIZE <a href="https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip">standard</a>). For a more detailed description see <a href="streaming/match_recognize.html">Detecting patterns</a></p>
 
 {% highlight sql %}
 SELECT T.aid, T.bid, T.cid
@@ -839,8 +839,6 @@ MATCH_RECOGNIZE (
 </div>
 
 {% top %}
-
-
 
 #### Time Attributes
 

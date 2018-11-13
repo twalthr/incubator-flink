@@ -1,8 +1,9 @@
 ---
-title: 'Detecting event patterns <span class="label label-danger" style="font-size:50%">Experimental</span>'
+title: 'Detecting patterns'
 nav-parent_id: streaming_tableapi
-nav-title: 'Detecting event patterns'
+nav-title: 'Detecting patterns'
 nav-pos: 5
+is_beta: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -25,10 +26,31 @@ under the License.
 
 It is a common use-case to search for set event patterns, especially in case of data streams. Apache Flink
 comes with [CEP library]({{ site.baseurl }}/dev/libs/cep.html) which allows for pattern detection in event streams. On the other hand Flink's 
-Table API & SQL provides a relational way to express queries that comes with multiple functions and 
+SQL API provides a relational way to express queries that comes with multiple functions and 
 optimizations that can be used out of the box. In December 2016, ISO released a new version of the 
-international SQL standard (ISO/IEC 9075:2016) including the Row Pattern Recognition for complex event processing,
-which allowed to consolidate those two APIs using MATCH_RECOGNIZE clause.
+international SQL standard ([ISO/IEC 9075:2016](https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip)) 
+including the Row Pattern Recognition for complex event processing, which allowed to consolidate those two APIs using `MATCH_RECOGNIZE` clause.
+
+`MATCH_RECOGNIZE` enables you to do the following tasks:
+* Logically partition and order the data that is used with `PARTITION BY` and `ORDER BY` clauses.
+* Define patterns of rows to seek using the `PATTERN` clause. 
+  These patterns use regular expression syntax, a powerful and expressive feature, applied to the pattern variables you define.
+* Specify the logical conditions required to map a row to a row pattern variable in the `DEFINE` clause.
+* Define measures, which are expressions usable in other parts of the SQL query, in the `MEASURES` clause.
+
+Every `MATCH_RECOGNIZE` query consists of following clauses:
+
+* [PARTITION BY](#partitioning) - defines logical partitioning of the stream, similar to `GROUP BY` operations.
+* [ORDER BY](#order-of-events) - specifies how should the incoming events be order, this is essential as patterns define order.
+* [MEASURES](#define--measures) - defines output of the clause, similar to `SELECT` clause
+* [ONE ROW PER MATCH](#output-mode) - output mode which defines how many rows per match will be produced
+* [AFTER MATCH SKIP](#after-match-skip) - allows to specify where next match should start, this is also a way to control to how many distinct matches a single event can belong
+* [PATTERN](#defining-pattern) - clause that allows constructing patterns that will be searched for, using regular expression like syntax
+* [DEFINE](#define--measures) - this section defines conditions on events that should be met in order to be qualified to corresponding pattern variable
+
+
+This clause can only be applied to an [append](dynamic_tables.html#update-and-append-queries) table and it always produces
+an append table as well.
 
 * This will be replaced by the TOC
 {:toc}
@@ -36,14 +58,36 @@ which allowed to consolidate those two APIs using MATCH_RECOGNIZE clause.
 Example query
 -------------
 
-Row Pattern Recognition in SQL is performed using the MATCH_RECOGNIZE clause. MATCH_RECOGNIZE enables you to do the following tasks:
-* Logically partition and order the data that is used in the MATCH_RECOGNIZE clause with its PARTITION BY and ORDER BY clauses.
-* Define patterns of rows to seek using the PATTERN clause of the MATCH_RECOGNIZE clause. 
-  These patterns use regular expression syntax, a powerful and expressive feature, applied to the pattern variables you define.
-* Specify the logical conditions required to map a row to a row pattern variable in the DEFINE clause.
-* Define measures, which are expressions usable in other parts of the SQL query, in the MEASURES clause.
+Having a table `TICKER`, describing prices of stocks in particular moment of time, each row represents an updated characteristic of a ticker. 
+The table has a following schema:
 
-For example to find periods of constantly decreasing price of a Ticker one could write a query like this:
+{% highlight text %}
+Ticker
+     |-- symbol: Long                             # symbol of the stock
+     |-- price: Long                              # price of the stock
+     |-- tax: Long                                # tax liability of the stock
+     |-- rowTime: TimeIndicatorTypeInfo(rowtime)  # point in time when change to those values happened
+{% endhighlight %}
+
+The incoming data for a single ticker could look following:
+
+{% highlight text %}
+SYMBOL         ROWTIME         PRICE   TAX
+======  ====================  ======= =======
+'ACME'  '01-Apr-11 10:00:00'   12      1
+'ACME'  '01-Apr-11 10:00:01'   17      2
+'ACME'  '01-Apr-11 10:00:02'   19      1
+'ACME'  '01-Apr-11 10:00:03'   21      3
+'ACME'  '01-Apr-11 10:00:04'   25      2
+'ACME'  '01-Apr-11 10:00:05'   18      1
+'ACME'  '01-Apr-11 10:00:06'   15      1
+'ACME'  '01-Apr-11 10:00:07'   14      2
+'ACME'  '01-Apr-11 10:00:08'   24      2
+'ACME'  '01-Apr-11 10:00:09'   25      2
+'ACME'  '01-Apr-11 10:00:10'   19      1
+{% endhighlight %}
+
+For example to find periods of constantly decreasing price of a single ticker one could write a query like this:
 
 {% highlight sql %}
 SELECT *
@@ -57,50 +101,24 @@ MATCH_RECOGNIZE (
        LAST(PRICE_UP.rowtime) AS end_tstamp
     ONE ROW PER MATCH
     AFTER MATCH SKIP TO LAST UP
-    PATTERN (STRT_ROW PRICE_DOWN+ PRICE_UP+)
+    PATTERN (STRT_ROW PRICE_DOWN+ PRICE_UP)
     DEFINE
        PRICE_DOWN AS PRICE_DOWN.price < LAST(PRICE_DOWN.price, 1) OR
                (LAST(PRICE_DOWN.price, 1) IS NULL AND PRICE_DOWN.price < STRT_ROW.price))
-       PRICE_UP AS PRICE_UP.price > LAST(PRICE_UP.price, 1) OR LAST(PRICE_UP.price, 1) IS NULL
+       PRICE_UP AS PRICE_UP.price > LAST(PRICE_DOWN.price, 1)
     ) MR;
 {% endhighlight %}
 
-This query given following input data:
- 
-{% highlight text %}
-SYMBOL         ROWTIME         PRICE
-======  ====================  =======
-'ACME'  '01-Apr-11 10:00:00'   12
-'ACME'  '01-Apr-11 10:00:01'   17
-'ACME'  '01-Apr-11 10:00:02'   19
-'ACME'  '01-Apr-11 10:00:03'   21
-'ACME'  '01-Apr-11 10:00:04'   25
-'ACME'  '01-Apr-11 10:00:05'   12
-'ACME'  '01-Apr-11 10:00:06'   15
-'ACME'  '01-Apr-11 10:00:07'   20
-'ACME'  '01-Apr-11 10:00:08'   24
-'ACME'  '01-Apr-11 10:00:09'   25
-'ACME'  '01-Apr-11 10:00:10'   19
-{% endhighlight %}
-
-will produce a summary row for each found period in which the price was constantly decreasing.
+which will produce a summary row for each found period in which the price was constantly decreasing.
 
 {% highlight text %}
 SYMBOL          START_TST          BOTTOM_TS         END_TSTAM
 =========  ==================  ==================  ==================
-ACME       01-APR-11 10:00:04  01-APR-11 10:00:05  01-APR-11 10:00:09
+ACME       01-APR-11 10:00:04  01-APR-11 10:00:07  01-APR-11 10:00:08
 {% endhighlight %}
 
-The aforementioned query consists of following clauses:
-
-* [PARTITION BY](#partitioning) - defines logical partitioning of the stream, similar to `GROUP BY` operations.
-* [ORDER BY](#order-of-events) - specifies how should the incoming events be order, this is essential as patterns define order.
-* [MEASURES](#define--measures) - defines output of the clause, similar to `SELECT` clause
-* [ONE ROW PER MATCH](#output-mode) - output mode which defines how many rows per match will be produced
-* [AFTER MATCH SKIP](#after-match-skip) - allows to specify where next match should start, this is also a way to control to how many distinct matches a single event can belong
-* [PATTERN](#defining-pattern) - clause that allows constructing patterns that will be searched for, pro 
-* [DEFINE](#define--measures) - this section defines conditions on events that should be met in order to be qualified to corresponding pattern variable
-
+The resulting row says that the query found a period of decreasing price for a ticker that started at `01-APR-11 10:00:04`,
+achieved the lowest value at `01-APR-11 10:00:07` and the price increased at `01-APR-11 10:00:08`
 
 Installation guide
 ------------------
@@ -117,14 +135,13 @@ this library as dependency. Either by adding it to your uber-jar by adding depen
 {% endhighlight %}
 
 or by adding it to the cluster classpath (see [here]({{ site.baseurl}}/dev/linking.html)). If you want to use
-MATCH_RECOGNIZE from [sql-client]({{ site.baseurl}}/dev/table/sqlClient.html) you don't have to do anything as all the dependencies are included by default.
+`MATCH_RECOGNIZE` from [sql-client]({{ site.baseurl}}/dev/table/sqlClient.html) you don't have to do anything as all the dependencies are included by default.
 
 Partitioning
 ------------
-It is possible to look for patterns in a partitioned data, e.g. trends for a single ticker. This can be expressed using `PARTITION BY` clause. It is equivalent to applying
-[`keyBy`]({{ site.baseurl }}/dev/stream/operators/index.html#datastream-transformations) transformation to a `DataStream`, or similar to using `GROUP BY` for aggregations.
+It is possible to look for patterns in a partitioned data, e.g. trends for a single ticker. This can be expressed using `PARTITION BY` clause. It is similar to using `GROUP BY` for aggregations.
 
-<span class="label label-danger" style="font-size:75%">Attention:</span> It is highly advised to apply partitioning because otherwise `MATCH_RECOGNIZE` will be translated
+<span class="label label-danger">Attention</span> It is highly advised to apply partitioning because otherwise `MATCH_RECOGNIZE` will be translated
 into a non-parallel operator to ensure global ordering.
 
 Order of events
@@ -134,38 +151,8 @@ Apache Flink allows searching for patterns based on time, either [processing-tim
 is very important, because it allows sorting events, before fed into pattern state machine. Because of that one may be true
 that the produced output will be correct in regards to order in which those events happened.
 
-As a consequence one has to provide time indicator as the first argument to `ORDER BY` clause.
-
-That means for a table:
-
-{% highlight text %}
-Ticker
-     |-- symbol: Long
-     |-- price: Long
-     |-- tax: Long
-     |-- rowTime: TimeIndicatorTypeInfo(rowtime)
-{% endhighlight %}
-
-Definition like:
-{% highlight sql %}
-ORDER BY rowtime, price
-{% endhighlight %}
-Would be a valid one, but
-{% highlight sql %}
-ORDER BY price
-{% endhighlight %}
-would throw exception. An exception will be thrown as well if the rowtime order is not the primary one:
-{% highlight sql %}
-ORDER BY price, rowtime
-{% endhighlight %}
-It is also not possible to define descending order for time indicator, but it is allowed for any subsequent secondary sorting, therefore this is a valid expression:
-{% highlight sql %}
-ORDER BY rowtime ASC, price DESC
-{% endhighlight %}
-but this isn’t:
-{% highlight sql %}
-ORDER BY rowtime DESC, price DESC
-{% endhighlight %}
+As a consequence one has to provide time attribute with ascending ordering as the first argument to `ORDER BY` clause.
+That means for the example `TICKER` table definition like `ORDER BY rowtime ASC, price DESC` is valid, but `ORDER BY price, rowtime` or `ORDER BY rowtime DESC, price ASC` is not. 
 
 Define & Measures
 -----------------
@@ -176,13 +163,14 @@ Using `MEASURES` clause you can define what will be included in the output of th
 on the [output mode](#output-mode) setting.
 
 On the other hand `DEFINE` allows to specify conditions that rows have to fulfill in order to be classified to according [pattern variable](#defining-pattern).
+If a condition is not defined for a pattern variable, a default condition will be used, which evaluates to `true` for every row.
 
 For more thorough explanation on expressions that you can use in those clauses please have a look at [event stream navigation](#event-stream-navigation).
 
 Defining pattern
 ----------------
 
-MATCH_RECOGNIZE clause allows user to search for patterns in event streams using a powerful and expressive language
+`MATCH_RECOGNIZE` clause allows user to search for patterns in event streams using a powerful and expressive language
 that is somewhat similar to widespread regular expression syntax. Every pattern is constructed from building blocks called
 pattern variables, to whom operators (quantifiers and other modifiers) can be applied. The whole pattern must be enclosed in
 brackets. Example pattern:
@@ -203,8 +191,8 @@ One may use the following operators:
   * `{ n, m }` — between n and m (inclusive) rows (0 ≤ n ≤ m, 0 < m)
   * `{ , m }` — between 0 and m (inclusive) rows (m > 0)
   
-<span class="label label-danger" style="font-size:75%">Note:</span> Patterns that can potentially produce empty match are not supported.
-Examples of such patterns are: `(A*)`, `(A? B*)`, `(A{0,} B{0,} C*)` etc.
+<span class="label label-danger">Attention</span> Patterns that can potentially produce empty match are not supported.
+Examples of such patterns are: `PATTERN (A*)`, `PATTERN  (A? B*)`, `PATTERN (A{0,} B{0,} C*)` etc.
 
 ### Greedy & reluctant quantifiers
 
@@ -259,7 +247,7 @@ but the same query with just the `B*` modified to `B*?`, which means it should b
  XYZ      13
 {% endhighlight %}
 
-<span class="label label-danger" style="font-size:75%">Note:</span> It is not possible to use greedy quantifier for the last
+<span class="label label-danger">Attention</span> It is not possible to use greedy quantifier for the last
 variable for a pattern, thus pattern like `(A B*)` is not allowed. This can be easily worked around by introducing artificial state
 e.g. `C` that will have a negated condition of `B`. So you could use a query like:
 
@@ -271,13 +259,16 @@ DEFINE
     C as NOT condB()
 {% endhighlight %}
 
-<span class="label label-danger" style="font-size:75%">Note:</span> Right now optional reluctant quantifier (`A??` or `A{0,1}?`) is not supported.
+<span class="label label-danger">Attention</span> Right now optional reluctant quantifier (`A??` or `A{0,1}?`) is not supported.
 
 Output mode
 -----------
 
+Output mode describes how many rows should be emitted for every found match. SQL standard describes two modes: `ALL ROWS PER MATCH` and
+`ONE ROW PER MATCH`.
+
 Currently supported output mode is `ONE ROW PER MATCH` that will always produce on output summary row per each found match.
-The schema of the output row will be following union of `{partitioning columns} + {measures columns}` in that particular order.
+The schema of the output row will be a following union of `{partitioning columns} + {measures columns}` in that particular order.
 
 Example:
 
@@ -323,11 +314,15 @@ Event stream navigation
 ------------------
 
 ### Pattern variable reference
-Pattern variable reference e.g. A.price describes a set of rows mapped so far to A plus current row, if we try to match current row to A. If the expression requires a single row e.g. A.price > 10, A.price selects the last value of the row.
+Pattern variable reference allows referencing set of rows mapped to a particular pattern variable in 
+`DEFINE` or `MEASURE` clauses. For example expression `A.price` describes a set of rows mapped so far to `A` plus current row, 
+if we try to match current row to `A`. If an expression in `DEFINE`/`MEASURES` requires a single row e.g. `A.price > 10`, `A.price` 
+selects the last value belonging to the corresponding set.
 
-If no pattern variable is specified e.g. SUM(price) it references the default pattern variable which references all variables in the pattern, so it constitutes row set of all rows mapped so far plus current row.
+If no pattern variable is specified e.g. `SUM(price)` it references the default pattern variable `*` which references all variables in the pattern, 
+in other words it creates a set of all rows mapped so far to any variable plus current row.
 
-Example:
+For a more thorough example one can analyze following pattern and corresponding conditions:
 
 {% highlight sql %}
 ...
@@ -337,7 +332,11 @@ DEFINE
   B as B.price > A.price AND SUM(price) < 100 AND SUM(B.price) < 80
 {% endhighlight %}
   
-By `{A.price}` we describe set of rows that the values in DEFINE clause are evaluated on. The rows are referenced by its number
+The following table describes how those conditions are evaluated for each incoming event. That table consists of following columns:
+  * `no` - row identifier, to uniquely reference in `{A.price}/{B.price}/{price}` columns 
+  * `{A.price}/{B.price}/{price}` - column describes set of rows which are used in `DEFINE` clause to evaluate conditions. 
+  * `CLAS` - is a classifier of the current row, which tells which variable was that row mapped to
+  * `A.price/B.price/SUM(price)/SUM(B.price)` -  describes result of those expression
 
 <table class="table table-bordered">
   <thead>
@@ -646,8 +645,34 @@ List of such features includes:
 ### Controlling memory consumption
 
 Memory consumption is an important aspect when writing `MATCH_RECOGNIZE` queries, as the space of potential of potential matches in built in a breadth first like manner.
-Having that in mind one must make sure that the pattern can finish(preferably with reasonable number of rows mapped to the match, as they have to fit into memory) e.g. it does not have a quantifier without
-upper limit that accepts every single row.
+Having that in mind one must make sure that the pattern can finish(preferably with reasonable number of rows mapped to the match, as they have to fit into memory) e.g. 
+it does not have a quantifier without upper limit that accepts every single row. Such pattern could look like this:
+
+{% highlight sql %}
+PATTERN (A B+ C)
+DEFINE
+  A as A.price > 10,
+  C as C.price > 20
+{% endhighlight %}
+
+which will map every incoming row to `B` variable and thus will never finish. That query could be fixed e.g by negating the condition for `C`:
+
+{% highlight sql %}
+PATTERN (A B+ C)
+DEFINE
+  A as A.price > 10,
+  B as B.price <= 20,
+  C as C.price > 20
+{% endhighlight %}
+
+or using the [reluctant quantifier](#greedy--reluctant-quantifiers):
+
+{% highlight sql %}
+PATTERN (A B+? C)
+DEFINE
+  A as A.price > 10,
+  C as C.price > 20
+{% endhighlight %}
 
 One has to be aware that `MATCH_RECOGNIZE` clause does not use [state retention time](query_configuration.html#idle-state-retention-time). There is also no possibility to
 define time restriction on the pattern to finish as of now, as there is no such possibility in SQL standard. Community is in the process of designing a proper syntax for that
