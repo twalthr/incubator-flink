@@ -121,7 +121,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |  DEFINE
          |    A AS name = 'a' AND nullField IS NULL,
          |    B AS name = 'b' AND LAST(A.nullField) IS NULL,
-         |    C AS name = 'c'
+         |    C AS NOT B
          |) AS T
          |""".stripMargin
 
