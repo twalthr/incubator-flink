@@ -21,16 +21,17 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -45,7 +46,7 @@ import java.util.Properties;
 public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 
 	/** The schema of the table. */
-	private final Optional<TableSchema> schema;
+	private final TableSchema schema;
 
 	/** The Kafka topic to write to. */
 	protected final String topic;
@@ -65,7 +66,7 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<Row>> partitioner,
 			SerializationSchema<Row> serializationSchema) {
-		this.schema = Optional.of(Preconditions.checkNotNull(schema, "Schema must not be null."));
+		this.schema = Preconditions.checkNotNull(schema, "Schema must not be null.");
 		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
 		this.partitioner = Preconditions.checkNotNull(partitioner, "Partitioner must not be null.");
@@ -100,28 +101,27 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 
 	@Override
 	public TypeInformation<Row> getOutputType() {
-		return schema
-			.map(TableSchema::toRowType)
-			.orElseGet(() -> new RowTypeInfo(getFieldTypes()));
+		return schema.toRowType();
 	}
 
+	@Override
 	public String[] getFieldNames() {
-		return schema.map(TableSchema::getFieldNames).get();
+		return schema.getFieldNames();
 	}
 
 	@Override
 	public TypeInformation<?>[] getFieldTypes() {
-		return schema.map(TableSchema::getFieldTypes).get();
+		return schema.getFieldTypes();
 	}
 
 	@Override
 	public KafkaTableSinkBase configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		if (schema.isPresent()) {
-			// a fixed schema is defined so reconfiguration is not supported
-			throw new UnsupportedOperationException("Reconfiguration of this sink is not supported.");
+		if (!Arrays.equals(getFieldNames(), fieldNames) || !Arrays.equals(getFieldTypes(), fieldTypes)) {
+			throw new ValidationException("Reconfiguration with different fields is not allowed. " +
+				"Expected: " + Arrays.toString(getFieldNames()) + " / " + Arrays.toString(getFieldTypes()) + ". " +
+				"But was: " + Arrays.toString(fieldNames) + " / " + Arrays.toString(fieldTypes));
 		}
-
-		throw new UnsupportedOperationException("This method only exists for backwards compatibility.");
+		return this;
 	}
 
 	@Override
@@ -132,7 +132,7 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		KafkaTableSinkBase that = (KafkaTableSinkBase) o;
+		final KafkaTableSinkBase that = (KafkaTableSinkBase) o;
 		return Objects.equals(schema, that.schema) &&
 			Objects.equals(topic, that.topic) &&
 			Objects.equals(properties, that.properties) &&
@@ -142,12 +142,11 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 
 	@Override
 	public int hashCode() {
-		int result = Objects.hash(
+		return Objects.hash(
 			schema,
 			topic,
 			properties,
 			serializationSchema,
 			partitioner);
-		return result;
 	}
 }

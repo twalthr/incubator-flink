@@ -58,7 +58,6 @@ public abstract class KafkaTableSourceBase implements
 		DefinedFieldMapping {
 
 	// common table source attributes
-	// TODO make all attributes final once we drop support for format-specific table sources
 
 	/** The schema of the table. */
 	private final TableSchema schema;
@@ -217,9 +216,7 @@ public abstract class KafkaTableSourceBase implements
 		if (this == o) {
 			return true;
 		}
-		// TODO force classes to be equal once we drop support for format-specific table sources
-		// if (o == null || getClass() != o.getClass()) {
-		if (o == null || !(o instanceof KafkaTableSourceBase)) {
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
 		final KafkaTableSourceBase that = (KafkaTableSourceBase) o;
