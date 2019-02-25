@@ -22,19 +22,19 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.TableFunction;
 
-import static org.apache.flink.table.expressions.FunctionType.TABLE_FUNCTION;
-
 /**
- * The function definition of user-defined table function.
+ * The function definition of an user-defined table function.
  */
 @PublicEvolving
 public final class TableFunctionDefinition extends FunctionDefinition {
+
+	private static final String FUNCTION_NAME = "User-defined Table Function";
 
 	private final TableFunction tableFunction;
 	private final TypeInformation resultType;
 
 	public TableFunctionDefinition(TableFunction tableFunction, TypeInformation resultType) {
-		super("Table Function", TABLE_FUNCTION);
+		super(FUNCTION_NAME);
 		this.tableFunction = tableFunction;
 		this.resultType = resultType;
 	}

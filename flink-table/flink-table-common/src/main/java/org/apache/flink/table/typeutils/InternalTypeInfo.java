@@ -30,7 +30,7 @@ import java.util.Objects;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * TypeInformation for internal types of the Table API that are for translation purposes only
+ * Type information for internal types of the Table API that are for translation purposes only
  * and should not be contained in final plan.
  */
 @Internal
@@ -81,8 +81,8 @@ public abstract class InternalTypeInfo<T> extends TypeInformation<T> implements 
 
 	@Override
 	public TypeComparator<T> createComparator(
-		boolean sortOrderAscending,
-		ExecutionConfig executionConfig) {
+			boolean sortOrderAscending,
+			ExecutionConfig executionConfig) {
 		throw new UnsupportedOperationException("This type is for internal use only.");
 	}
 
@@ -107,6 +107,6 @@ public abstract class InternalTypeInfo<T> extends TypeInformation<T> implements 
 
 	@Override
 	public String toString() {
-		return "InternalTypeInfo";
+		return getClass().getSimpleName();
 	}
 }

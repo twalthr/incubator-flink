@@ -26,10 +26,11 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The field reference expression.
+ * A reference to a field. The reference might be typed or not.
  */
 @PublicEvolving
 public final class FieldReferenceExpression implements CommonExpression {
+
 	private final String name;
 
 	private final Optional<TypeInformation<?>> resultType;

@@ -35,7 +35,7 @@ import java.util.Objects;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * TypeInformation for SQL INTERVAL types.
+ * Type information for SQL INTERVAL types.
  */
 @Internal
 public final class TimeIntervalTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
@@ -141,6 +141,6 @@ public final class TimeIntervalTypeInfo<T> extends TypeInformation<T> implements
 
 	@Override
 	public String toString() {
-		return "TimeIntervalTypeInfo(" + clazz.getSimpleName() + ")";
+		return TimeIntervalTypeInfo.class.getSimpleName() + "(" + clazz.getSimpleName() + ")";
 	}
 }

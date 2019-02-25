@@ -21,41 +21,39 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Objects;
+
 /**
- * The base class of function definition which can directly define built-in functions
- * with a name attribute.
+ * Definition of a function for unique identification.
  */
 @PublicEvolving
 public class FunctionDefinition {
-	private final String name;
-	private final FunctionType functionType;
 
-	public FunctionDefinition(String name, FunctionType functionType) {
+	private final String name;
+
+	public FunctionDefinition(String name) {
 		this.name = Preconditions.checkNotNull(name);
-		this.functionType = Preconditions.checkNotNull(functionType);
 	}
 
 	public String getName() {
 		return name;
 	}
 
-	public FunctionType getFunctionType() {
-		return functionType;
-	}
-
 	@Override
-	public boolean equals(Object obj) {
-		if (!(obj instanceof FunctionDefinition)) {
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-
-		FunctionDefinition other = (FunctionDefinition) obj;
-		return this == other || (other.getName().equalsIgnoreCase(name) && other.getFunctionType() == functionType);
+		FunctionDefinition that = (FunctionDefinition) o;
+		return Objects.equals(name, that.name);
 	}
 
 	@Override
 	public int hashCode() {
-		return name.hashCode() + 31 * functionType.hashCode();
+		return name.hashCode();
 	}
 
 	@Override

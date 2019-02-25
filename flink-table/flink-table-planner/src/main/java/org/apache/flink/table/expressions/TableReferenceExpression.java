@@ -25,7 +25,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * The expression of table reference.
+ * Expression that references another table. This is a pure API expression that is translated into
+ * uncorrelated sub-queries by the planner.
  */
 @PublicEvolving
 public final class TableReferenceExpression implements CommonExpression {

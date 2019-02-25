@@ -19,41 +19,45 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.typeutils.RowIntervalTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
+import org.apache.flink.table.utils.TypeStringUtils;
 
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 /**
- * The literal expression.
+ * Expression for constant values. The literal might be typed or not.
  */
 @PublicEvolving
 public final class ValueLiteralExpression implements CommonExpression {
 
 	private final Object value;
 
-	private final Optional<TypeInformation<?>> type;
+	private final TypeInformation<?> type;
 
 	public ValueLiteralExpression(Object value) {
 		this.value = value;
-		this.type = Optional.empty();
+		this.type = deriveTypeFromValue(value);
 	}
 
 	public ValueLiteralExpression(Object value, TypeInformation<?> type) {
 		this.value = value;
-		this.type = Optional.of(type);
+		this.type = type;
 	}
 
 	public Object getValue() {
 		return value;
 	}
 
-	public Optional<TypeInformation<?>> getType() {
+	public TypeInformation<?> getType() {
 		return type;
 	}
 
@@ -72,27 +76,62 @@ public final class ValueLiteralExpression implements CommonExpression {
 		if (value == null) {
 			return "null";
 		}
-
-		if (type.isPresent()) {
-			if (type.get() instanceof BasicTypeInfo) {
-				return value.toString();
-			} else if (type.get() == SqlTimeTypeInfo.DATE) {
-				return value.toString() + ".toDate";
-			} else if (type.get() == SqlTimeTypeInfo.TIME) {
-				return value.toString() + ".toTime";
-			} else if (type.get() == SqlTimeTypeInfo.TIMESTAMP) {
-				return value.toString() + ".toTimestamp";
-			} else if (type.get() == TimeIntervalTypeInfo.INTERVAL_MILLIS) {
-				return value.toString() + ".millis";
-			} else if (type.get() == TimeIntervalTypeInfo.INTERVAL_MONTHS) {
-				return value.toString() + ".months";
-			} else if (type.get() == RowIntervalTypeInfo.INTERVAL_ROWS) {
-				return value.toString() + ".rows";
-			} else {
-				return "ValueLiteralExpression(" + value.toString() + ", " + type.get().toString() + ")";
-			}
+		if (type == SqlTimeTypeInfo.DATE) {
+			return stringifyValue(value.toString()) + ".toDate";
+		} else if (type == SqlTimeTypeInfo.TIME) {
+			return stringifyValue(value.toString()) + ".toTime";
+		} else if (type == SqlTimeTypeInfo.TIMESTAMP) {
+			return stringifyValue(value.toString()) + ".toTimestamp";
+		} else if (type == TimeIntervalTypeInfo.INTERVAL_MILLIS) {
+			return value + ".millis";
+		} else if (type == TimeIntervalTypeInfo.INTERVAL_MONTHS) {
+			return value + ".months";
+		} else if (type == RowIntervalTypeInfo.INTERVAL_ROWS) {
+			return value + ".rows";
 		} else {
-			return "ValueLiteralExpression(" + value.toString() + ")";
+			return ValueLiteralExpression.class.getSimpleName() + "(" +
+				stringifyValue(value) + ", " + TypeStringUtils.writeTypeInfo(type) + ")";
+		}
+	}
+
+	private static String stringifyValue(Object value) {
+		if (value instanceof String) {
+			return "'" + value + "'";
+		}
+		return value.toString();
+	}
+
+	private static TypeInformation<?> deriveTypeFromValue(Object value) {
+		if (value == null) {
+			throw new IllegalArgumentException(
+				"Cannot derive a type from a null value. The type must be specified explicitly.");
+		} else if (value instanceof String) {
+			return Types.STRING;
+		} else if (value instanceof Long) {
+			return Types.LONG;
+		} else if (value instanceof Integer) {
+			return Types.INT;
+		} else if (value instanceof Short) {
+			return Types.SHORT;
+		} else if (value instanceof Byte) {
+			return Types.BYTE;
+		} else if (value instanceof Double) {
+			return Types.DOUBLE;
+		} else if (value instanceof Float) {
+			return Types.FLOAT;
+		} else if (value instanceof Boolean) {
+			return Types.BOOLEAN;
+		} else if (value instanceof BigDecimal) {
+			return Types.BIG_DEC;
+		} else if (value instanceof Date) {
+			return Types.SQL_DATE;
+		} else if (value instanceof Time) {
+			return Types.SQL_TIME;
+		} else if (value instanceof Timestamp) {
+			return Types.SQL_TIMESTAMP;
+		} else {
+			throw new IllegalArgumentException(
+				"Cannot derive a type for value '" + value + "'. The type must be specified explicitly.");
 		}
 	}
 }

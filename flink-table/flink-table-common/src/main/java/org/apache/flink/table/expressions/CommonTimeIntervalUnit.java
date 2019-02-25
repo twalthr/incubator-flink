@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * The definition of time interval unit symbol.
+ * Units for working with time intervals.
  */
 @PublicEvolving
 public enum CommonTimeIntervalUnit implements CommonTableSymbol {

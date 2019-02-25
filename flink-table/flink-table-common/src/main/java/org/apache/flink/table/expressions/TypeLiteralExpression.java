@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.utils.TypeStringUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -48,5 +49,10 @@ public final class TypeLiteralExpression implements CommonExpression {
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
 		return visitor.visit(this);
+	}
+
+	@Override
+	public String toString() {
+		return TypeStringUtils.writeTypeInfo(type);
 	}
 }

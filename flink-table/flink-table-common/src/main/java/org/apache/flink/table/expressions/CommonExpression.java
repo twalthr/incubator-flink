@@ -23,7 +23,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import java.util.List;
 
 /**
- * The interface for all expressions.
+ * The interface for all expressions. Expression might be literal values, function calls, or
+ * field references.
  */
 @PublicEvolving
 public interface CommonExpression {

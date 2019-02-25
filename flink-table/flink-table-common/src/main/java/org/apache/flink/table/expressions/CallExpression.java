@@ -23,10 +23,11 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * General expression for unresolved function calls. The function can be a built-in function
+ * General expression for calling a function. The function can be a built-in function
  * or a user-defined function.
  */
 @PublicEvolving
@@ -34,11 +35,11 @@ public class CallExpression implements CommonExpression {
 
 	private final FunctionDefinition functionDefinition;
 
-	private final List<CommonExpression> args = new ArrayList<>();
+	private final List<CommonExpression> args;
 
 	public CallExpression(FunctionDefinition functionDefinition, List<CommonExpression> args) {
 		this.functionDefinition = functionDefinition;
-		this.args.addAll(args);
+		this.args = Collections.unmodifiableList(new ArrayList<>(args));
 	}
 
 	@Override

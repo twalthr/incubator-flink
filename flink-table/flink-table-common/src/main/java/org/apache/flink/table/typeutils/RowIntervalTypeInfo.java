@@ -21,7 +21,7 @@ package org.apache.flink.table.typeutils;
 import org.apache.flink.annotation.Internal;
 
 /**
- * TypeInformation for row intervals.
+ * Type information for row intervals.
  */
 @Internal
 public final class RowIntervalTypeInfo extends InternalTypeInfo<Long> {
@@ -37,10 +37,5 @@ public final class RowIntervalTypeInfo extends InternalTypeInfo<Long> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof RowIntervalTypeInfo;
-	}
-
-	@Override
-	public String toString() {
-		return "RowIntervalTypeInfo";
 	}
 }

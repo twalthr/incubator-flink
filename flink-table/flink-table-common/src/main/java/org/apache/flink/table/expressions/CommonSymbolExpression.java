@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * The symbol expression.
+ * An expression that wraps a specific symbol.
  */
 @PublicEvolving
 public final class CommonSymbolExpression implements CommonExpression {
@@ -47,5 +47,10 @@ public final class CommonSymbolExpression implements CommonExpression {
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
 		return visitor.visitSymbol(this);
+	}
+
+	@Override
+	public String toString() {
+		return symbol.toString();
 	}
 }

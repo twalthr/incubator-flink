@@ -21,8 +21,8 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.Internal;
 
 /**
- * The visitor definition of expression. ExpressionVisitor transformations an expression to
- * the R type expression.
+ * The visitor definition of {@link CommonExpression}. An expression visitor transforms an
+ * expression to instances of {@code R}.
  */
 @Internal
 public interface ExpressionVisitor<R> {
@@ -33,8 +33,10 @@ public interface ExpressionVisitor<R> {
 
 	R visitValueLiteral(ValueLiteralExpression valueLiteralExpression);
 
-	R visit(CommonExpression other);
-
 	R visitFieldReference(FieldReferenceExpression fieldReference);
+
+	R visitTypeLiteral(TypeLiteralExpression typeLiteral);
+
+	R visit(CommonExpression other);
 
 }
