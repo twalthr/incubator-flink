@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Units for working with time points.
+ * Units for working with points in time.
  */
 @PublicEvolving
 public enum CommonTimePointUnit implements CommonTableSymbol {

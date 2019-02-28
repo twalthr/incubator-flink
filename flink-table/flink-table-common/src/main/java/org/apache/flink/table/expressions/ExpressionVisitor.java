@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * The visitor definition of {@link CommonExpression}. An expression visitor transforms an
  * expression to instances of {@code R}.
  */
-@Internal
+@PublicEvolving
 public interface ExpressionVisitor<R> {
 
 	R visitCall(CallExpression call);

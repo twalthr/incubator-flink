@@ -29,10 +29,26 @@ import java.util.Objects;
 @PublicEvolving
 public class FunctionDefinition {
 
+	/**
+	 * Classifies the function definition.
+	 */
+	enum Type {
+		AGGREGATE_FUNCTION,
+		SCALAR_FUNCTION,
+		TABLE_FUNCTION,
+		OTHER_FUNCTION
+	}
+
+	private final Type type;
 	private final String name;
 
-	public FunctionDefinition(String name) {
+	public FunctionDefinition(String name, Type type) {
 		this.name = Preconditions.checkNotNull(name);
+		this.type = Preconditions.checkNotNull(type);
+	}
+
+	public Type getType() {
+		return type;
 	}
 
 	public String getName() {

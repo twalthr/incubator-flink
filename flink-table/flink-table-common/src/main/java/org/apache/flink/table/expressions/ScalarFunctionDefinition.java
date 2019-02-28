@@ -21,6 +21,8 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.functions.ScalarFunction;
 
+import static org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_FUNCTION;
+
 /**
  * The function definition of an user-defined scalar function.
  */
@@ -32,7 +34,7 @@ public final class ScalarFunctionDefinition extends FunctionDefinition {
 	private final ScalarFunction scalarFunction;
 
 	public ScalarFunctionDefinition(ScalarFunction scalarFunction) {
-		super(FUNCTION_NAME);
+		super(FUNCTION_NAME, SCALAR_FUNCTION);
 		this.scalarFunction = scalarFunction;
 	}
 

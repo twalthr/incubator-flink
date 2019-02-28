@@ -27,6 +27,10 @@ import java.util.Optional;
 
 /**
  * A reference to a field. The reference might be typed or not.
+ *
+ * <p>Whether a field reference has a type depends on the current planning phase. Usually, field
+ * references used in the API have not been resolved/validated and, thus, have no type attached.
+ * References that come out of the optimizer are likely to be resolved and typed.
  */
 @PublicEvolving
 public final class FieldReferenceExpression implements CommonExpression {

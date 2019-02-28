@@ -34,7 +34,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Expression for constant values. The literal might be typed or not.
+ * Expression for constant literal values.
  */
 @PublicEvolving
 public final class ValueLiteralExpression implements CommonExpression {

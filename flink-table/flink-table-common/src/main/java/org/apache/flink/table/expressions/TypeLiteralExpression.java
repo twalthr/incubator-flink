@@ -26,7 +26,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * The type literal which can wraps the TypeInformation.
+ * Expression that wraps {@link TypeInformation} as a literal.
  */
 @PublicEvolving
 public final class TypeLiteralExpression implements CommonExpression {
