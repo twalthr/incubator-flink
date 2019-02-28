@@ -21,12 +21,11 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.commons.lang3.StringUtils;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * General expression for calling a function.
@@ -79,6 +78,7 @@ public final class CallExpression implements CommonExpression {
 
 	@Override
 	public String toString() {
-		return functionDefinition.getName() + "(" + StringUtils.join(args, ", ") + ")";
+		final List<String> argList = args.stream().map(Object::toString).collect(Collectors.toList());
+		return functionDefinition.getName() + "(" + String.join(", ", argList) + ")";
 	}
 }
