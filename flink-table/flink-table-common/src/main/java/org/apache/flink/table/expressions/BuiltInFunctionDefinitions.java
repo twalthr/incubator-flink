@@ -20,8 +20,10 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -308,8 +310,8 @@ public final class BuiltInFunctionDefinitions {
 		new FunctionDefinition("rowtime", OTHER_FUNCTION);
 
 	// over window
-	public static final FunctionDefinition OVER_CALL = 
-		new FunctionDefinition("overCall", OTHER_FUNCTION);
+	public static final FunctionDefinition OVER =
+		new FunctionDefinition("over", OTHER_FUNCTION);
 	public static final FunctionDefinition UNBOUNDED_RANGE = 
 		new FunctionDefinition("unboundedRange", OTHER_FUNCTION);
 	public static final FunctionDefinition UNBOUNDED_ROW = 
@@ -320,22 +322,23 @@ public final class BuiltInFunctionDefinitions {
 		new FunctionDefinition("currentRow", OTHER_FUNCTION);
 
 	// etc
-	public static final FunctionDefinition STREAM_RECORD_TIMESTAMP =
-		new FunctionDefinition("streamRecordTimestamp", OTHER_FUNCTION);
 	public static final FunctionDefinition IN = 
 		new FunctionDefinition("in", SCALAR_FUNCTION);
 	public static final FunctionDefinition CAST = 
 		new FunctionDefinition("cast", SCALAR_FUNCTION);
 	public static final FunctionDefinition AS = 
 		new FunctionDefinition("as", OTHER_FUNCTION);
+	public static final FunctionDefinition STREAM_RECORD_TIMESTAMP =
+		new FunctionDefinition("streamRecordTimestamp", OTHER_FUNCTION);
 
 	public static List<FunctionDefinition> getDefinitions() {
-		List<FunctionDefinition> list = new LinkedList<>();
-		for (Field field : BuiltInFunctionDefinitions.class.getFields()) {
+		final Field[] fields = BuiltInFunctionDefinitions.class.getFields();
+		final List<FunctionDefinition> list = new ArrayList<>(fields.length);
+		for (Field field : fields) {
 			if (FunctionDefinition.class.isAssignableFrom(field.getType())) {
 				try {
-					FunctionDefinition funcDef = (FunctionDefinition) field.get(BuiltInFunctionDefinitions.class);
-					list.add(funcDef);
+					final FunctionDefinition funcDef = (FunctionDefinition) field.get(BuiltInFunctionDefinitions.class);
+					list.add(Preconditions.checkNotNull(funcDef));
 				} catch (IllegalAccessException e) {
 					throw new TableException(
 						"The function definition for field " + field.getName() + " is not accessible.", e);

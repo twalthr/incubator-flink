@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -38,8 +39,8 @@ public class CallExpression implements CommonExpression {
 	private final List<CommonExpression> args;
 
 	public CallExpression(FunctionDefinition functionDefinition, List<CommonExpression> args) {
-		this.functionDefinition = functionDefinition;
-		this.args = Collections.unmodifiableList(new ArrayList<>(args));
+		this.functionDefinition = Preconditions.checkNotNull(functionDefinition);
+		this.args = Collections.unmodifiableList(new ArrayList<>(Preconditions.checkNotNull(args)));
 	}
 
 	@Override

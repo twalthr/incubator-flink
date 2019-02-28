@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;
@@ -40,12 +41,12 @@ public final class FieldReferenceExpression implements CommonExpression {
 	private final Optional<TypeInformation<?>> resultType;
 
 	public FieldReferenceExpression(String name) {
-		this.name = name;
+		this.name = Preconditions.checkNotNull(name);
 		this.resultType = Optional.empty();
 	}
 
 	public FieldReferenceExpression(String name, TypeInformation<?> resultType) {
-		this.name = name;
+		this.name = Preconditions.checkNotNull(name);
 		this.resultType = Optional.of(resultType);
 	}
 

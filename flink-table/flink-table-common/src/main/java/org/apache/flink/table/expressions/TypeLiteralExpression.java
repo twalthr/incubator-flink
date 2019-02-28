@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.utils.TypeStringUtils;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;
@@ -34,7 +35,7 @@ public final class TypeLiteralExpression implements CommonExpression {
 	private final TypeInformation<?> type;
 
 	public TypeLiteralExpression(TypeInformation<?> type) {
-		this.type = type;
+		this.type = Preconditions.checkNotNull(type);
 	}
 
 	public TypeInformation<?> getType() {

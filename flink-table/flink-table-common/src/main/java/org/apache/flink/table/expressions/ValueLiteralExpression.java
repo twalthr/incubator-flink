@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.typeutils.RowIntervalTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.table.utils.TypeStringUtils;
+import org.apache.flink.util.Preconditions;
 
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -44,13 +45,17 @@ public final class ValueLiteralExpression implements CommonExpression {
 	private final TypeInformation<?> type;
 
 	public ValueLiteralExpression(Object value) {
+		if (value == null) {
+			throw new IllegalArgumentException(
+				"Cannot derive a type from a null value. The type must be specified explicitly.");
+		}
 		this.value = value;
 		this.type = deriveTypeFromValue(value);
 	}
 
 	public ValueLiteralExpression(Object value, TypeInformation<?> type) {
-		this.value = value;
-		this.type = type;
+		this.value = value; // can be null
+		this.type = Preconditions.checkNotNull(type);
 	}
 
 	public Object getValue() {
@@ -102,10 +107,7 @@ public final class ValueLiteralExpression implements CommonExpression {
 	}
 
 	private static TypeInformation<?> deriveTypeFromValue(Object value) {
-		if (value == null) {
-			throw new IllegalArgumentException(
-				"Cannot derive a type from a null value. The type must be specified explicitly.");
-		} else if (value instanceof String) {
+		if (value instanceof String) {
 			return Types.STRING;
 		} else if (value instanceof Long) {
 			return Types.LONG;

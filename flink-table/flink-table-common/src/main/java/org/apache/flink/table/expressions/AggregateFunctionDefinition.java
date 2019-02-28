@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
 
@@ -41,9 +42,9 @@ public final class AggregateFunctionDefinition extends FunctionDefinition {
 			TypeInformation<?> resultTypeInfo,
 			TypeInformation<?> accTypeInfo) {
 		super(FUNCTION_NAME, AGGREGATE_FUNCTION);
-		this.aggregateFunction = aggregateFunction;
-		this.resultTypeInfo = resultTypeInfo;
-		this.accumulatorTypeInfo = accTypeInfo;
+		this.aggregateFunction = Preconditions.checkNotNull(aggregateFunction);
+		this.resultTypeInfo = Preconditions.checkNotNull(resultTypeInfo);
+		this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);
 	}
 
 	public AggregateFunction<?, ?> getAggregateFunction() {

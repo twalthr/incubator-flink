@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;
@@ -32,7 +33,7 @@ public final class CommonSymbolExpression implements CommonExpression {
 	private final CommonTableSymbol symbol;
 
 	public CommonSymbolExpression(CommonTableSymbol symbol) {
-		this.symbol = symbol;
+		this.symbol = Preconditions.checkNotNull(symbol);
 	}
 
 	public CommonTableSymbol getSymbol() {

@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_FUNCTION;
 
@@ -35,7 +36,7 @@ public final class ScalarFunctionDefinition extends FunctionDefinition {
 
 	public ScalarFunctionDefinition(ScalarFunction scalarFunction) {
 		super(FUNCTION_NAME, SCALAR_FUNCTION);
-		this.scalarFunction = scalarFunction;
+		this.scalarFunction = Preconditions.checkNotNull(scalarFunction);
 	}
 
 	public ScalarFunction getScalarFunction() {
