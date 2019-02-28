@@ -31,8 +31,6 @@ import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGA
 @PublicEvolving
 public final class AggregateFunctionDefinition extends FunctionDefinition {
 
-	private static final String FUNCTION_NAME = "User-defined Aggregate Function";
-
 	private final AggregateFunction<?, ?> aggregateFunction;
 	private final TypeInformation<?> resultTypeInfo;
 	private final TypeInformation<?> accumulatorTypeInfo;
@@ -41,7 +39,7 @@ public final class AggregateFunctionDefinition extends FunctionDefinition {
 			AggregateFunction<?, ?> aggregateFunction,
 			TypeInformation<?> resultTypeInfo,
 			TypeInformation<?> accTypeInfo) {
-		super(FUNCTION_NAME, AGGREGATE_FUNCTION);
+		super(aggregateFunction.getClass().getName(), AGGREGATE_FUNCTION);
 		this.aggregateFunction = Preconditions.checkNotNull(aggregateFunction);
 		this.resultTypeInfo = Preconditions.checkNotNull(resultTypeInfo);
 		this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);

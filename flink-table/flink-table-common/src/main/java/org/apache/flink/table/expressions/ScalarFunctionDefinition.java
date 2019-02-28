@@ -30,12 +30,10 @@ import static org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_
 @PublicEvolving
 public final class ScalarFunctionDefinition extends FunctionDefinition {
 
-	private static final String FUNCTION_NAME = "User-defined Scalar Function";
-
 	private final ScalarFunction scalarFunction;
 
 	public ScalarFunctionDefinition(ScalarFunction scalarFunction) {
-		super(FUNCTION_NAME, SCALAR_FUNCTION);
+		super(scalarFunction.getClass().getName(), SCALAR_FUNCTION);
 		this.scalarFunction = Preconditions.checkNotNull(scalarFunction);
 	}
 

@@ -100,17 +100,17 @@ public final class ValueLiteralExpression implements CommonExpression {
 			return "null";
 		}
 
-		if (type == SqlTimeTypeInfo.DATE) {
+		if (type.equals(SqlTimeTypeInfo.DATE)) {
 			return stringifyValue(value.toString()) + ".toDate";
-		} else if (type == SqlTimeTypeInfo.TIME) {
+		} else if (type.equals(SqlTimeTypeInfo.TIME)) {
 			return stringifyValue(value.toString()) + ".toTime";
-		} else if (type == SqlTimeTypeInfo.TIMESTAMP) {
+		} else if (type.equals(SqlTimeTypeInfo.TIMESTAMP)) {
 			return stringifyValue(value.toString()) + ".toTimestamp";
-		} else if (type == TimeIntervalTypeInfo.INTERVAL_MILLIS) {
+		} else if (type.equals(TimeIntervalTypeInfo.INTERVAL_MILLIS)) {
 			return value + ".millis";
-		} else if (type == TimeIntervalTypeInfo.INTERVAL_MONTHS) {
+		} else if (type.equals(TimeIntervalTypeInfo.INTERVAL_MONTHS)) {
 			return value + ".months";
-		} else if (type == RowIntervalTypeInfo.INTERVAL_ROWS) {
+		} else if (type.equals(RowIntervalTypeInfo.INTERVAL_ROWS)) {
 			return value + ".rows";
 		} else {
 			return stringifyValue(value);
