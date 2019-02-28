@@ -23,6 +23,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * An expression that wraps a specific symbol.
@@ -48,6 +49,23 @@ public final class CommonSymbolExpression implements CommonExpression {
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
 		return visitor.visitSymbol(this);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		CommonSymbolExpression that = (CommonSymbolExpression) o;
+		return Objects.equals(symbol, that.symbol);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(symbol);
 	}
 
 	@Override

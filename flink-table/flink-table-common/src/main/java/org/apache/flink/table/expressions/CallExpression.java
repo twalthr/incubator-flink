@@ -26,13 +26,15 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
- * General expression for calling a function. The function can be a built-in function
- * or a user-defined function.
+ * General expression for calling a function.
+ *
+ * <p>The function can be a built-in function or a user-defined function.
  */
 @PublicEvolving
-public class CallExpression implements CommonExpression {
+public final class CallExpression implements CommonExpression {
 
 	private final FunctionDefinition functionDefinition;
 
@@ -55,6 +57,24 @@ public class CallExpression implements CommonExpression {
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
 		return visitor.visitCall(this);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		CallExpression that = (CallExpression) o;
+		return Objects.equals(functionDefinition, that.functionDefinition) &&
+			Objects.equals(args, that.args);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(functionDefinition, args);
 	}
 
 	@Override

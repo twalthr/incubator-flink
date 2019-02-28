@@ -33,6 +33,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Expression for constant literal values.
@@ -77,10 +78,28 @@ public final class ValueLiteralExpression implements CommonExpression {
 	}
 
 	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		ValueLiteralExpression that = (ValueLiteralExpression) o;
+		return Objects.equals(value, that.value) && Objects.equals(type, that.type);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(value, type);
+	}
+
+	@Override
 	public String toString() {
 		if (value == null) {
 			return "null";
 		}
+
 		if (type == SqlTimeTypeInfo.DATE) {
 			return stringifyValue(value.toString()) + ".toDate";
 		} else if (type == SqlTimeTypeInfo.TIME) {
@@ -94,8 +113,7 @@ public final class ValueLiteralExpression implements CommonExpression {
 		} else if (type == RowIntervalTypeInfo.INTERVAL_ROWS) {
 			return value + ".rows";
 		} else {
-			return ValueLiteralExpression.class.getSimpleName() + "(" +
-				stringifyValue(value) + ", " + TypeStringUtils.writeTypeInfo(type) + ")";
+			return stringifyValue(value);
 		}
 	}
 

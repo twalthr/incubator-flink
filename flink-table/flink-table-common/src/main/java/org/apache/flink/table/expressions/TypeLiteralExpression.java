@@ -25,6 +25,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Expression that wraps {@link TypeInformation} as a literal.
@@ -50,6 +51,23 @@ public final class TypeLiteralExpression implements CommonExpression {
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
 		return visitor.visit(this);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		TypeLiteralExpression that = (TypeLiteralExpression) o;
+		return Objects.equals(type, that.type);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(type);
 	}
 
 	@Override

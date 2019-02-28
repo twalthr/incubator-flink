@@ -24,6 +24,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -66,6 +67,23 @@ public final class FieldReferenceExpression implements CommonExpression {
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
 		return visitor.visitFieldReference(this);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		FieldReferenceExpression that = (FieldReferenceExpression) o;
+		return Objects.equals(name, that.name) && Objects.equals(resultType, that.resultType);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(name, resultType);
 	}
 
 	@Override
