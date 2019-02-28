@@ -19,11 +19,6 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.CommonExpression;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.ScalarFunctionDefinition;
-import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.Test;
