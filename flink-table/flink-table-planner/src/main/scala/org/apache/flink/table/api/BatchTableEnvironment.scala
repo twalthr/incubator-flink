@@ -32,7 +32,7 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
-import org.apache.flink.table.expressions.{Expression, TimeAttribute}
+import org.apache.flink.table.expressions.{DefaultExpressionVisitor, Expression, TimeAttribute}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -413,9 +413,10 @@ abstract class BatchTableEnvironment(
     * @tparam T The type of the [[DataSet]].
     */
   protected def registerDataSetInternal[T](
-      name: String, dataSet: DataSet[T], fields: Array[Expression]): Unit = {
+      name: String, dataSet: DataSet[T], fieldsExpr: Array[Expression]): Unit = {
 
     val inputType = dataSet.getType
+    val fields: Array[Expression] = fieldsExpr.map(_.accept(DefaultExpressionVisitor.INSTANCE))
 
     val (fieldNames, fieldIndexes) = getFieldInfo[T](
       inputType,

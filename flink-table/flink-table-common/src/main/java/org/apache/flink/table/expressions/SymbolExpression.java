@@ -29,20 +29,20 @@ import java.util.Objects;
  * An expression that wraps a specific symbol.
  */
 @PublicEvolving
-public final class CommonSymbolExpression implements CommonExpression {
+public final class SymbolExpression implements Expression {
 
-	private final CommonTableSymbol symbol;
+	private final TableSymbol symbol;
 
-	public CommonSymbolExpression(CommonTableSymbol symbol) {
+	public SymbolExpression(TableSymbol symbol) {
 		this.symbol = Preconditions.checkNotNull(symbol);
 	}
 
-	public CommonTableSymbol getSymbol() {
+	public TableSymbol getSymbol() {
 		return symbol;
 	}
 
 	@Override
-	public List<CommonExpression> getChildren() {
+	public List<Expression> getChildren() {
 		return Collections.emptyList();
 	}
 
@@ -59,7 +59,7 @@ public final class CommonSymbolExpression implements CommonExpression {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		CommonSymbolExpression that = (CommonSymbolExpression) o;
+		SymbolExpression that = (SymbolExpression) o;
 		return Objects.equals(symbol, that.symbol);
 	}
 

@@ -21,11 +21,10 @@ package org.apache.flink.table.expressions
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.expressions.{E => PlannerE, UUID => PlannerUUID}
-
 import _root_.scala.collection.JavaConverters._
 
 /**
-  * Visitor implementation for converting [[CommonExpression]]s to [[PlannerExpression]]s.
+  * Visitor implementation for converting [[Expression]]s to [[PlannerExpression]]s.
   */
 class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpression] {
 
@@ -651,33 +650,33 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
     }
   }
 
-  override def visitSymbol(symbolExpression: CommonSymbolExpression): PlannerExpression = {
+  override def visitSymbol(symbolExpression: SymbolExpression): PlannerExpression = {
     val plannerTableSymbol = symbolExpression.getSymbol match {
-      case CommonTimeIntervalUnit.YEAR => TimeIntervalUnit.YEAR
-      case CommonTimeIntervalUnit.YEAR_TO_MONTH => TimeIntervalUnit.YEAR_TO_MONTH
-      case CommonTimeIntervalUnit.QUARTER => TimeIntervalUnit.QUARTER
-      case CommonTimeIntervalUnit.MONTH => TimeIntervalUnit.MONTH
-      case CommonTimeIntervalUnit.WEEK => TimeIntervalUnit.WEEK
-      case CommonTimeIntervalUnit.DAY => TimeIntervalUnit.DAY
-      case CommonTimeIntervalUnit.DAY_TO_HOUR => TimeIntervalUnit.DAY_TO_HOUR
-      case CommonTimeIntervalUnit.DAY_TO_MINUTE => TimeIntervalUnit.DAY_TO_MINUTE
-      case CommonTimeIntervalUnit.DAY_TO_SECOND => TimeIntervalUnit.DAY_TO_SECOND
-      case CommonTimeIntervalUnit.HOUR => TimeIntervalUnit.HOUR
-      case CommonTimeIntervalUnit.SECOND => TimeIntervalUnit.SECOND
-      case CommonTimeIntervalUnit.HOUR_TO_MINUTE => TimeIntervalUnit.HOUR_TO_MINUTE
-      case CommonTimeIntervalUnit.HOUR_TO_SECOND => TimeIntervalUnit.HOUR_TO_SECOND
-      case CommonTimeIntervalUnit.MINUTE => TimeIntervalUnit.MINUTE
-      case CommonTimeIntervalUnit.MINUTE_TO_SECOND => TimeIntervalUnit.MINUTE_TO_SECOND
-      case CommonTimePointUnit.YEAR => TimePointUnit.YEAR
-      case CommonTimePointUnit.MONTH => TimePointUnit.MONTH
-      case CommonTimePointUnit.DAY => TimePointUnit.DAY
-      case CommonTimePointUnit.HOUR => TimePointUnit.HOUR
-      case CommonTimePointUnit.MINUTE => TimePointUnit.MINUTE
-      case CommonTimePointUnit.SECOND => TimePointUnit.SECOND
-      case CommonTimePointUnit.QUARTER => TimePointUnit.QUARTER
-      case CommonTimePointUnit.WEEK => TimePointUnit.WEEK
-      case CommonTimePointUnit.MILLISECOND => TimePointUnit.MILLISECOND
-      case CommonTimePointUnit.MICROSECOND => TimePointUnit.MICROSECOND
+      case TimeIntervalUnit.YEAR => TimeIntervalUnit.YEAR
+      case TimeIntervalUnit.YEAR_TO_MONTH => TimeIntervalUnit.YEAR_TO_MONTH
+      case TimeIntervalUnit.QUARTER => TimeIntervalUnit.QUARTER
+      case TimeIntervalUnit.MONTH => TimeIntervalUnit.MONTH
+      case TimeIntervalUnit.WEEK => TimeIntervalUnit.WEEK
+      case TimeIntervalUnit.DAY => TimeIntervalUnit.DAY
+      case TimeIntervalUnit.DAY_TO_HOUR => TimeIntervalUnit.DAY_TO_HOUR
+      case TimeIntervalUnit.DAY_TO_MINUTE => TimeIntervalUnit.DAY_TO_MINUTE
+      case TimeIntervalUnit.DAY_TO_SECOND => TimeIntervalUnit.DAY_TO_SECOND
+      case TimeIntervalUnit.HOUR => TimeIntervalUnit.HOUR
+      case TimeIntervalUnit.SECOND => TimeIntervalUnit.SECOND
+      case TimeIntervalUnit.HOUR_TO_MINUTE => TimeIntervalUnit.HOUR_TO_MINUTE
+      case TimeIntervalUnit.HOUR_TO_SECOND => TimeIntervalUnit.HOUR_TO_SECOND
+      case TimeIntervalUnit.MINUTE => TimeIntervalUnit.MINUTE
+      case TimeIntervalUnit.MINUTE_TO_SECOND => TimeIntervalUnit.MINUTE_TO_SECOND
+      case TimePointUnit.YEAR => TimePointUnit.YEAR
+      case TimePointUnit.MONTH => TimePointUnit.MONTH
+      case TimePointUnit.DAY => TimePointUnit.DAY
+      case TimePointUnit.HOUR => TimePointUnit.HOUR
+      case TimePointUnit.MINUTE => TimePointUnit.MINUTE
+      case TimePointUnit.SECOND => TimePointUnit.SECOND
+      case TimePointUnit.QUARTER => TimePointUnit.QUARTER
+      case TimePointUnit.WEEK => TimePointUnit.WEEK
+      case TimePointUnit.MILLISECOND => TimePointUnit.MILLISECOND
+      case TimePointUnit.MICROSECOND => TimePointUnit.MICROSECOND
 
       case _ =>
         throw new TableException("Unsupported symbol: " + symbolExpression.getSymbol)
@@ -708,7 +707,7 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
     throw new TableException("Unsupported type literal expression: " + typeLiteral)
   }
 
-  override def visit(other: CommonExpression): PlannerExpression = {
+  override def visit(other: Expression): Expression = {
     other match {
       case tableRef: TableReferenceExpression =>
         TableReference(

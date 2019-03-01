@@ -20,19 +20,19 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.List;
+
 /**
- * Units for working with points in time.
+ * The interface for all expressions.
+ *
+ * <p>Expressions represent a logical tree for producing a computation result. Every expression
+ * consists of zero or more sub-expressions. Expressions might be literal values, function calls,
+ * or field references.
  */
 @PublicEvolving
-public enum CommonTimePointUnit implements CommonTableSymbol {
-	YEAR,
-	MONTH,
-	DAY,
-	HOUR,
-	MINUTE,
-	SECOND,
-	QUARTER,
-	WEEK,
-	MILLISECOND,
-	MICROSECOND
+public interface Expression {
+
+	List<Expression> getChildren();
+
+	<R> R accept(ExpressionVisitor<R> visitor);
 }
