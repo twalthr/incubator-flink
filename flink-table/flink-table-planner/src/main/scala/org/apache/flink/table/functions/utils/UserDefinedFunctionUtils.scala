@@ -787,7 +787,7 @@ object UserDefinedFunctionUtils {
       case Alias(child, name, extraNames) =>
         alias = Some(Seq(name) ++ extraNames)
         unwrap(child)
-      case Call(name, args) =>
+      case UnresolvedCall(name, args) =>
         val function = tableEnv.functionCatalog.lookupFunction(name, args)
         unwrap(function)
       case c: TableFunctionCall => c

@@ -274,12 +274,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val suffixFunctionCall: PackratParser[PlannerExpression] =
     composite ~ "." ~ functionIdent ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
-    case operand ~ _ ~ name ~ _ ~ args ~ _ => Call(name.toUpperCase, operand :: args)
+    case operand ~ _ ~ name ~ _ ~ args ~ _ => UnresolvedCall(name.toUpperCase, operand :: args)
   }
 
   lazy val suffixFunctionCallOneArg: PackratParser[PlannerExpression] =
     composite ~ "." ~ functionIdent ^^ {
-      case operand ~ _ ~ name => Call(name.toUpperCase, Seq(operand))
+      case operand ~ _ ~ name => UnresolvedCall(name.toUpperCase, Seq(operand))
     }
 
   lazy val suffixToDate: PackratParser[PlannerExpression] =
@@ -372,12 +372,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val prefixFunctionCall: PackratParser[PlannerExpression] =
     functionIdent ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
-      case name ~ _ ~ args ~ _ => Call(name.toUpperCase, args)
+      case name ~ _ ~ args ~ _ => UnresolvedCall(name.toUpperCase, args)
     }
 
   lazy val prefixFunctionCallOneArg: PackratParser[PlannerExpression] =
     functionIdent ~ "(" ~ expression ~ ")" ^^ {
-      case name ~ _ ~ arg ~ _ => Call(name.toUpperCase, Seq(arg))
+      case name ~ _ ~ arg ~ _ => UnresolvedCall(name.toUpperCase, Seq(arg))
     }
 
   lazy val prefixTrim: PackratParser[PlannerExpression] =
@@ -431,7 +431,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val prefixDistinct: PackratParser[PlannerExpression] =
     functionIdent ~ "." ~ DISTINCT ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
-      case name ~ _ ~ _ ~ _ ~ args ~ _ => DistinctAgg(Call(name.toUpperCase, args))
+      case name ~ _ ~ _ ~ _ ~ args ~ _ => DistinctAgg(UnresolvedCall(name.toUpperCase, args))
   }
 
   lazy val prefixAs: PackratParser[PlannerExpression] =

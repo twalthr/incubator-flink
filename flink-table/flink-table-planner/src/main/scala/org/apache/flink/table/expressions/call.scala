@@ -40,7 +40,8 @@ import _root_.scala.collection.JavaConverters._
   * General expression for unresolved function calls. The function can be a built-in
   * scalar function or a user-defined scalar function.
   */
-case class Call(functionName: String, args: Seq[PlannerExpression]) extends PlannerExpression {
+case class UnresolvedCall(functionName: String, args: Seq[PlannerExpression])
+  extends PlannerExpression {
 
   override private[flink] def children: Seq[PlannerExpression] = args
 

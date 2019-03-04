@@ -23,7 +23,7 @@ import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.api.java.{OverWindow => JOverWindow, SessionWithGapOnTimeWithAlias => JSessionWithGapOnTimeWithAlias, SlideWithSizeAndSlideOnTimeWithAlias => JSlideWithSizeAndSlideOnTimeWithAlias, TumbleWithSizeOnTimeWithAlias => JTumbleWithSizeOnTimeWithAlias}
 import org.apache.flink.table.api.scala.{OverWindow => SOverWindow, SessionWithGapOnTimeWithAlias => SSessionWithGapOnTimeWithAlias, SlideWithSizeAndSlideOnTimeWithAlias => SSlideWithSizeAndSlideOnTimeWithAlias, TumbleWithSizeOnTimeWithAlias => STumbleWithSizeOnTimeWithAlias}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.expressions.{Alias, Asc, Call, Desc, Expression, ExpressionParser, Ordering, PlannerExpression, ResolvedFieldReference, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
+import org.apache.flink.table.expressions.{Alias, Asc, Desc, Expression, ExpressionParser, Ordering, PlannerExpression, ResolvedFieldReference, UnresolvedAlias, UnresolvedCall, WindowProperty}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.{TableFunction, TemporalTableFunction}
 import org.apache.flink.table.plan.ProjectionTranslator._
@@ -915,9 +915,9 @@ class Table(
   private def orderByInternal(fields: PlannerExpression*): Table = {
     val order: Seq[Ordering] = fields.map {
       case o: Ordering => o
-      case asc: Call if "asc".equalsIgnoreCase(asc.functionName) =>
+      case asc: UnresolvedCall if "asc".equalsIgnoreCase(asc.functionName) =>
         Asc(asc.args.head)
-      case desc: Call if "desc".equalsIgnoreCase(desc.functionName) =>
+      case desc: UnresolvedCall if "desc".equalsIgnoreCase(desc.functionName) =>
         Desc(desc.args.head)
       case e => Asc(e)
     }

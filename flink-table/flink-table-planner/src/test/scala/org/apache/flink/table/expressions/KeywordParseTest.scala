@@ -42,21 +42,21 @@ class KeywordParseTest extends ExpressionTestBase {
   @Test
   def testKeywordAsPrefixInFunctionName(): Unit = {
     Assert.assertEquals(
-      ExpressionParser.parseExpression("f0.ascii()").asInstanceOf[Call].functionName,
+      ExpressionParser.parseExpression("f0.ascii()").asInstanceOf[UnresolvedCall].functionName,
       "ASCII")
   }
 
   @Test
   def testKeywordAsInfixInFunctionName(): Unit = {
     Assert.assertEquals(
-      ExpressionParser.parseExpression("f0.iiascii()").asInstanceOf[Call].functionName,
+      ExpressionParser.parseExpression("f0.iiascii()").asInstanceOf[UnresolvedCall].functionName,
       "IIASCII")
   }
 
   @Test
   def testKeywordAsSuffixInFunctionName(): Unit = {
     Assert.assertEquals(
-      ExpressionParser.parseExpression("f0.iiasc()").asInstanceOf[Call].functionName,
+      ExpressionParser.parseExpression("f0.iiasc()").asInstanceOf[UnresolvedCall].functionName,
       "IIASC")
   }
 

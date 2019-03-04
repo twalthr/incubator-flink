@@ -77,7 +77,7 @@ object ProjectionTranslator {
         identifyAggregationsAndProperties(b.right, tableEnv, l._1, l._2)
 
       // Functions calls
-      case c @ Call(name, args) =>
+      case c @ UnresolvedCall(name, args) =>
         args.foldLeft((aggNames, propNames)){
           (x, y) => identifyAggregationsAndProperties(y, tableEnv, x._1, x._2)
         }
@@ -164,7 +164,7 @@ object ProjectionTranslator {
         b.makeCopy(Array(l, r))
 
       // Functions calls
-      case c @ Call(name, args) =>
+      case c @ UnresolvedCall(name, args) =>
         val newArgs = args.map((exp: PlannerExpression) =>
           replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
         c.makeCopy(Array(name, newArgs))
@@ -286,7 +286,7 @@ object ProjectionTranslator {
         b.makeCopy(Array(l, r))
 
       // Functions calls
-      case c @ Call(name, args: Seq[PlannerExpression]) =>
+      case c @ UnresolvedCall(name, args: Seq[PlannerExpression]) =>
         val newArgs =
           args.map(
             (exp: PlannerExpression) =>
@@ -338,7 +338,7 @@ object ProjectionTranslator {
       identifyFieldReferences(b.right, l)
 
     // Functions calls
-    case Call(_, args: Seq[PlannerExpression]) =>
+    case UnresolvedCall(_, args: Seq[PlannerExpression]) =>
       args.foldLeft(fieldReferences) {
         (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
       }
@@ -397,7 +397,7 @@ object ProjectionTranslator {
         val r = replaceAggFunctionCall(b.right, tableEnv)
         b.makeCopy(Array(l, r))
       // Functions calls
-      case c @ Call(name, args) =>
+      case c @ UnresolvedCall(name, args) =>
         val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
         function match {
           case a: AggFunctionCall => a

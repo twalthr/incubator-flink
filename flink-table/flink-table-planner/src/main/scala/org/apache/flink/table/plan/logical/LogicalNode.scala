@@ -34,7 +34,7 @@ import org.apache.flink.table.validate._
   *
   * - translate [[UnresolvedFieldReference]] into [[ResolvedFieldReference]]
   *     using child operator's output
-  * - translate [[Call]](UnresolvedFunction) into solid Expression
+  * - translate [[UnresolvedCall]](UnresolvedFunction) into solid Expression
   * - generate alias names for query output
   * - ....
   *
@@ -55,7 +55,7 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
       case u @ UnresolvedFieldReference(name) =>
         // try resolve a field
         resolveReference(tableEnv, name).getOrElse(u)
-      case c @ Call(name, children) if c.childrenValid =>
+      case c @ UnresolvedCall(name, children) if c.childrenValid =>
         tableEnv.getFunctionCatalog.lookupFunction(name, children)
     }
 
