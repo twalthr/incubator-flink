@@ -651,38 +651,38 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
   }
 
   override def visitSymbol(symbolExpression: SymbolExpression): PlannerExpression = {
-    val plannerTableSymbol = symbolExpression.getSymbol match {
-      case TimeIntervalUnit.YEAR => TimeIntervalUnit.YEAR
-      case TimeIntervalUnit.YEAR_TO_MONTH => TimeIntervalUnit.YEAR_TO_MONTH
-      case TimeIntervalUnit.QUARTER => TimeIntervalUnit.QUARTER
-      case TimeIntervalUnit.MONTH => TimeIntervalUnit.MONTH
-      case TimeIntervalUnit.WEEK => TimeIntervalUnit.WEEK
-      case TimeIntervalUnit.DAY => TimeIntervalUnit.DAY
-      case TimeIntervalUnit.DAY_TO_HOUR => TimeIntervalUnit.DAY_TO_HOUR
-      case TimeIntervalUnit.DAY_TO_MINUTE => TimeIntervalUnit.DAY_TO_MINUTE
-      case TimeIntervalUnit.DAY_TO_SECOND => TimeIntervalUnit.DAY_TO_SECOND
-      case TimeIntervalUnit.HOUR => TimeIntervalUnit.HOUR
-      case TimeIntervalUnit.SECOND => TimeIntervalUnit.SECOND
-      case TimeIntervalUnit.HOUR_TO_MINUTE => TimeIntervalUnit.HOUR_TO_MINUTE
-      case TimeIntervalUnit.HOUR_TO_SECOND => TimeIntervalUnit.HOUR_TO_SECOND
-      case TimeIntervalUnit.MINUTE => TimeIntervalUnit.MINUTE
-      case TimeIntervalUnit.MINUTE_TO_SECOND => TimeIntervalUnit.MINUTE_TO_SECOND
-      case TimePointUnit.YEAR => TimePointUnit.YEAR
-      case TimePointUnit.MONTH => TimePointUnit.MONTH
-      case TimePointUnit.DAY => TimePointUnit.DAY
-      case TimePointUnit.HOUR => TimePointUnit.HOUR
-      case TimePointUnit.MINUTE => TimePointUnit.MINUTE
-      case TimePointUnit.SECOND => TimePointUnit.SECOND
-      case TimePointUnit.QUARTER => TimePointUnit.QUARTER
-      case TimePointUnit.WEEK => TimePointUnit.WEEK
-      case TimePointUnit.MILLISECOND => TimePointUnit.MILLISECOND
-      case TimePointUnit.MICROSECOND => TimePointUnit.MICROSECOND
+    val plannerSymbol = symbolExpression.getSymbol match {
+      case TimeIntervalUnit.YEAR => PlannerTimeIntervalUnit.YEAR
+      case TimeIntervalUnit.YEAR_TO_MONTH => PlannerTimeIntervalUnit.YEAR_TO_MONTH
+      case TimeIntervalUnit.QUARTER => PlannerTimeIntervalUnit.QUARTER
+      case TimeIntervalUnit.MONTH => PlannerTimeIntervalUnit.MONTH
+      case TimeIntervalUnit.WEEK => PlannerTimeIntervalUnit.WEEK
+      case TimeIntervalUnit.DAY => PlannerTimeIntervalUnit.DAY
+      case TimeIntervalUnit.DAY_TO_HOUR => PlannerTimeIntervalUnit.DAY_TO_HOUR
+      case TimeIntervalUnit.DAY_TO_MINUTE => PlannerTimeIntervalUnit.DAY_TO_MINUTE
+      case TimeIntervalUnit.DAY_TO_SECOND => PlannerTimeIntervalUnit.DAY_TO_SECOND
+      case TimeIntervalUnit.HOUR => PlannerTimeIntervalUnit.HOUR
+      case TimeIntervalUnit.SECOND => PlannerTimeIntervalUnit.SECOND
+      case TimeIntervalUnit.HOUR_TO_MINUTE => PlannerTimeIntervalUnit.HOUR_TO_MINUTE
+      case TimeIntervalUnit.HOUR_TO_SECOND => PlannerTimeIntervalUnit.HOUR_TO_SECOND
+      case TimeIntervalUnit.MINUTE => PlannerTimeIntervalUnit.MINUTE
+      case TimeIntervalUnit.MINUTE_TO_SECOND => PlannerTimeIntervalUnit.MINUTE_TO_SECOND
+      case TimePointUnit.YEAR => PlannerTimePointUnit.YEAR
+      case TimePointUnit.MONTH => PlannerTimePointUnit.MONTH
+      case TimePointUnit.DAY => PlannerTimePointUnit.DAY
+      case TimePointUnit.HOUR => PlannerTimePointUnit.HOUR
+      case TimePointUnit.MINUTE => PlannerTimePointUnit.MINUTE
+      case TimePointUnit.SECOND => PlannerTimePointUnit.SECOND
+      case TimePointUnit.QUARTER => PlannerTimePointUnit.QUARTER
+      case TimePointUnit.WEEK => PlannerTimePointUnit.WEEK
+      case TimePointUnit.MILLISECOND => PlannerTimePointUnit.MILLISECOND
+      case TimePointUnit.MICROSECOND => PlannerTimePointUnit.MICROSECOND
 
       case _ =>
         throw new TableException("Unsupported symbol: " + symbolExpression.getSymbol)
     }
 
-    SymbolExpression(plannerTableSymbol)
+    SymbolPlannerExpression(plannerSymbol)
   }
 
   override def visitValueLiteral(literal: ValueLiteralExpression): PlannerExpression = {
