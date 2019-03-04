@@ -30,15 +30,16 @@ import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeIn
 import scala.collection.JavaConverters._
 
 object ExpressionUtils {
-  private[flink] def call(func: FunctionDefinition, args: Expression*): Expression = {
+
+  private[flink] def call(func: FunctionDefinition, args: Expression*): CallExpression = {
     new CallExpression(func, args.asJava)
   }
 
-  private[flink] def literal(l: Any): ValueLiteralExpression = {
+  private[flink] def valueLiteral(l: Any): ValueLiteralExpression = {
     new ValueLiteralExpression(l)
   }
 
-  private[flink] def literal(l: Any, t: TypeInformation[_]): ValueLiteralExpression = {
+  private[flink] def valueLiteral(l: Any, t: TypeInformation[_]): ValueLiteralExpression = {
     new ValueLiteralExpression(l, t)
   }
 
@@ -58,63 +59,71 @@ object ExpressionUtils {
     new TableReferenceExpression(name, table)
   }
 
+  private[flink] def unresolvedCall(name: String, args: Expression*): UnresolvedCallExpression = {
+    new UnresolvedCallExpression(name, args.asJava)
+  }
+
+  private[flink] def typeLiteral(typeInfo: TypeInformation[_]): TypeLiteralExpression = {
+    new TypeLiteralExpression(typeInfo)
+  }
+
   private[flink] def toMonthInterval(expr: Expression, multiplier: Int): Expression =
     expr match {
       case e: ValueLiteralExpression if e.getValue.isInstanceOf[Int] && !e.getType.isPresent =>
-        literal(e.getValue.asInstanceOf[Int] * multiplier,
+        valueLiteral(e.getValue.asInstanceOf[Int] * multiplier,
           TimeIntervalTypeInfo.INTERVAL_MONTHS)
       case e: ValueLiteralExpression if e.getValue.isInstanceOf[Int] && e.getType.isPresent
         && e.getType.get().equals(BasicTypeInfo.INT_TYPE_INFO) =>
-        literal(e.getValue.asInstanceOf[Int] * multiplier,
+        valueLiteral(e.getValue.asInstanceOf[Int] * multiplier,
           TimeIntervalTypeInfo.INTERVAL_MONTHS)
       case _ =>
         call(FunctionDefinitions.CAST, Seq(
-          call(FunctionDefinitions.TIMES, Seq(expr, literal(multiplier))),
+          call(FunctionDefinitions.TIMES, Seq(expr, valueLiteral(multiplier))),
           TimeIntervalTypeInfo.INTERVAL_MONTHS))
   }
 
   private[flink] def toMilliInterval(expr: Expression, multiplier: Long): Expression =
     expr match {
       case e: ValueLiteralExpression if e.getValue.isInstanceOf[Int] && !e.getType.isPresent =>
-        literal(e.getValue.asInstanceOf[Int] * multiplier,
+        valueLiteral(e.getValue.asInstanceOf[Int] * multiplier,
           TimeIntervalTypeInfo.INTERVAL_MILLIS)
       case e: ValueLiteralExpression if e.getValue.isInstanceOf[Int] && e.getType.isPresent
         && e.getType.get().equals(BasicTypeInfo.INT_TYPE_INFO) =>
-        literal(e.getValue.asInstanceOf[Int] * multiplier,
+        valueLiteral(e.getValue.asInstanceOf[Int] * multiplier,
           TimeIntervalTypeInfo.INTERVAL_MILLIS)
       case e: ValueLiteralExpression if e.getValue.isInstanceOf[Long] && !e.getType.isPresent =>
-        literal(e.getValue.asInstanceOf[Long] * multiplier,
+        valueLiteral(e.getValue.asInstanceOf[Long] * multiplier,
           TimeIntervalTypeInfo.INTERVAL_MILLIS)
       case e: ValueLiteralExpression if e.getValue.isInstanceOf[Long] && e.getType.isPresent
         && e.getType.get().equals(BasicTypeInfo.LONG_TYPE_INFO) =>
-        literal(e.getValue.asInstanceOf[Long] * multiplier,
+        valueLiteral(e.getValue.asInstanceOf[Long] * multiplier,
           TimeIntervalTypeInfo.INTERVAL_MILLIS)
       case _ =>
         call(FunctionDefinitions.CAST, Seq(
-          call(FunctionDefinitions.TIMES, Seq(expr, literal(multiplier))),
+          call(FunctionDefinitions.TIMES, Seq(expr, valueLiteral(multiplier))),
           TimeIntervalTypeInfo.INTERVAL_MILLIS))
     }
 
   private[flink] def toRowInterval(expr: Expression): Expression =
     expr match {
       case e: ValueLiteralExpression if e.getValue.isInstanceOf[Int] && !e.getType.isPresent =>
-        literal(e.getValue.asInstanceOf[Int].toLong,
+        valueLiteral(e.getValue.asInstanceOf[Int].toLong,
           RowIntervalTypeInfo.INTERVAL_ROWS)
       case e: ValueLiteralExpression if e.getValue.isInstanceOf[Int] && e.getType.isPresent
         && e.getType.get().equals(BasicTypeInfo.INT_TYPE_INFO) =>
-        literal(e.getValue.asInstanceOf[Int].toLong,
+        valueLiteral(e.getValue.asInstanceOf[Int].toLong,
           RowIntervalTypeInfo.INTERVAL_ROWS)
       case e: ValueLiteralExpression if e.getValue.isInstanceOf[Long] && !e.getType.isPresent =>
-        literal(e.getValue, RowIntervalTypeInfo.INTERVAL_ROWS)
+        valueLiteral(e.getValue, RowIntervalTypeInfo.INTERVAL_ROWS)
       case e: ValueLiteralExpression if e.getValue.isInstanceOf[Long] && e.getType.isPresent
         && e.getType.get().equals(BasicTypeInfo.LONG_TYPE_INFO) =>
-        literal(e.getValue, RowIntervalTypeInfo.INTERVAL_ROWS)
+        valueLiteral(e.getValue, RowIntervalTypeInfo.INTERVAL_ROWS)
     }
 
   private[flink] def convertArray(array: Array[_]): Expression = {
     def createArray(): Expression = {
       call(FunctionDefinitions.ARRAY,
-        array.map(literal(_).asInstanceOf[Expression]))
+        array.map(valueLiteral(_).asInstanceOf[Expression]))
     }
 
     array match {
@@ -144,7 +153,7 @@ object ExpressionUtils {
       case _: Array[Timestamp] => createArray()
       case bda: Array[BigDecimal] =>
         call(FunctionDefinitions.ARRAY,
-          bda.map { bd => literal(bd.bigDecimal)})
+          bda.map { bd => valueLiteral(bd.bigDecimal)})
 
       case _ =>
         // nested
