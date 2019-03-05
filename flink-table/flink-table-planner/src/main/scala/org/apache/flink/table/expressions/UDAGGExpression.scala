@@ -33,20 +33,5 @@ case class UDAGGExpression[T: TypeInformation, ACC: TypeInformation](
     * @param params actual parameters of function
     * @return a [[CallExpression]]
     */
-  def apply(params: Expression*): CallExpression = {
-    val resultTypeInfo: TypeInformation[_] = getResultTypeOfAggregateFunction(
-      aggregateFunction,
-      implicitly[TypeInformation[T]])
 
-    val accTypeInfo: TypeInformation[_] = getAccumulatorTypeOfAggregateFunction(
-      aggregateFunction,
-      implicitly[TypeInformation[ACC]])
-
-    ExpressionUtils.call(
-      new AggregateFunctionDefinition(
-        aggregateFunction,
-        resultTypeInfo,
-        accTypeInfo),
-      params)
-  }
 }

@@ -17,24 +17,17 @@
  */
 package org.apache.flink.table.api.scala
 
+import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInteger, Long => JLong, Short => JShort}
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 
-import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-<<<<<<< HEAD
-import org.apache.flink.table.api.{Table, TableException}
-import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
-import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
-import org.apache.flink.table.expressions.TimePointUnit.TimePointUnit
-=======
-import org.apache.flink.table.api._
+import org.apache.flink.table.api.{Table, ValidationException}
+import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{E => FDE, UUID => FDUUID, _}
-import org.apache.flink.table.expressions.ExpressionUtils._
->>>>>>> be158527c5... BIG Cleaned up commit
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.plan.logical.LogicalTableFunctionCall
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 
 import _root_.scala.language.implicitConversions
 
@@ -96,6 +89,29 @@ trait ImplicitExpressionOperations {
     * Not equal.
     */
   def !== (other: Expression): Expression = call(NOT_EQUALS, expr, other)
+
+  /**
+    * Returns true if the given expression is between lowerBound and upperBound (both inclusive).
+    * False otherwise. The parameters must be numeric types or identical comparable types.
+    *
+    * @param lowerBound numeric or comparable expression
+    * @param upperBound numeric or comparable expression
+    * @return boolean or null
+    */
+  def between(lowerBound: Expression, upperBound: Expression): Expression =
+    call(BETWEEN, expr, lowerBound, upperBound)
+
+  /**
+    * Returns true if the given expression is not between lowerBound and upperBound (both
+    * inclusive). False otherwise. The parameters must be numeric types or identical
+    * comparable types.
+    *
+    * @param lowerBound numeric or comparable expression
+    * @param upperBound numeric or comparable expression
+    * @return boolean or null
+    */
+  def notBetween(lowerBound: Expression, upperBound: Expression): Expression =
+    call(NOT_BETWEEN, expr, lowerBound, upperBound)
 
   /**
     * Whether boolean expression is not true; returns null if boolean is null.
@@ -246,22 +262,22 @@ trait ImplicitExpressionOperations {
     call(
       AS,
       Seq(expr) ++
-        Seq(literal(name.name)) ++
-        extraNames.map(name => literal(name.name)): _*)
+        Seq(valueLiteral(name.name)) ++
+        extraNames.map(name => valueLiteral(name.name)): _*)
 
   /**
     * Specifies ascending order of an expression i.e. a field for orderBy call.
     *
     * @return ascend expression
     */
-  def asc: Expression = call(ASC, expr)
+  def asc: Expression = call(ORDER_ASC, expr)
 
   /**
     * Specifies descending order of an expression i.e. a field for orderBy call.
     *
     * @return descend expression
     */
-  def desc: Expression = call(DESC, expr)
+  def desc: Expression = call(ORDER_DESC, expr)
 
   /**
     * Returns true if an expression exists in a given list of expressions. This is a shorthand
@@ -286,14 +302,14 @@ trait ImplicitExpressionOperations {
   /**
     * Returns the start time (inclusive) of a window when applied on a window reference.
     */
-  def start: Expression = call(WIN_START, expr)
+  def start: Expression = call(WINDOW_START, expr)
 
   /**
     * Returns the end time (exclusive) of a window when applied on a window reference.
     *
     * e.g. if a window ends at 10:59:59.999 this property will return 11:00:00.000.
     */
-  def end: Expression = call(WIN_END, expr)
+  def end: Expression = call(WINDOW_END, expr)
 
   /**
     * Ternary conditional operator that decides which of two other expressions should be
@@ -499,18 +515,9 @@ trait ImplicitExpressionOperations {
   def trim(
       removeLeading: Boolean = true,
       removeTrailing: Boolean = true,
-      character: Expression = literal(" "))
+      character: Expression = valueLiteral(" "))
     : Expression = {
-
-    if (removeLeading && removeTrailing) {
-      call(TRIM, symbol(TrimMode.BOTH), character, expr)
-    } else if (removeLeading) {
-      call(TRIM, symbol(TrimMode.LEADING), character, expr)
-    } else if (removeTrailing) {
-      call(TRIM, symbol(TrimMode.TRAILING), character, expr)
-    } else {
-      expr
-    }
+    call(TRIM, valueLiteral(removeLeading), valueLiteral(removeTrailing), character, expr)
   }
 
   /**
@@ -588,7 +595,7 @@ trait ImplicitExpressionOperations {
     *   .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
     *   .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
     */
-  def over(alias: Expression): Expression = call(OVER_CALL, expr, alias)
+  def over(alias: Expression): Expression = call(OVER, expr, alias)
 
   /**
     * Replaces a substring of string with a string starting at a position (starting at 1).
@@ -946,29 +953,6 @@ trait ImplicitExpressionOperations {
     * @return string or null if one of the arguments is null.
     */
   def sha2(hashLength: Expression): Expression = call(SHA2, expr, hashLength)
-
-  /**
-    * Returns true if the given expression is between lowerBound and upperBound (both inclusive).
-    * False otherwise. The parameters must be numeric types or identical comparable types.
-    *
-    * @param lowerBound numeric or comparable expression
-    * @param upperBound numeric or comparable expression
-    * @return boolean or null
-    */
-  def between(lowerBound: Expression, upperBound: Expression): Expression =
-    call(BETWEEN, expr, lowerBound, upperBound)
-
-  /**
-    * Returns true if the given expression is not between lowerBound and upperBound (both
-    * inclusive). False otherwise. The parameters must be numeric types or identical
-    * comparable types.
-    *
-    * @param lowerBound numeric or comparable expression
-    * @param upperBound numeric or comparable expression
-    * @return boolean or null
-    */
-  def notBetween(lowerBound: Expression, upperBound: Expression): Expression =
-    call(NOT_BETWEEN, expr, lowerBound, upperBound)
 }
 
 /**
@@ -1012,120 +996,172 @@ trait ImplicitExpressionConversions {
   }
 
   implicit class LiteralLongExpression(l: Long) extends ImplicitExpressionOperations {
-    def expr: Expression = literal(l)
+    def expr: Expression = valueLiteral(l)
   }
 
   implicit class LiteralByteExpression(b: Byte) extends ImplicitExpressionOperations {
-    def expr: Expression = literal(b)
+    def expr: Expression = valueLiteral(b)
   }
 
   implicit class LiteralShortExpression(s: Short) extends ImplicitExpressionOperations {
-    def expr: Expression = literal(s)
+    def expr: Expression = valueLiteral(s)
   }
 
   implicit class LiteralIntExpression(i: Int) extends ImplicitExpressionOperations {
-    def expr: Expression = literal(i)
+    def expr: Expression = valueLiteral(i)
   }
 
   implicit class LiteralFloatExpression(f: Float) extends ImplicitExpressionOperations {
-    def expr: Expression = literal(f)
+    def expr: Expression = valueLiteral(f)
   }
 
   implicit class LiteralDoubleExpression(d: Double) extends ImplicitExpressionOperations {
-    def expr: Expression = literal(d)
+    def expr: Expression = valueLiteral(d)
   }
 
   implicit class LiteralStringExpression(str: String) extends ImplicitExpressionOperations {
-    def expr: Expression = literal(str)
+    def expr: Expression = valueLiteral(str)
   }
 
   implicit class LiteralBooleanExpression(bool: Boolean) extends ImplicitExpressionOperations {
-    def expr: Expression = literal(bool)
+    def expr: Expression = valueLiteral(bool)
   }
 
   implicit class LiteralJavaDecimalExpression(javaDecimal: JBigDecimal)
       extends ImplicitExpressionOperations {
-    def expr: Expression = literal(javaDecimal)
+    def expr: Expression = valueLiteral(javaDecimal)
   }
 
   implicit class LiteralScalaDecimalExpression(scalaDecimal: BigDecimal)
       extends ImplicitExpressionOperations {
-    def expr: Expression = literal(scalaDecimal.bigDecimal)
+    def expr: Expression = valueLiteral(scalaDecimal.bigDecimal)
   }
 
   implicit class LiteralSqlDateExpression(sqlDate: Date)
       extends ImplicitExpressionOperations {
-    def expr: Expression = literal(sqlDate)
+    def expr: Expression = valueLiteral(sqlDate)
   }
 
   implicit class LiteralSqlTimeExpression(sqlTime: Time)
     extends ImplicitExpressionOperations {
-    def expr: Expression = literal(sqlTime)
+    def expr: Expression = valueLiteral(sqlTime)
   }
 
   implicit class LiteralSqlTimestampExpression(sqlTimestamp: Timestamp)
       extends ImplicitExpressionOperations {
-    def expr: Expression = literal(sqlTimestamp)
+    def expr: Expression = valueLiteral(sqlTimestamp)
   }
 
-  implicit class ScalarFunctionCallExpression(val s: ScalarFunction) {
+  implicit class ScalarFunctionCall(val s: ScalarFunction) {
     def apply(params: Expression*): Expression = {
       call(new ScalarFunctionDefinition(s), params:_*)
     }
   }
 
-  implicit class TableFunctionConversion[T: TypeInformation](val t: TableFunction[T]) {
-    def apply(params: Expression*): TableFunctionWrapper[T] = {
+  implicit class TableFunctionCall[T: TypeInformation](val t: TableFunction[T]) {
+    def apply(params: Expression*): Expression = {
       val resultType = if (t.getResultType == null) {
         implicitly[TypeInformation[T]]
       } else {
         t.getResultType
       }
-      new TableFunctionWrapper(t, params, resultType)
+      call(new TableFunctionDefinition(t, resultType))
     }
   }
 
-  class TableFunctionWrapper[T](
-      val tableFunction: TableFunction[T],
-      val params: Seq[Expression],
-      val resultType: TypeInformation[T]) {
+  implicit class AggregateFunctionCall[T: TypeInformation, ACC: TypeInformation]
+      (val a: AggregateFunction[T, ACC]) {
+    def apply(params: Expression*): Expression = {
+      val resultTypeInfo: TypeInformation[_] = getResultTypeOfAggregateFunction(
+        a,
+        implicitly[TypeInformation[T]])
 
-    /**
-      * Specifies the field names for a join with a table function.
-      *
-      * @param name name for one field
-      * @param extraNames additional names if the expression expands to multiple fields
-      * @return field with an alias
-      */
-    def as(name: Symbol, extraNames: Symbol*): TableFunctionWrapperWithAlias[T] = {
-      new TableFunctionWrapperWithAlias(
-        tableFunction,
-        params,
-        resultType,
-        name.name +: extraNames.map(_.name)
-      )
+      val accTypeInfo: TypeInformation[_] = getAccumulatorTypeOfAggregateFunction(
+        a,
+        implicitly[TypeInformation[ACC]])
+
+      call(new AggregateFunctionDefinition(a, resultTypeInfo, accTypeInfo), params: _*)
     }
   }
 
-  implicit def symbol2FieldExpression(sym: Symbol): Expression = UnresolvedFieldReference(sym.name)
-  implicit def byte2Literal(b: Byte): Expression = Literal(b)
-  implicit def short2Literal(s: Short): Expression = Literal(s)
-  implicit def int2Literal(i: Int): Expression = Literal(i)
-  implicit def long2Literal(l: Long): Expression = Literal(l)
-  implicit def double2Literal(d: Double): Expression = Literal(d)
-  implicit def float2Literal(d: Float): Expression = Literal(d)
-  implicit def string2Literal(str: String): Expression = Literal(str)
-  implicit def boolean2Literal(bool: Boolean): Expression = Literal(bool)
-  implicit def javaDec2Literal(javaDec: JBigDecimal): Expression = Literal(javaDec)
+  implicit def tableSymbolToExpression(symbol: TableSymbol): SymbolExpression =
+    symbol(symbol)
+
+  implicit def symbol2FieldExpression(sym: Symbol): Expression =
+    fieldRef(sym.name)
+
+  implicit def byte2Literal(b: Byte): Expression = valueLiteral(b)
+
+  implicit def short2Literal(s: Short): Expression = valueLiteral(s)
+
+  implicit def int2Literal(i: Int): Expression = valueLiteral(i)
+
+  implicit def long2Literal(l: Long): Expression = valueLiteral(l)
+
+  implicit def double2Literal(d: Double): Expression = valueLiteral(d)
+
+  implicit def float2Literal(d: Float): Expression = valueLiteral(d)
+
+  implicit def string2Literal(str: String): Expression = valueLiteral(str)
+
+  implicit def boolean2Literal(bool: Boolean): Expression = valueLiteral(bool)
+
+  implicit def javaDec2Literal(javaDec: JBigDecimal): Expression = valueLiteral(javaDec)
+
   implicit def scalaDec2Literal(scalaDec: BigDecimal): Expression =
-    literal(scalaDec.bigDecimal)
-  implicit def sqlDate2Literal(sqlDate: Date): Expression = literal(sqlDate)
-  implicit def sqlTime2Literal(sqlTime: Time): Expression = literal(sqlTime)
+    valueLiteral(scalaDec.bigDecimal)
+
+  implicit def sqlDate2Literal(sqlDate: Date): Expression = valueLiteral(sqlDate)
+
+  implicit def sqlTime2Literal(sqlTime: Time): Expression = valueLiteral(sqlTime)
+
   implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression =
-    literal(sqlTimestamp)
-  implicit def array2ArrayConstructor(array: Array[_]): Expression = convertArray(array)
-  implicit def userDefinedAggFunctionConstructor[T: TypeInformation, ACC: TypeInformation]
-    (udagg: AggregateFunction[T, ACC]): UDAGGExpression[T, ACC] = UDAGGExpression(udagg)
+    valueLiteral(sqlTimestamp)
+
+  implicit def array2ArrayConstructor(array: Array[_]): Expression = {
+
+    def createArray(elements: Array[_]): Expression = {
+      call(BuiltInFunctionDefinitions.ARRAY, array.map(valueLiteral): _*)
+    }
+
+    def convertArray(array: Array[_]): Expression = array match {
+      // primitives
+      case _: Array[Boolean] => createArray(array)
+      case _: Array[Byte] => createArray(array)
+      case _: Array[Short] => createArray(array)
+      case _: Array[Int] => createArray(array)
+      case _: Array[Long] => createArray(array)
+      case _: Array[Float] => createArray(array)
+      case _: Array[Double] => createArray(array)
+
+      // boxed types
+      case _: Array[JBoolean] => createArray(array)
+      case _: Array[JByte] => createArray(array)
+      case _: Array[JShort] => createArray(array)
+      case _: Array[JInteger] => createArray(array)
+      case _: Array[JLong] => createArray(array)
+      case _: Array[JFloat] => createArray(array)
+      case _: Array[JDouble] => createArray(array)
+
+      // others
+      case _: Array[String] => createArray(array)
+      case _: Array[JBigDecimal] => createArray(array)
+      case _: Array[Date] => createArray(array)
+      case _: Array[Time] => createArray(array)
+      case _: Array[Timestamp] => createArray(array)
+      case bda: Array[BigDecimal] => createArray(bda.map(_.bigDecimal))
+
+      case _ =>
+        // nested
+        if (array.length > 0 && array.head.isInstanceOf[Array[_]]) {
+          createArray(array.map { na => convertArray(na.asInstanceOf[Array[_]]) })
+        } else {
+          throw new ValidationException("Unsupported array type.")
+        }
+    }
+
+    convertArray(array)
+  }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1351,26 +1387,6 @@ object e {
 }
 
 /**
-  * Returns the natural logarithm of a specified number.
-  */
-object log {
-
-  /**
-    * Returns the natural logarithm of a specified number.
-    */
-  def apply(antilogarithm: Expression): Expression = {
-    call(LOG, antilogarithm)
-  }
-
-  /**
-    * Returns the natural logarithm of a specified number and given base.
-    */
-  def apply(base: Expression, antilogarithm: Expression): Expression = {
-    call(LOG, base, antilogarithm)
-  }
-}
-
-/**
   * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive).
   */
 object rand {
@@ -1477,7 +1493,6 @@ object uuid {
 }
 
 /**
-<<<<<<< HEAD
   * Returns a null literal value of a given type.
   *
   * e.g. nullOf(Types.INT)
@@ -1490,7 +1505,7 @@ object nullOf {
     * e.g. nullOf(Types.INT)
     */
   def apply(typeInfo: TypeInformation[_]): Expression = {
-    Null(typeInfo)
+    valueLiteral(null, typeInfo)
   }
 }
 
@@ -1503,14 +1518,14 @@ object log {
     * Calculates the natural logarithm of the given value.
     */
   def apply(value: Expression): Expression = {
-    Log(null, value)
+    call(LOG, value)
   }
 
   /**
     * Calculates the logarithm of the given value to the given base.
     */
   def apply(base: Expression, value: Expression): Expression = {
-    Log(base, value)
+    call(LOG, base, value)
   }
 }
 
@@ -1533,29 +1548,8 @@ object ifThenElse {
     * @param ifFalse expression to be evaluated if condition does not hold
     */
   def apply(condition: Expression, ifTrue: Expression, ifFalse: Expression): Expression = {
-    If(condition, ifTrue, ifFalse)
+    call(IF, condition, ifTrue, ifFalse)
   }
-=======
-  * Returns null literal expression.
-  */
-object Null {
-
-  /**
-    * Returns null literal expression.
-    */
-  def apply(t: TypeInformation[_]): Expression = literal(null, t)
-}
-
-/**
-  * Returns literal expression.
-  */
-object Literal {
-
-  /**
-    * Returns literal expression.
-    */
-  def apply(l: Any): ValueLiteralExpression = literal(l)
->>>>>>> be158527c5... BIG Cleaned up commit
 }
 
 // scalastyle:on object.name

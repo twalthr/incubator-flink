@@ -17,10 +17,9 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.avatica.util.DateTimeUtils.{MILLIS_PER_DAY, MILLIS_PER_HOUR, MILLIS_PER_MINUTE, MILLIS_PER_SECOND}
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
-import org.apache.flink.table.expressions.ExpressionUtils._
+import org.apache.flink.table.expressions.ApiExpressionUtils._
 
 import _root_.scala.language.implicitConversions
 import _root_.scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
