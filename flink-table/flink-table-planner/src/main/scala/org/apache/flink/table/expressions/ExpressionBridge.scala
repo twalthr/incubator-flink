@@ -23,11 +23,13 @@ import org.apache.flink.table.validate.FunctionCatalog
 import scala.collection.JavaConverters._
 
 /**
-  * Bridges between API [[Expression]]s (for both Java and Scala) and final expression stack [[E]].
+  * Bridges between API [[Expression]]s (for both Java and Scala) and final expression stack.
   */
-class ExpressionBridge[E](functionCatalog: FunctionCatalog, finalVisitor: ExpressionVisitor[E]) {
+class ExpressionBridge[E <: Expression](
+    functionCatalog: FunctionCatalog,
+    finalVisitor: ExpressionVisitor[E]) {
 
-  def bridge(expression: Expression): PlannerExpression = {
+  def bridge(expression: Expression): E = {
     // resolve calls
     val resolvedExpressionTree = expression.accept(UnresolvedCallResolver)
 

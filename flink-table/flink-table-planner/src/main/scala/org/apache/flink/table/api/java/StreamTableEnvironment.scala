@@ -17,15 +17,16 @@
  */
 package org.apache.flink.table.api.java
 
+import _root_.java.lang.{Boolean => JBool}
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.table.api._
-import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
-import org.apache.flink.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import _root_.java.lang.{Boolean => JBool}
+import org.apache.flink.table.api._
+import org.apache.flink.table.expressions.ExpressionParser
+import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 
 /**
   * The [[TableEnvironment]] for a Java [[StreamExecutionEnvironment]] that works with
@@ -85,7 +86,6 @@ class StreamTableEnvironment @Deprecated() (
   def fromDataStream[T](dataStream: DataStream[T], fields: String): Table = {
     val exprs = ExpressionParser
       .parseExpressionList(fields)
-      .map(_.asInstanceOf[Expression])
       .toArray
 
     val name = createUniqueTableName()
@@ -131,7 +131,6 @@ class StreamTableEnvironment @Deprecated() (
   def registerDataStream[T](name: String, dataStream: DataStream[T], fields: String): Unit = {
     val exprs = ExpressionParser
       .parseExpressionList(fields)
-      .map(_.asInstanceOf[Expression])
       .toArray
 
     checkValidTableName(name)

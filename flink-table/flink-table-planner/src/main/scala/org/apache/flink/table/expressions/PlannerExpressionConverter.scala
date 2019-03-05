@@ -247,11 +247,11 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
               .asInstanceOf[Boolean]
 
             val trimMode = if (removeLeading && removeTrailing) {
-              TrimMode.BOTH
+              PlannerTrimMode.BOTH
             } else if (removeLeading) {
-              TrimMode.LEADING
+              PlannerTrimMode.LEADING
             } else if (removeTrailing) {
-              TrimMode.TRAILING
+              PlannerTrimMode.TRAILING
             } else {
               throw new TableException("Unsupported trim mode.")
             }

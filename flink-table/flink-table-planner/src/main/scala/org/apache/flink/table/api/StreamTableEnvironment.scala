@@ -537,17 +537,17 @@ abstract class StreamTableEnvironment(
   protected def registerDataStreamInternal[T](
       name: String,
       dataStream: DataStream[T],
-      fieldsExpr: Array[Expression])
+      fields: Array[Expression])
     : Unit = {
 
     val streamType = dataStream.getType
-    val fields: Array[Expression] = fieldsExpr.map(_.accept(DefaultExpressionVisitor.INSTANCE))
+    val bridgedFields = fields.map(expressionBridge.bridge).toArray[Expression]
 
     // get field names and types for all non-replaced fields
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType, fields)
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType, bridgedFields)
 
     // validate and extract time attributes
-    val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, fields)
+    val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, bridgedFields)
 
     // check if event-time is enabled
     if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
