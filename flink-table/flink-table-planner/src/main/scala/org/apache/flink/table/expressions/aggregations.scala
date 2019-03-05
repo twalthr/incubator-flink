@@ -357,6 +357,9 @@ case class VarSamp(child: PlannerExpression) extends Aggregation {
     SqlStdOperatorTable.VAR_SAMP
 }
 
+/**
+  * Expression for calling a user-defined aggregate function.
+  */
 case class AggFunctionCall(
     aggregateFunction: AggregateFunction[_, _],
     resultTypeInfo: TypeInformation[_],
