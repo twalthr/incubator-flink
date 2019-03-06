@@ -1223,16 +1223,11 @@ class WindowedTable(
     * Example:
     *
     * {{{
-    *   tab.window([window] as 'w)).groupBy('w, 'key).select('key, 'value.avg)
+    *   tab.window([window].as("w")).groupBy("w, key").select("key, value.avg")
     * }}}
     */
-  def groupBy(fields: Expression*): WindowGroupedTable = {
-    val fieldsWithoutWindow = fields.filterNot(window.alias.equals(_))
-    if (fields.size != fieldsWithoutWindow.size + 1) {
-      throw new ValidationException("GroupBy must contain exactly one window alias.")
-    }
-
-    new WindowGroupedTable(table, fieldsWithoutWindow, window)
+  def groupBy(fields: String): WindowGroupedTable = {
+    groupBy(ExpressionParser.parseExpressionList(fields): _*)
   }
 
   /**
@@ -1248,12 +1243,16 @@ class WindowedTable(
     * Example:
     *
     * {{{
-    *   tab.window([window].as("w")).groupBy("w, key").select("key, value.avg")
+    *   tab.window([window] as 'w)).groupBy('w, 'key).select('key, 'value.avg)
     * }}}
     */
-  def groupBy(fields: String): WindowGroupedTable = {
-    val fieldsExpr = ExpressionParser.parseExpressionList(fields)
-    groupBy(fieldsExpr: _*)
+  def groupBy(fields: Expression*): WindowGroupedTable = {
+    val fieldsWithoutWindow = fields.filterNot(window.getAlias.equals(_))
+    if (fields.size != fieldsWithoutWindow.size + 1) {
+      throw new ValidationException("GroupBy must contain exactly one window alias.")
+    }
+
+    new WindowGroupedTable(table, fieldsWithoutWindow, window)
   }
 }
 
@@ -1290,24 +1289,30 @@ class WindowGroupedTable(
     * }}}
     */
   def select(fields: Expression*): Table = {
-    selectInternal(fields.map(table.expressionBridge.bridge))
+    selectInternal(
+      groupKeys.map(table.expressionBridge.bridge),
+      createLogicalWindow(),
+      fields.map(table.expressionBridge.bridge))
   }
 
-  private def selectInternal(fields: Seq[PlannerExpression]): Table = {
+  private def selectInternal(
+      groupKeys: Seq[PlannerExpression],
+      window: LogicalWindow,
+      fields: Seq[PlannerExpression]): Table = {
     val expandedFields = expandProjectList(fields, table.logicalPlan, table.tableEnv)
     val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, table.tableEnv)
 
     val projectsOnAgg = replaceAggregationsAndProperties(
       expandedFields, table.tableEnv, aggNames, propNames)
 
-    val projectFields = extractFieldReferences(expandedFields ++ groupKeys :+ window.timeField)
+    val projectFields = extractFieldReferences(expandedFields ++ groupKeys :+ window.timeAttribute)
 
     new Table(table.tableEnv,
       Project(
         projectsOnAgg,
         WindowAggregate(
           groupKeys,
-          window.toLogicalWindow,
+          window,
           propNames.map(a => Alias(a._1, a._2)).toSeq,
           aggNames.map(a => Alias(a._1, a._2)).toSeq,
           Project(projectFields, table.logicalPlan).validate(table.tableEnv)
@@ -1315,6 +1320,28 @@ class WindowGroupedTable(
         // required for proper resolution of the time attribute in multi-windows
         explicitAlias = true
       ).validate(table.tableEnv))
+  }
+
+  /**
+    * Converts an API class to a logical window for planning.
+    */
+  private def createLogicalWindow(): LogicalWindow = window match {
+    case tw: TumbleWithSizeOnTimeWithAlias =>
+      TumblingGroupWindow(
+        table.expressionBridge.bridge(tw.getAlias),
+        table.expressionBridge.bridge(tw.getSize),
+        table.expressionBridge.bridge(tw.getTimeField))
+    case sw: SlideWithSizeAndSlideOnTimeWithAlias =>
+      SlidingGroupWindow(
+        table.expressionBridge.bridge(sw.getAlias),
+        table.expressionBridge.bridge(sw.getTimeField),
+        table.expressionBridge.bridge(sw.getSize),
+        table.expressionBridge.bridge(sw.getSlide))
+    case sw: SessionWithGapOnTimeWithAlias =>
+      SessionGroupWindow(
+        table.expressionBridge.bridge(sw.getAlias),
+        table.expressionBridge.bridge(sw.getTimeField),
+        table.expressionBridge.bridge(sw.getGap))
   }
 }
 

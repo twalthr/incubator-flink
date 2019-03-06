@@ -126,7 +126,8 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
     * @param rule the rule to be applied to every expression in this logical node.
     */
   def expressionPostOrderTransform(
-      rule: PartialFunction[PlannerExpression, PlannerExpression]): LogicalNode = {
+      rule: PartialFunction[PlannerExpression, PlannerExpression])
+    : LogicalNode = {
     var changed = false
 
     def expressionPostOrderTransform(e: PlannerExpression): PlannerExpression = {

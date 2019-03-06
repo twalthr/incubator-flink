@@ -106,8 +106,7 @@ case class Alias(child: PlannerExpression, name: String, extraNames: Seq[String]
   }
 }
 
-case class UnresolvedAlias(child: PlannerExpression)
-  extends UnaryExpression with NamedExpression {
+case class UnresolvedAlias(child: PlannerExpression) extends UnaryExpression with NamedExpression {
 
   override private[flink] def name: String =
     throw UnresolvedException("Invalid call to name on UnresolvedAlias")
@@ -140,8 +139,7 @@ case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None)
   override def toString: String = s"'$name"
 }
 
-case class TableReference(name: String, table: Table)
-  extends LeafExpression with NamedExpression {
+case class TableReference(name: String, table: Table) extends LeafExpression with NamedExpression {
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
     throw new UnsupportedOperationException(s"Table reference '$name' can not be used solely.")
@@ -162,8 +160,7 @@ abstract class TimeAttribute(val expression: PlannerExpression)
   override private[flink] def child: PlannerExpression = expression
 }
 
-case class RowtimeAttribute(expr: PlannerExpression)
-  extends TimeAttribute(expr) {
+case class RowtimeAttribute(expr: PlannerExpression) extends TimeAttribute(expr) {
 
   override private[flink] def validateInput(): ValidationResult = {
     child match {

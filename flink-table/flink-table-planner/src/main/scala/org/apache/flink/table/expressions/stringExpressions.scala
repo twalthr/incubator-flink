@@ -22,6 +22,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.table.expressions.PlannerTrimMode.PlannerTrimMode
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.validate._
 
@@ -75,8 +76,7 @@ case class InitCap(child: PlannerExpression) extends UnaryExpression {
 /**
   * Returns true if `str` matches `pattern`.
   */
-case class Like(str: PlannerExpression, pattern: PlannerExpression)
-  extends BinaryExpression {
+case class Like(str: PlannerExpression, pattern: PlannerExpression) extends BinaryExpression {
   private[flink] def left: PlannerExpression = str
   private[flink] def right: PlannerExpression = pattern
 
@@ -123,8 +123,7 @@ case class Lower(child: PlannerExpression) extends UnaryExpression {
 /**
   * Returns true if `str` is similar to `pattern`.
   */
-case class Similar(str: PlannerExpression, pattern: PlannerExpression)
-  extends BinaryExpression {
+case class Similar(str: PlannerExpression, pattern: PlannerExpression) extends BinaryExpression {
   private[flink] def left: PlannerExpression = str
   private[flink] def right: PlannerExpression = pattern
 
@@ -185,7 +184,7 @@ case class Trim(
 
   override private[flink] def validateInput(): ValidationResult = {
     trimMode match {
-      case SymbolPlannerExpression(_: TrimMode) =>
+      case SymbolPlannerExpression(_: PlannerTrimMode) =>
         if (trimString.resultType != STRING_TYPE_INFO) {
           ValidationFailure(s"String expected for trimString, get ${trimString.resultType}")
         } else if (str.resultType != STRING_TYPE_INFO) {

@@ -79,7 +79,7 @@ class GroupWindowITCase extends AbstractTestBase {
     val countDistinct = new CountDistinct
 
     val windowedTable = table
-      .window(Slide over 2.rows every 1.rows on 'proctime as 'w)
+      .window(Slide over 2.rows every 1.rows on 'proctime as 'w .name)
       .groupBy('w, 'string)
       .select('string, countFun('int), 'int.avg,
         weightAvgFun('long, 'int), weightAvgFun('int, 'int),

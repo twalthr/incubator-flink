@@ -80,7 +80,7 @@ abstract class PlannerSymbols extends Enumeration {
   */
 object PlannerTimeIntervalUnit extends PlannerSymbols {
 
-  type TimeIntervalUnit = PlannerSymbolValue
+  type PlannerTimeIntervalUnit = PlannerSymbolValue
 
   val YEAR = Value(TimeUnitRange.YEAR)
   val YEAR_TO_MONTH = Value(TimeUnitRange.YEAR_TO_MONTH)
@@ -105,7 +105,7 @@ object PlannerTimeIntervalUnit extends PlannerSymbols {
   */
 object PlannerTimePointUnit extends PlannerSymbols {
 
-  type TimePointUnit = PlannerSymbolValue
+  type PlannerTimePointUnit = PlannerSymbolValue
 
   val YEAR = Value(TimeUnit.YEAR)
   val MONTH = Value(TimeUnit.MONTH)
@@ -125,7 +125,7 @@ object PlannerTimePointUnit extends PlannerSymbols {
   */
 object PlannerTrimMode extends PlannerSymbols {
 
-  type TrimMode = PlannerSymbolValue
+  type PlannerTrimMode = PlannerSymbolValue
 
   val BOTH = Value(SqlTrimFunction.Flag.BOTH)
   val LEADING = Value(SqlTrimFunction.Flag.LEADING)

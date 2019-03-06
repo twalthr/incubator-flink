@@ -41,7 +41,7 @@ object ProjectionTranslator {
   def extractAggregationsAndProperties(
       exprs: Seq[PlannerExpression],
       tableEnv: TableEnvironment)
-  : (Map[PlannerExpression, String], Map[PlannerExpression, String]) = {
+    : (Map[PlannerExpression, String], Map[PlannerExpression, String]) = {
     exprs.foldLeft((Map[PlannerExpression, String](), Map[PlannerExpression, String]())) {
       (x, y) => identifyAggregationsAndProperties(y, tableEnv, x._1, x._2)
     }
@@ -53,7 +53,7 @@ object ProjectionTranslator {
       tableEnv: TableEnvironment,
       aggNames: Map[PlannerExpression, String],
       propNames: Map[PlannerExpression, String])
-  : (Map[PlannerExpression, String], Map[PlannerExpression, String]) = {
+    : (Map[PlannerExpression, String], Map[PlannerExpression, String]) = {
 
     exp match {
       case agg: Aggregation =>
@@ -128,7 +128,8 @@ object ProjectionTranslator {
       tableEnv: TableEnvironment,
       aggNames: Map[PlannerExpression, String],
       propNames: Map[PlannerExpression, String],
-      projectedNames: mutable.HashSet[String]) : PlannerExpression = {
+      projectedNames: mutable.HashSet[String])
+    : PlannerExpression = {
 
     exp match {
       case agg: Aggregation =>
@@ -253,7 +254,8 @@ object ProjectionTranslator {
   private def replaceOverCall(
       expr: PlannerExpression,
       overWindows: Array[OverWindow],
-      tableEnv: TableEnvironment): PlannerExpression = {
+      tableEnv: TableEnvironment)
+    : PlannerExpression = {
 
     expr match {
       case u: UnresolvedOverCall =>

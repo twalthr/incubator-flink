@@ -24,6 +24,7 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.calcite.FlinkRelBuilder
+import org.apache.flink.table.expressions.PlannerTimeIntervalUnit.PlannerTimeIntervalUnit
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.table.typeutils.{TimeIntervalTypeInfo, TypeCheckUtils}
@@ -45,20 +46,20 @@ case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpress
     }
 
     timeIntervalUnit match {
-      case SymbolPlannerExpression(TimeIntervalUnit.YEAR)
-           | SymbolPlannerExpression(TimeIntervalUnit.QUARTER)
-           | SymbolPlannerExpression(TimeIntervalUnit.MONTH)
-           | SymbolPlannerExpression(TimeIntervalUnit.WEEK)
-           | SymbolPlannerExpression(TimeIntervalUnit.DAY)
+      case SymbolPlannerExpression(PlannerTimeIntervalUnit.YEAR)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.QUARTER)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.MONTH)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.WEEK)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.DAY)
         if temporal.resultType == SqlTimeTypeInfo.DATE
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MONTHS =>
         ValidationSuccess
 
-      case SymbolPlannerExpression(TimeIntervalUnit.HOUR)
-           | SymbolPlannerExpression(TimeIntervalUnit.MINUTE)
-           | SymbolPlannerExpression(TimeIntervalUnit.SECOND)
+      case SymbolPlannerExpression(PlannerTimeIntervalUnit.HOUR)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.MINUTE)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.SECOND)
         if temporal.resultType == SqlTimeTypeInfo.TIME
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS =>
@@ -96,7 +97,7 @@ abstract class TemporalCeilFloor(
         s"but $temporal is of type ${temporal.resultType}")
     }
     val unit = timeIntervalUnit match {
-      case SymbolPlannerExpression(u: TimeIntervalUnit) => Some(u)
+      case SymbolPlannerExpression(u: PlannerTimeIntervalUnit) => Some(u)
       case _ => None
     }
     if (unit.isEmpty) {
@@ -105,12 +106,12 @@ abstract class TemporalCeilFloor(
     }
 
     (unit.get, temporal.resultType) match {
-      case (TimeIntervalUnit.YEAR | TimeIntervalUnit.MONTH,
+      case (PlannerTimeIntervalUnit.YEAR | PlannerTimeIntervalUnit.MONTH,
           SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIMESTAMP) =>
         ValidationSuccess
-      case (TimeIntervalUnit.DAY, SqlTimeTypeInfo.TIMESTAMP) =>
+      case (PlannerTimeIntervalUnit.DAY, SqlTimeTypeInfo.TIMESTAMP) =>
         ValidationSuccess
-      case (TimeIntervalUnit.HOUR | TimeIntervalUnit.MINUTE | TimeIntervalUnit.SECOND,
+      case (PlannerTimeIntervalUnit.HOUR | PlannerTimeIntervalUnit.MINUTE | PlannerTimeIntervalUnit.SECOND,
           SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP) =>
         ValidationSuccess
       case _ =>
@@ -337,14 +338,14 @@ case class TimestampDiff(
     }
 
     timePointUnit match {
-      case SymbolPlannerExpression(TimePointUnit.YEAR)
-           | SymbolPlannerExpression(TimePointUnit.QUARTER)
-           | SymbolPlannerExpression(TimePointUnit.MONTH)
-           | SymbolPlannerExpression(TimePointUnit.WEEK)
-           | SymbolPlannerExpression(TimePointUnit.DAY)
-           | SymbolPlannerExpression(TimePointUnit.HOUR)
-           | SymbolPlannerExpression(TimePointUnit.MINUTE)
-           | SymbolPlannerExpression(TimePointUnit.SECOND)
+      case SymbolPlannerExpression(PlannerTimePointUnit.YEAR)
+           | SymbolPlannerExpression(PlannerTimePointUnit.QUARTER)
+           | SymbolPlannerExpression(PlannerTimePointUnit.MONTH)
+           | SymbolPlannerExpression(PlannerTimePointUnit.WEEK)
+           | SymbolPlannerExpression(PlannerTimePointUnit.DAY)
+           | SymbolPlannerExpression(PlannerTimePointUnit.HOUR)
+           | SymbolPlannerExpression(PlannerTimePointUnit.MINUTE)
+           | SymbolPlannerExpression(PlannerTimePointUnit.SECOND)
         if timePoint1.resultType == SqlTimeTypeInfo.DATE
           || timePoint1.resultType == SqlTimeTypeInfo.TIMESTAMP
           || timePoint2.resultType == SqlTimeTypeInfo.DATE
