@@ -25,6 +25,17 @@ import org.apache.flink.table.typeutils.TypeCheckUtils.{isTimePoint, isLong}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 // ------------------------------------------------------------------------------------------------
+// Over windows
+// ------------------------------------------------------------------------------------------------
+
+case class LogicalOverWindow(
+    alias: PlannerExpression,
+    partitionBy: Seq[PlannerExpression],
+    orderBy: PlannerExpression,
+    preceding: PlannerExpression,
+    following: Option[PlannerExpression])
+
+// ------------------------------------------------------------------------------------------------
 // Tumbling group windows
 // ------------------------------------------------------------------------------------------------
 

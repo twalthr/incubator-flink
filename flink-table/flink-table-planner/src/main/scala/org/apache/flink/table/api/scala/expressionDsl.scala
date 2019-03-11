@@ -1084,8 +1084,8 @@ trait ImplicitExpressionConversions {
     }
   }
 
-  implicit def tableSymbolToExpression(symbol: TableSymbol): SymbolExpression =
-    symbol(symbol)
+  implicit def tableSymbolToExpression(sym: TableSymbol): SymbolExpression =
+    symbol(sym)
 
   implicit def symbol2FieldExpression(sym: Symbol): Expression =
     fieldRef(sym.name)

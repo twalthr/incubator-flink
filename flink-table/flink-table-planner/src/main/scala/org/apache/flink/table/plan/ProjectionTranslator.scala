@@ -21,7 +21,7 @@ package org.apache.flink.table.plan
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{OverWindow, TableEnvironment, ValidationException}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.plan.logical.{LogicalNode, Project}
+import org.apache.flink.table.plan.logical.{LogicalNode, LogicalOverWindow, Project}
 import org.apache.flink.table.typeutils.RowIntervalTypeInfo
 
 import scala.collection.mutable
@@ -239,7 +239,7 @@ object ProjectionTranslator {
 
   def resolveOverWindows(
       exprs: Seq[PlannerExpression],
-      overWindows: Array[OverWindow],
+      overWindows: Seq[LogicalOverWindow],
       tEnv: TableEnvironment): Seq[PlannerExpression] = {
 
     exprs.map(e => replaceOverCall(e, overWindows, tEnv))
@@ -253,22 +253,22 @@ object ProjectionTranslator {
     */
   private def replaceOverCall(
       expr: PlannerExpression,
-      overWindows: Array[OverWindow],
+      overWindows: Seq[LogicalOverWindow],
       tableEnv: TableEnvironment)
     : PlannerExpression = {
 
     expr match {
       case u: UnresolvedOverCall =>
-        overWindows.find(_.getAlias.equals(u.alias)) match {
+        overWindows.find(_.alias.equals(u.alias)) match {
           case Some(overWindow) =>
             OverCall(
               u.agg,
-              overWindow.getPartitioning,
-              overWindow.getOrder,
-              overWindow.getPreceding,
-              overWindow.getFollowing.getOrElse {
+              overWindow.partitionBy,
+              overWindow.orderBy,
+              overWindow.preceding,
+              overWindow.following.getOrElse {
                 // set following to CURRENT_ROW / CURRENT_RANGE if not defined
-                if (overWindow.getPreceding.resultType.isInstanceOf[RowIntervalTypeInfo]) {
+                if (overWindow.preceding.resultType.isInstanceOf[RowIntervalTypeInfo]) {
                   CurrentRow()
                 } else {
                   CurrentRange()

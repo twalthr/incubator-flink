@@ -1132,7 +1132,7 @@ class Table(
       throw new TableException("Over-Windows are currently only supported single window.")
     }
 
-    new OverWindowedTable(this, overWindows.toArray)
+    new OverWindowedTable(this, overWindows)
   }
 
   /**
@@ -1350,7 +1350,7 @@ class WindowGroupedTable(
   */
 class OverWindowedTable(
     private[flink] val table: Table,
-    private[flink] val overWindows: Array[OverWindow]) {
+    private[flink] val overWindows: Seq[OverWindow]) {
 
   /**
     * Performs a selection operation on an over-windowed table. Similar to an SQL SELECT statement.
@@ -1377,10 +1377,16 @@ class OverWindowedTable(
     * }}}
     */
   def select(fields: Expression*): Table = {
-    selectInternal(fields.map(table.expressionBridge.bridge))
+    selectInternal(
+      fields.map(table.expressionBridge.bridge),
+      overWindows.map(createLogicalWindow))
   }
 
-  private def selectInternal(fields: Seq[PlannerExpression]): Table = {
+  private def selectInternal(
+      fields: Seq[PlannerExpression],
+      logicalOverWindows: Seq[LogicalOverWindow])
+    : Table = {
+
     val expandedFields = expandProjectList(
       fields,
       table.logicalPlan,
@@ -1391,7 +1397,7 @@ class OverWindowedTable(
         "Window start and end properties are not available for Over windows.")
     }
 
-    val expandedOverFields = resolveOverWindows(expandedFields, overWindows, table.tableEnv)
+    val expandedOverFields = resolveOverWindows(expandedFields, logicalOverWindows, table.tableEnv)
 
     new Table(
       table.tableEnv,
@@ -1401,6 +1407,19 @@ class OverWindowedTable(
         // required for proper projection push down
         explicitAlias = true)
         .validate(table.tableEnv)
+    )
+  }
+
+  /**
+    * Converts an API class to a logical window for planning.
+    */
+  private def createLogicalWindow(overWindow: OverWindow): LogicalOverWindow = {
+    LogicalOverWindow(
+      table.expressionBridge.bridge(overWindow.getAlias),
+      overWindow.getPartitioning.map(table.expressionBridge.bridge),
+      table.expressionBridge.bridge(overWindow.getOrder),
+      table.expressionBridge.bridge(overWindow.getPreceding),
+      overWindow.getFollowing.map(table.expressionBridge.bridge)
     )
   }
 }
