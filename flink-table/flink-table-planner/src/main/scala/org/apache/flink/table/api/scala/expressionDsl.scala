@@ -185,6 +185,20 @@ trait ImplicitExpressionOperations {
   def % (other: Expression): Expression = mod(other)
 
   /**
+    * Similar to a SQL distinct aggregation clause such as COUNT(DISTINCT a), declares that an
+    * aggregation function is only applied on distinct input values.
+    *
+    * For example:
+    *
+    * {{{
+    * orders
+    *   .groupBy('a)
+    *   .select('a, 'b.sum.distinct as 'd)
+    * }}}
+    */
+  def distinct: Expression = call(DISTINCT, expr)
+
+  /**
     * Returns the sum of the numeric field across all input values.
     * If all values are null, null is returned.
     */
@@ -589,11 +603,15 @@ trait ImplicitExpressionOperations {
   def rpad(len: Expression, pad: Expression): Expression = call(RPAD, expr, len, pad)
 
   /**
-    * For windowing function to config over window
-    * e.g.:
+    * Defines an aggregation to be used for a previously specified over window.
+    *
+    * For example:
+    *
+    * {{{
     * table
     *   .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
     *   .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
+    * }}}
     */
   def over(alias: Expression): Expression = call(OVER, expr, alias)
 
@@ -1053,12 +1071,20 @@ trait ImplicitExpressionConversions {
   }
 
   implicit class ScalarFunctionCall(val s: ScalarFunction) {
+
+    /**
+      * Calls a scalar function for the given parameters.
+      */
     def apply(params: Expression*): Expression = {
       call(new ScalarFunctionDefinition(s), params:_*)
     }
   }
 
   implicit class TableFunctionCall[T: TypeInformation](val t: TableFunction[T]) {
+
+    /**
+      * Calls a table function for the given parameters.
+      */
     def apply(params: Expression*): Expression = {
       val resultType = if (t.getResultType == null) {
         implicitly[TypeInformation[T]]
@@ -1071,7 +1097,8 @@ trait ImplicitExpressionConversions {
 
   implicit class AggregateFunctionCall[T: TypeInformation, ACC: TypeInformation]
       (val a: AggregateFunction[T, ACC]) {
-    def apply(params: Expression*): Expression = {
+
+    private def createFunctionDefinition(): AggregateFunctionDefinition = {
       val resultTypeInfo: TypeInformation[_] = getResultTypeOfAggregateFunction(
         a,
         implicitly[TypeInformation[T]])
@@ -1080,7 +1107,21 @@ trait ImplicitExpressionConversions {
         a,
         implicitly[TypeInformation[ACC]])
 
-      call(new AggregateFunctionDefinition(a, resultTypeInfo, accTypeInfo), params: _*)
+      new AggregateFunctionDefinition(a, resultTypeInfo, accTypeInfo)
+    }
+
+    /**
+      * Calls an aggregate function for the given parameters.
+      */
+    def apply(params: Expression*): Expression = {
+      call(createFunctionDefinition(), params: _*)
+    }
+
+    /**
+      * Calculates the aggregate results only for distinct values.
+      */
+    def distinct(params: Expression*): Expression = {
+      call(DISTINCT, apply(params: _*))
     }
   }
 

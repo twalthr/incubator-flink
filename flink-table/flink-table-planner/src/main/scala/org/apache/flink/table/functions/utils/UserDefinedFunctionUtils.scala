@@ -769,13 +769,11 @@ object UserDefinedFunctionUtils {
   /**
     * Creates a [[LogicalTableFunctionCall]] by an expression.
     *
-    * @param tableEnv The table environment to lookup the function.
     * @param callExpr an expression of a TableFunctionCall, such as "split(c)"
     * @param logicalNode child logical node
     * @return A LogicalTableFunctionCall.
     */
   def createLogicalFunctionCall(
-      tableEnv: TableEnvironment,
       callExpr: PlannerExpression,
       logicalNode: LogicalNode)
     : LogicalTableFunctionCall = {
@@ -787,9 +785,6 @@ object UserDefinedFunctionUtils {
       case Alias(child, name, extraNames) =>
         alias = Some(Seq(name) ++ extraNames)
         unwrap(child)
-      case UnresolvedCall(name, args) =>
-        val function = tableEnv.functionCatalog.lookupFunction(name, args)
-        unwrap(function)
       case c: TableFunctionCall => c
       case _ =>
         throw new TableException(

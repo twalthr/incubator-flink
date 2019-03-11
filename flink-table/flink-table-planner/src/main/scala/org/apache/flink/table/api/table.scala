@@ -741,7 +741,6 @@ class Table(
     }
 
     val logicalCall = UserDefinedFunctionUtils.createLogicalFunctionCall(
-      tableEnv,
       callExpr,
       logicalPlan)
     val validatedLogicalCall = logicalCall.validate(tableEnv)
