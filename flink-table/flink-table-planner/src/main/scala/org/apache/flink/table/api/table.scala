@@ -1328,8 +1328,8 @@ class WindowGroupedTable(
     case tw: TumbleWithSizeOnTimeWithAlias =>
       TumblingGroupWindow(
         table.expressionBridge.bridge(tw.getAlias),
-        table.expressionBridge.bridge(tw.getSize),
-        table.expressionBridge.bridge(tw.getTimeField))
+        table.expressionBridge.bridge(tw.getTimeField),
+        table.expressionBridge.bridge(tw.getSize))
     case sw: SlideWithSizeAndSlideOnTimeWithAlias =>
       SlidingGroupWindow(
         table.expressionBridge.bridge(sw.getAlias),

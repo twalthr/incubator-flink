@@ -781,11 +781,11 @@ object UserDefinedFunctionUtils {
     var alias: Option[Seq[String]] = None
 
     // unwrap an Expression until we get a TableFunctionCall
-    def unwrap(expr: PlannerExpression): TableFunctionCall = expr match {
+    def unwrap(expr: PlannerExpression): PlannerTableFunctionCall = expr match {
       case Alias(child, name, extraNames) =>
         alias = Some(Seq(name) ++ extraNames)
         unwrap(child)
-      case c: TableFunctionCall => c
+      case c: PlannerTableFunctionCall => c
       case _ =>
         throw new TableException(
           "A lateral join only accepts a string expression which defines a table function " +

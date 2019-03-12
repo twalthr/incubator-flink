@@ -73,7 +73,7 @@ public class ExpressionTest {
 					asList(
 						new FieldReferenceExpression("field"),
 						new CallExpression(
-							new ScalarFunctionDefinition(DUMMY_FUNCTION),
+							new ScalarFunctionDefinition("dummy", DUMMY_FUNCTION),
 							singletonList(new ValueLiteralExpression(nestedValue, Types.INT))
 						)
 					)

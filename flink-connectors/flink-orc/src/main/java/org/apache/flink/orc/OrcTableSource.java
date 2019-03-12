@@ -41,7 +41,6 @@ import org.apache.flink.table.expressions.Literal;
 import org.apache.flink.table.expressions.Not;
 import org.apache.flink.table.expressions.NotEqualTo;
 import org.apache.flink.table.expressions.Or;
-import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.UnaryExpression;
 import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.sources.FilterableTableSource;
@@ -190,7 +189,7 @@ public class OrcTableSource
 	}
 
 	@Override
-	public TableSource<Row> applyPredicate(List<PlannerExpression> predicates) {
+	public TableSource<Row> applyPredicate(List<Expression> predicates) {
 		ArrayList<Predicate> orcPredicates = new ArrayList<>();
 
 		// we do not remove any predicates from the list because ORC does not fully apply predicates

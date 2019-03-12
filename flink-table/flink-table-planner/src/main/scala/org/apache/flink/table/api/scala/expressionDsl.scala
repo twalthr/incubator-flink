@@ -709,7 +709,7 @@ trait ImplicitExpressionOperations {
     * e.g. "12:44:31".toDate.floor(MINUTE) leads to 12:44:00
     */
   def floor(timeIntervalUnit: TimeIntervalUnit): Expression =
-    call(TEMPORAL_FLOOR, symbol(timeIntervalUnit), expr)
+    call(FLOOR, symbol(timeIntervalUnit), expr)
 
   /**
     * Rounds up a time point to the given unit.
@@ -717,7 +717,7 @@ trait ImplicitExpressionOperations {
     * e.g. "12:44:31".toDate.ceil(MINUTE) leads to 12:45:00
     */
   def ceil(timeIntervalUnit: TimeIntervalUnit): Expression =
-    call(TEMPORAL_CEIL, symbol(timeIntervalUnit), expr)
+    call(CEIL, symbol(timeIntervalUnit), expr)
 
   // Interval types
 
@@ -1076,7 +1076,7 @@ trait ImplicitExpressionConversions {
       * Calls a scalar function for the given parameters.
       */
     def apply(params: Expression*): Expression = {
-      call(new ScalarFunctionDefinition(s), params:_*)
+      call(new ScalarFunctionDefinition(s.getClass.getName, s), params:_*)
     }
   }
 
@@ -1091,7 +1091,7 @@ trait ImplicitExpressionConversions {
       } else {
         t.getResultType
       }
-      call(new TableFunctionDefinition(t, resultType))
+      call(new TableFunctionDefinition(t.getClass.getName, t, resultType), params: _*)
     }
   }
 
@@ -1107,7 +1107,7 @@ trait ImplicitExpressionConversions {
         a,
         implicitly[TypeInformation[ACC]])
 
-      new AggregateFunctionDefinition(a, resultTypeInfo, accTypeInfo)
+      new AggregateFunctionDefinition(a.getClass.getName, a, resultTypeInfo, accTypeInfo)
     }
 
     /**
@@ -1125,7 +1125,7 @@ trait ImplicitExpressionConversions {
     }
   }
 
-  implicit def tableSymbolToExpression(sym: TableSymbol): SymbolExpression =
+  implicit def tableSymbolToExpression(sym: TableSymbol): Expression =
     symbol(sym)
 
   implicit def symbol2FieldExpression(sym: Symbol): Expression =
@@ -1162,7 +1162,7 @@ trait ImplicitExpressionConversions {
   implicit def array2ArrayConstructor(array: Array[_]): Expression = {
 
     def createArray(elements: Array[_]): Expression = {
-      call(BuiltInFunctionDefinitions.ARRAY, array.map(valueLiteral): _*)
+      call(BuiltInFunctionDefinitions.ARRAY, elements.map(valueLiteral): _*)
     }
 
     def convertArray(array: Array[_]): Expression = array match {
@@ -1195,7 +1195,9 @@ trait ImplicitExpressionConversions {
       case _ =>
         // nested
         if (array.length > 0 && array.head.isInstanceOf[Array[_]]) {
-          createArray(array.map { na => convertArray(na.asInstanceOf[Array[_]]) })
+          call(
+            BuiltInFunctionDefinitions.ARRAY,
+            array.map { na => convertArray(na.asInstanceOf[Array[_]]) } :_*)
         } else {
           throw new ValidationException("Unsupported array type.")
         }

@@ -81,7 +81,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   private val rootSchema: SchemaPlus = internalSchema.plus()
 
   // Table API/SQL function catalog
-  private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog(typeFactory)
+  private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog()
 
   // the configuration to create a Calcite planner
   private lazy val frameworkConfig: FrameworkConfig = Frameworks
@@ -444,7 +444,10 @@ abstract class TableEnvironment(val config: TableConfig) {
     // check if class could be instantiated
     checkForInstantiation(function.getClass)
 
-    functionCatalog.registerScalarFunction(name, function)
+    functionCatalog.registerScalarFunction(
+      name,
+      function,
+      typeFactory)
   }
 
   /**
@@ -464,7 +467,11 @@ abstract class TableEnvironment(val config: TableConfig) {
       implicitly[TypeInformation[T]]
     }
 
-    functionCatalog.registerTableFunction(name, function, typeInfo)
+    functionCatalog.registerTableFunction(
+      name,
+      function,
+      typeInfo,
+      typeFactory)
   }
 
   /**
@@ -486,7 +493,12 @@ abstract class TableEnvironment(val config: TableConfig) {
       function,
       implicitly[TypeInformation[ACC]])
 
-    functionCatalog.registerAggregateFunction(name, function, resultTypeInfo, accTypeInfo)
+    functionCatalog.registerAggregateFunction(
+      name,
+      function,
+      resultTypeInfo,
+      accTypeInfo,
+      typeFactory)
   }
 
   /**

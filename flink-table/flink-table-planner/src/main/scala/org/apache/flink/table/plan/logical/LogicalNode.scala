@@ -55,8 +55,6 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
       case u @ UnresolvedFieldReference(name) =>
         // try resolve a field
         resolveReference(tableEnv, name).getOrElse(u)
-      case c @ UnresolvedCall(name, children) if c.childrenValid =>
-        tableEnv.getFunctionCatalog.lookupFunction(name, children)
     }
 
     exprResolved.expressionPostOrderTransform {

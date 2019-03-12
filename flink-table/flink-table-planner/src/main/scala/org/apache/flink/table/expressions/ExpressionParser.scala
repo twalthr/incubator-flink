@@ -247,8 +247,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       case operand ~ _ ~ _ ~ _ ~ mode ~ _ ~ trimCharacter ~ _ =>
         call(
           BuiltInFunctionDefinitions.TRIM,
-          valueLiteral(mode == TRIM_MODE_LEADING.toString || mode == TRIM_MODE_BOTH.toString),
-          valueLiteral(mode == TRIM_MODE_TRAILING.toString || mode == TRIM_MODE_BOTH.toString),
+          valueLiteral(mode == TRIM_MODE_LEADING.key || mode == TRIM_MODE_BOTH.key),
+          valueLiteral(mode == TRIM_MODE_TRAILING.key || mode == TRIM_MODE_BOTH.key),
           trimCharacter,
           operand)
     }
@@ -279,7 +279,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixFloor: PackratParser[Expression] =
     composite ~ "." ~ FLOOR ~ "(" ~ timeIntervalUnit ~ ")" ^^ {
       case operand ~ _  ~ _ ~ _ ~ unit ~ _ =>
-        call(BuiltInFunctionDefinitions.TEMPORAL_FLOOR, unit, operand)
+        call(BuiltInFunctionDefinitions.FLOOR, unit, operand)
     }
 
   lazy val suffixCeil: PackratParser[Expression] =
@@ -366,8 +366,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val suffixAs: PackratParser[Expression] =
     composite ~ "." ~ AS ~ "(" ~ rep1sep(fieldReference, ",") ~ ")" ^^ {
-      case e ~ _ ~ _ ~ _ ~ target ~ _ =>
-        call(BuiltInFunctionDefinitions.AS, e :: target: _*)
+      case e ~ _ ~ _ ~ _ ~ names ~ _ =>
+        call(BuiltInFunctionDefinitions.AS, e :: names.map(n => valueLiteral(n.getName)): _*)
   }
 
   lazy val suffixed: PackratParser[Expression] =
@@ -424,8 +424,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       case _ ~ _ ~ mode ~ _ ~ trimCharacter ~ _ ~ operand ~ _ =>
         call(
           BuiltInFunctionDefinitions.TRIM,
-          valueLiteral(mode == TRIM_MODE_LEADING.toString || mode == TRIM_MODE_BOTH.toString),
-          valueLiteral(mode == TRIM_MODE_TRAILING.toString || mode == TRIM_MODE_BOTH.toString),
+          valueLiteral(mode == TRIM_MODE_LEADING.key || mode == TRIM_MODE_BOTH.key),
+          valueLiteral(mode == TRIM_MODE_TRAILING.key || mode == TRIM_MODE_BOTH.key),
           trimCharacter,
           operand)
     }
@@ -456,13 +456,13 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val prefixFloor: PackratParser[Expression] =
     FLOOR ~ "(" ~ expression ~ "," ~ timeIntervalUnit ~ ")" ^^ {
       case _ ~ _ ~ operand ~ _ ~ unit ~ _ =>
-        call(BuiltInFunctionDefinitions.TEMPORAL_FLOOR, unit, operand)
+        call(BuiltInFunctionDefinitions.FLOOR, unit, operand)
     }
 
   lazy val prefixCeil: PackratParser[Expression] =
     CEIL ~ "(" ~ expression ~ "," ~ timeIntervalUnit ~ ")" ^^ {
       case _ ~ _ ~ operand ~ _ ~ unit ~ _ =>
-        call(BuiltInFunctionDefinitions.TEMPORAL_CEIL, unit, operand)
+        call(BuiltInFunctionDefinitions.CEIL, unit, operand)
     }
 
   lazy val prefixGet: PackratParser[Expression] =
@@ -499,8 +499,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val prefixAs: PackratParser[Expression] =
     AS ~ "(" ~ expression ~ "," ~ rep1sep(fieldReference, ",") ~ ")" ^^ {
-      case _ ~ _ ~ e ~ _ ~ target ~ _ =>
-        call(BuiltInFunctionDefinitions.AS, e :: target :_*)
+      case _ ~ _ ~ e ~ _ ~ names ~ _ =>
+        call(BuiltInFunctionDefinitions.AS, e :: names.map(n => valueLiteral(n.getName)): _*)
     }
 
   lazy val prefixed: PackratParser[Expression] =
@@ -598,11 +598,11 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val timeIndicator: PackratParser[Expression] = proctime | rowtime
 
   lazy val proctime: PackratParser[Expression] = fieldReference ~ "." ~ PROCTIME ^^ {
-    case f ~ _ ~ _ => call(BuiltInFunctionDefinitions.PROCTIME)
+    case f ~ _ ~ _ => call(BuiltInFunctionDefinitions.PROCTIME, f)
   }
 
   lazy val rowtime: PackratParser[Expression] = fieldReference ~ "." ~ ROWTIME ^^ {
-    case f ~ _ ~ _ => call(BuiltInFunctionDefinitions.ROWTIME)
+    case f ~ _ ~ _ => call(BuiltInFunctionDefinitions.ROWTIME, f)
   }
 
   // alias

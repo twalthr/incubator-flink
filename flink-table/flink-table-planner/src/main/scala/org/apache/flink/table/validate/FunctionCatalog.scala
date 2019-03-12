@@ -38,21 +38,23 @@ import _root_.scala.collection.mutable
   * A catalog for looking up (user-defined) functions, used during validation phases
   * of both Table API and SQL API.
   */
-class FunctionCatalog(private val typeFactory: FlinkTypeFactory) {
+class FunctionCatalog() {
 
   private val tableApiFunctions = mutable.HashMap.empty[String, FunctionDefinition]
   BuiltInFunctionDefinitions.getDefinitions.foreach { functionDefinition =>
-    tableApiFunctions.put(functionDefinition.getName.toLowerCase, functionDefinition)
+    tableApiFunctions.put(normalizeName(functionDefinition.getName), functionDefinition)
   }
 
   private val sqlFunctions = mutable.ListBuffer[SqlFunction]()
 
   def registerScalarFunction(
       name: String,
-      function: ScalarFunction)
+      function: ScalarFunction,
+      typeFactory: FlinkTypeFactory)
     : Unit = {
-    tableApiFunctions.put(name, new ScalarFunctionDefinition(function))
-    registerSqlFunction(
+    registerFunction(
+      name,
+      new ScalarFunctionDefinition(name, function),
       createScalarSqlFunction(name, name, function, typeFactory)
     )
   }
@@ -60,10 +62,12 @@ class FunctionCatalog(private val typeFactory: FlinkTypeFactory) {
   def registerTableFunction(
       name: String,
       function: TableFunction[_],
-      resultType: TypeInformation[_])
+      resultType: TypeInformation[_],
+      typeFactory: FlinkTypeFactory)
     : Unit = {
-    tableApiFunctions.put(name, new TableFunctionDefinition(function, resultType))
-    registerSqlFunction(
+    registerFunction(
+      name,
+      new TableFunctionDefinition(name, function, resultType),
       createTableSqlFunction(name, name, function, resultType, typeFactory)
     )
   }
@@ -72,10 +76,12 @@ class FunctionCatalog(private val typeFactory: FlinkTypeFactory) {
       name: String,
       function: AggregateFunction[_, _],
       resultType: TypeInformation[_],
-      accType: TypeInformation[_])
+      accType: TypeInformation[_],
+      typeFactory: FlinkTypeFactory)
     : Unit = {
-    tableApiFunctions.put(name, new AggregateFunctionDefinition(function, resultType, accType))
-    registerSqlFunction(
+    registerFunction(
+      name,
+      new AggregateFunctionDefinition(name, function, resultType, accType),
       createAggregateSqlFunction(
         name,
         name,
@@ -86,7 +92,11 @@ class FunctionCatalog(private val typeFactory: FlinkTypeFactory) {
     )
   }
 
-  private def registerSqlFunction(sqlFunction: SqlFunction): Unit = {
+  private def registerFunction(
+      name: String,
+      functionDefinition: FunctionDefinition,
+      sqlFunction: SqlFunction): Unit = {
+    tableApiFunctions.put(normalizeName(name), functionDefinition)
     sqlFunctions --= sqlFunctions.filter(_.getName == sqlFunction.getName)
     sqlFunctions += sqlFunction
   }
@@ -106,8 +116,12 @@ class FunctionCatalog(private val typeFactory: FlinkTypeFactory) {
     */
   def lookupFunction(name: String, children: Seq[Expression]): FunctionDefinition = {
     tableApiFunctions.getOrElse(
-      name.toLowerCase,
+      normalizeName(name),
       throw new ValidationException(s"Undefined function: $name"))
+  }
+
+  private def normalizeName(name: String): String = {
+    name.toUpperCase
   }
 }
 

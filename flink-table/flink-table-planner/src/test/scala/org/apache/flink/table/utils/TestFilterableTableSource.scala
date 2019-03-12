@@ -94,7 +94,7 @@ class TestFilterableTableSource(
     rowTypeInfo: RowTypeInfo,
     data: Seq[Row],
     filterableFields: Set[String] = Set(),
-    filterPredicates: Seq[PlannerExpression] = Seq(),
+    filterPredicates: Seq[Expression] = Seq(),
     val filterPushedDown: Boolean = false)
   extends BatchTableSource[Row]
     with StreamTableSource[Row]
@@ -117,7 +117,9 @@ class TestFilterableTableSource(
 
   override def explainSource(): String = {
     if (filterPredicates.nonEmpty) {
-      s"filter=[${filterPredicates.reduce((l, r) => And(l, r)).toString}]"
+      // TODO we cast to planner expression as a temporary solution to keep the old interfaces
+      s"filter=[${filterPredicates.reduce((l, r) =>
+        And(l.asInstanceOf[PlannerExpression], r.asInstanceOf[PlannerExpression])).toString}]"
     } else {
       ""
     }
@@ -125,8 +127,8 @@ class TestFilterableTableSource(
 
   override def getReturnType: TypeInformation[Row] = rowTypeInfo
 
-  override def applyPredicate(predicates: JList[PlannerExpression]): TableSource[Row] = {
-    val predicatesToUse = new mutable.ListBuffer[PlannerExpression]()
+  override def applyPredicate(predicates: JList[Expression]): TableSource[Row] = {
+    val predicatesToUse = new mutable.ListBuffer[Expression]()
     val iterator = predicates.iterator()
     while (iterator.hasNext) {
       val expr = iterator.next()

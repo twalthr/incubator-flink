@@ -23,7 +23,7 @@ import java.util
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rex.RexProgram
-import org.apache.flink.table.expressions.PlannerExpression
+import org.apache.flink.table.expressions.{Expression, PlannerExpression}
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.plan.util.RexProgramExtractor
 import org.apache.flink.table.sources.FilterableTableSource
@@ -64,18 +64,17 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
     Preconditions.checkArgument(!filterableSource.isFilterPushedDown)
 
     val program = calc.getProgram
-    val functionCatalog = FunctionCatalog.withBuiltIns
     val (predicates, unconvertedRexNodes) =
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         call.builder().getRexBuilder,
-        functionCatalog)
+        new FunctionCatalog())
     if (predicates.isEmpty) {
       // no condition can be translated to expression
       return
     }
 
-    val remainingPredicates = new util.LinkedList[PlannerExpression]()
+    val remainingPredicates = new util.LinkedList[Expression]()
     predicates.foreach(e => remainingPredicates.add(e))
 
     val newTableSource = filterableSource.applyPredicate(remainingPredicates)
@@ -85,8 +84,13 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
     val remainingCondition = {
       if (!remainingPredicates.isEmpty || unconvertedRexNodes.nonEmpty) {
         relBuilder.push(scan)
-        val remainingConditions =
-          (remainingPredicates.asScala.map(expr => expr.toRexNode(relBuilder))
+
+        // TODO we cast to planner expressions as a temporary solution to keep the old interfaces
+        val remainingPrecidatesAsExpr = remainingPredicates
+          .asScala
+          .map(_.asInstanceOf[PlannerExpression])
+
+        val remainingConditions = (remainingPrecidatesAsExpr.map(_.toRexNode(relBuilder))
               ++ unconvertedRexNodes)
         remainingConditions.reduce((l, r) => relBuilder.and(l, r))
       } else {

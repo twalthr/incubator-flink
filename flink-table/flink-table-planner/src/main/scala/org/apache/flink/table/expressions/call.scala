@@ -259,7 +259,7 @@ case class OverCall(
   * @param scalarFunction scalar function to be called (might be overloaded)
   * @param parameters actual parameters that determine target evaluation method
   */
-case class ScalarFunctionCall(
+case class PlannerScalarFunctionCall(
     scalarFunction: ScalarFunction,
     parameters: Seq[PlannerExpression])
   extends PlannerExpression {
@@ -310,14 +310,14 @@ case class ScalarFunctionCall(
   * @param parameters actual parameters of function
   * @param resultType type information of returned table
   */
-case class TableFunctionCall(
+case class PlannerTableFunctionCall(
     functionName: String,
     tableFunction: TableFunction[_],
     parameters: Seq[PlannerExpression],
     resultType: TypeInformation[_])
   extends PlannerExpression {
 
-  override private[flink] def children: Seq[Expression] = parameters
+  override private[flink] def children: Seq[PlannerExpression] = parameters
 
   override def toString =
     s"${tableFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"

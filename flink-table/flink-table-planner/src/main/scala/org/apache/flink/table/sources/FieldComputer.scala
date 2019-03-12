@@ -58,6 +58,6 @@ abstract class FieldComputer[T] {
     * @param fieldAccesses Field access expressions for the argument fields.
     * @return The expression to extract the timestamp from the [[TableSource]] return type.
     */
-  def getExpression(fieldAccesses: Array[ResolvedFieldReference]): PlannerExpression
+  def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression
 
 }

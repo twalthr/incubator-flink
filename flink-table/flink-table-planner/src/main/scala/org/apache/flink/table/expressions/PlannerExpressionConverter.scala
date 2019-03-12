@@ -29,18 +29,26 @@ import _root_.scala.collection.JavaConverters._
 class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpression] {
 
   override def visitCall(call: CallExpression): PlannerExpression = {
-
     val func = call.getFunctionDefinition
+
+    // special case: casting requires a type literal
+    if (func.equals(CAST)) {
+      assert(call.getChildren.size() == 2)
+      return Cast(
+        call.getChildren.get(0).accept(this),
+        call.getChildren.get(1).asInstanceOf[TypeLiteralExpression].getType)
+    }
+
     val args = call.getChildren.asScala.map(_.accept(this))
 
     func match {
       case sfd: ScalarFunctionDefinition =>
-        ScalarFunctionCall(
+        PlannerScalarFunctionCall(
           sfd.getScalarFunction,
           args)
 
       case tfd: TableFunctionDefinition =>
-        TableFunctionCall(
+        PlannerTableFunctionCall(
           tfd.getName,
           tfd.getTableFunction,
           args,
@@ -55,16 +63,13 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
 
       case fd: FunctionDefinition =>
         fd match {
-          case CAST =>
-            assert(args.size == 2)
-            Cast(args.head, args.last.asInstanceOf[TypeLiteralExpression].getType)
 
           case AS =>
             assert(args.size >= 2)
-            val name = args(1).asInstanceOf[ValueLiteralExpression].getValue.asInstanceOf[String]
+            val name = getValue[String](args(1))
             val extraNames = args
               .drop(2)
-              .map(e => e.asInstanceOf[ValueLiteralExpression].getValue.asInstanceOf[String])
+              .map(e => getValue[String](e))
             Alias(args.head, name, extraNames)
 
           case FLATTEN =>
@@ -73,7 +78,7 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
 
           case GET =>
             assert(args.size == 2)
-            GetCompositeField(args.head, args.last.asInstanceOf[ValueLiteralExpression].getValue)
+            GetCompositeField(args.head, getValue(args.last))
 
           case AND =>
             assert(args.size == 2)
@@ -237,14 +242,8 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
 
           case TRIM =>
             assert(args.size == 4)
-            val removeLeading = args(1)
-              .asInstanceOf[ValueLiteralExpression]
-              .getValue
-              .asInstanceOf[Boolean]
-            val removeTrailing = args(2)
-              .asInstanceOf[ValueLiteralExpression]
-              .getValue
-              .asInstanceOf[Boolean]
+            val removeLeading = getValue[Boolean](args.head)
+            val removeTrailing = getValue[Boolean](args(1))
 
             val trimMode = if (removeLeading && removeTrailing) {
               PlannerTrimMode.BOTH
@@ -255,7 +254,7 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
             } else {
               throw new TableException("Unsupported trim mode.")
             }
-            Trim(trimMode, args.last, args.head)
+            Trim(trimMode, args(2), args(3))
 
           case UPPER =>
             assert(args.size == 1)
@@ -349,16 +348,24 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
             Abs(args.head)
 
           case CEIL =>
-            assert(args.size == 1)
-            Ceil(args.head)
+            assert(args.size == 1 || args.size == 2)
+            if (args.size == 1) {
+              Ceil(args.head)
+            } else {
+              TemporalCeil(args.head, args.last)
+            }
 
           case EXP =>
             assert(args.size == 1)
             Exp(args.head)
 
           case FLOOR =>
-            assert(args.size == 1)
-            Floor(args.head)
+            assert(args.size == 1 || args.size == 2)
+            if (args.size == 1) {
+              Floor(args.head)
+            } else {
+              TemporalFloor(args.head, args.last)
+            }
 
           case LOG10 =>
             assert(args.size == 1)
@@ -540,14 +547,6 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
             assert(args.size == 3)
             TimestampDiff(args.head, args(1), args.last)
 
-          case TEMPORAL_FLOOR =>
-            assert(args.size == 2)
-            TemporalFloor(args.head, args.last)
-
-          case TEMPORAL_CEIL =>
-            assert(args.size == 2)
-            TemporalCeil(args.head, args.last)
-
           case AT =>
             assert(args.size == 2)
             ItemAt(args.head, args.last)
@@ -707,7 +706,7 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
     throw new TableException("Unsupported type literal expression: " + typeLiteral)
   }
 
-  override def visit(other: Expression): Expression = {
+  override def visit(other: Expression): PlannerExpression = {
     other match {
       case tableRef: TableReferenceExpression =>
         TableReference(
@@ -720,6 +719,16 @@ class PlannerExpressionConverter private extends ExpressionVisitor[PlannerExpres
 
       case _ =>
         throw new TableException("Unrecognized expression: " + other)
+    }
+  }
+
+  private def getValue[T](literal: PlannerExpression): T = {
+    literal.asInstanceOf[Literal].value.asInstanceOf[T]
+  }
+
+  private def assert(condition: Boolean): Unit = {
+    if (!condition) {
+      throw new TableException("Assertion is violated.")
     }
   }
 }

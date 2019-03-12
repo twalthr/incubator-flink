@@ -82,7 +82,7 @@ object ProjectionTranslator {
           (x, y) => identifyAggregationsAndProperties(y, tableEnv, x._1, x._2)
         }
 
-      case sfc @ ScalarFunctionCall(clazz, args) =>
+      case sfc @ PlannerScalarFunctionCall(clazz, args) =>
         args.foldLeft((aggNames, propNames)){
           (x, y) => identifyAggregationsAndProperties(y, tableEnv, x._1, x._2)
         }
@@ -170,7 +170,7 @@ object ProjectionTranslator {
           replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
         c.makeCopy(Array(name, newArgs))
 
-      case sfc @ ScalarFunctionCall(clazz, args) =>
+      case sfc @ PlannerScalarFunctionCall(clazz, args) =>
         val newArgs: Seq[PlannerExpression] = args
           .map((exp: PlannerExpression) =>
             replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
@@ -296,7 +296,7 @@ object ProjectionTranslator {
         c.makeCopy(Array(name, newArgs))
 
       // Scala functions
-      case sfc @ ScalarFunctionCall(clazz, args: Seq[PlannerExpression]) =>
+      case sfc @ PlannerScalarFunctionCall(clazz, args: Seq[PlannerExpression]) =>
         val newArgs: Seq[PlannerExpression] =
           args.map(
             (exp: PlannerExpression) =>
@@ -344,7 +344,7 @@ object ProjectionTranslator {
       args.foldLeft(fieldReferences) {
         (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
       }
-    case ScalarFunctionCall(_, args: Seq[PlannerExpression]) =>
+    case PlannerScalarFunctionCall(_, args: Seq[PlannerExpression]) =>
       args.foldLeft(fieldReferences) {
         (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
       }
