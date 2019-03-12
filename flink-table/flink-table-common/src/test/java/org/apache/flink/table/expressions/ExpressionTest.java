@@ -46,7 +46,7 @@ public class ExpressionTest {
 	private static final Expression TREE_WITH_SAME_VALUE = createExpressionTree(12);
 
 	private static final String TREE_WITH_NULL_STRING =
-		"and(true, equals(field, " + ExpressionTest.class.getName() + "$1(null)))";
+		"and(true, equals(field, dummy(null)))";
 
 	@Test
 	public void testExpressionString() {

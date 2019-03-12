@@ -111,8 +111,8 @@ abstract class TemporalCeilFloor(
         ValidationSuccess
       case (PlannerTimeIntervalUnit.DAY, SqlTimeTypeInfo.TIMESTAMP) =>
         ValidationSuccess
-      case (PlannerTimeIntervalUnit.HOUR | PlannerTimeIntervalUnit.MINUTE | PlannerTimeIntervalUnit.SECOND,
-          SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP) =>
+      case (PlannerTimeIntervalUnit.HOUR | PlannerTimeIntervalUnit.MINUTE |
+          PlannerTimeIntervalUnit.SECOND, SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP) =>
         ValidationSuccess
       case _ =>
         ValidationFailure(s"Temporal ceil/floor operator does not support " +
