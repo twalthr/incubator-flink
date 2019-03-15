@@ -337,6 +337,7 @@ class Table(
     *   tab.groupBy('key).select('key, 'value.avg)
     * }}}
     */
+  @varargs
   def groupBy(fields: Expression*): GroupedTable = {
     groupByInternal(fields.map(expressionBridge.bridge))
   }
@@ -1178,6 +1179,7 @@ class GroupedTable(
     *   tab.groupBy('key).select('key, 'value.avg + " The average" as 'average)
     * }}}
     */
+  @varargs
   def select(fields: Expression*): Table = {
     selectInternal(fields.map(table.expressionBridge.bridge))
   }

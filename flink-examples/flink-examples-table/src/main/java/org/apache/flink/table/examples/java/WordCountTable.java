@@ -23,6 +23,8 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 
+import static org.apache.flink.table.api.ExpressionOperations.*;
+
 /**
  * Simple example for demonstrating the use of the Table API for a Word Count in Java.
  *
@@ -48,9 +50,14 @@ public class WordCountTable {
 		Table table = tEnv.fromDataSet(input);
 
 		Table filtered = table
-				.groupBy("word")
-				.select("word, frequency.sum as frequency")
-				.filter("frequency = 2");
+				.groupBy(field("word"))
+				.select(field("word"), field("frequency").sum().as("frequency"))
+				.filter(
+					and(
+						field("frequency").isGreaterThan(value(1)),
+						field("word").isEqualTo(value("Hello"))
+					)
+				);
 
 		DataSet<WC> result = tEnv.toDataSet(filtered, WC.class);
 

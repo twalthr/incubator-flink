@@ -50,40 +50,44 @@ public final class ApiExpressionUtils {
 		// private
 	}
 
-	public static CallExpression call(FunctionDefinition functionDefinition, Expression... args) {
-		return new CallExpression(functionDefinition, Arrays.asList(args));
+	public static ApiExpression asApiExpression(Expression expression) {
+		return new ApiExpression(expression);
 	}
 
-	public static ValueLiteralExpression valueLiteral(Object value) {
-		return new ValueLiteralExpression(value);
+	public static ApiExpression call(FunctionDefinition functionDefinition, Expression... args) {
+		return asApiExpression(new CallExpression(functionDefinition, Arrays.asList(args)));
 	}
 
-	public static ValueLiteralExpression valueLiteral(Object value, TypeInformation<?> type) {
-		return new ValueLiteralExpression(value, type);
+	public static ApiExpression valueLiteral(Object value) {
+		return asApiExpression(new ValueLiteralExpression(value));
 	}
 
-	public static TypeLiteralExpression typeLiteral(TypeInformation<?> type) {
-		return new TypeLiteralExpression(type);
+	public static ApiExpression valueLiteral(Object value, TypeInformation<?> type) {
+		return asApiExpression(new ValueLiteralExpression(value, type));
 	}
 
-	public static SymbolExpression symbol(TableSymbol symbol) {
-		return new SymbolExpression(symbol);
+	public static ApiExpression typeLiteral(TypeInformation<?> type) {
+		return asApiExpression(new TypeLiteralExpression(type));
 	}
 
-	public static FieldReferenceExpression fieldRef(String name) {
-		return new FieldReferenceExpression(name);
+	public static ApiExpression symbol(TableSymbol symbol) {
+		return asApiExpression(new SymbolExpression(symbol));
 	}
 
-	public static FieldReferenceExpression fieldRef(String name, TypeInformation<?> type) {
-		return new FieldReferenceExpression(name, type);
+	public static ApiExpression fieldRef(String name) {
+		return asApiExpression(new FieldReferenceExpression(name));
 	}
 
-	public static TableReferenceExpression tableRef(String name, Table table) {
-		return new TableReferenceExpression(name, table);
+	public static ApiExpression fieldRef(String name, TypeInformation<?> type) {
+		return asApiExpression(new FieldReferenceExpression(name, type));
 	}
 
-	public static UnresolvedCallExpression unresolvedCall(String name, Expression... args) {
-		return new UnresolvedCallExpression(name, Arrays.asList(args));
+	public static ApiExpression tableRef(String name, Table table) {
+		return asApiExpression(new TableReferenceExpression(name, table));
+	}
+
+	public static ApiExpression unresolvedCall(String name, Expression... args) {
+		return asApiExpression(new UnresolvedCallExpression(name, Arrays.asList(args)));
 	}
 
 	public static Expression toMonthInterval(Expression e, int multiplier) {

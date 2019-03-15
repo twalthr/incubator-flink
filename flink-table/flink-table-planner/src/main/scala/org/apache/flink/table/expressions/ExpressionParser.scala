@@ -214,7 +214,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     numberLiteral | doubleQuoteStringLiteral | singleQuoteStringLiteral | boolLiteral
 
   lazy val fieldReference: PackratParser[FieldReferenceExpression] = (STAR | ident) ^^ {
-    sym => fieldRef(sym)
+    sym => fieldRef(sym).toExpr.asInstanceOf[FieldReferenceExpression]
   }
 
   lazy val atom: PackratParser[Expression] =
