@@ -35,6 +35,42 @@ abstract class BaseExpressionOperations[T >: Expression] {
     call(GREATER_THAN, toExpr, other)
   }
 
+  def isGreaterThanOrEqualTo(other: Expression): T = {
+    call(GREATER_THAN_OR_EQUAL, toExpr, other)
+  }
+
+  def isLessThan(other: Expression): T = {
+    call(LESS_THAN, toExpr, other)
+  }
+
+  def isLessThanOrEqualTo(other: Expression): T = {
+    call(LESS_THAN_OR_EQUAL, toExpr, other)
+  }
+
+  def isNotEqualTo(other: Expression): T = {
+    call(NOT_EQUALS, toExpr, other)
+  }
+
+  def minus(other: Expression): T = {
+    call(MINUS, toExpr, other)
+  }
+
+  def plus(other: Expression): T = {
+    call(PLUS, toExpr, other)
+  }
+
+  def dividedBy(other: Expression): T = {
+    call(DIVIDE, toExpr, other)
+  }
+
+  def multipliedBy(other: Expression): T = {
+    call(TIMES, toExpr, other)
+  }
+
+  def modulo(other: Expression): T = {
+    call(MOD, toExpr, other)
+  }
+
   /**
     * Returns true if the given expression is between lowerBound and upperBound (both inclusive).
     * False otherwise. The parameters must be numeric types or identical comparable types.

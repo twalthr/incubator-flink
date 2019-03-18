@@ -88,12 +88,19 @@ public class ApiExpression extends BaseExpressionOperations<ApiExpression> imple
 	// Additional API operations
 	// --------------------------------------------------------------------------------------------
 
-	public ApiExpression as(String... names) {
+	/**
+	 * Specifies a name for an expression i.e. a field.
+	 *
+	 * @param name       name for one field
+	 * @param extraNames additional names if the expression expands to multiple fields
+	 * @return field with an alias
+	 */
+	public ApiExpression as(String name, String... extraNames) {
 		return ApiExpressionUtils.call(
 			BuiltInFunctionDefinitions.AS,
 			Stream.concat(
-				Stream.of(toExpr()),
-				Stream.of(names).map(ApiExpressionUtils::valueLiteral)
+				Stream.of(toExpr(), ApiExpressionUtils.valueLiteral(name)),
+				Stream.of(extraNames).map(ApiExpressionUtils::valueLiteral)
 			).toArray(Expression[]::new));
 	}
 }
