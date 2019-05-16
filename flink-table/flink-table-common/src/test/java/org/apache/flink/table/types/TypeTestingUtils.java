@@ -19,6 +19,7 @@
 package org.apache.flink.table.types;
 
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.FeatureMatcher;
@@ -66,5 +67,11 @@ public class TypeTestingUtils {
 				return actual.getLogicalType().isNullable();
 			}
 		};
+	}
+
+	public static Matcher<DataType> equalToWithoutBridging(DataType dataType) {
+		return CoreMatchers.equalTo(
+			LogicalTypeDataTypeConverter.toDataType(dataType.getLogicalType())
+		);
 	}
 }
