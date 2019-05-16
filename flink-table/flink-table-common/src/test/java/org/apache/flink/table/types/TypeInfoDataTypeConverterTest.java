@@ -47,7 +47,6 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.types.TypeTestingUtils.equalToWithoutBridging;
-import static org.apache.flink.table.types.utils.TypeInfoDataTypeConverter.toDataType;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -86,12 +85,12 @@ public class TypeInfoDataTypeConverterTest {
 
 	@Test
 	public void testTypeInfoToDataTypeConversion() {
-		assertThat(toDataType(inputTypeInfo), equalTo(dataType));
+		assertThat(TypeInfoDataTypeConverter.toDataType(inputTypeInfo, true), equalTo(dataType));
 	}
 
 	@Test
 	public void testTypeInfoToDataTypeConversionWithoutBridging() {
-		assertThat(toDataType(inputTypeInfo, false), equalToWithoutBridging(dataType));
+		assertThat(TypeInfoDataTypeConverter.toDataType(inputTypeInfo, false), equalToWithoutBridging(dataType));
 	}
 
 	@Test

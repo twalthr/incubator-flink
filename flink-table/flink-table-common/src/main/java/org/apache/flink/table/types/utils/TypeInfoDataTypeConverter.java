@@ -120,28 +120,8 @@ public class TypeInfoDataTypeConverter {
 		return convertToDataType(typeInfo, withBridging);
 	}
 
-	public static DataType toDataType(TypeInformation<?> typeInfo) {
-		return toDataType(typeInfo, true);
-	}
-
-	public static DataType[] toDataType(TypeInformation<?>[] typeInfo, boolean withBridging) {
-		return Stream.of(typeInfo)
-			.map(ti -> toDataType(ti, withBridging))
-			.toArray(DataType[]::new);
-	}
-
-	public static DataType[] toDataType(TypeInformation<?>[] typeInfo) {
-		return toDataType(typeInfo, true);
-	}
-
 	public static TypeInformation<?> toTypeInfo(DataType dataType) {
 		return convertToTypeInfo(dataType);
-	}
-
-	public static TypeInformation<?>[] toTypeInfo(DataType[] dataTypes) {
-		return Stream.of(dataTypes)
-			.map(TypeInfoDataTypeConverter::toTypeInfo)
-			.toArray(TypeInformation<?>[]::new);
 	}
 
 	// --------------------------------------------------------------------------------------------

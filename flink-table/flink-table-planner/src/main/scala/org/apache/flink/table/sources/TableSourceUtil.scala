@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.sources
 
-import java.sql.Timestamp
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.RelNode
@@ -27,11 +25,13 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.{Cast, PlannerExpression, PlannerResolvedFieldReference, ResolvedFieldReference}
+import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import scala.collection.JavaConverters._
@@ -60,7 +60,7 @@ object TableSourceUtil {
 
     val schema = tableSource.getTableSchema
     val tableFieldNames = schema.getFieldNames
-    val tableFieldTypes = schema.getFieldTypes
+    val tableFieldTypes = schema.getFieldDataTypes
 
     // get rowtime and proctime attributes
     val rowtimeAttributes = getRowtimeAttributes(tableSource)
@@ -69,26 +69,26 @@ object TableSourceUtil {
     // validate that schema fields can be resolved to a return type field of correct type
     var mappedFieldCnt = 0
     tableFieldTypes.zip(tableFieldNames).foreach {
-      case (t: SqlTimeTypeInfo[_], name: String)
-        if t.getTypeClass == classOf[Timestamp] && proctimeAttribute.contains(name) =>
+      case (t, name: String) if hasRoot(t.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) &&
+          proctimeAttribute.contains(name) =>
         // OK, field was mapped to proctime attribute
-      case (t: SqlTimeTypeInfo[_], name: String)
-        if t.getTypeClass == classOf[Timestamp] && rowtimeAttributes.contains(name) =>
+      case (t, name: String) if hasRoot(t.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) &&
+          rowtimeAttributes.contains(name) =>
         // OK, field was mapped to rowtime attribute
-      case (t: TypeInformation[_], name) =>
+      case (t, name) =>
         // check if field is registered as time indicator
         if (getProctimeAttribute(tableSource).contains(name)) {
           throw new ValidationException(s"Processing time field '$name' has invalid type $t. " +
-            s"Processing time attributes must be of type ${Types.SQL_TIMESTAMP}.")
+            s"Processing time attributes must be of type TIMESTAMP.")
         }
         if (getRowtimeAttributes(tableSource).contains(name)) {
           throw new ValidationException(s"Rowtime field '$name' has invalid type $t. " +
-            s"Rowtime attributes must be of type ${Types.SQL_TIMESTAMP}.")
+            s"Rowtime attributes must be of type TIMESTAMP.")
         }
         // check that field can be resolved in input type
         val (physicalName, _, tpe) = resolveInputField(name, tableSource)
         // validate that mapped fields are are same type
-        if (tpe != t) {
+        if (!t.getLogicalType.supportsInputConversion(tpe.getTypeClass)) {
           throw new ValidationException(s"Type $t of table field '$name' does not " +
             s"match with type $tpe of the field '$physicalName' of the TableSource return type.")
         }
@@ -118,7 +118,7 @@ object TableSourceUtil {
               s"'$rowtimeAttribute' but field '$rowtimeAttribute' does not exist in table.")
           }
           // ensure that field is of type TIMESTAMP
-          if (schema.getFieldTypes()(rowtimeIdx) != Types.SQL_TIMESTAMP) {
+          if (!hasRoot(tableFieldTypes(rowtimeIdx).getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE)) {
             throw new ValidationException(s"Found a rowtime attribute for field " +
               s"'$rowtimeAttribute' but field '$rowtimeAttribute' is not of type TIMESTAMP.")
           }
@@ -142,7 +142,7 @@ object TableSourceUtil {
             s"'$proctimeAttribute' but field '$proctimeAttribute' does not exist in table.")
         }
         // ensure that field is of type TIMESTAMP
-        if (schema.getFieldTypes()(proctimeIdx) != Types.SQL_TIMESTAMP) {
+        if (!hasRoot(tableFieldTypes(proctimeIdx).getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE)) {
           throw new ValidationException(s"Found a processing time attribute for field " +
             s"'$proctimeAttribute' but field '$proctimeAttribute' is not of type TIMESTAMP.")
         }
@@ -185,10 +185,10 @@ object TableSourceUtil {
 
     // get types of selected fields
     val tableFieldTypes = if (selectedFields.isDefined) {
-      val types = tableSchema.getFieldTypes
+      val types = tableSchema.getFieldDataTypes
       selectedFields.get.map(types(_))
     } else {
-      tableSchema.getFieldTypes
+      tableSchema.getFieldDataTypes
     }
 
     // get rowtime and proctime attributes
@@ -197,34 +197,34 @@ object TableSourceUtil {
 
     // compute mapping of selected fields and time attributes
     val mapping: Array[Int] = tableFieldTypes.zip(tableFieldNames).map {
-      case (t: SqlTimeTypeInfo[_], name: String)
-        if t.getTypeClass == classOf[Timestamp] && proctimeAttributes.contains(name) =>
+      case (t, name: String) if hasRoot(t.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) &&
+          proctimeAttributes.contains(name) =>
         if (isStreamTable) {
           TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER
         } else {
           TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER
         }
-      case (t: SqlTimeTypeInfo[_], name: String)
-        if t.getTypeClass == classOf[Timestamp] && rowtimeAttributes.contains(name) =>
+      case (t, name: String) if hasRoot(t.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) &&
+          rowtimeAttributes.contains(name) =>
         if (isStreamTable) {
           TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER
         } else {
           TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER
         }
-      case (t: TypeInformation[_], name) =>
+      case (t, name) =>
         // check if field is registered as time indicator
         if (getProctimeAttribute(tableSource).contains(name)) {
           throw new ValidationException(s"Processing time field '$name' has invalid type $t. " +
-            s"Processing time attributes must be of type ${Types.SQL_TIMESTAMP}.")
+            s"Processing time attributes must be of type TIMESTAMP.")
         }
         if (getRowtimeAttributes(tableSource).contains(name)) {
           throw new ValidationException(s"Rowtime field '$name' has invalid type $t. " +
-            s"Rowtime attributes must be of type ${Types.SQL_TIMESTAMP}.")
+            s"Rowtime attributes must be of type TIMESTAMP.")
         }
 
         val (physicalName, idx, tpe) = resolveInputField(name, tableSource)
         // validate that mapped fields are are same type
-        if (tpe != t) {
+        if (!t.getLogicalType.supportsInputConversion(tpe.getTypeClass)) {
           throw new ValidationException(s"Type $t of table field '$name' does not " +
             s"match with type $tpe of the field '$physicalName' of the TableSource return type.")
         }

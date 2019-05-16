@@ -56,6 +56,7 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * A converter between {@link LogicalType} and {@link DataType}.
