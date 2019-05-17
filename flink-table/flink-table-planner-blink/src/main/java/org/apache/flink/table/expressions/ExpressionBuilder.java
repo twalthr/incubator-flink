@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -41,6 +42,7 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.PLUS
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.REINTERPRET_CAST;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.TIMES;
 import static org.apache.flink.table.expressions.InternalFunctionDefinitions.THROW_EXCEPTION;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
  * Builder for {@link Expression}s.
@@ -130,7 +132,7 @@ public class ExpressionBuilder {
 	}
 
 	public static TypeLiteralExpression typeLiteral(TypeInformation<?> type) {
-		return new TypeLiteralExpression(type);
+		return new TypeLiteralExpression(fromLegacyInfoToDataType(type));
 	}
 
 	public static Expression concat(Expression input1, Expression input2) {

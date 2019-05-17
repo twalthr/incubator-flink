@@ -21,8 +21,10 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.typeutils.RowIntervalTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
@@ -62,8 +64,8 @@ public final class ApiExpressionUtils {
 		return new ValueLiteralExpression(value, type);
 	}
 
-	public static TypeLiteralExpression typeLiteral(TypeInformation<?> type) {
-		return new TypeLiteralExpression(type);
+	public static TypeLiteralExpression typeLiteral(DataType dataType) {
+		return new TypeLiteralExpression(dataType);
 	}
 
 	public static SymbolExpression symbol(TableSymbol symbol) {
@@ -94,7 +96,7 @@ public final class ApiExpressionUtils {
 						e,
 						valueLiteral(multiplier)
 					),
-					typeLiteral(TimeIntervalTypeInfo.INTERVAL_MONTHS)
+					typeLiteral(DataTypes.INTERVAL(DataTypes.MONTH()))
 				)
 			);
 	}
@@ -118,7 +120,7 @@ public final class ApiExpressionUtils {
 				e,
 				valueLiteral(multiplier)
 			),
-			typeLiteral(TimeIntervalTypeInfo.INTERVAL_MONTHS)
+			typeLiteral(DataTypes.INTERVAL(DataTypes.SECOND(3)))
 		);
 	}
 

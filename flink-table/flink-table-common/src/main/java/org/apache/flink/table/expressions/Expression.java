@@ -26,8 +26,10 @@ import java.util.List;
  * The interface for all expressions.
  *
  * <p>Expressions represent a logical tree for producing a computation result. Every expression
- * consists of zero or more sub-expressions. Expressions might be literal values, function calls,
+ * consists of zero, one, or more sub-expressions. Expressions might be literal values, function calls,
  * or field references.
+ *
+ * <p>Expressions are considered as part of the API.
  */
 @PublicEvolving
 public interface Expression {

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
@@ -48,6 +49,10 @@ public final class TypeConversions {
 		return Stream.of(dataType)
 			.map(TypeConversions::fromDataTypeToLegacyInfo)
 			.toArray(TypeInformation[]::new);
+	}
+
+	public static Optional<DataType> fromClassToDataType(Class<?> clazz) {
+		return ClassDataTypeConverter.extractDataType(clazz);
 	}
 
 
