@@ -30,69 +30,97 @@ import java.util.stream.Stream;
  */
 public final class TypeConversions {
 
-	public static DataType fromLogicalToDataType(LogicalType logicalType) {
-		return LogicalTypeDataTypeConverter.toDataType(logicalType);
+	public static DataType fromLegacyInfoToDataType(TypeInformation<?> typeInfo) {
+		return LegacyTypeInfoDataTypeConverter.toDataType(typeInfo);
 	}
 
-	public static DataType[] fromLogicalToDataType(LogicalType[] logicalTypes) {
-		return Stream.of(logicalTypes)
-			.map(LogicalTypeDataTypeConverter::toDataType)
-			.toArray(DataType[]::new);
-	}
-
-	public static LogicalType fromDataToLogicalType(DataType dataType) {
-		return dataType.getLogicalType();
-	}
-
-	public static LogicalType[] fromDataToLogicalType(DataType[] dataTypes) {
-		return Stream.of(dataTypes)
-			.map(TypeConversions::fromDataToLogicalType)
-			.toArray(LogicalType[]::new);
-	}
-
-	public static DataType fromInfoToDataType(TypeInformation<?> typeInfo, boolean withBridging) {
-		return TypeInfoDataTypeConverter.toDataType(typeInfo, withBridging);
-	}
-
-	public static DataType fromInfoToDataType(TypeInformation<?> typeInfo) {
-		return fromInfoToDataType(typeInfo, true);
-	}
-
-	public static DataType[] fromInfoToDataType(TypeInformation<?>[] typeInfo, boolean withBridging) {
+	public static DataType[] fromLegacyInfoToDataType(TypeInformation<?>[] typeInfo) {
 		return Stream.of(typeInfo)
-			.map(ti -> fromInfoToDataType(ti, withBridging))
+			.map(TypeConversions::fromLegacyInfoToDataType)
 			.toArray(DataType[]::new);
 	}
 
-	public static DataType[] fromInfoToDataType(TypeInformation<?>[] typeInfo) {
-		return fromInfoToDataType(typeInfo, true);
+	public static TypeInformation<?> fromDataTypeToLegacyInfo(DataType dataType) {
+		return LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(dataType);
 	}
 
-	public static TypeInformation<?> fromDataTypeToInfo(DataType dataType) {
-		return TypeInfoDataTypeConverter.toTypeInfo(dataType);
-	}
-
-	public static TypeInformation<?>[] fromDataTypeToInfo(DataType[] dataTypes) {
-		return Stream.of(dataTypes)
-			.map(TypeConversions::fromDataTypeToInfo)
+	public static TypeInformation<?>[] fromDataTypeToLegacyInfo(DataType[] dataType) {
+		return Stream.of(dataType)
+			.map(TypeConversions::fromDataTypeToLegacyInfo)
 			.toArray(TypeInformation[]::new);
 	}
 
-	public static LogicalType fromInfoToLogicalType(TypeInformation<?> typeInfo) {
-		return fromDataToLogicalType(fromInfoToDataType(typeInfo, false));
-	}
 
-	public static LogicalType[] fromInfoToLogicalType(TypeInformation<?>[] typeInfo) {
-		return fromDataToLogicalType(fromInfoToDataType(typeInfo, false));
-	}
 
-	public static TypeInformation<?> fromLogicalTypeToInfo(LogicalType logicalType) {
-		return TypeInfoDataTypeConverter.toTypeInfo(fromLogicalToDataType(logicalType));
-	}
 
-	public static TypeInformation<?>[] fromLogicalTypeToInfo(LogicalType[] logicalType) {
-		return fromDataTypeToInfo(fromLogicalToDataType(logicalType));
-	}
+
+
+
+
+
+//	public static DataType fromLogicalToDataType(LogicalType logicalType) {
+//		return LogicalTypeDataTypeConverter.toDataType(logicalType);
+//	}
+//
+//	public static DataType[] fromLogicalToDataType(LogicalType[] logicalTypes) {
+//		return Stream.of(logicalTypes)
+//			.map(LogicalTypeDataTypeConverter::toDataType)
+//			.toArray(DataType[]::new);
+//	}
+//
+//	public static LogicalType fromDataToLogicalType(DataType dataType) {
+//		return dataType.getLogicalType();
+//	}
+//
+//	public static LogicalType[] fromDataToLogicalType(DataType[] dataTypes) {
+//		return Stream.of(dataTypes)
+//			.map(TypeConversions::fromDataToLogicalType)
+//			.toArray(LogicalType[]::new);
+//	}
+//
+//	public static DataType fromInfoToDataType(TypeInformation<?> typeInfo, boolean withBridging) {
+//		return TypeInfoDataTypeConverter.toDataType(typeInfo, withBridging);
+//	}
+//
+//	public static DataType fromInfoToDataType(TypeInformation<?> typeInfo) {
+//		return fromInfoToDataType(typeInfo, true);
+//	}
+//
+//	public static DataType[] fromInfoToDataType(TypeInformation<?>[] typeInfo, boolean withBridging) {
+//		return Stream.of(typeInfo)
+//			.map(ti -> fromInfoToDataType(ti, withBridging))
+//			.toArray(DataType[]::new);
+//	}
+//
+//	public static DataType[] fromInfoToDataType(TypeInformation<?>[] typeInfo) {
+//		return fromInfoToDataType(typeInfo, true);
+//	}
+//
+//	public static TypeInformation<?> fromDataTypeToInfo(DataType dataType) {
+//		return TypeInfoDataTypeConverter.toTypeInfo(dataType);
+//	}
+//
+//	public static TypeInformation<?>[] fromDataTypeToInfo(DataType[] dataTypes) {
+//		return Stream.of(dataTypes)
+//			.map(TypeConversions::fromDataTypeToInfo)
+//			.toArray(TypeInformation[]::new);
+//	}
+//
+//	public static LogicalType fromInfoToLogicalType(TypeInformation<?> typeInfo) {
+//		return fromDataToLogicalType(fromInfoToDataType(typeInfo, false));
+//	}
+//
+//	public static LogicalType[] fromInfoToLogicalType(TypeInformation<?>[] typeInfo) {
+//		return fromDataToLogicalType(fromInfoToDataType(typeInfo, false));
+//	}
+//
+//	public static TypeInformation<?> fromLogicalTypeToInfo(LogicalType logicalType) {
+//		return TypeInfoDataTypeConverter.toTypeInfo(fromLogicalToDataType(logicalType));
+//	}
+//
+//	public static TypeInformation<?>[] fromLogicalTypeToInfo(LogicalType[] logicalType) {
+//		return fromDataTypeToInfo(fromLogicalToDataType(logicalType));
+//	}
 
 	private TypeConversions() {
 		// no instance

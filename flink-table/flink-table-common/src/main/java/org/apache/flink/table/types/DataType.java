@@ -52,9 +52,9 @@ import java.util.Objects;
 @PublicEvolving
 public abstract class DataType implements Serializable {
 
-	protected LogicalType logicalType;
+	protected final LogicalType logicalType;
 
-	protected @Nullable Class<?> conversionClass;
+	protected final @Nullable Class<?> conversionClass;
 
 	DataType(LogicalType logicalType, @Nullable Class<?> conversionClass) {
 		this.logicalType = Preconditions.checkNotNull(logicalType, "Logical type must not be null.");
@@ -133,12 +133,12 @@ public abstract class DataType implements Serializable {
 		}
 		DataType dataType = (DataType) o;
 		return logicalType.equals(dataType.logicalType) &&
-			Objects.equals(conversionClass, dataType.conversionClass);
+			getConversionClass().equals(dataType.getConversionClass());
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(logicalType, conversionClass);
+		return Objects.hash(logicalType, getConversionClass());
 	}
 
 	// --------------------------------------------------------------------------------------------

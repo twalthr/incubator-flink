@@ -18,12 +18,10 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
@@ -41,11 +39,8 @@ import java.util.stream.IntStream;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.Field;
 import static org.apache.flink.table.api.DataTypes.ROW;
-import static org.apache.flink.table.types.utils.TypeConversions.fromInfoToDataType;
-import static org.apache.flink.table.types.utils.TypeConversions.fromInfoToLogicalType;
-import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
-import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalTypeToInfo;
-
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
  * A table schema that represents a table's structure with field names and data types.
@@ -57,28 +52,27 @@ public class TableSchema {
 
 	private final String[] fieldNames;
 
-	private final LogicalType[] fieldTypes;
+	private final DataType[] fieldDataTypes;
 
 	private final Map<String, Integer> fieldNameToIndex;
 
 	/**
 	 * Creates a table schema.
 	 */
-	@Internal
-	public static TableSchema of(String[] fieldNames, LogicalType[] fieldTypes) {
-		return new TableSchema(fieldNames, fieldTypes);
+	public static TableSchema of(String[] fieldNames, DataType[] fieldDataTypes) {
+		return new TableSchema(fieldNames, fieldDataTypes);
 	}
 
-	private TableSchema(String[] fieldNames, LogicalType[] fieldTypes) {
+	private TableSchema(String[] fieldNames, DataType[] fieldDataTypes) {
 		this.fieldNames = Preconditions.checkNotNull(fieldNames);
-		this.fieldTypes = Preconditions.checkNotNull(fieldTypes);
+		this.fieldDataTypes = Preconditions.checkNotNull(fieldDataTypes);
 
-		if (fieldNames.length != fieldTypes.length) {
+		if (fieldNames.length != fieldDataTypes.length) {
 			throw new TableException(
 				"Number of field names and field data types must be equal.\n" +
-					"Number of names is " + fieldNames.length + ", number of data types is " + fieldTypes.length + ".\n" +
+					"Number of names is " + fieldNames.length + ", number of data types is " + fieldDataTypes.length + ".\n" +
 					"List of field names: " + Arrays.toString(fieldNames) + "\n" +
-					"List of field data types: " + Arrays.toString(fieldTypes));
+					"List of field data types: " + Arrays.toString(fieldDataTypes));
 		}
 
 		// validate and create name to index mapping
@@ -87,7 +81,7 @@ public class TableSchema {
 		final Set<String> uniqueNames = new HashSet<>();
 		for (int i = 0; i < fieldNames.length; i++) {
 			// check for null
-			Preconditions.checkNotNull(fieldTypes[i]);
+			Preconditions.checkNotNull(fieldDataTypes[i]);
 			final String fieldName = Preconditions.checkNotNull(fieldNames[i]);
 
 			// collect indices
@@ -113,21 +107,21 @@ public class TableSchema {
 	 */
 	@Deprecated
 	public TableSchema(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		this(fieldNames, fromInfoToLogicalType(fieldTypes));
+		this(fieldNames, fromLegacyInfoToDataType(fieldTypes));
 	}
 
 	/**
 	 * Returns a deep copy of the table schema.
 	 */
 	public TableSchema copy() {
-		return new TableSchema(fieldNames.clone(), fieldTypes.clone());
+		return new TableSchema(fieldNames.clone(), fieldDataTypes.clone());
 	}
 
 	/**
 	 * Returns all field data types as an array.
 	 */
 	public DataType[] getFieldDataTypes() {
-		return fromLogicalToDataType(fieldTypes);
+		return fieldDataTypes;
 	}
 
 	/**
@@ -135,7 +129,7 @@ public class TableSchema {
 	 */
 	@Deprecated
 	public TypeInformation<?>[] getFieldTypes() {
-		return fromLogicalTypeToInfo(fieldTypes);
+		return fromDataTypeToLegacyInfo(fieldDataTypes);
 	}
 
 	/**
@@ -144,11 +138,10 @@ public class TableSchema {
 	 * @param fieldIndex the index of the field
 	 */
 	public Optional<DataType> getFieldDataType(int fieldIndex) {
-		if (fieldIndex < 0 || fieldIndex >= fieldTypes.length) {
+		if (fieldIndex < 0 || fieldIndex >= fieldDataTypes.length) {
 			return Optional.empty();
 		}
-		return Optional.of(fieldTypes[fieldIndex])
-			.map(TypeConversions::fromLogicalToDataType);
+		return Optional.of(fieldDataTypes[fieldIndex]);
 	}
 
 	/**
@@ -157,7 +150,7 @@ public class TableSchema {
 	@Deprecated
 	public Optional<TypeInformation<?>> getFieldType(int fieldIndex) {
 		return getFieldDataType(fieldIndex)
-			.map(TypeConversions::fromDataTypeToInfo);
+			.map(TypeConversions::fromDataTypeToLegacyInfo);
 	}
 
 	/**
@@ -167,8 +160,7 @@ public class TableSchema {
 	 */
 	public Optional<DataType> getFieldDataType(String fieldName) {
 		if (fieldNameToIndex.containsKey(fieldName)) {
-			return Optional.of(fieldTypes[fieldNameToIndex.get(fieldName)])
-				.map(TypeConversions::fromLogicalToDataType);
+			return Optional.of(fieldDataTypes[fieldNameToIndex.get(fieldName)]);
 		}
 		return Optional.empty();
 	}
@@ -179,7 +171,7 @@ public class TableSchema {
 	@Deprecated
 	public Optional<TypeInformation<?>> getFieldType(String fieldName) {
 		return getFieldDataType(fieldName)
-			.map(TypeConversions::fromDataTypeToInfo);
+			.map(TypeConversions::fromDataTypeToLegacyInfo);
 	}
 
 	/**
@@ -212,8 +204,8 @@ public class TableSchema {
 	 * Converts a table schema into a (nested) data type describing a {@link DataTypes#ROW(Field...)}.
 	 */
 	public DataType toRowDataType() {
-		final Field[] fields = IntStream.range(0, fieldTypes.length)
-			.mapToObj(i -> FIELD(fieldNames[i], fromLogicalToDataType(fieldTypes[i])))
+		final Field[] fields = IntStream.range(0, fieldDataTypes.length)
+			.mapToObj(i -> FIELD(fieldNames[i], fieldDataTypes[i]))
 			.toArray(Field[]::new);
 		return ROW(fields);
 	}
@@ -224,7 +216,7 @@ public class TableSchema {
 	@Deprecated
 	@SuppressWarnings("unchecked")
 	public TypeInformation<Row> toRowType() {
-		return (TypeInformation<Row>) TypeConversions.fromDataTypeToInfo(toRowDataType());
+		return (TypeInformation<Row>) TypeConversions.fromDataTypeToLegacyInfo(toRowDataType());
 	}
 
 	@Override
@@ -232,7 +224,7 @@ public class TableSchema {
 		final StringBuilder sb = new StringBuilder();
 		sb.append("root\n");
 		for (int i = 0; i < fieldNames.length; i++) {
-			sb.append(" |-- ").append(fieldNames[i]).append(": ").append(fieldTypes[i]).append('\n');
+			sb.append(" |-- ").append(fieldNames[i]).append(": ").append(fieldDataTypes[i]).append('\n');
 		}
 		return sb.toString();
 	}
@@ -247,13 +239,13 @@ public class TableSchema {
 		}
 		TableSchema schema = (TableSchema) o;
 		return Arrays.equals(fieldNames, schema.fieldNames) &&
-			Arrays.equals(fieldTypes, schema.fieldTypes);
+			Arrays.equals(fieldDataTypes, schema.fieldDataTypes);
 	}
 
 	@Override
 	public int hashCode() {
 		int result = Arrays.hashCode(fieldNames);
-		result = 31 * result + Arrays.hashCode(fieldTypes);
+		result = 31 * result + Arrays.hashCode(fieldDataTypes);
 		return result;
 	}
 
@@ -300,11 +292,11 @@ public class TableSchema {
 
 		private List<String> fieldNames;
 
-		private List<LogicalType> fieldTypes;
+		private List<DataType> fieldDataTypes;
 
 		public Builder() {
 			fieldNames = new ArrayList<>();
-			fieldTypes = new ArrayList<>();
+			fieldDataTypes = new ArrayList<>();
 		}
 
 		/**
@@ -316,7 +308,7 @@ public class TableSchema {
 			Preconditions.checkNotNull(name);
 			Preconditions.checkNotNull(dataType);
 			fieldNames.add(name);
-			fieldTypes.add(dataType.getLogicalType());
+			fieldDataTypes.add(dataType);
 			return this;
 		}
 
@@ -325,7 +317,7 @@ public class TableSchema {
 		 */
 		@Deprecated
 		public Builder field(String name, TypeInformation<?> typeInfo) {
-			return field(name, fromInfoToDataType(typeInfo));
+			return field(name, fromLegacyInfoToDataType(typeInfo));
 		}
 
 		/**
@@ -334,7 +326,7 @@ public class TableSchema {
 		public TableSchema build() {
 			return new TableSchema(
 				fieldNames.toArray(new String[0]),
-				fieldTypes.toArray(new LogicalType[0]));
+				fieldDataTypes.toArray(new DataType[0]));
 		}
 	}
 }
