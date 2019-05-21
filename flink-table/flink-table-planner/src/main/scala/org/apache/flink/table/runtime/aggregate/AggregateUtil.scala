@@ -1893,7 +1893,7 @@ object AggregateUtil {
 
   private[flink] def asLong(expr: PlannerExpression): Long = expr match {
     case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) => value
-    case Literal(value: Long, RowIntervalTypeInfo.INTERVAL_ROWS) => value
+    case Literal(value: Long, Types.LONG) => value
     case _ => throw new IllegalArgumentException()
   }
 

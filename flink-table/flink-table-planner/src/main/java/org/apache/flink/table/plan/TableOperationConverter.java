@@ -360,7 +360,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		@Override
 		public AggCall visitCall(CallExpression call) {
 			if (call.getFunctionDefinition() == AS) {
-				String aggregateName = extractValue(call.getChildren().get(1), Types.STRING)
+				String aggregateName = extractValue(call.getChildren().get(1), String.class)
 					.orElseThrow(() -> new TableException("Unexpected name"));
 
 				Expression aggregate = call.getChildren().get(0);

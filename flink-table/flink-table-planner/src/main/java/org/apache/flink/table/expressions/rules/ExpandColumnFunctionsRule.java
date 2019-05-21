@@ -19,7 +19,6 @@
 package org.apache.flink.table.expressions.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
@@ -38,6 +37,7 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.RANGE_TO;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.WITHOUT_COLUMNS;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.WITH_COLUMNS;
+import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
 
 /**
  * Replaces column functions with all available {@link org.apache.flink.table.expressions.UnresolvedReferenceExpression}s
@@ -145,11 +145,9 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 
 		@Override
 		public List<UnresolvedReferenceExpression> visitValueLiteral(ValueLiteralExpression valueLiteralExpression) {
-			if (valueLiteralExpression.getType() instanceof IntegerTypeInfo) {
-				return Collections.singletonList(inputFieldReferences.get((int) valueLiteralExpression.getValue() - 1));
-			} else {
-				return defaultMethod(valueLiteralExpression);
-			}
+			return extractValue(valueLiteralExpression, Integer.class)
+				.map((i) -> Collections.singletonList(inputFieldReferences.get(i - 1)))
+				.orElseGet(() -> defaultMethod(valueLiteralExpression));
 		}
 
 		@Override

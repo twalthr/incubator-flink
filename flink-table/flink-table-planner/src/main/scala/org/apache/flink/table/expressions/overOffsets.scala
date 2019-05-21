@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
+import org.apache.flink.api.common.typeinfo.Types
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 
 case class CurrentRow() extends PlannerExpression {
-  override private[flink] def resultType = RowIntervalTypeInfo.INTERVAL_ROWS
+  override private[flink] def resultType = Types.LONG
 
   override private[flink] def children = Seq()
 
@@ -37,7 +38,7 @@ case class CurrentRange() extends PlannerExpression {
 }
 
 case class UnboundedRow() extends PlannerExpression {
-  override private[flink] def resultType = RowIntervalTypeInfo.INTERVAL_ROWS
+  override private[flink] def resultType= Types.LONG
 
   override private[flink] def children = Seq()
 

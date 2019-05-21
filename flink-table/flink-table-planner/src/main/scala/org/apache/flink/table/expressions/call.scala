@@ -96,7 +96,7 @@ case class OverCall(
     val partitionKeys = partitionBy.map(_.toRexNode).asJava
 
     // assemble bounds
-    val isPhysical: Boolean = preceding.resultType.isInstanceOf[RowIntervalTypeInfo]
+    val isPhysical: Boolean = preceding.resultType == Types.LONG
 
     val lowerBound = createBound(relBuilder, preceding, SqlKind.PRECEDING)
     val upperBound = createBound(relBuilder, following, SqlKind.FOLLOWING)
@@ -186,9 +186,9 @@ case class OverCall(
     preceding match {
       case _: CurrentRow | _: CurrentRange | _: UnboundedRow | _: UnboundedRange =>
         ValidationSuccess
-      case Literal(v: Long, _: RowIntervalTypeInfo) if v > 0 =>
+      case Literal(v: Long, Types.LONG) if v > 0 =>
         ValidationSuccess
-      case Literal(_, _: RowIntervalTypeInfo) =>
+      case Literal(_, Types.LONG) =>
         return ValidationFailure("Preceding row interval must be larger than 0.")
       case Literal(v: Long, _: TimeIntervalTypeInfo[_]) if v >= 0 =>
         ValidationSuccess
@@ -202,9 +202,9 @@ case class OverCall(
     following match {
       case _: CurrentRow | _: CurrentRange | _: UnboundedRow | _: UnboundedRange =>
         ValidationSuccess
-      case Literal(v: Long, _: RowIntervalTypeInfo) if v > 0 =>
+      case Literal(v: Long, Types.LONG) if v > 0 =>
         ValidationSuccess
-      case Literal(_, _: RowIntervalTypeInfo) =>
+      case Literal(_, Types.LONG) =>
         return ValidationFailure("Following row interval must be larger than 0.")
       case Literal(v: Long, _: TimeIntervalTypeInfo[_]) if v >= 0 =>
         ValidationSuccess

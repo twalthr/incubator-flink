@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.Test;
@@ -74,7 +75,7 @@ public class ExpressionTest {
 						new FieldReferenceExpression("field", Types.INT, 0, 0),
 						new CallExpression(
 							new ScalarFunctionDefinition("dummy", DUMMY_FUNCTION),
-							singletonList(new ValueLiteralExpression(nestedValue, Types.INT))
+							singletonList(new ValueLiteralExpression(nestedValue, DataTypes.INT()))
 						)
 					)
 				)

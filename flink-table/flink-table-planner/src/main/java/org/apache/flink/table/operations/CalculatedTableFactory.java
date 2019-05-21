@@ -78,7 +78,7 @@ public class CalculatedTableFactory {
 			List<Expression> children = call.getChildren();
 			List<String> aliases = children.subList(1, children.size())
 				.stream()
-				.map(alias -> ExpressionUtils.extractValue(alias, Types.STRING)
+				.map(alias -> ExpressionUtils.extractValue(alias, String.class)
 					.orElseThrow(() -> new ValidationException("Unexpected alias: " + alias)))
 				.collect(toList());
 

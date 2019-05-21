@@ -26,6 +26,7 @@ import org.apache.flink.table.`type`.DecimalType
 import org.apache.flink.table.typeutils.DecimalTypeInfo
 import java.util
 
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import scala.collection.JavaConversions._
@@ -77,7 +78,8 @@ final class ExistingField(val field: String) extends TimestampExtractor {
           BuiltInFunctionDefinitions.DIVIDE,
           List(fieldReferenceExpr,
             new ValueLiteralExpression(new java.math.BigDecimal(1000),
-              DecimalTypeInfo.of(DecimalType.MAX_PRECISION, DecimalType.MAX_COMPACT_PRECISION)))
+              fromLegacyInfoToDataType(
+                DecimalTypeInfo.of(DecimalType.MAX_PRECISION, DecimalType.MAX_COMPACT_PRECISION))))
         )
         new CallExpression(
           BuiltInFunctionDefinitions.CAST,

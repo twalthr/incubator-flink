@@ -21,8 +21,8 @@ import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float =
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.api.{Over, Table, ValidationException}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.table.api.{DataTypes, Over, Table, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{RANGE_TO, WITH_COLUMNS, E => FDE, UUID => FDUUID, _}
 import org.apache.flink.table.expressions._
@@ -1142,8 +1142,8 @@ trait ImplicitExpressionConversions {
     unresolvedRef(sym.name)
 
   implicit def scalaRange2RangeExpression(range: Range.Inclusive): Expression = {
-    val startExpression = new ValueLiteralExpression(range.start, BasicTypeInfo.INT_TYPE_INFO)
-    val endExpression = new ValueLiteralExpression(range.end, BasicTypeInfo.INT_TYPE_INFO)
+    val startExpression = valueLiteral(range.start, DataTypes.INT())
+    val endExpression = valueLiteral(range.end, DataTypes.INT())
     startExpression to endExpression
   }
 
@@ -1556,17 +1556,24 @@ object uuid {
 /**
   * Returns a null literal value of a given type.
   *
-  * e.g. nullOf(Types.INT)
+  * e.g. nullOf(DataTypes.INT())
   */
 object nullOf {
 
   /**
     * Returns a null literal value of a given type.
     *
-    * e.g. nullOf(Types.INT)
+    * e.g. nullOf(DataTypes.INT())
+    */
+  def apply(dataType: DataType): Expression = {
+    valueLiteral(null, dataType)
+  }
+
+  /**
+    * @deprecated Use [[apply(DataType)]] instead.
     */
   def apply(typeInfo: TypeInformation[_]): Expression = {
-    valueLiteral(null, typeInfo)
+    valueLiteral(null, fromLegacyInfoToDataType(typeInfo))
   }
 }
 

@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions
 
 import org.apache.flink.streaming.api.windowing.time.{Time => FlinkTime}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 
@@ -30,7 +31,7 @@ object PlannerExpressionUtils {
   }
 
   private[flink] def isRowCountLiteral(expr: PlannerExpression): Boolean = expr match {
-    case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS) => true
+    case Literal(_, Types.LONG) => true
     case _ => false
   }
 
@@ -61,7 +62,7 @@ object PlannerExpressionUtils {
   }
 
   private[flink] def toLong(expr: PlannerExpression): Long = expr match {
-    case Literal(value: Long, RowIntervalTypeInfo.INTERVAL_ROWS) => value
+    case Literal(value: Long, Types.LONG) => value
     case _ => throw new IllegalArgumentException()
   }
 }

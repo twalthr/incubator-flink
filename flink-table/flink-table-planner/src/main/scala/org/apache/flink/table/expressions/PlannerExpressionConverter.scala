@@ -705,9 +705,9 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
   override def visitValueLiteral(literal: ValueLiteralExpression): PlannerExpression = {
     if (literal.getValue == null) {
-      Null(literal.getType)
+      Null(fromDataTypeToLegacyInfo(literal.getDataType))
     } else {
-      Literal(literal.getValue, literal.getType)
+      Literal(literal.getValue, fromDataTypeToLegacyInfo(literal.getDataType))
     }
   }
 

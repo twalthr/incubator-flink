@@ -227,7 +227,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     }
     val aggWithNamedAlias = new CallExpression(
       BuiltInFunctionDefinitions.AS,
-      Seq(aggWithoutAlias, new ValueLiteralExpression("TMP_" + cnt, Types.STRING)))
+      Seq(aggWithoutAlias, new ValueLiteralExpression("TMP_" + cnt, DataTypes.STRING())))
 
     // get agg table
     val aggTableOperation = this.aggregate(groupingExpressions, Seq(aggWithNamedAlias), child)

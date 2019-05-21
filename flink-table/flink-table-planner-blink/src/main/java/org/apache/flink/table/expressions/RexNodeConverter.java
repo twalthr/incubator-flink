@@ -25,6 +25,7 @@ import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
@@ -170,7 +171,8 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 	@Override
 	public RexNode visitValueLiteral(ValueLiteralExpression expr) {
-		InternalType type = createInternalTypeFromTypeInfo(expr.getType());
+		InternalType type = createInternalTypeFromTypeInfo(
+			fromDataTypeToLegacyInfo(expr.getDataType()));
 		Object value = expr.getValue();
 		RexBuilder rexBuilder = relBuilder.getRexBuilder();
 		FlinkTypeFactory typeFactory = (FlinkTypeFactory) relBuilder.getTypeFactory();

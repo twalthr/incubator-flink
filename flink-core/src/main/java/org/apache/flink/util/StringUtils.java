@@ -140,7 +140,7 @@ public final class StringUtils {
 			return Arrays.toString((long[]) array);
 		}
 		if (array instanceof Object[]) {
-			return Arrays.toString((Object[]) array);
+			return Arrays.deepToString((Object[]) array);
 		}
 		if (array instanceof byte[]) {
 			return Arrays.toString((byte[]) array);

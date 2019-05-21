@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions.rules;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.expressions.CallExpression;
@@ -84,7 +85,7 @@ final class OverWindowResolverRule implements ResolverRule {
 		private Expression calculateOverWindowFollowing(LogicalOverWindow referenceWindow) {
 			return referenceWindow.following().orElseGet(() -> {
 					PlannerExpression preceding = resolutionContext.bridge(referenceWindow.preceding());
-					if (preceding.resultType() instanceof RowIntervalTypeInfo) {
+					if (preceding.resultType() == Types.LONG()) {
 						return new CallExpression(BuiltInFunctionDefinitions.CURRENT_ROW, emptyList());
 					} else {
 						return new CallExpression(BuiltInFunctionDefinitions.CURRENT_RANGE, emptyList());

@@ -31,7 +31,6 @@ import org.apache.flink.table.plan.nodes.logical.FlinkLogicalWindowAggregate
 import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecHashWindowAggregate, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecSortWindowAggregate}
 import org.apache.flink.table.plan.util.AggregateUtil
 import org.apache.flink.table.plan.util.AggregateUtil.isTimeIntervalType
-
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -40,6 +39,8 @@ import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.commons.math3.util.ArithmeticUtils
+import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
 
 import scala.collection.JavaConversions._
 
@@ -104,7 +105,8 @@ class BatchExecWindowAggregateRule
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
 
     window match {
-      case TumblingGroupWindow(_, _, size) if isTimeIntervalType(size.getType) =>
+      case TumblingGroupWindow(_, _, size) if
+          isTimeIntervalType(fromDataTypeToLegacyInfo(size.getDataType)) =>
         val sizeInLong = size.getValue.asInstanceOf[java.lang.Long]
         transformTimeSlidingWindow(
           call,
@@ -118,7 +120,8 @@ class BatchExecWindowAggregateRule
           enableAssignPane = false,
           supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, sizeInLong))
 
-      case SlidingGroupWindow(_, _, size, slide) if isTimeIntervalType(size.getType) =>
+      case SlidingGroupWindow(_, _, size, slide) if
+          isTimeIntervalType(fromDataTypeToLegacyInfo(size.getDataType)) =>
         val (sizeInLong, slideInLong) = (
           size.getValue.asInstanceOf[java.lang.Long],
           slide.getValue.asInstanceOf[java.lang.Long])

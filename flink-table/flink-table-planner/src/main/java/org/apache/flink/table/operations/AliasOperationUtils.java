@@ -80,7 +80,7 @@ public final class AliasOperationUtils {
 
 		@Override
 		public ValueLiteralExpression visitValueLiteral(ValueLiteralExpression valueLiteralExpression) {
-			String name = ExpressionUtils.extractValue(valueLiteralExpression, Types.STRING())
+			String name = ExpressionUtils.extractValue(valueLiteralExpression, String.class)
 				.orElseThrow(() -> new ValidationException(
 					"Alias accepts only names that are not '*' reference."));
 

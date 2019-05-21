@@ -18,19 +18,67 @@
 
 package org.apache.flink.table.types.logical.utils;
 
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.ZonedTimestampType;
 
 /**
  * Utilities for checking {@link LogicalType}.
  */
 public final class LogicalTypeChecks {
 
+	private static final TimeAttributeChecker TIME_ATTRIBUTE_CHECKER = new TimeAttributeChecker();
+
 	public static boolean hasRoot(LogicalType logicalType, LogicalTypeRoot typeRoot) {
 		return logicalType.getTypeRoot() == typeRoot;
 	}
 
+	public static boolean hasFamily(LogicalType logicalType, LogicalTypeFamily family) {
+		return logicalType.getTypeRoot().getFamilies().contains(family);
+	}
+
+	public static boolean isTimeAttribute(LogicalType logicalType) {
+		return logicalType.accept(TIME_ATTRIBUTE_CHECKER) != TimestampKind.REGULAR;
+	}
+
+	public static boolean isRowtimeAttribute(LogicalType logicalType) {
+		return logicalType.accept(TIME_ATTRIBUTE_CHECKER) == TimestampKind.ROWTIME;
+	}
+
+	public static boolean isProctimeAttribute(LogicalType logicalType) {
+		return logicalType.accept(TIME_ATTRIBUTE_CHECKER) == TimestampKind.PROCTIME;
+	}
+
 	private LogicalTypeChecks() {
 		// no instantiation
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static class TimeAttributeChecker extends LogicalTypeDefaultVisitor<TimestampKind> {
+
+		@Override
+		public TimestampKind visit(TimestampType timestampType) {
+			return timestampType.getKind();
+		}
+
+		@Override
+		public TimestampKind visit(ZonedTimestampType zonedTimestampType) {
+			return zonedTimestampType.getKind();
+		}
+
+		@Override
+		public TimestampKind visit(LocalZonedTimestampType localZonedTimestampType) {
+			return localZonedTimestampType.getKind();
+		}
+
+		@Override
+		protected TimestampKind defaultMethod(LogicalType logicalType) {
+			return TimestampKind.REGULAR;
+		}
 	}
 }

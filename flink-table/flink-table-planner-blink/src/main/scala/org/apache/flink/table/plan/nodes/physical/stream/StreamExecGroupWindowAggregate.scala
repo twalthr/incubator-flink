@@ -18,6 +18,12 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import java.util
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
@@ -26,13 +32,7 @@ import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.AggregateUtil.{isRowtimeIndicatorType, isTimeIntervalType}
 import org.apache.flink.table.plan.util.{RelExplainUtil, WindowEmitStrategy}
-
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-
-import java.util
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
 import scala.collection.JavaConversions._
 
@@ -65,9 +65,11 @@ class StreamExecGroupWindowAggregate(
 
   override def requireWatermark: Boolean = window match {
     case TumblingGroupWindow(_, timeField, size)
-      if isRowtimeIndicatorType(timeField.getResultType) && isTimeIntervalType(size.getType) => true
+      if isRowtimeIndicatorType(timeField.getResultType) &&
+        isTimeIntervalType(fromDataTypeToLegacyInfo(size.getDataType)) => true
     case SlidingGroupWindow(_, timeField, size, _)
-      if isRowtimeIndicatorType(timeField.getResultType) && isTimeIntervalType(size.getType) => true
+      if isRowtimeIndicatorType(timeField.getResultType) &&
+        isTimeIntervalType(fromDataTypeToLegacyInfo(size.getDataType)) => true
     case SessionGroupWindow(_, timeField, _)
       if isRowtimeIndicatorType(timeField.getResultType) => true
     case _ => false
