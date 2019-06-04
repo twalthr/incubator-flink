@@ -16,19 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions.catalog;
-
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.functions.FunctionDefinition;
+package org.apache.flink.table.functions;
 
 /**
- * Catalog of functions that can resolve the name of a function to a {@link FunctionDefinition}.
+ * Definition of user-defined function. Instances of this class enable unique identification across
+ * different modules and provide all details necessary to validate a function call and perform planning.
+ *
+ * <p>Compared to {@link FunctionDefinition}, this definition provides a runtime implementation.
  */
-@Internal
-public interface FunctionDefinitionCatalog {
+public interface UserDefinedFunctionDefinition extends FunctionDefinition {
+
+	@Override
+	default String getName() {
+		return this.getClass().getName();
+	}
 
 	/**
-	 * Lookup a function by name and return the {@link FunctionDefinition}. The lookup is case insensitive.
+	 * Returns a runtime implementation for this definition.
 	 */
-	FunctionDefinition lookupFunction(String name);
+	UserDefinedFunction getRuntimeImplementation();
+
 }

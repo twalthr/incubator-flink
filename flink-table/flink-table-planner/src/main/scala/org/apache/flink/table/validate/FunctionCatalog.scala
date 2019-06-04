@@ -30,7 +30,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{createAggregateSqlFunction, createScalarSqlFunction, createTableSqlFunction}
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.functions.{FunctionDefinition, ScalarFunction, TableFunction, UserDefinedAggregateFunction}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.mutable

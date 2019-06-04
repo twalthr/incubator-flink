@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.functions.FunctionDefinition;
 
 import java.util.Arrays;
 import java.util.Collections;

@@ -22,8 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{createAggregateSqlFunction, createScalarSqlFunction, createTableSqlFunction}
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-
+import org.apache.flink.table.functions.{AggregateFunction, FunctionDefinition, ScalarFunction, TableFunction}
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.util.ListSqlOperatorTable
 

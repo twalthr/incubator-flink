@@ -24,7 +24,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
 import org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType
-import org.apache.flink.table.expressions.FunctionDefinition.Type.{SCALAR_FUNCTION, TABLE_FUNCTION}
+import org.apache.flink.table.functions.FunctionDefinition.FunctionKind.{SCALAR_FUNCTION, TABLE_FUNCTION}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup

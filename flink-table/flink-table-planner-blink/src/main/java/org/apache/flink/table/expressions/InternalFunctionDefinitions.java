@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.expressions;
 
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_FUNCTION;
+import org.apache.flink.table.functions.FunctionDefinition;
+
+import static org.apache.flink.table.functions.FunctionDefinition.FunctionKind.SCALAR_FUNCTION;
 
 /**
  * Dictionary of function definitions for all internal used functions.

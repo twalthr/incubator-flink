@@ -19,10 +19,11 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_FUNCTION;
+import static org.apache.flink.table.functions.FunctionDefinition.FunctionKind.SCALAR_FUNCTION;
 
 /**
  * The function definition of an user-defined scalar function.

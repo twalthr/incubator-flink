@@ -79,7 +79,7 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
 import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import static org.apache.flink.table.functions.FunctionDefinition.FunctionKind.AGGREGATE_FUNCTION;
 
 /**
  * Converter from Flink's specific relational representation: {@link TableOperation} to Calcite's specific relational

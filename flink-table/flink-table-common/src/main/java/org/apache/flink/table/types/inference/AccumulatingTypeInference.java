@@ -16,19 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions.catalog;
+package org.apache.flink.table.types.inference;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Catalog of functions that can resolve the name of a function to a {@link FunctionDefinition}.
+ * Provides logic for inferring and/or validating input and output types of functions. Compared to
+ * {@link TypeInference}, it allows for inferring and/or validating types for intermediate results
+ * that are stored and maintained in an accumulator.
  */
-@Internal
-public interface FunctionDefinitionCatalog {
+@PublicEvolving
+public class AccumulatingTypeInference extends TypeInference {
 
-	/**
-	 * Lookup a function by name and return the {@link FunctionDefinition}. The lookup is case insensitive.
-	 */
-	FunctionDefinition lookupFunction(String name);
+	// will be filled with implementation as part of FLIP-37, part 2
 }

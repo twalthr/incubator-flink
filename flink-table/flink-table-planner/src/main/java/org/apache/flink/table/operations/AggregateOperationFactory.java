@@ -41,7 +41,7 @@ import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionResolver;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -64,7 +64,7 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import static org.apache.flink.table.functions.FunctionDefinition.FunctionKind.AGGREGATE_FUNCTION;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
 import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.SLIDE;
 import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.TUMBLE;
@@ -456,7 +456,7 @@ public class AggregateOperationFactory {
 			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.DISTINCT) {
 				throw new ValidationException("It's not allowed to use an aggregate function as " +
 					"input of another aggregate function");
-			} else if (call.getFunctionDefinition().getType() != AGGREGATE_FUNCTION) {
+			} else if (call.getFunctionDefinition().getKind() != AGGREGATE_FUNCTION) {
 				throw new ValidationException("Distinct operator can only be applied to aggregation expressions!");
 			} else {
 				call.getChildren().forEach(child -> child.accept(noNestedAggregates));
@@ -474,7 +474,7 @@ public class AggregateOperationFactory {
 
 		@Override
 		public Void visitCall(CallExpression call) {
-			if (call.getFunctionDefinition().getType() == AGGREGATE_FUNCTION) {
+			if (call.getFunctionDefinition().getKind() == AGGREGATE_FUNCTION) {
 				throw new ValidationException("It's not allowed to use an aggregate function as " +
 					"input of another aggregate function");
 			}

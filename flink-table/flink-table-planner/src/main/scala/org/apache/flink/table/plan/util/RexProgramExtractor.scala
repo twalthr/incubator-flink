@@ -30,6 +30,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.ApiExpressionUtils.call
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions.FunctionDefinition
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.util.Preconditions
 import org.slf4j.{Logger, LoggerFactory}
