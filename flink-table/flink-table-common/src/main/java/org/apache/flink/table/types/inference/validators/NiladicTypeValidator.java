@@ -16,26 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions;
+package org.apache.flink.table.types.inference.validators;
+
+import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.InputTypeValidator;
 
 /**
- * Definition of user-defined function. Instances of this class enable unique identification across
- * different modules and provide all details necessary to validate a function call and perform planning.
- *
- * <p>Compared to {@link FunctionDefinition}, this definition provides a runtime implementation.
+ * Validator for functions that don't take any parameters.
  */
-public interface UserDefinedFunctionDefinition extends FunctionDefinition {
+public class NiladicTypeValidator implements InputTypeValidator {
 
 	@Override
-	default String getName() {
-		return this.getClass().getName();
+	public boolean validate(CallContext callContext, boolean throwOnFailure) {
+		return false;
 	}
-
-	/**
-	 * Returns a runtime implementation for this definition.
-	 *
-	 * <p>This method allows for lazy instantiation of user-defined functions.
-	 */
-	UserDefinedFunction getImplementation();
-
 }

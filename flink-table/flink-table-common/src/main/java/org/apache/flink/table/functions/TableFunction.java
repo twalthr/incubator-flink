@@ -84,6 +84,11 @@ import org.apache.flink.util.Collector;
 @PublicEvolving
 public abstract class TableFunction<T> extends UserDefinedFunction {
 
+	@Override
+	public final FunctionKind getKind() {
+		return FunctionKind.TABLE_FUNCTION;
+	}
+
 	/**
 	 * The code generated collector used to emit rows.
 	 */

@@ -16,26 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions;
+package org.apache.flink.table.types.inference;
+
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.DataType;
+
+import java.util.List;
 
 /**
- * Definition of user-defined function. Instances of this class enable unique identification across
- * different modules and provide all details necessary to validate a function call and perform planning.
+ * Context about the call to a function.
  *
- * <p>Compared to {@link FunctionDefinition}, this definition provides a runtime implementation.
+ * <p>Please note that this class is a stub for now. In the future, it will be replaced by an advanced
+ * type inference logic (see FLIP-37, part 2).
  */
-public interface UserDefinedFunctionDefinition extends FunctionDefinition {
+public interface CallContext {
 
-	@Override
-	default String getName() {
-		return this.getClass().getName();
-	}
+	FunctionDefinition getFunctionDefinition();
 
-	/**
-	 * Returns a runtime implementation for this definition.
-	 *
-	 * <p>This method allows for lazy instantiation of user-defined functions.
-	 */
-	UserDefinedFunction getImplementation();
-
+	List<DataType> getInputDataTypes();
 }

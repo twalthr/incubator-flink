@@ -23,77 +23,104 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
- * Simple type inference logic that assumes explicit input and output data types without overloading
- * or variable arguments.
+ * Simple type inference logic that assumes explicit input, accumulator, and output data types
+ * without overloading or variable arguments.
  *
  * <p>For example: {@code (DOUBLE, INT) -> DOUBLE} or {@code (STRING, STRING) -> STRING}
  */
 @PublicEvolving
-public final class SimpleTypeInference extends TypeInference {
+public final class ExplicitTypeInference extends AccumulatingTypeInference {
 
-	private final Map<String, DataType> inputTypes;
+	private final Map<String, DataType> inputDataTypes;
 
-	private final DataType outputType;
+	private final @Nullable DataType accumulatorDataType;
 
-	private SimpleTypeInference(Map<String, DataType> inputTypes, DataType outputType) {
-		this.inputTypes = inputTypes;
-		this.outputType = outputType;
+	private final DataType outputDataType;
+
+	private ExplicitTypeInference(
+			Map<String, DataType> inputDataTypes,
+			DataType accumulatorDataType,
+			DataType outputDataType) {
+		this.inputDataTypes = inputDataTypes;
+		this.accumulatorDataType = accumulatorDataType;
+		this.outputDataType = Preconditions.checkNotNull(outputDataType, "Output data type must not be null.");
 	}
 
 	/**
 	 * Exposes internal structures until {@link TypeInference} is rich enough.
 	 */
 	@Internal
-	public Map<String, DataType> getInputTypes() {
-		return inputTypes;
+	public Map<String, DataType> getInputDataTypes() {
+		return inputDataTypes;
+	}
+
+	/**
+	 * Exposes internal structures until {@link AccumulatingTypeInference} is rich enough.
+	 */
+	@Internal
+	public Optional<DataType> getAccumulatorDataType() {
+		return Optional.ofNullable(accumulatorDataType);
 	}
 
 	/**
 	 * Exposes internal structures until {@link TypeInference} is rich enough.
 	 */
 	@Internal
-	public DataType getOutputType() {
-		return outputType;
+	public DataType getOutputDataType() {
+		return outputDataType;
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	public static class Builder {
 
-		private final Map<String, DataType> inputTypes;
+		private final Map<String, DataType> inputDataTypes;
 
-		private DataType outputType;
+		private DataType accumulatorDataType;
+
+		private DataType outputDataType;
 
 		public Builder() {
-			// allow a fluent definition even though all parameters are mandatory
-			this.inputTypes = new LinkedHashMap<>();
+			// default constructor to allow a fluent definition
+			this.inputDataTypes = new LinkedHashMap<>();
 		}
 
 		/**
 		 * Adds information about an input parameter. The order in which this method is called determines
-		 * the order of parameters.
+		 * the order of parameters. Not required if function does not take parameters.
 		 */
 		public Builder input(String name, DataType dataType) {
-			this.inputTypes.put(
+			this.inputDataTypes.put(
 				Preconditions.checkNotNull(name, "Input name must not be null."),
 				Preconditions.checkNotNull(dataType, "Input data type must not be null."));
 			return this;
 		}
 
 		/**
-		 * Adds information about the return data type.
+		 * Adds a data type for the intermediate result data type. Optional.
 		 */
-		public Builder output(DataType dataType) {
-			this.outputType = Preconditions.checkNotNull(dataType, "Return data type must not be null.");
+		public Builder accumulator(DataType dataType) {
+			this.accumulatorDataType = Preconditions.checkNotNull(dataType, "Accumulator data type must not be null.");
 			return this;
 		}
 
-		public SimpleTypeInference build() {
-			return new SimpleTypeInference(inputTypes, outputType);
+		/**
+		 * Adds a data type for the result. Mandatory.
+		 */
+		public Builder output(DataType dataType) {
+			this.outputDataType = Preconditions.checkNotNull(dataType, "Output data type must not be null.");
+			return this;
+		}
+
+		public ExplicitTypeInference build() {
+			return new ExplicitTypeInference(inputDataTypes, accumulatorDataType, outputDataType);
 		}
 	}
 }

@@ -106,6 +106,11 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public abstract class AggregateFunction<T, ACC> extends UserDefinedAggregateFunction<T, ACC> {
 
+	@Override
+	public final FunctionKind getKind() {
+		return FunctionKind.AGGREGATE_FUNCTION;
+	}
+
 	/**
 	 * Called every time when an aggregation result should be materialized.
 	 * The returned value could be either an early and incomplete result

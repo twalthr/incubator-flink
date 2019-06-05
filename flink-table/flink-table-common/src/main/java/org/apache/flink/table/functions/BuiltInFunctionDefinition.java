@@ -69,7 +69,7 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 		private TypeInference typeInference;
 
 		public Builder() {
-			// allow a fluent definition even though all parameters are mandatory
+			// default constructor to allow a fluent definition
 		}
 
 		public Builder name(String name) {

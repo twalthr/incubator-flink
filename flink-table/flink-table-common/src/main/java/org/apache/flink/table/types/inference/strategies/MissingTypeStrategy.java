@@ -16,26 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions;
+package org.apache.flink.table.types.inference.strategies;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.TypeStrategy;
+
+import java.util.Optional;
 
 /**
- * Definition of user-defined function. Instances of this class enable unique identification across
- * different modules and provide all details necessary to validate a function call and perform planning.
- *
- * <p>Compared to {@link FunctionDefinition}, this definition provides a runtime implementation.
+ * Placeholder for a missing type inference strategy.
  */
-public interface UserDefinedFunctionDefinition extends FunctionDefinition {
+@Internal
+public class MissingTypeStrategy implements TypeStrategy {
 
 	@Override
-	default String getName() {
-		return this.getClass().getName();
+	public Optional<DataType> inferType(CallContext callContext) {
+		return Optional.empty();
 	}
-
-	/**
-	 * Returns a runtime implementation for this definition.
-	 *
-	 * <p>This method allows for lazy instantiation of user-defined functions.
-	 */
-	UserDefinedFunction getImplementation();
-
 }

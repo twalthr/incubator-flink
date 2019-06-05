@@ -48,6 +48,11 @@ import org.apache.flink.table.api.ValidationException;
 @PublicEvolving
 public abstract class ScalarFunction extends UserDefinedFunction {
 
+	@Override
+	public final FunctionKind getKind() {
+		return FunctionKind.SCALAR_FUNCTION;
+	}
+
 	/**
 	 * Returns the result type of the evaluation method with a given signature.
 	 *

@@ -57,6 +57,18 @@ public interface FunctionDefinition {
 	FunctionKind getKind();
 
 	/**
+	 * Returns information about the determinism of the function's results.
+	 *
+	 * <p>It returns <code>true</code> if and only if a call to this function is guaranteed to
+	 * always return the same result given the same parameters. <code>true</code> is
+	 * assumed by default. If the function is not pure functional like <code>random(), date(), now(), ...</code>
+	 * this method must return <code>false</code>.
+	 */
+	default boolean isDeterministic() {
+		return true;
+	}
+
+	/**
 	 * Returns logic for inferring and/or validating input and output types of functions.
 	 */
 	TypeInference getTypeInference();

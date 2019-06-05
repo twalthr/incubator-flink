@@ -18,15 +18,18 @@
 
 package org.apache.flink.table.types.inference;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 
 /**
- * Provides logic for inferring and/or validating input and output types of functions. Compared to
- * {@link TypeInference}, it allows for inferring and/or validating types for intermediate results
- * that are stored and maintained in an accumulator.
+ * Validator for checking the input data types of a function call.
+ *
+ * <p>Please note that this class is a stub for now. In the future, it will be replaced by an advanced
+ * type inference logic (see FLIP-37, part 2).
+ *
+ * @see InputTypeValidators
  */
-@PublicEvolving
-public class AccumulatingTypeInference extends TypeInference {
+@Internal
+public interface InputTypeValidator {
 
-	// will be filled with implementation as part of FLIP-37, part 2
+	boolean validate(CallContext callContext, boolean throwOnFailure);
 }
