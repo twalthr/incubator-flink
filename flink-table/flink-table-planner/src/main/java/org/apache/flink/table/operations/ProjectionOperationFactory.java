@@ -29,14 +29,14 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
+import org.apache.flink.table.expressions.UntypedCallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +44,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.untypedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CAST;
@@ -139,37 +140,37 @@ public final class ProjectionOperationFactory {
 	private class NamingVisitor extends ApiExpressionDefaultVisitor<Expression> {
 
 		@Override
-		public Expression visitCall(CallExpression call) {
-			FunctionDefinition functionDefinition = call.getFunctionDefinition();
+		public Expression visitUntypedCall(UntypedCallExpression untypedCall) {
+			FunctionDefinition functionDefinition = untypedCall.getFunctionDefinition();
 			final Optional<String> rename;
 			if (functionDefinition.equals(CAST)) {
-				rename = nameForCast(call);
+				rename = nameForCast(untypedCall);
 			} else if (functionDefinition.equals(GET)) {
-				rename = nameForGet(call);
+				rename = nameForGet(untypedCall);
 			} else if (functionDefinition.equals(AS)) {
 				rename = Optional.empty();
 			} else {
 				rename = Optional.of(getUniqueName());
 			}
 
-			return rename.map(name -> new CallExpression(AS, Arrays.asList(call, valueLiteral(name)))).orElse(call);
+			return rename.map(name -> untypedCall(AS, untypedCall, valueLiteral(name))).orElse(untypedCall);
 		}
 
-		private Optional<String> nameForGet(CallExpression call) {
-			return Optional.of(call.accept(extractTransitiveNameVisitor)
+		private Optional<String> nameForGet(UntypedCallExpression untypedCall) {
+			return Optional.of(untypedCall.accept(extractTransitiveNameVisitor)
 				.orElseGet(ProjectionOperationFactory.this::getUniqueName));
 		}
 
-		private Optional<String> nameForCast(CallExpression call) {
-			Optional<String> innerName = call.getChildren().get(0).accept(extractTransitiveNameVisitor);
-			Expression type = call.getChildren().get(1);
+		private Optional<String> nameForCast(UntypedCallExpression untypedCall) {
+			Optional<String> innerName = untypedCall.getChildren().get(0).accept(extractTransitiveNameVisitor);
+			Expression type = untypedCall.getChildren().get(1);
 			return Optional.of(innerName.map(n -> String.format("%s-%s", n, type))
 				.orElseGet(ProjectionOperationFactory.this::getUniqueName));
 		}
 
 		@Override
 		public Expression visitValueLiteral(ValueLiteralExpression valueLiteralExpression) {
-			return new CallExpression(AS, Arrays.asList(valueLiteralExpression, valueLiteral(getUniqueName())));
+			return untypedCall(AS, valueLiteralExpression, valueLiteral(getUniqueName()));
 		}
 
 		@Override

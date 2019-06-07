@@ -20,13 +20,15 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.LookupCallExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
+import org.apache.flink.table.expressions.UntypedCallExpression;
+import org.apache.flink.table.functions.FunctionDefinition;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,14 +37,13 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.WINDOW_PROPERTIES;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
-import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind;
+import static org.apache.flink.table.functions.FunctionDefinition.FunctionKind.AGGREGATE_FUNCTION;
 
 /**
  * Utility methods for transforming {@link Expression} to use them in {@link TableOperation}s.
@@ -143,7 +144,7 @@ public class OperationExpressionsUtils {
 	private static List<Expression> nameExpressions(Map<Expression, String> expressions) {
 		return expressions.entrySet()
 			.stream()
-			.map(entry -> call(AS, entry.getKey(), valueLiteral(entry.getValue())))
+			.map(entry -> ApiExpressionUtils.untypedCall(AS, entry.getKey(), valueLiteral(entry.getValue())))
 			.collect(Collectors.toList());
 	}
 
@@ -165,7 +166,7 @@ public class OperationExpressionsUtils {
 		@Override
 		public Void visitCall(CallExpression call) {
 			FunctionDefinition functionDefinition = call.getFunctionDefinition();
-			if (isFunctionOfType(call, AGGREGATE_FUNCTION)) {
+			if (isFunctionOfKind(call, AGGREGATE_FUNCTION)) {
 				aggregates.computeIfAbsent(call, expr -> uniqueAttributeGenerator.get());
 			} else if (WINDOW_PROPERTIES.contains(functionDefinition)) {
 				properties.computeIfAbsent(call, expr -> uniqueAttributeGenerator.get());
@@ -199,18 +200,18 @@ public class OperationExpressionsUtils {
 		}
 
 		@Override
-		public Expression visitCall(CallExpression call) {
-			if (aggregates.get(call) != null) {
-				return unresolvedRef(aggregates.get(call));
-			} else if (properties.get(call) != null) {
-				return unresolvedRef(properties.get(call));
+		public Expression visitUntypedCall(UntypedCallExpression untypedCall) {
+			if (aggregates.get(untypedCall) != null) {
+				return unresolvedRef(aggregates.get(untypedCall));
+			} else if (properties.get(untypedCall) != null) {
+				return unresolvedRef(properties.get(untypedCall));
 			}
 
-			List<Expression> args = call.getChildren()
+			List<Expression> args = untypedCall.getChildren()
 				.stream()
 				.map(c -> c.accept(this))
 				.collect(Collectors.toList());
-			return new CallExpression(call.getFunctionDefinition(), args);
+			return untypedCall.replaceArgs(args);
 		}
 
 		@Override

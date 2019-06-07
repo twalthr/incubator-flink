@@ -20,16 +20,21 @@ package org.apache.flink.table.expressions.rules;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.InputTypeSpec;
 import org.apache.flink.table.expressions.PlannerExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.UntypedCallExpression;
 import org.apache.flink.table.typeutils.TypeCoercion;
 import org.apache.flink.table.validate.ValidationFailure;
 import org.apache.flink.table.validate.ValidationResult;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -55,37 +60,41 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 			.collect(Collectors.toList());
 	}
 
-	private class CallArgumentsCastingVisitor extends RuleExpressionVisitor<Expression> {
+	private class CallArgumentsCastingVisitor extends RuleExpressionVisitor<ResolvedExpression> {
 
 		CallArgumentsCastingVisitor(ResolutionContext context) {
 			super(context);
 		}
 
 		@Override
-		public Expression visitCall(CallExpression call) {
-			PlannerExpression plannerCall = resolutionContext.bridge(call);
-			if (plannerCall instanceof InputTypeSpec) {
-				List<TypeInformation<?>> expectedTypes = toJava(((InputTypeSpec) plannerCall).expectedTypes());
-				return performTypeResolution(call, expectedTypes);
-			} else {
-				return validateArguments(call, plannerCall);
-			}
-		}
+		public ResolvedExpression visitUntypedCall(UntypedCallExpression untypedCall) {
+			final PlannerExpression plannerCall = resolutionContext.bridge(untypedCall);
 
-		private Expression performTypeResolution(CallExpression call, List<TypeInformation<?>> expectedTypes) {
-			List<PlannerExpression> args = call.getChildren()
+			final List<PlannerExpression> args = untypedCall.getChildren()
 				.stream()
 				.map(resolutionContext::bridge)
 				.collect(Collectors.toList());
 
-			List<Expression> newArgs = IntStream.range(0, args.size())
-				.mapToObj(idx -> castIfNeeded(args.get(idx), expectedTypes.get(idx)))
-				.collect(Collectors.toList());
+			if (plannerCall instanceof InputTypeSpec) {
+				final List<TypeInformation<?>> expectedInputTypes =
+					toJava(((InputTypeSpec) plannerCall).expectedTypes());
 
-			return new CallExpression(call.getFunctionDefinition(), newArgs);
+				final List<ResolvedExpression> newArgs = IntStream.range(0, args.size())
+					.mapToObj(idx -> castIfNeeded(args.get(idx), expectedInputTypes.get(idx)))
+					.collect(Collectors.toList());
+
+				return untypedCall.resolve(
+					newArgs,
+					fromLegacyInfoToDataType(plannerCall.resultType()));
+			} else {
+				validateArguments(untypedCall, plannerCall);
+				return untypedCall.resolve(
+					new ArrayList<>(args),
+					fromLegacyInfoToDataType(plannerCall.resultType()));
+			}
 		}
 
-		private Expression validateArguments(CallExpression call, PlannerExpression plannerCall) {
+		private void validateArguments(UntypedCallExpression untypedCall, PlannerExpression plannerCall) {
 			if (!plannerCall.valid()) {
 				final String errorMessage;
 				ValidationResult validationResult = plannerCall.validateInput();
@@ -93,25 +102,25 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 					errorMessage = ((ValidationFailure) validationResult).message();
 				} else {
 					errorMessage = String.format("Invalid arguments %s for function: %s",
-						call.getChildren(),
-						call.getFunctionDefinition().getName());
+						untypedCall.getChildren(),
+						untypedCall.getFunctionDefinition());
 				}
 				throw new ValidationException(errorMessage);
 			}
-
-			return call;
 		}
 
-		private Expression castIfNeeded(PlannerExpression childExpression, TypeInformation<?> expectedType) {
+		private ResolvedExpression castIfNeeded(PlannerExpression childExpression, TypeInformation<?> expectedType) {
 			TypeInformation<?> actualType = childExpression.resultType();
 			if (actualType.equals(expectedType)) {
 				return childExpression;
 			} else if (TypeCoercion.canSafelyCast(actualType, expectedType)) {
 				return new CallExpression(
+					ObjectIdentifier.of(BuiltInFunctionDefinitions.CAST.getName()),
 					BuiltInFunctionDefinitions.CAST,
 					asList(
 						childExpression,
-						typeLiteral(fromLegacyInfoToDataType(expectedType)))
+						typeLiteral(fromLegacyInfoToDataType(expectedType))),
+					fromLegacyInfoToDataType(expectedType)
 				);
 			} else {
 				throw new ValidationException(String.format("Incompatible type of argument: %s Expected: %s",
@@ -121,8 +130,11 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		}
 
 		@Override
-		protected Expression defaultMethod(Expression expression) {
-			return expression;
+		protected ResolvedExpression defaultMethod(Expression expression) {
+			if (expression instanceof ResolvedExpression) {
+				return (ResolvedExpression) expression;
+			}
+			throw new TableException("Unexpected unresolved expression: " + expression);
 		}
 	}
 }

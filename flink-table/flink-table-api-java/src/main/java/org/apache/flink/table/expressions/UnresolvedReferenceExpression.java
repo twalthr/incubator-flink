@@ -25,6 +25,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
+
 /**
  * An unresolved reference to a field, table, or local reference.
  *
@@ -43,6 +45,11 @@ public final class UnresolvedReferenceExpression implements Expression {
 
 	public String getName() {
 		return name;
+	}
+
+	@Override
+	public String asSummaryString() {
+		return escapeIdentifier(name);
 	}
 
 	@Override
@@ -74,6 +81,6 @@ public final class UnresolvedReferenceExpression implements Expression {
 
 	@Override
 	public String toString() {
-		return name;
+		return asSummaryString();
 	}
 }

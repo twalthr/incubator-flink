@@ -26,6 +26,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
+
 /**
  * Reference to entity local to a certain {@link org.apache.flink.table.operations.TableOperation}.
  * That entity does not come from any of the Operations input. It might be for example a group
@@ -49,6 +51,11 @@ public class LocalReferenceExpression implements Expression {
 
 	public DataType getOutputDataType() {
 		return dataType;
+	}
+
+	@Override
+	public String asSummaryString() {
+		return escapeIdentifier(name);
 	}
 
 	@Override
@@ -81,6 +88,6 @@ public class LocalReferenceExpression implements Expression {
 
 	@Override
 	public String toString() {
-		return name;
+		return asSummaryString();
 	}
 }

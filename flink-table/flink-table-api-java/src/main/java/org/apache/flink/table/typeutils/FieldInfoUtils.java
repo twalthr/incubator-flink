@@ -32,6 +32,7 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.expressions.UntypedCallExpression;
 import org.apache.flink.types.Row;
 
 import java.lang.reflect.Modifier;
@@ -468,8 +469,8 @@ public class FieldInfoUtils {
 	}
 
 	private static boolean isTimeAttribute(Expression origExpr) {
-		return origExpr instanceof CallExpression &&
-			TIME_ATTRIBUTES.contains(((CallExpression) origExpr).getFunctionDefinition());
+		return origExpr instanceof UntypedCallExpression &&
+			TIME_ATTRIBUTES.contains(((UntypedCallExpression) origExpr).getFunctionDefinition());
 	}
 
 	private static Optional<Integer> referenceByName(String name, CompositeType<?> ct) {

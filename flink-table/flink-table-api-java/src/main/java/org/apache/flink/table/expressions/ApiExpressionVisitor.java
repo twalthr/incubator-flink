@@ -32,6 +32,8 @@ public abstract class ApiExpressionVisitor<R> implements ExpressionVisitor<R> {
 
 	public abstract R visitLookupCall(LookupCallExpression lookupCall);
 
+	public abstract R visitUntypedCall(UntypedCallExpression untypedCall);
+
 	public abstract R visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference);
 
 	public final R visit(Expression other) {
@@ -41,6 +43,8 @@ public abstract class ApiExpressionVisitor<R> implements ExpressionVisitor<R> {
 			return visitLocalReference((LocalReferenceExpression) other);
 		} else if (other instanceof LookupCallExpression) {
 			return visitLookupCall((LookupCallExpression) other);
+		} else if (other instanceof UntypedCallExpression) {
+			return visitUntypedCall((UntypedCallExpression) other);
 		} else if (other instanceof UnresolvedReferenceExpression) {
 			return visitUnresolvedReference((UnresolvedReferenceExpression) other);
 		}

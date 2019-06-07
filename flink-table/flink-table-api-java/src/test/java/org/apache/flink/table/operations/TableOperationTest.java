@@ -20,6 +20,7 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -67,8 +68,12 @@ public class TableOperationTest {
 		FieldReferenceExpression field = new FieldReferenceExpression("a", DataTypes.INT(), 0, 0);
 		WindowAggregateTableOperation tableOperation = new WindowAggregateTableOperation(
 			Collections.singletonList(field),
-			Collections.singletonList(new CallExpression(BuiltInFunctionDefinitions.SUM,
-				Collections.singletonList(field))),
+			Collections.singletonList(
+				new CallExpression(
+					ObjectIdentifier.of(BuiltInFunctionDefinitions.SUM.getName()),
+					BuiltInFunctionDefinitions.SUM,
+					Collections.singletonList(field),
+					DataTypes.INT())),
 			Collections.emptyList(),
 			WindowAggregateTableOperation.ResolvedGroupWindow.sessionWindow("w", field, intervalOfMillis(10)),
 			new CatalogTableOperation(

@@ -27,7 +27,7 @@ import org.apache.flink.table.api.SlideWithSizeAndSlideOnTimeWithAlias;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TumbleWithSizeOnTimeWithAlias;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog;
+import org.apache.flink.table.expressions.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.lookups.FieldReferenceLookup;
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
 import org.apache.flink.table.expressions.rules.ResolverRule;
@@ -92,7 +92,7 @@ public class ExpressionResolver {
 
 	private final TableReferenceLookup tableLookup;
 
-	private final FunctionDefinitionCatalog functionLookup;
+	private final FunctionLookup functionLookup;
 
 	private final Map<String, LocalReferenceExpression> localReferences;
 
@@ -102,7 +102,7 @@ public class ExpressionResolver {
 
 	private ExpressionResolver(
 			TableReferenceLookup tableLookup,
-			FunctionDefinitionCatalog functionCatalog,
+			FunctionLookup functionCatalog,
 			FieldReferenceLookup fieldLookup,
 			List<OverWindow> overWindows,
 			List<LocalReferenceExpression> localReferences,
@@ -124,15 +124,15 @@ public class ExpressionResolver {
 	 * like e.g. {@link GroupWindow} or {@link OverWindow}. You can also add additional {@link ResolverRule}.
 	 *
 	 * @param tableCatalog a way to lookup a table reference by name
-	 * @param functionDefinitionCatalog a way to lookup call by name
+	 * @param functionLookup a way to lookup call by name
 	 * @param inputs inputs to use for field resolution
 	 * @return builder for resolver
 	 */
 	public static ExpressionResolverBuilder resolverFor(
 			TableReferenceLookup tableCatalog,
-			FunctionDefinitionCatalog functionDefinitionCatalog,
+			FunctionLookup functionLookup,
 			TableOperation... inputs) {
-		return new ExpressionResolverBuilder(inputs, tableCatalog, functionDefinitionCatalog);
+		return new ExpressionResolverBuilder(inputs, tableCatalog, functionLookup);
 	}
 
 	/**
@@ -274,7 +274,7 @@ public class ExpressionResolver {
 		}
 
 		@Override
-		public FunctionDefinitionCatalog functionDefinitionLookup() {
+		public FunctionLookup functionDefinitionLookup() {
 			return functionLookup;
 		}
 
@@ -311,7 +311,7 @@ public class ExpressionResolver {
 
 		private final List<TableOperation> tableOperations;
 		private final TableReferenceLookup tableCatalog;
-		private final FunctionDefinitionCatalog functionCatalog;
+		private final FunctionLookup functionCatalog;
 		private List<OverWindow> logicalOverWindows = new ArrayList<>();
 		private List<LocalReferenceExpression> localReferences = new ArrayList<>();
 		private List<ResolverRule> rules = new ArrayList<>(getResolverRules());
@@ -319,7 +319,7 @@ public class ExpressionResolver {
 		private ExpressionResolverBuilder(
 				TableOperation[] tableOperations,
 				TableReferenceLookup tableCatalog,
-				FunctionDefinitionCatalog functionCatalog) {
+				FunctionLookup functionCatalog) {
 			this.tableOperations = Arrays.asList(tableOperations);
 			this.tableCatalog = tableCatalog;
 			this.functionCatalog = functionCatalog;

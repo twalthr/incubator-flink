@@ -128,4 +128,9 @@ public abstract class AggregateFunction<T, ACC> extends UserDefinedAggregateFunc
 	public boolean requiresOver() {
 		return false;
 	}
+
+	@Override
+	public final FunctionKind getKind() {
+		return FunctionKind.AGGREGATE_FUNCTION;
+	}
 }

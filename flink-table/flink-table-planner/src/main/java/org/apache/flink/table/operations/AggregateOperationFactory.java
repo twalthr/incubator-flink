@@ -40,7 +40,7 @@ import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionResolver;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -63,8 +63,8 @@ import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
-import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind;
+import static org.apache.flink.table.functions.FunctionDefinition.FunctionKind.AGGREGATE_FUNCTION;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
 import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.SLIDE;
 import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.TUMBLE;
@@ -417,7 +417,7 @@ public class AggregateOperationFactory {
 		@Override
 		public Void visitCall(CallExpression call) {
 			FunctionDefinition functionDefinition = call.getFunctionDefinition();
-			if (isFunctionOfType(call, AGGREGATE_FUNCTION)) {
+			if (isFunctionOfKind(call, AGGREGATE_FUNCTION)) {
 				if (functionDefinition == BuiltInFunctionDefinitions.DISTINCT) {
 					call.getChildren().forEach(expr -> expr.accept(validateDistinct));
 				} else {
@@ -466,7 +466,7 @@ public class AggregateOperationFactory {
 			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.DISTINCT) {
 				throw new ValidationException("It's not allowed to use an aggregate function as " +
 					"input of another aggregate function");
-			} else if (call.getFunctionDefinition().getType() != AGGREGATE_FUNCTION) {
+			} else if (call.getFunctionDefinition().getKind() != AGGREGATE_FUNCTION) {
 				throw new ValidationException("Distinct operator can only be applied to aggregation expressions!");
 			} else {
 				call.getChildren().forEach(child -> child.accept(noNestedAggregates));
@@ -484,7 +484,7 @@ public class AggregateOperationFactory {
 
 		@Override
 		public Void visitCall(CallExpression call) {
-			if (call.getFunctionDefinition().getType() == AGGREGATE_FUNCTION) {
+			if (call.getFunctionDefinition().getKind() == AGGREGATE_FUNCTION) {
 				throw new ValidationException("It's not allowed to use an aggregate function as " +
 					"input of another aggregate function");
 			}
@@ -573,7 +573,7 @@ public class AggregateOperationFactory {
 					"List of column aliases must have same degree as table; " +
 						"the returned table of function '%s' has " +
 						"%d columns, whereas alias list has %d columns",
-					aggFunctionDefinition.getName(),
+					aggFunctionDefinition,
 					callArity,
 					aliasesSize));
 			}
@@ -595,11 +595,6 @@ public class AggregateOperationFactory {
 	 * Return true if the input {@link Expression} is a {@link CallExpression} of table aggregate function.
 	 */
 	public static boolean isTableAggFunctionCall(Expression expression) {
-		return Stream.of(expression)
-			.filter(p -> p instanceof CallExpression)
-			.map(p -> (CallExpression) p)
-			.filter(p -> p.getFunctionDefinition() instanceof AggregateFunctionDefinition)
-			.map(p -> (AggregateFunctionDefinition) p.getFunctionDefinition())
-			.anyMatch(p -> p.getAggregateFunction() instanceof TableAggregateFunction);
+		return false;
 	}
 }

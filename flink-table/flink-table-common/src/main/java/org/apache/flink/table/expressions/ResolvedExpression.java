@@ -21,32 +21,30 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.DataType;
 
-import java.util.List;
-
 /**
- * The interface for all expressions.
+ * Expression that has been fully resolved and validated.
  *
- * <p>Expressions represent a logical tree for producing a computation result. Every expression
- * consists of zero, one, or more subexpressions. Expressions might be literal values, function calls,
- * or field references.
+ * <p>Compared to {@link Expression}, resolved expressions do not contain unresolved subexpressions
+ * anymore and provide an output type for the computation result.
  *
- * <p>Expressions are part of the API. Thus, value types and return types are expressed as instances of
- * {@link DataType}.
- *
- * @see ResolvedExpression
+ * <p>Instances of this class describe a fully parameterized, immutable expression that can be serialized
+ * and persisted.
  */
 @PublicEvolving
-public interface Expression {
+public interface ResolvedExpression extends Expression {
 
 	/**
-	 * Returns a string that summarizes this expression for printing to a console. An implementation might
-	 * skip very specific properties.
+	 * Returns a string that fully serializes this instance. The serialized string can be used for storing
+	 * the query in e.g. a {@link org.apache.flink.table.catalog.Catalog} as a view.
 	 *
-	 * @return summary string of this expression for debugging purposes
+	 * @return detailed string for persisting in a catalog
 	 */
-	String asSummaryString();
+	default String asSerializableString() {
+		throw new UnsupportedOperationException("Expressions are not string serializable for now.");
+	}
 
-	List<Expression> getChildren();
-
-	<R> R accept(ExpressionVisitor<R> visitor);
+	/**
+	 * Returns the data type of the computation result.
+	 */
+	DataType getOutputDataType();
 }

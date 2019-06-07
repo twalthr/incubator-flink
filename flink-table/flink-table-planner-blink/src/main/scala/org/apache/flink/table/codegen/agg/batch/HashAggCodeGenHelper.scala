@@ -331,9 +331,11 @@ object HashAggCodeGenHelper {
       aggBuffMapping: Array[Array[(Int, InternalType)]]) extends ExpressionVisitor[Expression] {
 
     override def visitCall(call: CallExpression): Expression = {
-      new CallExpression(
-        call.getFunctionDefinition,
-        call.getChildren.map(_.accept(this)))
+//      new CallExpression(
+//        call.getFunctionDefinition,
+//        call.getChildren.map(_.accept(this)))
+      // TODO
+      ???
     }
 
     override def visitValueLiteral(valueLiteralExpression: ValueLiteralExpression): Expression = {

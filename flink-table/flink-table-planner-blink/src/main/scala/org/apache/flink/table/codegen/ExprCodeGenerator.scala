@@ -730,7 +730,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
               operands.map(expr => expr.resultType),
               resultType)
             .getOrElse(
-              throw new CodeGenException(s"Unsupported call: " +
+              throw new CodeGenException(s"Unsupported untypedCall: " +
               s"$sqlOperator(${operands.map(_.resultType).mkString(", ")}) \n" +
               s"If you think this function should be supported, " +
               s"you can create an issue and start a discussion for it."))
@@ -740,7 +740,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       // unknown or invalid
       case call@_ =>
         val explainCall = s"$call(${operands.map(_.resultType).mkString(", ")})"
-        throw new CodeGenException(s"Unsupported call: $explainCall")
+        throw new CodeGenException(s"Unsupported untypedCall: $explainCall")
     }
   }
 }

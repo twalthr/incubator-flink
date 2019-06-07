@@ -1029,14 +1029,14 @@ abstract class CodeGenerator(
           operands.map(_.resultType),
           resultType)
         callGen
-          .getOrElse(throw new CodeGenException(s"Unsupported call: $sqlOperator \n" +
+          .getOrElse(throw new CodeGenException(s"Unsupported untypedCall: $sqlOperator \n" +
             s"If you think this function should be supported, " +
             s"you can create an issue and start a discussion for it."))
           .generate(this, operands)
 
       // unknown or invalid
       case call@_ =>
-        throw new CodeGenException(s"Unsupported call: $call")
+        throw new CodeGenException(s"Unsupported untypedCall: $call")
     }
   }
 

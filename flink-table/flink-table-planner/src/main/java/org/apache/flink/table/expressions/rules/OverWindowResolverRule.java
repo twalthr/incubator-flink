@@ -22,9 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.PlannerExpression;
+import org.apache.flink.table.expressions.UntypedCallExpression;
 import org.apache.flink.table.plan.logical.LogicalOverWindow;
 
 import java.util.ArrayList;
@@ -32,8 +32,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
-import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.untypedCall;
 
 /**
  * Joins call to {@link BuiltInFunctionDefinitions#OVER} with corresponding over window
@@ -56,10 +56,10 @@ final class OverWindowResolverRule implements ResolverRule {
 		}
 
 		@Override
-		public Expression visitCall(CallExpression call) {
+		public Expression visitUntypedCall(UntypedCallExpression untypedCall) {
 
-			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
-				List<Expression> children = call.getChildren();
+			if (untypedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
+				List<Expression> children = untypedCall.getChildren();
 				Expression alias = children.get(1);
 
 				LogicalOverWindow referenceWindow = resolutionContext.getOverWindow(alias)
@@ -73,11 +73,14 @@ final class OverWindowResolverRule implements ResolverRule {
 					following));
 
 				newArgs.addAll(referenceWindow.partitionBy());
-				return new CallExpression(call.getFunctionDefinition(), newArgs);
+				return untypedCall.replaceArgs(newArgs);
 			} else {
-				return new CallExpression(
-					call.getFunctionDefinition(),
-					call.getChildren().stream().map(expr -> expr.accept(this)).collect(toList()));
+				return untypedCall.replaceArgs(
+					untypedCall.getChildren()
+						.stream()
+						.map(expr -> expr.accept(this))
+						.collect(toList())
+				);
 			}
 		}
 
@@ -85,9 +88,9 @@ final class OverWindowResolverRule implements ResolverRule {
 			return referenceWindow.following().orElseGet(() -> {
 					PlannerExpression preceding = resolutionContext.bridge(referenceWindow.preceding());
 					if (preceding.resultType() == BasicTypeInfo.LONG_TYPE_INFO) {
-						return new CallExpression(BuiltInFunctionDefinitions.CURRENT_ROW, emptyList());
+						return untypedCall(BuiltInFunctionDefinitions.CURRENT_ROW);
 					} else {
-						return new CallExpression(BuiltInFunctionDefinitions.CURRENT_RANGE, emptyList());
+						return untypedCall(BuiltInFunctionDefinitions.CURRENT_RANGE);
 					}
 				}
 			);

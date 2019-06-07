@@ -18,16 +18,17 @@
 
 package org.apache.flink.table.operations
 
+import _root_.java.util.function.Supplier
 import java.util.{Collections, Optional, List => JList}
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.expressions.ApiExpressionUtils.{call, valueLiteral}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedRef, untypedCall, valueLiteral}
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
-import org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType
-import org.apache.flink.table.expressions.FunctionDefinition.Type.{SCALAR_FUNCTION, TABLE_FUNCTION}
+import org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
+import org.apache.flink.table.expressions.catalog.FunctionLookup
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup
+import org.apache.flink.table.functions.FunctionDefinition.FunctionKind.{SCALAR_FUNCTION, TABLE_FUNCTION}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
 import org.apache.flink.table.operations.JoinTableOperation.JoinType
@@ -39,7 +40,6 @@ import org.apache.flink.util.Preconditions
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
-import _root_.java.util.function.Supplier
 
 /**
   * Builder for [[[Operation]] tree.
@@ -47,7 +47,7 @@ import _root_.java.util.function.Supplier
 class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
 
   private val expressionBridge: ExpressionBridge[PlannerExpression] = tableEnv.expressionBridge
-  private val functionCatalog: FunctionDefinitionCatalog = tableEnv.functionCatalog
+  private val functionCatalog: FunctionLookup = tableEnv.functionCatalog
 
   private val isStreaming = tableEnv.isInstanceOf[StreamTableEnvImpl]
   private val projectionOperationFactory = new ProjectionOperationFactory(expressionBridge)
@@ -205,8 +205,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     // extract alias and aggregate function
     var alias: Seq[String] = Seq()
     val aggWithoutAlias = resolvedAggregate match {
-      case c: CallExpression
-        if c.getFunctionDefinition.getName == BuiltInFunctionDefinitions.AS.getName =>
+      case c: CallExpression if c.getFunctionDefinition == BuiltInFunctionDefinitions.AS =>
         alias = c.getChildren
           .drop(1)
           .map(e => ExpressionUtils.extractValue(e, classOf[String]).get())
@@ -225,7 +224,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     while (childNames.contains("TMP_" + cnt)) {
       cnt += 1
     }
-    val aggWithNamedAlias = call(
+    val aggWithNamedAlias = untypedCall(
       BuiltInFunctionDefinitions.AS,
       aggWithoutAlias,
       valueLiteral("TMP_" + cnt))
@@ -237,8 +236,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     val aggNames = aggTableOperation.getTableSchema.getFieldNames
     val flattenExpressions = aggNames.take(groupingExpressions.size())
       .map(e => new UnresolvedReferenceExpression(e)) ++
-      Seq(new CallExpression(BuiltInFunctionDefinitions.FLATTEN,
-        Seq(new UnresolvedReferenceExpression(aggNames.last))))
+      Seq(untypedCall(BuiltInFunctionDefinitions.FLATTEN, unresolvedRef(aggNames.last)))
     val flattenedOperation = this.project(flattenExpressions.toList, aggTableOperation)
 
     // add alias
@@ -476,12 +474,11 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
     val resolvedMapFunction = resolveSingleExpression(mapFunction, resolver)
 
-    if (!isFunctionOfType(resolvedMapFunction, SCALAR_FUNCTION)) {
+    if (!isFunctionOfKind(resolvedMapFunction, SCALAR_FUNCTION)) {
       throw new ValidationException("Only ScalarFunction can be used in the map operator.")
     }
 
-    val expandedFields = new CallExpression(BuiltInFunctionDefinitions.FLATTEN,
-      List(resolvedMapFunction).asJava)
+    val expandedFields = untypedCall(BuiltInFunctionDefinitions.FLATTEN, resolvedMapFunction)
     project(Collections.singletonList(expandedFields), child)
   }
 
@@ -490,7 +487,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
     val resolvedTableFunction = resolveSingleExpression(tableFunction, resolver)
 
-    if (!isFunctionOfType(resolvedTableFunction, TABLE_FUNCTION)) {
+    if (!isFunctionOfKind(resolvedTableFunction, TABLE_FUNCTION)) {
       throw new ValidationException("Only TableFunction can be used in the flatMap operator.")
     }
 
@@ -507,7 +504,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       resultName
     })
 
-    val renamedTableFunction = call(
+    val renamedTableFunction = untypedCall(
       BuiltInFunctionDefinitions.AS,
       resolvedTableFunction +: newFieldNames.map(ApiExpressionUtils.valueLiteral(_)): _*)
     val joinNode = joinLateral(child, renamedTableFunction, JoinType.INNER, Optional.empty())
@@ -542,16 +539,17 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     var attrNameCntr: Int = 0
     val usedFieldNames = inputFieldNames.toBuffer
     groupingExpressions.map {
-      case c: CallExpression
-        if !c.getFunctionDefinition.getName.equals(BuiltInFunctionDefinitions.AS.getName) => {
+
+      case c: CallExpression if c.getFunctionDefinition != BuiltInFunctionDefinitions.AS =>
         val tempName = getUniqueName("TMP_" + attrNameCntr, usedFieldNames)
         usedFieldNames.append(tempName)
         attrNameCntr += 1
-        new CallExpression(
+        untypedCall(
           BuiltInFunctionDefinitions.AS,
-          Seq(c, new ValueLiteralExpression(tempName))
+          c,
+          new ValueLiteralExpression(tempName)
         )
-      }
+
       case e => e
     }
   }

@@ -88,4 +88,8 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregateFunction<T, ACC> {
 
+	@Override
+	public final FunctionKind getKind() {
+		return FunctionKind.TABLE_AGGREGATE_FUNCTION;
+	}
 }

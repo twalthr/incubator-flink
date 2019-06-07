@@ -19,25 +19,52 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_FUNCTION;
+import java.util.Objects;
 
 /**
  * The function definition of an user-defined scalar function.
  */
 @PublicEvolving
-public final class ScalarFunctionDefinition extends FunctionDefinition {
+public final class ScalarFunctionDefinition implements FunctionDefinition {
 
 	private final ScalarFunction scalarFunction;
 
-	public ScalarFunctionDefinition(String name, ScalarFunction scalarFunction) {
-		super(name, SCALAR_FUNCTION);
+	public ScalarFunctionDefinition(ScalarFunction scalarFunction) {
 		this.scalarFunction = Preconditions.checkNotNull(scalarFunction);
 	}
 
 	public ScalarFunction getScalarFunction() {
 		return scalarFunction;
+	}
+
+	@Override
+	public FunctionKind getKind() {
+		return FunctionKind.SCALAR_FUNCTION;
+	}
+
+	@Override
+	public String toString() {
+		return scalarFunction.toString();
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		ScalarFunctionDefinition that = (ScalarFunctionDefinition) o;
+		return scalarFunction.equals(that.scalarFunction);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(scalarFunction);
 	}
 }

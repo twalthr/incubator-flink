@@ -23,8 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.LookupCallExpression;
-import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 
 import java.util.List;
 
@@ -34,8 +33,7 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.OVER
 /**
  * Verifies that there is no more unresolved expressions. Checks for expression like:
  * <ul>
- *     <li>{@link UnresolvedReferenceExpression}</li>
- *     <li>{@link LookupCallExpression}</li>
+ *     <li>non-{@link ResolvedExpression}</li>
  *     <li>{@link org.apache.flink.table.expressions.BuiltInFunctionDefinitions#OVER} that still contains
  *     just alias to corresponding window</li>
  *     <li>{@link org.apache.flink.table.expressions.BuiltInFunctionDefinitions#FLATTEN}</li>
@@ -55,16 +53,6 @@ final class VerifyNoUnresolvedExpressionsRule implements ResolverRule {
 	private static class NoUnresolvedCallsChecker extends ApiExpressionDefaultVisitor<Void> {
 
 		@Override
-		public Void visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference) {
-			throw getException("reference", unresolvedReference);
-		}
-
-		@Override
-		public Void visitLookupCall(LookupCallExpression lookupCall) {
-			throw getException("lookup call", lookupCall);
-		}
-
-		@Override
 		public Void visitCall(CallExpression call) {
 			if (call.getFunctionDefinition() == OVER && call.getChildren().size() <= 2) {
 				throw getException("OVER call", call);
@@ -76,15 +64,19 @@ final class VerifyNoUnresolvedExpressionsRule implements ResolverRule {
 			return null;
 		}
 
-		private TableException getException(String expressionType, Expression call) {
-			return new TableException(String.format(
-				"Unexpected unresolved %s: %s. All expressions should be resolved by now",
-				expressionType, call));
-		}
-
 		@Override
 		protected Void defaultMethod(Expression expression) {
+			if (!(expression instanceof ResolvedExpression)) {
+				throw getException(expression.getClass().getSimpleName(), expression);
+			}
+
 			return null;
+		}
+
+		private TableException getException(String expressionType, Expression expr) {
+			return new TableException(String.format(
+				"Unexpected unresolved %s: %s. All expressions should be resolved by now",
+				expressionType, expr));
 		}
 	}
 }

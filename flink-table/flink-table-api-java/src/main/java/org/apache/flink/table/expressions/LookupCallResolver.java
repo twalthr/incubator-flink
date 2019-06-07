@@ -19,39 +19,55 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.expressions.catalog.FunctionLookup;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Resolves calls with function names to calls with actual function definitions.
+ * Resolves calls with function names to calls with actual function definitions but without a proper
+ * return type.
  */
 @Internal
 public class LookupCallResolver extends ApiExpressionDefaultVisitor<Expression> {
 
-	private final FunctionDefinitionCatalog functionCatalog;
+	private final FunctionLookup functionCatalog;
 
-	public LookupCallResolver(FunctionDefinitionCatalog functionCatalog) {
+	public LookupCallResolver(FunctionLookup functionCatalog) {
 		this.functionCatalog = functionCatalog;
 	}
 
+	@Override
 	public Expression visitLookupCall(LookupCallExpression lookupCall) {
-		FunctionDefinition functionDefinition = functionCatalog.lookupFunction(lookupCall.getUnresolvedName());
-		return createResolvedCall(functionDefinition, lookupCall.getChildren());
+		final FunctionLookup.Result result = functionCatalog.lookupFunction(lookupCall.getUnresolvedName())
+			.orElseThrow(() -> new ValidationException("Undefined function: " + lookupCall.getUnresolvedName()));
+
+		return new UntypedCallExpression(
+			result.getObjectIdentifier(),
+			result.getFunctionDefinition(),
+			resolveChildren(lookupCall));
 	}
 
-	public Expression visitCall(CallExpression call) {
-		return createResolvedCall(call.getFunctionDefinition(), call.getChildren());
+	@Override
+	public Expression visitUntypedCall(UntypedCallExpression untypedCall) {
+		if (untypedCall.getObjectIdentifier().isPresent()) {
+			return new UntypedCallExpression(
+				untypedCall.getObjectIdentifier().get(),
+				untypedCall.getFunctionDefinition(),
+				resolveChildren(untypedCall));
+		} else {
+			return new UntypedCallExpression(
+				untypedCall.getFunctionDefinition(),
+				resolveChildren(untypedCall));
+		}
 	}
 
-	private Expression createResolvedCall(FunctionDefinition functionDefinition, List<Expression> unresolvedChildren) {
-		List<Expression> resolvedChildren = unresolvedChildren
+	private List<Expression> resolveChildren(Expression expression) {
+		return expression.getChildren()
 			.stream()
 			.map(child -> child.accept(this))
 			.collect(Collectors.toList());
-
-		return new CallExpression(functionDefinition, resolvedChildren);
 	}
 
 	@Override

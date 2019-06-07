@@ -28,8 +28,10 @@ import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.ApiExpressionUtils.call
+import org.apache.flink.table.expressions.ApiExpressionUtils.untypedCall
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.catalog.FunctionLookup
+import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.util.Preconditions
 import org.slf4j.{Logger, LoggerFactory}
@@ -37,7 +39,6 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.util.{Failure, Success, Try}
 
 object RexProgramExtractor {
 
@@ -277,14 +278,14 @@ class RexNodeToExpressionConverter(
     // TODO we assume only planner expression as a temporary solution to keep the old interfaces
     val expressionBridge = new ExpressionBridge[PlannerExpression](
       functionCatalog, PlannerExpressionConverter.INSTANCE)
-    Try(functionCatalog.lookupFunction(name)) match {
-      case Success(f: FunctionDefinition) =>
+    toScala(functionCatalog.lookupFunction(name)) match {
+      case Some(result: FunctionLookup.Result) =>
         try {
-          Some(expressionBridge.bridge(call(f, operands: _*)))
+          Some(expressionBridge.bridge(untypedCall(result.getFunctionDefinition, operands: _*)))
         } catch {
           case _: Exception => None
         }
-      case Failure(_) => None
+      case _ => None
     }
   }
 

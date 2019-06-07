@@ -32,6 +32,7 @@ import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.RexPlannerExpression;
 import org.apache.flink.table.expressions.WindowReference;
 import org.apache.flink.table.functions.TableFunction;
@@ -93,8 +94,9 @@ import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
-import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+
+import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind;
+import static org.apache.flink.table.functions.FunctionDefinition.FunctionKind.AGGREGATE_FUNCTION;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 
 /**
@@ -229,7 +231,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 			int[] fieldIndices = IntStream.range(0, fieldNames.length).toArray();
 			TypeInformation<U> resultType = calculatedTable.getResultType();
 
-			FlinkTableFunctionImpl function = new FlinkTableFunctionImpl<>(
+			FlinkTableFunctionImpl<?> function = new FlinkTableFunctionImpl<>(
 				resultType,
 				fieldIndices,
 				fieldNames);
@@ -387,12 +389,12 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 
 		@Override
 		public RexNode visitCall(CallExpression call) {
-			List<Expression> newChildren = call.getChildren().stream().map(expr -> {
+			List<ResolvedExpression> newChildren = call.getChildren().stream().map(expr -> {
 				RexNode convertedNode = expr.accept(this);
-				return (Expression) new RexPlannerExpression(convertedNode);
+				return new RexPlannerExpression(convertedNode);
 			}).collect(toList());
 
-			CallExpression newCall = new CallExpression(call.getFunctionDefinition(), newChildren);
+			CallExpression newCall = call.replaceArgs(newChildren);
 			return expressionBridge.bridge(newCall).toRexNode(relBuilder);
 		}
 
@@ -416,7 +418,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 					.orElseThrow(() -> new TableException("Unexpected name."));
 
 				Expression aggregate = call.getChildren().get(0);
-				if (isFunctionOfType(aggregate, AGGREGATE_FUNCTION)) {
+				if (isFunctionOfKind(aggregate, AGGREGATE_FUNCTION)) {
 					return ((Aggregation) expressionBridge.bridge(aggregate))
 						.toAggCall(aggregateName, false, relBuilder);
 				}
@@ -433,7 +435,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 	private class TableAggregateVisitor extends AggregateVisitor {
 		@Override
 		public AggCall visitCall(CallExpression call) {
-			if (isFunctionOfType(call, AGGREGATE_FUNCTION)) {
+			if (isFunctionOfKind(call, AGGREGATE_FUNCTION)) {
 				AggFunctionCall aggFunctionCall = (AggFunctionCall) expressionBridge.bridge(call);
 				return aggFunctionCall.toAggCall(aggFunctionCall.toString(), false, relBuilder);
 			}

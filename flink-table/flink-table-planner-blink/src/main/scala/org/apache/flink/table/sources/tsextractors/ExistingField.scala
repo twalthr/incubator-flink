@@ -23,6 +23,7 @@ import java.util
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.descriptors.Rowtime
+import org.apache.flink.table.expressions.ApiExpressionUtils.untypedCall
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
@@ -71,23 +72,21 @@ final class ExistingField(val field: String) extends TimestampExtractor {
     fieldAccess.resultType match {
       case Types.LONG =>
         // access LONG field
-        val innerDiv = new CallExpression(
+        val innerDiv = untypedCall(
           BuiltInFunctionDefinitions.DIVIDE,
-          List(fieldReferenceExpr,
-            new ValueLiteralExpression(new java.math.BigDecimal(1000))))
-        new CallExpression(
+          fieldReferenceExpr,
+          new ValueLiteralExpression(new java.math.BigDecimal(1000)))
+        untypedCall(
           BuiltInFunctionDefinitions.CAST,
-          List(
-            innerDiv,
-            new TypeLiteralExpression(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP))))
+          innerDiv,
+          new TypeLiteralExpression(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP)))
       case Types.SQL_TIMESTAMP =>
         fieldReferenceExpr
       case Types.STRING =>
-        new CallExpression(
+        untypedCall(
           BuiltInFunctionDefinitions.CAST,
-          List(
-            fieldReferenceExpr,
-            new TypeLiteralExpression(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP))))
+          fieldReferenceExpr,
+          new TypeLiteralExpression(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP)))
     }
   }
 

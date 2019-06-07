@@ -67,6 +67,11 @@ public abstract class ApiExpressionDefaultVisitor<T> extends ApiExpressionVisito
 	}
 
 	@Override
+	public T visitUntypedCall(UntypedCallExpression untypedCall) {
+		return defaultMethod(untypedCall);
+	}
+
+	@Override
 	public T visitNonApiExpression(Expression other) {
 		return defaultMethod(other);
 	}

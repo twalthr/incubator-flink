@@ -20,33 +20,33 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
 
 /**
- * The function definition of an user-defined aggregate function.
+ * The function definition of an user-defined table aggregate function.
  */
 @PublicEvolving
-public final class AggregateFunctionDefinition implements FunctionDefinition {
+public final class TableAggregateFunctionDefinition implements FunctionDefinition {
 
-	private final AggregateFunction<?, ?> aggregateFunction;
+	private final TableAggregateFunction<?, ?> tableAggregateFunction;
 	private final TypeInformation<?> resultTypeInfo;
 	private final TypeInformation<?> accumulatorTypeInfo;
 
-	public AggregateFunctionDefinition(
-			AggregateFunction<?, ?> aggregateFunction,
+	public TableAggregateFunctionDefinition(
+			TableAggregateFunction<?, ?> tableAggregateFunction,
 			TypeInformation<?> resultTypeInfo,
 			TypeInformation<?> accTypeInfo) {
-		this.aggregateFunction = Preconditions.checkNotNull(aggregateFunction);
+		this.tableAggregateFunction = Preconditions.checkNotNull(tableAggregateFunction);
 		this.resultTypeInfo = Preconditions.checkNotNull(resultTypeInfo);
 		this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);
 	}
 
-	public AggregateFunction<?, ?> getAggregateFunction() {
-		return aggregateFunction;
+	public TableAggregateFunction<?, ?> getTableAggregateFunction() {
+		return tableAggregateFunction;
 	}
 
 	public TypeInformation<?> getResultTypeInfo() {
@@ -59,12 +59,12 @@ public final class AggregateFunctionDefinition implements FunctionDefinition {
 
 	@Override
 	public FunctionKind getKind() {
-		return FunctionKind.AGGREGATE_FUNCTION;
+		return FunctionKind.TABLE_AGGREGATE_FUNCTION;
 	}
 
 	@Override
 	public String toString() {
-		return aggregateFunction.toString();
+		return tableAggregateFunction.toString();
 	}
 
 	@Override
@@ -75,14 +75,14 @@ public final class AggregateFunctionDefinition implements FunctionDefinition {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		AggregateFunctionDefinition that = (AggregateFunctionDefinition) o;
-		return aggregateFunction.equals(that.aggregateFunction) &&
+		TableAggregateFunctionDefinition that = (TableAggregateFunctionDefinition) o;
+		return tableAggregateFunction.equals(that.tableAggregateFunction) &&
 			resultTypeInfo.equals(that.resultTypeInfo) &&
 			accumulatorTypeInfo.equals(that.accumulatorTypeInfo);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(aggregateFunction, resultTypeInfo, accumulatorTypeInfo);
+		return Objects.hash(tableAggregateFunction, resultTypeInfo, accumulatorTypeInfo);
 	}
 }

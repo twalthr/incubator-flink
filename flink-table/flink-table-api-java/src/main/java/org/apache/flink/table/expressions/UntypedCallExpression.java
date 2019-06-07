@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
@@ -27,60 +27,58 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * General expression for calling a function. A call expression contains all information required to
- * validate a function call and perform planning. The function can be a built-in function or a user-defined
- * function.
- *
- * <p>Equals/hashCode support of this expression depends on the equals/hashCode support of the function
- * definition.
- *
- * <p>A call expression can store information about the origin of a function definition using an
- * {@link ObjectIdentifier} to make the call expression persistable.
+ * A call expression where the target function has not been resolved yet.
  */
-@PublicEvolving
-public final class CallExpression implements ResolvedExpression {
+@Internal
+public final class UntypedCallExpression implements Expression {
 
 	private final @Nullable ObjectIdentifier objectIdentifier;
 
 	private final FunctionDefinition functionDefinition;
 
-	private final List<ResolvedExpression> args;
+	private final List<Expression> args;
 
-	private final DataType dataType;
-
-	public CallExpression(
+	public UntypedCallExpression(
 			ObjectIdentifier objectIdentifier,
 			FunctionDefinition functionDefinition,
-			List<ResolvedExpression> args,
-			DataType dataType) {
+			List<Expression> args) {
 		this.objectIdentifier = Preconditions.checkNotNull(objectIdentifier, "Object identifier must not be null.");
 		this.functionDefinition = Preconditions.checkNotNull(functionDefinition, "Function definition must not be null.");
 		this.args = new ArrayList<>(Preconditions.checkNotNull(args, "Arguments must not be null."));
-		this.dataType = Preconditions.checkNotNull(dataType, "Data type must not be null.");
 	}
 
-	public CallExpression(
+	public UntypedCallExpression(
 			FunctionDefinition functionDefinition,
-			List<ResolvedExpression> args,
-			DataType dataType) {
+			List<Expression> args) {
 		this.objectIdentifier = null;
 		this.functionDefinition = Preconditions.checkNotNull(functionDefinition, "Function definition must not be null.");
 		this.args = new ArrayList<>(Preconditions.checkNotNull(args, "Arguments must not be null."));
-		this.dataType = Preconditions.checkNotNull(dataType, "Data type must not be null.");
 	}
 
-	public CallExpression replaceArgs(List<ResolvedExpression> args) {
+	public UntypedCallExpression replaceArgs(List<Expression> args) {
 		if (objectIdentifier == null) {
-			return new CallExpression(functionDefinition, args, dataType);
+			return new UntypedCallExpression(functionDefinition, args);
 		}
-		return new CallExpression(objectIdentifier, functionDefinition, args, dataType);
+		return new UntypedCallExpression(objectIdentifier, functionDefinition, args);
+	}
+
+	public CallExpression resolve(List<ResolvedExpression> args, DataType dataType) {
+		if (objectIdentifier == null) {
+			return new CallExpression(
+				functionDefinition,
+				args,
+				dataType);
+		}
+		return new CallExpression(
+			objectIdentifier,
+			functionDefinition,
+			args,
+			dataType);
 	}
 
 	public Optional<ObjectIdentifier> getObjectIdentifier() {
@@ -100,11 +98,6 @@ public final class CallExpression implements ResolvedExpression {
 	}
 
 	@Override
-	public DataType getOutputDataType() {
-		return dataType;
-	}
-
-	@Override
 	public String asSummaryString() {
 		final List<String> argList = args.stream().map(Object::toString).collect(Collectors.toList());
 		return getFunctionSummary() + "(" + String.join(", ", argList) + ")";
@@ -112,36 +105,11 @@ public final class CallExpression implements ResolvedExpression {
 
 	@Override
 	public List<Expression> getChildren() {
-		return Collections.unmodifiableList(this.args);
+		return args;
 	}
 
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return visitor.visitCall(this);
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		CallExpression that = (CallExpression) o;
-		return Objects.equals(objectIdentifier, that.objectIdentifier) &&
-			functionDefinition.equals(that.functionDefinition) &&
-			args.equals(that.args) &&
-			dataType.equals(that.dataType);
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(objectIdentifier, functionDefinition, args, dataType);
-	}
-
-	@Override
-	public String toString() {
-		return asSummaryString();
+		return visitor.visit(this);
 	}
 }

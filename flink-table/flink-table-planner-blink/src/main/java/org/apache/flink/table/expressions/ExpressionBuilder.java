@@ -19,11 +19,11 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.functions.FunctionDefinition;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.untypedCall;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CAST;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CONCAT;
@@ -61,23 +61,23 @@ public class ExpressionBuilder {
 	}
 
 	public static Expression call(FunctionDefinition functionDefinition, Expression... args) {
-		return new CallExpression(functionDefinition, Arrays.asList(args));
+		return untypedCall(functionDefinition, args);
 	}
 
 	public static Expression call(FunctionDefinition functionDefinition, List<Expression> args) {
-		return new CallExpression(functionDefinition, args);
+		return untypedCall(functionDefinition, args.toArray(new Expression[0]));
 	}
 
 	public static Expression and(Expression arg1, Expression arg2) {
-		return new CallExpression(AND, Arrays.asList(arg1, arg2));
+		return untypedCall(AND, arg1, arg2);
 	}
 
 	public static Expression or(Expression arg1, Expression arg2) {
-		return new CallExpression(OR, Arrays.asList(arg1, arg2));
+		return untypedCall(OR, arg1, arg2);
 	}
 
 	public static Expression not(Expression arg) {
-		return new CallExpression(NOT, Collections.singletonList(arg));
+		return untypedCall(NOT, arg);
 	}
 
 	public static Expression isNull(Expression input) {

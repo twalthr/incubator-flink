@@ -22,8 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{createAggregateSqlFunction, createScalarSqlFunction, createTableSqlFunction}
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-
+import org.apache.flink.table.functions.{AggregateFunction, FunctionDefinition, ScalarFunction, TableFunction}
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.util.ListSqlOperatorTable
 
@@ -46,7 +45,7 @@ class FunctionCatalog() {
       typeFactory: FlinkTypeFactory): Unit = {
     registerFunction(
       name,
-      new ScalarFunctionDefinition(name, function),
+      new ScalarFunctionDefinition(function),
       createScalarSqlFunction(name, name, function, typeFactory)
     )
   }
@@ -58,7 +57,7 @@ class FunctionCatalog() {
       typeFactory: FlinkTypeFactory): Unit = {
     registerFunction(
       name,
-      new TableFunctionDefinition(name, function, implicitResultType),
+      new TableFunctionDefinition(function, implicitResultType),
       createTableSqlFunction(name, name, function, implicitResultType, typeFactory)
     )
   }
@@ -71,7 +70,7 @@ class FunctionCatalog() {
       typeFactory: FlinkTypeFactory): Unit = {
     registerFunction(
       name,
-      new AggregateFunctionDefinition(name, function, resultType, accType),
+      new AggregateFunctionDefinition(function, resultType, accType),
       createAggregateSqlFunction(
         name,
         name,

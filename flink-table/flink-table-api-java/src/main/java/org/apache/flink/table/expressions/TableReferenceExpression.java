@@ -26,6 +26,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
+
 /**
  * Expression that references another table.
  *
@@ -48,6 +50,11 @@ public final class TableReferenceExpression implements Expression {
 
 	public TableOperation getTableOperation() {
 		return tableOperation;
+	}
+
+	@Override
+	public String asSummaryString() {
+		return escapeIdentifier(name);
 	}
 
 	@Override
@@ -80,6 +87,6 @@ public final class TableReferenceExpression implements Expression {
 
 	@Override
 	public String toString() {
-		return name;
+		return asSummaryString();
 	}
 }

@@ -24,22 +24,24 @@ import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.catalog.ObjectIdentifier
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
+import org.apache.flink.table.expressions.catalog.FunctionLookup
+import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{createAggregateSqlFunction, createScalarSqlFunction, createTableSqlFunction}
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.util.JavaScalaConversionUtil
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.mutable
+import _root_.java.util.Optional
 
 /**
   * A catalog for looking up (user-defined) functions, used during validation phases
   * of both Table API and SQL API.
   */
-class FunctionCatalog extends FunctionDefinitionCatalog {
+class FunctionCatalog extends FunctionLookup {
 
   private val tableApiFunctions = mutable.HashMap.empty[String, FunctionDefinition]
   BuiltInFunctionDefinitions.getDefinitions.foreach { functionDefinition =>
@@ -55,7 +57,7 @@ class FunctionCatalog extends FunctionDefinitionCatalog {
     : Unit = {
     registerFunction(
       name,
-      new ScalarFunctionDefinition(name, function),
+      new ScalarFunctionDefinition(function),
       createScalarSqlFunction(name, name, function, typeFactory)
     )
   }
@@ -68,7 +70,7 @@ class FunctionCatalog extends FunctionDefinitionCatalog {
     : Unit = {
     registerFunction(
       name,
-      new TableFunctionDefinition(name, function, resultType),
+      new TableFunctionDefinition(function, resultType),
       createTableSqlFunction(name, name, function, resultType, typeFactory)
     )
   }
@@ -80,9 +82,17 @@ class FunctionCatalog extends FunctionDefinitionCatalog {
       accType: TypeInformation[_],
       typeFactory: FlinkTypeFactory)
     : Unit = {
+
+    val functionDefinition = function match {
+      case taf: TableAggregateFunction[_, _] =>
+        new TableAggregateFunctionDefinition(taf, resultType, accType)
+      case af: TableAggregateFunction[_, _] =>
+        new TableAggregateFunctionDefinition(af, resultType, accType)
+    }
+
     registerFunction(
       name,
-      new AggregateFunctionDefinition(name, function, resultType, accType),
+      functionDefinition,
       createAggregateSqlFunction(
         name,
         name,
@@ -115,10 +125,10 @@ class FunctionCatalog extends FunctionDefinitionCatalog {
   /**
     * Lookup a function by name and operands and return the [[FunctionDefinition]].
     */
-  override def lookupFunction(name: String): FunctionDefinition = {
-    tableApiFunctions.getOrElse(
-      normalizeName(name),
-      throw new ValidationException(s"Undefined function: $name"))
+  override def lookupFunction(name: String): Optional[FunctionLookup.Result] = {
+    val lookupResult = tableApiFunctions.get(normalizeName(name))
+      .map(d => new FunctionLookup.Result(ObjectIdentifier.of(name), d))
+    JavaScalaConversionUtil.toJava(lookupResult)
   }
 
   private def normalizeName(name: String): String = {

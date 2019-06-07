@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions.rules;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
@@ -31,7 +32,7 @@ import java.util.List;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.untypedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.lookupCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
@@ -61,7 +62,7 @@ public class VerifyNoUnresolvedExpressionsRuleTest {
 	@Test(expected = TableException.class)
 	public void testNestedUnresolvedReferenceIsCatched() {
 		List<Expression> expressions = asList(
-			call(AS, unresolvedRef("field"), valueLiteral("fieldAlias")),
+			ApiExpressionUtils.untypedCall(AS, unresolvedRef("field"), valueLiteral("fieldAlias")),
 			new FieldReferenceExpression("resolvedField", DataTypes.INT(), 0, 0));
 		resolverRule.apply(expressions, resolutionContext);
 	}
@@ -69,7 +70,7 @@ public class VerifyNoUnresolvedExpressionsRuleTest {
 	@Test(expected = TableException.class)
 	public void testFlattenCallIsCatched() {
 		List<Expression> expressions = singletonList(
-			call(FLATTEN, new FieldReferenceExpression("resolvedField", DataTypes.INT(), 0, 0))
+			ApiExpressionUtils.untypedCall(FLATTEN, new FieldReferenceExpression("resolvedField", DataTypes.INT(), 0, 0))
 		);
 		resolverRule.apply(expressions, resolutionContext);
 	}
@@ -77,8 +78,8 @@ public class VerifyNoUnresolvedExpressionsRuleTest {
 	@Test(expected = TableException.class)
 	public void testUnresolvedOverWindowIsCatched() {
 		List<Expression> expressions = singletonList(
-			call(OVER,
-				call(COUNT, new FieldReferenceExpression("resolvedField", DataTypes.INT(), 0, 0)),
+			ApiExpressionUtils.untypedCall(OVER,
+				ApiExpressionUtils.untypedCall(COUNT, new FieldReferenceExpression("resolvedField", DataTypes.INT(), 0, 0)),
 				new UnresolvedReferenceExpression("w")
 			)
 		);

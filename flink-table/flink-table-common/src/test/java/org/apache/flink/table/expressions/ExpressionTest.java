@@ -20,6 +20,9 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+
+import org.apache.flink.table.catalog.ObjectIdentifier;
+
 import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.Rule;
@@ -53,7 +56,7 @@ public class ExpressionTest {
 	private static final Expression TREE_WITH_SAME_VALUE = createExpressionTree(12);
 
 	private static final String TREE_WITH_NULL_STRING =
-		"and(true, equals(field, dummy(null)))";
+		"`and`(true, `equals`(field, *" + DUMMY_FUNCTION.getClass().getName() + "*(null)))";
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
@@ -144,20 +147,25 @@ public class ExpressionTest {
 
 	private static Expression createExpressionTree(Integer nestedValue) {
 		return new CallExpression(
+			ObjectIdentifier.of(AND.getName()),
 			AND,
 			asList(
 				new ValueLiteralExpression(true),
 				new CallExpression(
+					ObjectIdentifier.of(EQUALS.getName()),
 					EQUALS,
 					asList(
 						new FieldReferenceExpression("field", DataTypes.INT(), 0, 0),
 						new CallExpression(
-							new ScalarFunctionDefinition("dummy", DUMMY_FUNCTION),
-							singletonList(new ValueLiteralExpression(nestedValue, DataTypes.INT()))
+							new ScalarFunctionDefinition(DUMMY_FUNCTION),
+							singletonList(new ValueLiteralExpression(nestedValue, DataTypes.INT())),
+							DataTypes.INT()
 						)
-					)
+					),
+					DataTypes.BOOLEAN()
 				)
-			)
+			),
+			DataTypes.BOOLEAN()
 		);
 	}
 }

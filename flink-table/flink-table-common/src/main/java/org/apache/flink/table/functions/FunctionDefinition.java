@@ -16,64 +16,47 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
+package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.util.Preconditions;
-
-import java.util.Objects;
 
 /**
- * Definition of a function for unique identification.
+ * Definition of a function. Instances of this class provide all details necessary to validate a function
+ * call and perform planning.
+ *
+ * <p>A pure function definition must not contain a runtime implementation. This can be provided by
+ * the planner at later stages.
+ *
+ * @see UserDefinedFunctionDefinition
  */
 @PublicEvolving
-public class FunctionDefinition {
+public interface FunctionDefinition {
 
 	/**
 	 * Classifies the function definition.
 	 */
-	public enum Type {
+	enum FunctionKind {
 		AGGREGATE_FUNCTION,
 		SCALAR_FUNCTION,
 		TABLE_FUNCTION,
+		TABLE_AGGREGATE_FUNCTION,
 		OTHER_FUNCTION
 	}
 
-	private final Type type;
-	private final String name;
+	/**
+	 * Returns the kind of function this definition describes.
+	 */
+	FunctionKind getKind();
 
-	public FunctionDefinition(String name, Type type) {
-		this.name = Preconditions.checkNotNull(name);
-		this.type = Preconditions.checkNotNull(type);
-	}
-
-	public Type getType() {
-		return type;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		FunctionDefinition that = (FunctionDefinition) o;
-		return Objects.equals(name, that.name);
-	}
-
-	@Override
-	public int hashCode() {
-		return name.hashCode();
-	}
-
-	@Override
-	public String toString() {
-		return name;
+	/**
+	 * Returns information about the determinism of the function's results.
+	 *
+	 * <p>It returns <code>true</code> if and only if a call to this function is guaranteed to
+	 * always return the same result given the same parameters. <code>true</code> is
+	 * assumed by default. If the function is not pure functional like <code>random(), date(), now(), ...</code>
+	 * this method must return <code>false</code>.
+	 */
+	default boolean isDeterministic() {
+		return true;
 	}
 }

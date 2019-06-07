@@ -25,6 +25,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.calcite.RexAggLocalVariable;
 import org.apache.flink.table.calcite.RexDistinctKeyVariable;
 import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
@@ -82,7 +83,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 	@Override
 	public RexNode visitCall(CallExpression call) {
-		switch (call.getFunctionDefinition().getType()) {
+		switch (call.getFunctionDefinition().getKind()) {
 			case SCALAR_FUNCTION:
 				return visitScalarFunc(call);
 			default: throw new UnsupportedOperationException();
@@ -175,7 +176,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		} else if (BuiltInFunctionDefinitions.MOD.equals(def)) {
 			return relBuilder.call(FlinkSqlOperatorTable.MOD, child);
 		} else {
-			throw new UnsupportedOperationException(def.getName());
+			throw new UnsupportedOperationException(def.toString());
 		}
 	}
 

@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 
 import java.util.Arrays;
@@ -44,8 +47,31 @@ public final class ApiExpressionUtils {
 		// private
 	}
 
-	public static CallExpression call(FunctionDefinition functionDefinition, Expression... args) {
-		return new CallExpression(functionDefinition, Arrays.asList(args));
+	public static UntypedCallExpression untypedCall(
+			ObjectIdentifier objectIdentifier,
+			FunctionDefinition functionDefinition,
+			Expression... args) {
+		return new UntypedCallExpression(
+			objectIdentifier,
+			functionDefinition,
+			Arrays.asList(args));
+	}
+
+	public static UntypedCallExpression untypedCall(
+			BuiltInFunctionDefinition builtInFunctionDefinition,
+			Expression... args) {
+		return untypedCall(
+			ObjectIdentifier.of(builtInFunctionDefinition.getName()),
+			builtInFunctionDefinition,
+			args);
+	}
+
+	public static UntypedCallExpression untypedCall(
+			FunctionDefinition functionDefinition,
+			Expression... args) {
+		return new UntypedCallExpression(
+			functionDefinition,
+			Arrays.asList(args));
 	}
 
 	public static ValueLiteralExpression valueLiteral(Object value) {

@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -26,6 +27,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
 
 /**
  * A call expression where the target function has not been resolved yet.
@@ -45,13 +48,19 @@ public final class LookupCallExpression implements Expression {
 		this.args = Collections.unmodifiableList(new ArrayList<>(Preconditions.checkNotNull(args)));
 	}
 
+	public String getUnresolvedName() {
+		return unresolvedName;
+	}
+
+	@Override
+	public String asSummaryString() {
+		final List<String> argList = args.stream().map(Object::toString).collect(Collectors.toList());
+		return escapeIdentifier(unresolvedName) + "(" + String.join(", ", argList) + ")";
+	}
+
 	@Override
 	public List<Expression> getChildren() {
 		return this.args;
-	}
-
-	public String getUnresolvedName() {
-		return unresolvedName;
 	}
 
 	@Override
@@ -79,7 +88,6 @@ public final class LookupCallExpression implements Expression {
 
 	@Override
 	public String toString() {
-		final List<String> argList = args.stream().map(Object::toString).collect(Collectors.toList());
-		return unresolvedName + "(" + String.join(", ", argList) + ")";
+		return asSummaryString();
 	}
 }

@@ -35,7 +35,7 @@ import java.util.Objects;
  * </ul>
  */
 @PublicEvolving
-public final class FieldReferenceExpression implements Expression {
+public final class FieldReferenceExpression implements ResolvedExpression {
 
 	private final String name;
 
@@ -69,16 +69,22 @@ public final class FieldReferenceExpression implements Expression {
 		return name;
 	}
 
-	public DataType getOutputDataType() {
-		return dataType;
-	}
-
 	public int getInputIndex() {
 		return inputIndex;
 	}
 
 	public int getFieldIndex() {
 		return fieldIndex;
+	}
+
+	@Override
+	public DataType getOutputDataType() {
+		return dataType;
+	}
+
+	@Override
+	public String asSummaryString() {
+		return name;
 	}
 
 	@Override
@@ -113,6 +119,6 @@ public final class FieldReferenceExpression implements Expression {
 
 	@Override
 	public String toString() {
-		return name;
+		return asSummaryString();
 	}
 }

@@ -31,6 +31,7 @@ import org.apache.flink.table.`type`.InternalTypes._
 import org.apache.flink.table.`type`.{InternalType, TypeConverters}
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, untypedCall}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
 
@@ -274,9 +275,10 @@ object TableSourceUtil {
 
       val expression = tsExtractor.getExpression(fieldAccesses)
       // add cast to requested type and convert expression to RexNode
-      val castExpression = new CallExpression(
+      val castExpression = untypedCall(
         BuiltInFunctionDefinitions.CAST,
-        List(expression, new TypeLiteralExpression(fromLegacyInfoToDataType(resultType))))
+        expression,
+        typeLiteral(fromLegacyInfoToDataType(resultType)))
       val rexExpression = castExpression.accept(new RexNodeConverter(relBuilder))
       relBuilder.clear()
       rexExpression

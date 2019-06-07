@@ -52,7 +52,7 @@ import java.util.stream.Stream;
  * <p>Symbols (enums extending from {@link TableSymbol}) are considered as literal values.
  */
 @PublicEvolving
-public final class ValueLiteralExpression implements Expression {
+public final class ValueLiteralExpression implements ResolvedExpression {
 
 	private final @Nullable Object value;
 
@@ -68,8 +68,14 @@ public final class ValueLiteralExpression implements Expression {
 		this.dataType = dataType;
 	}
 
+	@Override
 	public DataType getOutputDataType() {
 		return dataType;
+	}
+
+	@Override
+	public String asSummaryString() {
+		return stringifyValue(value);
 	}
 
 	@Override
@@ -101,7 +107,7 @@ public final class ValueLiteralExpression implements Expression {
 
 	@Override
 	public String toString() {
-		return stringifyValue(value);
+		return asSummaryString();
 	}
 
 	public boolean isNull() {

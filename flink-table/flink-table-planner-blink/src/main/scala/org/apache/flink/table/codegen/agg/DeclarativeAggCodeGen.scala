@@ -216,9 +216,11 @@ class DeclarativeAggCodeGen(
       isDistinctMerge: Boolean = false) extends ExpressionVisitor[Expression] {
 
     override def visitCall(call: CallExpression): Expression = {
-      new CallExpression(
-        call.getFunctionDefinition,
-        call.getChildren.asScala.map(_.accept(this)).asJava)
+//      new CallExpression(
+//        call.getFunctionDefinition,
+//        call.getChildren.asScala.map(_.accept(this)).asJava)
+      // TODO
+      ???
     }
 
     override def visitValueLiteral(valueLiteralExpression: ValueLiteralExpression): Expression = {

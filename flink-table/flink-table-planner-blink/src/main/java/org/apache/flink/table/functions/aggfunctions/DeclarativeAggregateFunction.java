@@ -162,4 +162,9 @@ public abstract class DeclarativeAggregateFunction extends UserDefinedFunction {
 		}
 		return ret;
 	}
+
+	@Override
+	public FunctionKind getKind() {
+		return FunctionKind.OTHER_FUNCTION;
+	}
 }

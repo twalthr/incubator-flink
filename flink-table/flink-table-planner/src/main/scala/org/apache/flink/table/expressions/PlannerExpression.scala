@@ -21,14 +21,15 @@ import java.util
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.plan.TreeNode
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.validate.{ValidationResult, ValidationSuccess}
 
 import _root_.scala.collection.JavaConversions._
 
-abstract class PlannerExpression extends TreeNode[PlannerExpression] with Expression {
+abstract class PlannerExpression extends TreeNode[PlannerExpression] with ResolvedExpression {
   /**
     * Returns the [[TypeInformation]] for evaluating this expression.
     * It is sometimes not available until the expression is valid.
@@ -78,6 +79,10 @@ abstract class PlannerExpression extends TreeNode[PlannerExpression] with Expres
   override def accept[R](visitor: ExpressionVisitor[R]): R = visitor.visit(this)
 
   override def getChildren: util.List[Expression] = children
+
+  override def getOutputDataType: DataType = fromLegacyInfoToDataType(resultType)
+
+  override def asSummaryString(): String = toString
 }
 
 abstract class BinaryExpression extends PlannerExpression {

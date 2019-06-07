@@ -23,16 +23,16 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.table.expressions.ApiExpressionUtils.untypedCall;
 
 /**
  * Utility class for creating valid alias expressions that can be later used as a projection.
@@ -68,7 +68,7 @@ public final class AliasOperationUtils {
 				UnresolvedReferenceExpression oldField = new UnresolvedReferenceExpression(childNames[idx]);
 				if (idx < fieldAliases.size()) {
 					ValueLiteralExpression alias = fieldAliases.get(idx);
-					return new CallExpression(BuiltInFunctionDefinitions.AS, Arrays.asList(oldField, alias));
+					return untypedCall(BuiltInFunctionDefinitions.AS, oldField, alias);
 				} else {
 					return oldField;
 				}

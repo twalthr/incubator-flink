@@ -16,21 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
-
-import org.apache.flink.table.functions.BuiltInFunctionDefinition;
-
-import static org.apache.flink.table.functions.FunctionDefinition.FunctionKind.SCALAR_FUNCTION;
+package org.apache.flink.table.functions;
 
 /**
- * Dictionary of function definitions for all internal used functions.
+ * Definition of user-defined function. Instances of this class enable unique identification across
+ * different modules and provide all details necessary to validate a function call and perform planning.
+ *
+ * <p>Compared to {@link FunctionDefinition}, this definition provides a runtime implementation.
  */
-public class InternalFunctionDefinitions {
+public interface UserDefinedFunctionDefinition extends FunctionDefinition {
 
-	public static final BuiltInFunctionDefinition THROW_EXCEPTION =
-		new BuiltInFunctionDefinition.Builder()
-			.name("throwException")
-			.kind(SCALAR_FUNCTION)
-			.build();
+	/**
+	 * Returns a runtime implementation for this definition.
+	 *
+	 * <p>This method allows for lazy instantiation of user-defined functions.
+	 */
+	UserDefinedFunction createImplementation();
 
 }
