@@ -55,6 +55,8 @@ public final class LogicalTypeChecks {
 
 	private static final FractionalPrecisionExtractor FRACTIONAL_PRECISION_EXTRACTOR = new FractionalPrecisionExtractor();
 
+	private static final SingleFieldIntervalExtractor SINGLE_FIELD_INTERVAL_EXTRACTOR = new SingleFieldIntervalExtractor();
+
 	public static boolean hasRoot(LogicalType logicalType, LogicalTypeRoot typeRoot) {
 		return logicalType.getTypeRoot() == typeRoot;
 	}
@@ -121,6 +123,10 @@ public final class LogicalTypeChecks {
 
 	public static boolean hasFractionalPrecision(LogicalType logicalType, int fractionalPrecision) {
 		return getFractionalPrecision(logicalType) == fractionalPrecision;
+	}
+
+	public static boolean isSingleFieldInterval(LogicalType logicalType) {
+		return logicalType.accept(SINGLE_FIELD_INTERVAL_EXTRACTOR);
 	}
 
 	private LogicalTypeChecks() {
@@ -241,6 +247,33 @@ public final class LogicalTypeChecks {
 		@Override
 		public TimestampKind visit(LocalZonedTimestampType localZonedTimestampType) {
 			return localZonedTimestampType.getKind();
+		}
+	}
+
+	private static class SingleFieldIntervalExtractor extends Extractor<Boolean> {
+
+		@Override
+		public Boolean visit(YearMonthIntervalType yearMonthIntervalType) {
+			switch (yearMonthIntervalType.getResolution()) {
+				case YEAR:
+				case MONTH:
+					return true;
+				default:
+					return false;
+			}
+		}
+
+		@Override
+		public Boolean visit(DayTimeIntervalType dayTimeIntervalType) {
+			switch (dayTimeIntervalType.getResolution()) {
+				case DAY:
+				case HOUR:
+				case MINUTE:
+				case SECOND:
+					return true;
+				default:
+					return false;
+			}
 		}
 	}
 }
