@@ -24,13 +24,18 @@ import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.BINARY_STRING;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_STRING;
@@ -201,6 +206,68 @@ public final class LogicalTypeCasts {
 
 	public static boolean supportsExplicitCast(LogicalType sourceType, LogicalType targetType) {
 		return supportsCasting(sourceType, targetType, true);
+	}
+
+	/**
+	 * Returns the most common type of a set of types. It determines a type to which all given types
+	 * can be casted.
+	 *
+	 * <p>For example: {@code [INT, DECIMAL(12,12)]} would lead to {@code DECIMAL(12,12)}
+	 *
+	 * <p>This method is heavily inspired by Calcite's {@code SqlTypeFactoryImpl} but adapted to
+	 * Flink's type system.
+	 */
+	public static Optional<LogicalType> findCommonType(List<LogicalType> types) {
+		final LogicalType foundType = findLeastRestrictive(types);
+		if (foundType != null) {
+			return Optional.of(foundType);
+		}
+		return Optional.ofNullable(findLeastRestrictiveByCast(types));
+	}
+
+	private static @Nullable LogicalType findLeastRestrictive(List<LogicalType> types) {
+		Preconditions.checkArgument(types.size() > 0);
+
+		// collect statistics first
+		boolean hasAnyType = false;
+		boolean hasNullType = false;
+		boolean hasNullableTypes = false;
+		for (LogicalType type : types) {
+			final LogicalTypeRoot typeRoot = type.getTypeRoot();
+			if (typeRoot == ANY) {
+				hasAnyType = true;
+			} else if (typeRoot == NULL) {
+				hasNullType = true;
+			}
+			if (type.isNullable()) {
+				hasNullableTypes = true;
+			}
+		}
+
+		final List<LogicalType> normalizedTypes = types.stream()
+			.map(t -> t.copy(true))
+			.collect(Collectors.toList());
+
+		// ANY types must only be equal
+		if (hasAnyType) {
+			return findSameType(normalizedTypes)
+		}
+
+		return null;
+	}
+
+	private static @Nullable LogicalType findLeastRestrictiveByCast(List<LogicalType> types) {
+		throw new UnsupportedOperationException();
+	}
+
+	private static @Nullable LogicalType findSameType(List<LogicalType> types) {
+		final LogicalType firstType = types.get(0);
+		for (LogicalType type : types) {
+			if (!type.equals(firstType)) {
+				return null;
+			}
+		}
+		return firstType;
 	}
 
 	// --------------------------------------------------------------------------------------------
