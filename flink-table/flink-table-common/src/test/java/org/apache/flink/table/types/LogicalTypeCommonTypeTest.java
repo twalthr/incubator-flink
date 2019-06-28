@@ -23,17 +23,24 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
+import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import org.junit.Test;
@@ -202,9 +209,87 @@ public class LogicalTypeCommonTypeTest {
 
 				// time precision merging
 				{
-					Arrays.asList(new TimeType(3), new TimeType(2)),
-					new TimeType(3)
-				}
+					Arrays.asList(new TimeType(3), new TimeType(5), new TimeType(2)),
+					new TimeType(5)
+				},
+
+				// timestamp precision merging
+				{
+					Arrays.asList(new TimestampType(3), new TimestampType(5), new TimestampType(2)),
+					new TimestampType(5)
+				},
+
+				// timestamp merging
+				{
+					Arrays.asList(new TimestampType(3), new ZonedTimestampType(5), new LocalZonedTimestampType(2)),
+					new ZonedTimestampType(5)
+				},
+
+				// timestamp merging
+				{
+					Arrays.asList(new TimestampType(3), new LocalZonedTimestampType(2)),
+					new LocalZonedTimestampType(3)
+				},
+
+				// INTERVAL + DATETIME
+				{
+					Arrays.asList(new YearMonthIntervalType(YearMonthResolution.MONTH), new DateType()),
+					new DateType()
+				},
+
+				// DATETIME + INTERVAL
+				{
+					Arrays.asList(new TimeType(), new DayTimeIntervalType(DayTimeResolution.MINUTE)),
+					new TimeType()
+				},
+
+				// EXACT_NUMERIC + DATE
+				{
+					Arrays.asList(new IntType(), new DateType()),
+					new DateType()
+				},
+
+				// TIME + EXACT_NUMERIC
+				{
+					Arrays.asList(new TimeType(), new DecimalType()),
+					null
+				},
+
+				// TIMESTAMP + EXACT_NUMERIC
+				{
+					Arrays.asList(new TimestampType(), new DecimalType()),
+					new TimestampType()
+				},
+
+				// day-time intervals
+				{
+					Arrays.asList(
+						new DayTimeIntervalType(DayTimeResolution.DAY_TO_MINUTE),
+						new DayTimeIntervalType(DayTimeResolution.SECOND)),
+					new DayTimeIntervalType(DayTimeResolution.DAY_TO_SECOND)
+				},
+
+				// day-time intervals
+				{
+					Arrays.asList(
+						new DayTimeIntervalType(DayTimeResolution.HOUR),
+						new DayTimeIntervalType(
+							DayTimeResolution.SECOND,
+							DayTimeIntervalType.DEFAULT_DAY_PRECISION,
+							0)),
+					new DayTimeIntervalType(
+						DayTimeResolution.HOUR_TO_SECOND,
+						DayTimeIntervalType.DEFAULT_DAY_PRECISION,
+						6)
+				},
+
+				// year-month intervals
+				{
+					Arrays.asList(
+						new YearMonthIntervalType(YearMonthResolution.MONTH),
+						new YearMonthIntervalType(YearMonthResolution.YEAR)),
+					new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH)
+				},
 
 			}
 		);

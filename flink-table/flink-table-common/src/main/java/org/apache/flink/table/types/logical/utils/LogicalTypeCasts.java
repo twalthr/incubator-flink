@@ -23,9 +23,12 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -33,8 +36,12 @@ import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
+import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -42,6 +49,7 @@ import javax.annotation.Nullable;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -51,6 +59,16 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.DAY;
+import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR;
+import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.DAY_TO_MINUTE;
+import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND;
+import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.HOUR;
+import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.HOUR_TO_MINUTE;
+import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.HOUR_TO_SECOND;
+import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.MINUTE;
+import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND;
+import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.SECOND;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.APPROXIMATE_NUMERIC;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.BINARY_STRING;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_STRING;
@@ -89,6 +107,9 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TINYINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARBINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARCHAR;
+import static org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution.MONTH;
+import static org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution.YEAR;
+import static org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
@@ -274,6 +295,20 @@ public final class LogicalTypeCasts {
 		return Optional.empty();
 	}
 
+	private static @Nullable LogicalType findLeastRestrictivePattern(LogicalType resultType, LogicalType type) {
+		if (hasFamily(resultType, DATETIME) && hasFamily(type, INTERVAL)) {
+			return resultType;
+		} else if (hasFamily(resultType, INTERVAL) && hasFamily(type, DATETIME)) {
+			return type;
+		} else if ((hasFamily(resultType, TIMESTAMP) || hasRoot(resultType, DATE)) && hasFamily(type, EXACT_NUMERIC)) {
+			return resultType;
+		} else if (hasFamily(resultType, EXACT_NUMERIC) && (hasFamily(type, TIMESTAMP) || hasRoot(type, DATE))) {
+			return type;
+		}
+		return null;
+	}
+
+	@SuppressWarnings("ConstantConditions")
 	private static @Nullable LogicalType findLeastRestrictive(
 			List<LogicalType> normalizedTypes,
 			boolean hasAnyType,
@@ -298,6 +333,13 @@ public final class LogicalTypeCasts {
 			// result type candidate
 			if (resultType == null) {
 				resultType = type;
+			}
+
+			// find special patterns
+			final LogicalType patternType = findLeastRestrictivePattern(resultType, type);
+			if (patternType != null) {
+				resultType = patternType;
+				continue;
 			}
 
 			// for types of family CONSTRUCTED
@@ -358,17 +400,34 @@ public final class LogicalTypeCasts {
 					return null;
 				}
 			}
-			// for TIME and TIMESTAMP
+			// for TIME
 			else if (hasFamily(type, TIME)) {
 				if (hasFamily(resultType, TIME)) {
-					resultType = getLeastRestrictiveTimeType(resultType, type);
+					resultType = new TimeType(
+						getLeastRestrictivePrecision(resultType, type));
 				} else {
 					return null;
 				}
 			}
-			// for INTERVAL types
-			else if (hasFamily(type, INTERVAL)) {
-				resultType = getLeastRestrictiveIntervalType(resultType, type);
+			// for TIMESTAMP
+			else if (hasFamily(type, TIMESTAMP)) {
+				if (hasFamily(resultType, TIMESTAMP)) {
+					resultType = getLeastRestrictiveTimestampType(resultType, type);
+				} else {
+					return null;
+				}
+			}
+			// for day-time intervals
+			else if (typeRoot == INTERVAL_DAY_TIME) {
+				resultType = getLeastRestrictiveDayTimeIntervalType(
+					(DayTimeIntervalType) resultType,
+					(DayTimeIntervalType) type);
+			}
+			// for year-month intervals
+			else if (typeRoot == INTERVAL_YEAR_MONTH) {
+				resultType = getLeastRestrictiveYearMonthIntervalType(
+					(YearMonthIntervalType) resultType,
+					(YearMonthIntervalType) type);
 			}
 			// other types are handled by leastRestrictiveByCast
 			else {
@@ -384,24 +443,136 @@ public final class LogicalTypeCasts {
 		return resultType;
 	}
 
-	private static LogicalType getLeastRestrictiveTimeType(LogicalType resultType, LogicalType type) {
-		// same EXACT_NUMERIC types
+	private static LogicalType getLeastRestrictiveTimestampType(LogicalType resultType, LogicalType type) {
+		// same types
 		if (type.equals(resultType)) {
 			return resultType;
 		}
 
-		final int p1 = getPrecision(resultType);
-		final int p2 = getPrecision(type);
-		final int maxPrecision = TimeType.MAX_PRECISION;
+		final LogicalTypeRoot resultTypeRoot = resultType.getTypeRoot();
+		final LogicalTypeRoot typeRoot = type.getTypeRoot();
+		final int precision = getLeastRestrictivePrecision(resultType, type);
 
-		int p = Math.max(p1, p2);
-		p = Math.min(p, maxPrecision);
+		// same type roots
+		if (typeRoot == resultTypeRoot) {
+			return createTimestampType(resultTypeRoot, precision);
+		}
 
-		return new TimeType(p);
+		// generalize to zoned type
+		if (typeRoot == TIMESTAMP_WITH_TIME_ZONE ||
+				resultTypeRoot == TIMESTAMP_WITH_TIME_ZONE) {
+			return createTimestampType(TIMESTAMP_WITH_TIME_ZONE, precision);
+		} else if (typeRoot == TIMESTAMP_WITH_LOCAL_TIME_ZONE ||
+				resultTypeRoot == TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+			return createTimestampType(TIMESTAMP_WITH_LOCAL_TIME_ZONE, precision);
+		}
+		return createTimestampType(TIMESTAMP_WITHOUT_TIME_ZONE, precision);
 	}
 
-	private static LogicalType getLeastRestrictiveIntervalType(LogicalType resultType, LogicalType type) {
-		return null; // TODO
+	private static LogicalType createTimestampType(LogicalTypeRoot typeRoot, int precision) {
+		switch (typeRoot) {
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return new TimestampType(precision);
+			case TIMESTAMP_WITH_TIME_ZONE:
+				return new ZonedTimestampType(precision);
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				return new LocalZonedTimestampType(precision);
+			default:
+				throw new IllegalArgumentException();
+		}
+	}
+
+	private static int getLeastRestrictivePrecision(
+			LogicalType resultType,
+			LogicalType type) {
+		final int p1 = getPrecision(resultType);
+		final int p2 = getPrecision(type);
+
+		return Math.max(p1, p2);
+	}
+
+	private static LogicalType getLeastRestrictiveDayTimeIntervalType(DayTimeIntervalType resultType, DayTimeIntervalType type) {
+		final int maxDayPrecision = Math.max(resultType.getDayPrecision(), type.getDayPrecision());
+		final int maxFractionalPrecision = Math.max(resultType.getFractionalPrecision(), type.getFractionalPrecision());
+		return new DayTimeIntervalType(
+			combineResolutions(
+				DayTimeResolution.values(),
+				DAY_TIME_RES_TO_BOUNDARIES,
+				DAY_TIME_BOUNDARIES_TO_RES,
+				resultType.getResolution(),
+				type.getResolution()),
+			maxDayPrecision,
+			maxFractionalPrecision);
+	}
+
+	private static LogicalType getLeastRestrictiveYearMonthIntervalType(YearMonthIntervalType resultType, YearMonthIntervalType type) {
+		final int maxYearPrecision = Math.max(resultType.getYearPrecision(), type.getYearPrecision());
+		return new YearMonthIntervalType(
+			combineResolutions(
+				YearMonthResolution.values(),
+				YEAR_MONTH_RES_TO_BOUNDARIES,
+				YEAR_MONTH_BOUNDARIES_TO_RES,
+				resultType.getResolution(),
+				type.getResolution()),
+			maxYearPrecision);
+	}
+
+	private static final Map<DayTimeResolution, List<DayTimeResolution>> DAY_TIME_RES_TO_BOUNDARIES = new HashMap<>();
+	private static final Map<List<DayTimeResolution>, DayTimeResolution> DAY_TIME_BOUNDARIES_TO_RES = new HashMap<>();
+	static {
+		addDayTimeMapping(DAY, DAY);
+		addDayTimeMapping(DAY_TO_HOUR, DAY, HOUR);
+		addDayTimeMapping(DAY_TO_MINUTE, DAY, MINUTE);
+		addDayTimeMapping(DAY_TO_SECOND, DAY, SECOND);
+		addDayTimeMapping(HOUR, HOUR);
+		addDayTimeMapping(HOUR_TO_MINUTE, HOUR, MINUTE);
+		addDayTimeMapping(HOUR_TO_SECOND, HOUR, SECOND);
+		addDayTimeMapping(MINUTE, MINUTE);
+		addDayTimeMapping(MINUTE_TO_SECOND, MINUTE, SECOND);
+		addDayTimeMapping(SECOND, SECOND);
+	}
+
+	private static void addDayTimeMapping(DayTimeResolution to, DayTimeResolution... boundaries) {
+		final List<DayTimeResolution> boundariesList = Arrays.asList(boundaries);
+		DAY_TIME_RES_TO_BOUNDARIES.put(to, boundariesList);
+		DAY_TIME_BOUNDARIES_TO_RES.put(boundariesList, to);
+	}
+
+	private static final Map<YearMonthResolution, List<YearMonthResolution>> YEAR_MONTH_RES_TO_BOUNDARIES = new HashMap<>();
+	private static final Map<List<YearMonthResolution>, YearMonthResolution> YEAR_MONTH_BOUNDARIES_TO_RES = new HashMap<>();
+	static {
+		addYearMonthMapping(YEAR, YEAR);
+		addYearMonthMapping(MONTH, MONTH);
+		addYearMonthMapping(YEAR_TO_MONTH, YEAR, MONTH);
+	}
+
+	private static void addYearMonthMapping(YearMonthResolution to, YearMonthResolution... boundaries) {
+		final List<YearMonthResolution> boundariesList = Arrays.asList(boundaries);
+		YEAR_MONTH_RES_TO_BOUNDARIES.put(to, boundariesList);
+		YEAR_MONTH_BOUNDARIES_TO_RES.put(boundariesList, to);
+	}
+
+	private static <T extends Enum<T>> T combineResolutions(
+			T[] res,
+			Map<T, List<T>> resToBoundaries,
+			Map<List<T>, T> boundariesToRes,
+			T left,
+			T right) {
+		final List<T> leftBoundaries = resToBoundaries.get(left);
+		final T leftStart = leftBoundaries.get(0);
+		final T leftEnd = leftBoundaries.get(leftBoundaries.size() - 1);
+
+		final List<T> rightBoundaries = resToBoundaries.get(right);
+		final T rightStart = rightBoundaries.get(0);
+		final T rightEnd = rightBoundaries.get(rightBoundaries.size() - 1);
+
+		final T combinedStart = res[Math.min(leftStart.ordinal(), rightStart.ordinal())];
+		final T combinedEnd = res[Math.max(leftEnd.ordinal(), rightEnd.ordinal())];
+
+		if (combinedStart == combinedEnd) {
+			return boundariesToRes.get(Collections.singletonList(combinedStart));
+		}
+		return boundariesToRes.get(Arrays.asList(combinedStart, combinedEnd));
 	}
 
 	private static LogicalType getLeastRestrictiveApproximateNumericType(LogicalType resultType, LogicalType type) {
