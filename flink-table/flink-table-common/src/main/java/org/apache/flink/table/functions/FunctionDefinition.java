@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.types.inference.TypeInference;
 
 import java.util.Collections;
 import java.util.Set;
@@ -39,6 +40,12 @@ public interface FunctionDefinition {
 	 * Returns the kind of function this definition describes.
 	 */
 	FunctionKind getKind();
+
+	/**
+	 * Returns the logic for inferring and validating input, intermediate accumulator, and final
+	 * output types.
+	 */
+	TypeInference getTypeInference();
 
 	/**
 	 * Returns the set of requirements this definition demands.

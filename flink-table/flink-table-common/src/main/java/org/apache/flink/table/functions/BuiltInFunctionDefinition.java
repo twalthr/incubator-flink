@@ -58,17 +58,14 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 		return name;
 	}
 
-	/**
-	 * Currently, the type inference is just exposed here. In the future, function definition will
-	 * require it.
-	 */
-	public TypeInference getTypeInference() {
-		return typeInference;
-	}
-
 	@Override
 	public FunctionKind getKind() {
 		return kind;
+	}
+
+	@Override
+	public TypeInference getTypeInference() {
+		return typeInference;
 	}
 
 	@Override

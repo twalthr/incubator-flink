@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
@@ -47,6 +48,11 @@ public final class ScalarFunctionDefinition implements FunctionDefinition {
 	@Override
 	public FunctionKind getKind() {
 		return FunctionKind.SCALAR;
+	}
+
+	@Override
+	public TypeInference getTypeInference() {
+		return scalarFunction.getTypeInference();
 	}
 
 	@Override

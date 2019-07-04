@@ -18,15 +18,21 @@
 
 package org.apache.flink.table.functions.utils
 
+import java.util
+import java.util.Optional
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.{FunctionDefinition, ScalarFunction}
 import org.apache.flink.table.functions.utils.ScalarSqlFunction.createReturnTypeInference
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.inference.{CallContext, TypeInferenceUtil, TypeStrategies}
+import org.apache.flink.table.types.utils.TypeConversions
 
 import scala.collection.JavaConverters._
 
@@ -65,9 +71,19 @@ object ScalarSqlFunction {
       scalarFunction: ScalarFunction,
       typeFactory: FlinkTypeFactory)
     : SqlReturnTypeInference = {
-    /**
-      * Return type inference based on [[ScalarFunction]] given information.
-      */
+
+    if (scalarFunction.getTypeInference.getOutputTypeStrategy != TypeStrategies.MISSING) {
+      new SqlReturnTypeInferenceBridge(name, scalarFunction)
+    } else {
+      createLegacyReturnTypeInference(name, scalarFunction)
+    }
+  }
+
+  private def createLegacyReturnTypeInference(
+      name: String,
+      scalarFunction: ScalarFunction)
+    : SqlReturnTypeInference = {
+
     new SqlReturnTypeInference {
       override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
         val parameters = opBinding
@@ -88,7 +104,10 @@ object ScalarSqlFunction {
               s"Expected: ${signaturesToString(scalarFunction, "eval")}")
         }
         val resultType = getResultTypeOfScalarFunction(scalarFunction, foundSignature.get)
-        typeFactory.createTypeFromTypeInfo(resultType, isNullable = true)
+        opBinding
+          .getTypeFactory
+          .asInstanceOf[FlinkTypeFactory]
+          .createTypeFromTypeInfo(resultType, isNullable = true)
       }
     }
   }

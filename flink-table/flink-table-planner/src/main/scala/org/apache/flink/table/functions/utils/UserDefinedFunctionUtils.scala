@@ -23,12 +23,13 @@ import java.lang.reflect.{Method, Modifier}
 import java.lang.{Integer => JInt, Long => JLong}
 import java.sql.{Date, Time, Timestamp}
 import java.util
+import java.util.Optional
 
 import com.google.common.primitives.Primitives
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
-import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator}
+import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator, SqlOperatorBinding}
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -39,9 +40,12 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataview._
 import org.apache.flink.table.functions._
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.inference._
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
-import org.apache.flink.util.InstantiationUtil
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 object UserDefinedFunctionUtils {
@@ -318,6 +322,30 @@ object UserDefinedFunctionUtils {
       function: UserDefinedFunction)
     : SqlOperandTypeChecker = {
 
+    if (function.getTypeInference.getOutputTypeStrategy != TypeStrategies.MISSING) {
+      createInputTypeValidator(name, function)
+    } else {
+      createLegacyInputTypeValidator(name, function)
+    }
+  }
+
+  private def createInputTypeValidator(
+      name: String,
+      function: UserDefinedFunction)
+    : SqlOperandTypeChecker = {
+
+    if (function.getTypeInference.getArgumentTypes.isPresent) {
+      throw new TableException("Setting of explicit argument types is not supported yet.")
+    }
+
+    new SqlOperandTypeCheckerBridge(name, function, function.getTypeInference.getInputTypeValidator)
+  }
+
+  private def createLegacyInputTypeValidator(
+      name: String,
+      function: UserDefinedFunction)
+    : SqlOperandTypeChecker = {
+
     val methods = checkAndExtractMethods(function, "eval")
 
     new SqlOperandTypeChecker {
@@ -371,7 +399,6 @@ object UserDefinedFunctionUtils {
       override def isOptional(i: Int): Boolean = false
 
       override def getConsistency: Consistency = Consistency.NONE
-
     }
   }
 
@@ -390,6 +417,17 @@ object UserDefinedFunctionUtils {
           callBinding: SqlCallBinding,
           returnType: RelDataType,
           operandTypes: Array[RelDataType]): Unit = {
+
+        // input inference is not supported yet for the new type inference
+
+        runLegacyInputInference(callBinding, returnType, operandTypes)
+      }
+
+      private def runLegacyInputInference(
+          callBinding: SqlCallBinding,
+          returnType: RelDataType,
+          operandTypes: Array[RelDataType])
+        : Unit = {
 
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
@@ -658,6 +696,106 @@ object UserDefinedFunctionUtils {
       } else {
         FlinkTypeFactory.toTypeInfo(operandType)
       }
+    }
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // New type inference
+  // ----------------------------------------------------------------------------------------------
+
+  class ScalarSqlCallContext(
+      name: String,
+      definition: FunctionDefinition,
+      opBinding: SqlOperatorBinding)
+    extends CallContext {
+
+    override def getArgumentDataTypes: util.List[DataType] = {
+      opBinding.collectOperandTypes()
+        .asScala
+        .map(FlinkTypeFactory.toTypeInfo)
+        .map(TypeConversions.fromLegacyInfoToDataType)
+        .asJava
+    }
+
+    override def getFunctionDefinition: FunctionDefinition = {
+      definition
+    }
+
+    override def isArgumentLiteral(pos: Int): Boolean = {
+      opBinding.isOperandLiteral(pos, false)
+    }
+
+    override def isArgumentNull(pos: Int): Boolean = {
+      opBinding.isOperandNull(pos, false)
+    }
+
+    override def getArgumentValue[T](pos: Int, clazz: Class[T]): Optional[T] = {
+      Optional.of(opBinding.getOperandLiteralValue(pos, clazz))
+    }
+
+    override def getName: String = {
+      name
+    }
+  }
+
+  class SqlOperandTypeCheckerBridge(
+      name: String,
+      definition: FunctionDefinition,
+      validator: InputTypeValidator)
+    extends SqlOperandTypeChecker {
+
+    override def checkOperandTypes(
+        callBinding: SqlCallBinding,
+        throwOnFailure: Boolean)
+      : Boolean = {
+
+      validator.validate(new ScalarSqlCallContext(name, definition, callBinding), throwOnFailure)
+    }
+
+    override def getOperandCountRange: SqlOperandCountRange = {
+      new SqlOperandCountRangeBridge(validator.getArgumentCount)
+    }
+
+    override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
+      TypeInferenceUtil.explainArguments(definition, opName)
+    }
+
+    override def getConsistency: Consistency = Consistency.NONE
+
+    override def isOptional(i: Int): Boolean = false
+  }
+
+  class SqlOperandCountRangeBridge(argumentCount: ArgumentCount) extends SqlOperandCountRange {
+    override def isValidCount(count: Int): Boolean = {
+      argumentCount.isValidCount(count)
+    }
+
+    override def getMin: Int = {
+      argumentCount.getMinCount.orElse(-1)
+    }
+
+    override def getMax: Int = {
+      argumentCount.getMaxCount.orElse(-1)
+    }
+  }
+
+  class SqlReturnTypeInferenceBridge(
+      name: String,
+      definition: FunctionDefinition)
+    extends SqlReturnTypeInference {
+
+    override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
+      val result = TypeInferenceUtil.runTypeInference(
+        definition.getTypeInference,
+        new ScalarSqlCallContext(name, definition, opBinding))
+
+      val outputType = result.getOutputDataType
+
+      opBinding.getTypeFactory
+        .asInstanceOf[FlinkTypeFactory]
+        .createTypeFromTypeInfo(
+          TypeConversions.fromDataTypeToLegacyInfo(outputType),
+          outputType.getLogicalType.isNullable)
     }
   }
 }

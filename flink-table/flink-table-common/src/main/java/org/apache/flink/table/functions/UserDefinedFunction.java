@@ -19,6 +19,8 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.utils.EncodingUtils;
 
 import java.io.Serializable;
@@ -60,6 +62,15 @@ public abstract class UserDefinedFunction implements FunctionDefinition, Seriali
 	 */
 	public void close() throws Exception {
 		// do nothing
+	}
+
+	@Override
+	public TypeInference getTypeInference() {
+		// return 'missing' here for now which means we fall back to the old reflection-based type
+		// inference, in the future we can return a new default type inference
+		return TypeInference.newInstance()
+			.outputTypeStrategy(TypeStrategies.MISSING)
+			.build();
 	}
 
 	/**

@@ -18,15 +18,21 @@
 
 package org.apache.flink.table.functions.utils
 
+import java.util
+import java.util.{List, Optional}
+
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction
+import org.apache.calcite.sql.validate.{SqlUserDefinedTableFunction, SqlUserDefinedTableMacro}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.table.functions.{FunctionDefinition, TableFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.inference.{CallContext, TypeStrategies}
 
 /**
   * Calcite wrapper for user-defined table functions.
@@ -45,6 +51,20 @@ class TableSqlFunction(
     createEvalOperandTypeChecker(name, tableFunction),
     null,
     functionImpl) {
+
+  override def getRowType(
+      typeFactory: RelDataTypeFactory,
+      operandList: util.List[SqlNode])
+    : RelDataType = {
+
+    val inference = tableFunction.getTypeInference
+
+    if (inference.getOutputTypeStrategy != TypeStrategies.MISSING) {
+      val context = new TableSqlCallContext(name, tableFunction, typeFactory, operandList)
+      inference.getOutputTypeStrategy.inferType(context)
+    }
+    super.getRowType(typeFactory, operandList)
+  }
 
   /**
     * Get the user-defined table function.
@@ -65,4 +85,39 @@ class TableSqlFunction(
   override def isDeterministic: Boolean = tableFunction.isDeterministic
 
   override def toString: String = displayName
+
+  class TableSqlCallContext(
+      name: String,
+      definition: FunctionDefinition,
+      typeFactory: RelDataTypeFactory,
+      operandList: util.List[SqlNode])
+    extends CallContext {
+
+    private val arguments = SqlUserDefinedTableMacro.convertArguments(
+      typeFactory,
+      operandList,
+      function,
+      getNameAsId,
+      false)
+
+    override def getArgumentDataTypes: util.List[DataType] = {
+
+    }
+
+    override def getFunctionDefinition: FunctionDefinition = ???
+
+    override def isArgumentLiteral(pos: Int): Boolean = {
+
+    }
+
+    override def isArgumentNull(pos: Int): Boolean = {
+      SqlUtil.isNullLiteral(operandList.get(pos), false)
+    }
+
+    override def getArgumentValue[T](pos: Int, clazz: Class[T]): Optional[T] = ???
+
+    override def getName: String = ???
+  }
 }
+
+

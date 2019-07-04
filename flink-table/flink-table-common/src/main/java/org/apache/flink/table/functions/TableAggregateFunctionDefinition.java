@@ -20,6 +20,7 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
@@ -64,6 +65,11 @@ public final class TableAggregateFunctionDefinition implements FunctionDefinitio
 	@Override
 	public FunctionKind getKind() {
 		return FunctionKind.TABLE_AGGREGATE;
+	}
+
+	@Override
+	public TypeInference getTypeInference() {
+		return aggregateFunction.getTypeInference();
 	}
 
 	@Override

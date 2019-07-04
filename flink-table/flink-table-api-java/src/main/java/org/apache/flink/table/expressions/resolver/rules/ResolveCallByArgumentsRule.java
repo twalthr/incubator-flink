@@ -30,7 +30,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
@@ -90,17 +89,14 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 				return executeFlatten(resolvedArgs);
 			}
 
-			if (unresolvedCall.getFunctionDefinition() instanceof BuiltInFunctionDefinition) {
-				final BuiltInFunctionDefinition definition =
-					(BuiltInFunctionDefinition) unresolvedCall.getFunctionDefinition();
+			final FunctionDefinition definition = unresolvedCall.getFunctionDefinition();
 
-				if (definition.getTypeInference().getOutputTypeStrategy() != TypeStrategies.MISSING) {
-					return Collections.singletonList(
-						runTypeInference(
-							unresolvedCall,
-							definition.getTypeInference(),
-							resolvedArgs));
-				}
+			if (definition.getTypeInference().getOutputTypeStrategy() != TypeStrategies.MISSING) {
+				return Collections.singletonList(
+					runTypeInference(
+						unresolvedCall,
+						definition.getTypeInference(),
+						resolvedArgs));
 			}
 			return Collections.singletonList(
 				runLegacyTypeInference(unresolvedCall, resolvedArgs));

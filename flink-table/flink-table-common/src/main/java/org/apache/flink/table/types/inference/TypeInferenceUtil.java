@@ -59,6 +59,16 @@ public final class TypeInferenceUtil {
 		}
 	}
 
+	public static String explainArguments(FunctionDefinition definition, String name) {
+		return definition
+			.getTypeInference()
+			.getInputTypeValidator()
+			.getExpectedSignatures(definition)
+			.stream()
+			.map(s -> formatSignature(name, s))
+			.collect(Collectors.joining("\n"));
+	}
+
 	/**
 	 * The result of a type inference run. It contains information about how arguments need to be
 	 * adapted in order to comply with the function's signature.
@@ -106,7 +116,7 @@ public final class TypeInferenceUtil {
 				typeInference.getInputTypeValidator().getArgumentCount(),
 				argumentTypes.size());
 		} catch (ValidationException e) {
-			throw getInvalidInputException(typeInference.getInputTypeValidator(), callContext);
+			throw getInvalidInputException(callContext);
 		}
 
 		final List<DataType> expectedTypes = typeInference.getArgumentTypes()
@@ -121,7 +131,7 @@ public final class TypeInferenceUtil {
 				typeInference.getInputTypeValidator(),
 				adaptedCallContext);
 		} catch (ValidationException e) {
-			throw getInvalidInputException(typeInference.getInputTypeValidator(), adaptedCallContext);
+			throw getInvalidInputException(adaptedCallContext);
 		}
 
 		return inferTypes(
@@ -130,14 +140,11 @@ public final class TypeInferenceUtil {
 			typeInference.getOutputTypeStrategy());
 	}
 
-	private static ValidationException getInvalidInputException(
-			InputTypeValidator validator,
-			CallContext callContext) {
+	private static ValidationException getInvalidInputException(CallContext callContext) {
 
-		final String expectedSignatures = validator.getExpectedSignatures(callContext.getFunctionDefinition())
-			.stream()
-			.map(s -> formatSignature(callContext.getName(), s))
-			.collect(Collectors.joining("\n"));
+		final String expectedSignatures = explainArguments(
+			callContext.getFunctionDefinition(),
+			callContext.getName());
 		return new ValidationException(
 			String.format(
 				"Invalid input arguments. Expected signatures are:\n%s",

@@ -27,10 +27,10 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
-import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 
 import java.util.Arrays;
@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunction;
 import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.FunctionKind.TABLE;
@@ -69,14 +70,10 @@ public class CalculatedTableFactory {
 
 		@Override
 		public CalculatedQueryOperation<?> visit(CallExpression call) {
-			FunctionDefinition definition = call.getFunctionDefinition();
-			if (definition.equals(AS)) {
+			if (isFunction(call, AS)) {
 				return unwrapFromAlias(call);
-			} else if (definition instanceof TableFunctionDefinition) {
-				return createFunctionCall(
-					(TableFunctionDefinition) definition,
-					Collections.emptyList(),
-					call.getResolvedChildren());
+			} else if (isFunctionOfKind(call, TABLE)) {
+				return createFunctionCall(call, Collections.emptyList());
 			} else {
 				return defaultMethod(call);
 			}
@@ -95,16 +92,14 @@ public class CalculatedTableFactory {
 			}
 
 			CallExpression tableCall = (CallExpression) children.get(0);
-			TableFunctionDefinition tableFunctionDefinition =
-				(TableFunctionDefinition) tableCall.getFunctionDefinition();
-			return createFunctionCall(tableFunctionDefinition, aliases, tableCall.getResolvedChildren());
+			return createFunctionCall(tableCall, aliases);
 		}
 
-		private CalculatedQueryOperation<?> createFunctionCall(
-				TableFunctionDefinition tableFunctionDefinition,
-				List<String> aliases,
-				List<ResolvedExpression> parameters) {
-			TypeInformation<?> resultType = tableFunctionDefinition.getResultType();
+		private CalculatedQueryOperation<?> createFunctionCall(CallExpression call, List<String> aliases) {
+
+			final TableFunctionDefinition definition = (TableFunctionDefinition) call.getFunctionDefinition();
+
+			TypeInformation<?> resultType = TypeConversions.fromDataTypeToLegacyInfo(call.getOutputDataType());
 
 			int callArity = resultType.getTotalFields();
 			int aliasesSize = aliases.size();
@@ -117,7 +112,7 @@ public class CalculatedTableFactory {
 					"List of column aliases must have same degree as table; " +
 						"the returned table of function '%s' has " +
 						"%d columns, whereas alias list has %d columns",
-					tableFunctionDefinition.toString(),
+					definition.toString(),
 					callArity,
 					aliasesSize));
 			} else {
@@ -127,9 +122,9 @@ public class CalculatedTableFactory {
 			TypeInformation<?>[] fieldTypes = FieldInfoUtils.getFieldTypes(resultType);
 
 			return new CalculatedQueryOperation(
-				tableFunctionDefinition.getTableFunction(),
-				parameters,
-				tableFunctionDefinition.getResultType(),
+				definition.getTableFunction(),
+				call.getResolvedChildren(),
+				definition.getResultType(),
 				new TableSchema(fieldNames, fieldTypes));
 		}
 
