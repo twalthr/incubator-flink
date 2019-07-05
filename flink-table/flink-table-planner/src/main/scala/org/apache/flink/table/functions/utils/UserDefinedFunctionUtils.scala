@@ -38,8 +38,8 @@ import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataview._
+import org.apache.flink.table.functions
 import org.apache.flink.table.functions._
-import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.inference._
 import org.apache.flink.table.types.utils.TypeConversions
@@ -277,12 +277,17 @@ object UserDefinedFunctionUtils {
       name: String,
       displayName: String,
       tableFunction: TableFunction[_],
-      resultType: TypeInformation[_],
-      typeFactory: FlinkTypeFactory)
+      resultType: TypeInformation[_])
     : SqlFunction = {
     val (fieldNames, fieldIndexes, _) = UserDefinedFunctionUtils.getFieldInfo(resultType)
-    val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames)
-    new TableSqlFunction(name, displayName, tableFunction, resultType, typeFactory, function)
+    new TableSqlFunction(
+      name,
+      displayName,
+      tableFunction,
+      resultType,
+      fieldIndexes,
+      fieldNames,
+      new functions.utils.TableSqlFunction.StatefulSqlReturnTypeInference(name, tableFunction))
   }
 
   /**
@@ -408,8 +413,7 @@ object UserDefinedFunctionUtils {
     */
   def createEvalOperandTypeInference(
     name: String,
-    function: UserDefinedFunction,
-    typeFactory: FlinkTypeFactory)
+    function: UserDefinedFunction)
   : SqlOperandTypeInference = {
 
     new SqlOperandTypeInference {
@@ -428,6 +432,8 @@ object UserDefinedFunctionUtils {
           returnType: RelDataType,
           operandTypes: Array[RelDataType])
         : Unit = {
+
+        val typeFactory = callBinding.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 

@@ -126,8 +126,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			name,
 			name,
 			functionDefinition.getTableFunction(),
-			functionDefinition.getResultType(),
-			typeFactory
+			functionDefinition.getResultType()
 		);
 		return Optional.of(tableFunction);
 	}

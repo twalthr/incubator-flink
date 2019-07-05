@@ -18,21 +18,16 @@
 
 package org.apache.flink.table.functions.utils
 
-import java.util
-import java.util.Optional
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.{FunctionDefinition, ScalarFunction}
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction.createReturnTypeInference
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.inference.{CallContext, TypeInferenceUtil, TypeStrategies}
-import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.table.types.inference.TypeStrategies
 
 import scala.collection.JavaConverters._
 
@@ -52,7 +47,7 @@ class ScalarSqlFunction(
   extends SqlFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
     createReturnTypeInference(name, scalarFunction, typeFactory),
-    createEvalOperandTypeInference(name, scalarFunction, typeFactory),
+    createEvalOperandTypeInference(name, scalarFunction),
     createEvalOperandTypeChecker(name, scalarFunction),
     null,
     SqlFunctionCategory.USER_DEFINED_FUNCTION) {

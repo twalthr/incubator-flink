@@ -22,17 +22,17 @@ import java.util
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
-import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
+import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
 import org.apache.calcite.util.Optionality
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.{AggregateFunction, FunctionRequirement, TableAggregateFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.functions._
+import org.apache.flink.table.types.inference.TypeStrategies
 
 /**
   * Calcite wrapper for user-defined aggregate functions. Current, the aggregate function can be an
@@ -43,7 +43,6 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
   * @param aggregateFunction user defined aggregate function to be called
   * @param returnType the type information of returned value
   * @param accType the type information of the accumulator
-  * @param typeFactory type factory for converting Flink's between Calcite's types
   */
 class AggSqlFunction(
     name: String,
@@ -51,20 +50,20 @@ class AggSqlFunction(
     aggregateFunction: UserDefinedAggregateFunction[_, _],
     val returnType: TypeInformation[_],
     val accType: TypeInformation[_],
-    typeFactory: FlinkTypeFactory,
     requiresOver: Boolean)
-  extends SqlUserDefinedAggFunction(
+  extends SqlAggFunction(
+    name,
     new SqlIdentifier(name, SqlParserPos.ZERO),
-    createReturnTypeInference(returnType, typeFactory),
-    createOperandTypeInference(aggregateFunction, typeFactory),
+    SqlKind.OTHER_FUNCTION,
+    createReturnTypeInference(returnType, aggregateFunction),
+    createOperandTypeInference(aggregateFunction),
     createOperandTypeChecker(aggregateFunction),
     // Do not need to provide a calcite aggregateFunction here. Flink aggregation function
     // will be generated when translating the calcite relnode to flink runtime execution plan
     null,
     false,
     requiresOver,
-    Optionality.FORBIDDEN,
-    typeFactory
+    Optionality.FORBIDDEN
   ) {
 
   def getFunction: UserDefinedAggregateFunction[_, _] = aggregateFunction
@@ -98,13 +97,11 @@ object AggSqlFunction {
       aggregateFunction,
       returnType,
       accType,
-      typeFactory,
       requiresOver)
   }
 
   private[flink] def createOperandTypeInference(
-      aggregateFunction: UserDefinedAggregateFunction[_, _],
-      typeFactory: FlinkTypeFactory)
+      aggregateFunction: UserDefinedAggregateFunction[_, _])
   : SqlOperandTypeInference = {
     /**
       * Operand type inference based on [[AggregateFunction]] given information.
@@ -115,39 +112,61 @@ object AggSqlFunction {
           returnType: RelDataType,
           operandTypes: Array[RelDataType]): Unit = {
 
-        val operandTypeInfo = getOperandTypeInfo(callBinding)
+        // input inference is not supported yet for the new type inference
 
-        val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)
-          .getOrElse(
-            throw new ValidationException(
-              s"Given parameters of function do not match any signature. \n" +
-                s"Actual: ${signatureToString(operandTypeInfo)} \n" +
-                s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}"))
+        runLegacyInputInference(callBinding, returnType, operandTypes, aggregateFunction)
+      }
+    }
+  }
 
-        val inferredTypes = getParameterTypes(aggregateFunction, foundSignature.drop(1))
-          .map(typeFactory.createTypeFromTypeInfo(_, isNullable = true))
+  private def runLegacyInputInference(
+        callBinding: SqlCallBinding,
+        returnType: RelDataType,
+        operandTypes: Array[RelDataType],
+        aggregateFunction: UserDefinedAggregateFunction[_, _])
+    : Unit = {
 
-        for (i <- operandTypes.indices) {
-          if (i < inferredTypes.length - 1) {
-            operandTypes(i) = inferredTypes(i)
-          } else if (null != inferredTypes.last.getComponentType) {
-            // last argument is a collection, the array type
-            operandTypes(i) = inferredTypes.last.getComponentType
-          } else {
-            operandTypes(i) = inferredTypes.last
-          }
-        }
+    val typeFactory = callBinding.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+
+    val operandTypeInfo = getOperandTypeInfo(callBinding)
+
+    val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)
+      .getOrElse(
+        throw new ValidationException(
+          s"Given parameters of function do not match any signature. \n" +
+            s"Actual: ${signatureToString(operandTypeInfo)} \n" +
+            s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}"))
+
+    val inferredTypes = getParameterTypes(aggregateFunction, foundSignature.drop(1))
+      .map(typeFactory.createTypeFromTypeInfo(_, isNullable = true))
+
+    for (i <- operandTypes.indices) {
+      if (i < inferredTypes.length - 1) {
+        operandTypes(i) = inferredTypes(i)
+      } else if (null != inferredTypes.last.getComponentType) {
+        // last argument is a collection, the array type
+        operandTypes(i) = inferredTypes.last.getComponentType
+      } else {
+        operandTypes(i) = inferredTypes.last
       }
     }
   }
 
   private[flink] def createReturnTypeInference(
       resultType: TypeInformation[_],
-      typeFactory: FlinkTypeFactory)
-  : SqlReturnTypeInference = {
+      definition: FunctionDefinition)
+    : SqlReturnTypeInference = {
+
+    if (definition.getTypeInference.getOutputTypeStrategy != TypeStrategies.MISSING) {
+      new SqlReturnTypeInferenceBridge(name, scalarFunction)
+    } else {
+      createLegacyReturnTypeInference(name, scalarFunction)
+    }
 
     new SqlReturnTypeInference {
       override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
+        val typeFactory = opBinding.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+
         typeFactory.createTypeFromTypeInfo(resultType, isNullable = true)
       }
     }

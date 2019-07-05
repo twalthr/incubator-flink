@@ -116,8 +116,7 @@ class LogicalUnnestRule(
             "explode",
             "explode",
             explodeTableFunc,
-            FlinkTypeFactory.toTypeInfo(componentType),
-            cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
+            FlinkTypeFactory.toTypeInfo(componentType))
 
           // create table function call
           val rexCall = cluster.getRexBuilder.makeCall(

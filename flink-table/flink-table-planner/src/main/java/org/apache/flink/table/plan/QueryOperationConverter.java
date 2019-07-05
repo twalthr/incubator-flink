@@ -68,7 +68,6 @@ import org.apache.flink.table.plan.nodes.FlinkConventions;
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalDataSetScan;
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalDataStreamScan;
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableSourceScan;
-import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl;
 import org.apache.flink.table.plan.schema.RowSchema;
 import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
@@ -234,11 +233,6 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			String[] fieldNames = calculatedTable.getTableSchema().getFieldNames();
 			int[] fieldIndices = IntStream.range(0, fieldNames.length).toArray();
 			TypeInformation<U> resultType = calculatedTable.getResultType();
-
-			FlinkTableFunctionImpl function = new FlinkTableFunctionImpl<>(
-				resultType,
-				fieldIndices,
-				fieldNames);
 			TableFunction<?> tableFunction = calculatedTable.getTableFunction();
 
 			FlinkTypeFactory typeFactory = relBuilder.getTypeFactory();
@@ -247,8 +241,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				tableFunction.toString(),
 				tableFunction,
 				resultType,
-				typeFactory,
-				function);
+				fieldIndices,
+				fieldNames,
+				new TableSqlFunction.StatefulSqlReturnTypeInference(
+					tableFunction.functionIdentifier(),
+					tableFunction));
 
 			List<RexNode> parameters = convertToRexNodes(calculatedTable.getParameters());
 
@@ -256,8 +253,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				relBuilder.peek().getCluster(),
 				Collections.emptyList(),
 				relBuilder.call(sqlFunction, parameters),
-				function.getElementType(null),
-				function.getRowType(typeFactory, null),
+				null,
+				sqlFunction.getRowType(typeFactory, null),
 				null);
 		}
 
