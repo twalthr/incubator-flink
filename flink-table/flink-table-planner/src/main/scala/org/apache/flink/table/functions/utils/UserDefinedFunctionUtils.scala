@@ -328,13 +328,13 @@ object UserDefinedFunctionUtils {
     : SqlOperandTypeChecker = {
 
     if (function.getTypeInference.getOutputTypeStrategy != TypeStrategies.MISSING) {
-      createInputTypeValidator(name, function)
+      createSqlOperandTypeChecker(name, function)
     } else {
-      createLegacyInputTypeValidator(name, function)
+      createLegacySqlOperandTypeChecker(name, function)
     }
   }
 
-  private def createInputTypeValidator(
+  def createSqlOperandTypeChecker(
       name: String,
       function: UserDefinedFunction)
     : SqlOperandTypeChecker = {
@@ -346,7 +346,7 @@ object UserDefinedFunctionUtils {
     new SqlOperandTypeCheckerBridge(name, function, function.getTypeInference.getInputTypeValidator)
   }
 
-  private def createLegacyInputTypeValidator(
+  private def createLegacySqlOperandTypeChecker(
       name: String,
       function: UserDefinedFunction)
     : SqlOperandTypeChecker = {

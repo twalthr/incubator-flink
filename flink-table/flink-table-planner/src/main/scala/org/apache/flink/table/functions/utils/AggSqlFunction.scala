@@ -55,12 +55,10 @@ class AggSqlFunction(
     name,
     new SqlIdentifier(name, SqlParserPos.ZERO),
     SqlKind.OTHER_FUNCTION,
-    createReturnTypeInference(returnType, aggregateFunction),
+    createReturnTypeInference(name, returnType, aggregateFunction),
     createOperandTypeInference(aggregateFunction),
-    createOperandTypeChecker(aggregateFunction),
-    // Do not need to provide a calcite aggregateFunction here. Flink aggregation function
-    // will be generated when translating the calcite relnode to flink runtime execution plan
-    null,
+    createOperandTypeChecker(name, aggregateFunction),
+    SqlFunctionCategory.USER_DEFINED_FUNCTION,
     false,
     requiresOver,
     Optionality.FORBIDDEN
@@ -153,16 +151,21 @@ object AggSqlFunction {
   }
 
   private[flink] def createReturnTypeInference(
+      name: String,
       resultType: TypeInformation[_],
       definition: FunctionDefinition)
     : SqlReturnTypeInference = {
 
     if (definition.getTypeInference.getOutputTypeStrategy != TypeStrategies.MISSING) {
-      new SqlReturnTypeInferenceBridge(name, scalarFunction)
+      new SqlReturnTypeInferenceBridge(name, definition)
     } else {
-      createLegacyReturnTypeInference(name, scalarFunction)
+      createLegacyReturnTypeInference(resultType)
     }
+  }
 
+  private def createLegacyReturnTypeInference(
+      resultType: TypeInformation[_])
+    : SqlReturnTypeInference = {
     new SqlReturnTypeInference {
       override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
         val typeFactory = opBinding.getTypeFactory.asInstanceOf[FlinkTypeFactory]
@@ -172,9 +175,22 @@ object AggSqlFunction {
     }
   }
 
-  private[flink] def createOperandTypeChecker(aggregateFunction: UserDefinedAggregateFunction[_, _])
-  : SqlOperandTypeChecker = {
+  private[flink] def createOperandTypeChecker(
+      name: String,
+      aggregateFunction: UserDefinedAggregateFunction[_, _])
+    : SqlOperandTypeChecker = {
 
+    if (aggregateFunction.getTypeInference.getOutputTypeStrategy != TypeStrategies.MISSING) {
+      createSqlOperandTypeChecker(name, aggregateFunction)
+    } else {
+      createLegacySqlOperandTypeChecker(name, aggregateFunction)
+    }
+  }
+
+  private def createLegacySqlOperandTypeChecker(
+      name: String,
+      aggregateFunction: UserDefinedAggregateFunction[_, _])
+    : SqlOperandTypeChecker = {
     val methods = checkAndExtractMethods(aggregateFunction, "accumulate")
 
     /**
@@ -233,7 +249,6 @@ object AggSqlFunction {
       override def isOptional(i: Int): Boolean = false
 
       override def getConsistency: Consistency = Consistency.NONE
-
     }
   }
 }

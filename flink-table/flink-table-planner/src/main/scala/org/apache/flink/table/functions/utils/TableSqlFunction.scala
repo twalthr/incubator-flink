@@ -80,7 +80,7 @@ class TableSqlFunction(
       }
       statefulSqlReturnTypeInference.outputType
     } else {
-      legacyReturnType(typeFactory)
+      createLegacyReturnType(typeFactory)
     }
   }
 
@@ -104,7 +104,7 @@ class TableSqlFunction(
 
   override def toString: String = displayName
 
-  private def legacyReturnType(typeFactory: RelDataTypeFactory): RelDataType = {
+  private def createLegacyReturnType(typeFactory: RelDataTypeFactory): RelDataType = {
 
     val fieldTypes: Array[TypeInformation[_]] = rowTypeInfo match {
 

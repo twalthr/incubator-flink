@@ -38,6 +38,8 @@ import java.util.Optional;
  * </ul>
  *
  * <p>See {@link TypeInferenceUtil} for more information about the type inference process.
+ *
+ * <p>Use {@link SimpleTypeInference} for a simplified interface.
  */
 @PublicEvolving
 public final class TypeInference {
