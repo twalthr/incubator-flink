@@ -339,10 +339,6 @@ object UserDefinedFunctionUtils {
       function: UserDefinedFunction)
     : SqlOperandTypeChecker = {
 
-    if (function.getTypeInference.getArgumentTypes.isPresent) {
-      throw new TableException("Setting of explicit argument types is not supported yet.")
-    }
-
     new SqlOperandTypeCheckerBridge(name, function, function.getTypeInference.getInputTypeValidator)
   }
 

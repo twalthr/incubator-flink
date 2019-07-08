@@ -24,8 +24,9 @@ import java.util.Random
 
 import org.apache.commons.lang3.StringUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{DataTypes, Types}
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
+import org.apache.flink.table.types.inference.{SimpleTypeInference, TypeInference}
 import org.apache.flink.types.Row
 import org.junit.Assert
 
@@ -39,6 +40,11 @@ object Func0 extends ScalarFunction {
   def eval(index: Int): Int = {
     index
   }
+
+  override def getTypeInference: TypeInference = SimpleTypeInference.newInstance()
+    .argumentTypes(DataTypes.INT())
+    .outputType(DataTypes.INT())
+    .build()
 }
 
 object Func1 extends ScalarFunction {
@@ -226,6 +232,11 @@ class RichFunc3 extends ScalarFunction {
   def eval(value: String): Boolean = {
     words.contains(value)
   }
+
+  override def getTypeInference: TypeInference = SimpleTypeInference.newInstance()
+    .argumentTypes(DataTypes.STRING())
+    .outputType(DataTypes.BOOLEAN())
+    .build()
 
   override def close(): Unit = {
     words.clear()

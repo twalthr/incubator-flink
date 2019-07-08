@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.functions.utils
 
+import java.util
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`._
@@ -28,6 +30,7 @@ import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction.createReturnTypeInference
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.types.inference.TypeStrategies
+import org.apache.flink.table.types.utils.TypeConversions
 
 import scala.collection.JavaConverters._
 
@@ -55,6 +58,20 @@ class ScalarSqlFunction(
   def getScalarFunction: ScalarFunction = scalarFunction
 
   override def isDeterministic: Boolean = scalarFunction.isDeterministic
+
+  override def getParamTypes: util.List[RelDataType] = {
+    val dataTypes = scalarFunction.getTypeInference.getArgumentTypes.orElse(null)
+    if (dataTypes == null) {
+      return null
+    }
+    dataTypes
+      .asScala
+      .map(dt => {
+        typeFactory.createTypeFromTypeInfo(
+          TypeConversions.fromDataTypeToLegacyInfo(dt), dt.getLogicalType.isNullable)
+      })
+      .asJava
+  }
 
   override def toString: String = displayName
 }
