@@ -19,32 +19,47 @@
 package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.logical.AnyType;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
+import org.apache.flink.table.types.logical.NullType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Parser for creating instances of {@link LogicalType} from a serialized string created with
@@ -58,21 +73,28 @@ import java.util.List;
  *     <li>{@code NUMERIC} and {@code DEC} as synonyms for {@code DECIMAL}</li>
  *     <li>{@code INTEGER} as a synonym for {@code INT}</li>
  *     <li>{@code DOUBLE PRECISION} as a synonym for {@code DOUBLE}</li>
- *     <li>{@code TIME WITHOUT TIMEZONE} as a synonym for {@code TIME}</li>
- *     <li>{@code TIMESTAMP WITHOUT TIMEZONE} as a synonym for {@code TIMESTAMP}</li>
+ *     <li>{@code TIME WITHOUT TIME ZONE} as a synonym for {@code TIME}</li>
+ *     <li>{@code TIMESTAMP WITHOUT TIME ZONE} as a synonym for {@code TIMESTAMP}</li>
  *     <li>{@code type ARRAY} as a synonym for {@code ARRAY<type>}</li>
  *     <li>{@code type MULTISET} as a synonym for {@code MULTISET<type>}</li>
  *     <li>{@code ROW(...)} as a synonym for {@code ROW<...>}</li>
  *     <li>{@code type NULL} as a synonym for {@code type}</li>
  * </ul>
+ *
+ * <p>Furthermore, it returns {@link UnresolvedUserDefinedType} for unknown types (partially or fully
+ * qualified such as {@code [catalog].[database].[type]}).
  */
 @PublicEvolving
 public final class LogicalTypeParser {
 
-	public static LogicalType parse(String typeString) {
+	public static LogicalType parse(String typeString, ClassLoader classLoader) {
 		final List<Token> tokens = tokenize(typeString);
-		final TokenParser converter = new TokenParser(typeString, tokens);
+		final TokenParser converter = new TokenParser(typeString, tokens, classLoader);
 		return converter.parseTokens();
+	}
+
+	public static LogicalType parse(String typeString) {
+		return parse(typeString, Thread.currentThread().getContextClassLoader());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -85,18 +107,8 @@ public final class LogicalTypeParser {
 	private static final char CHAR_END_PARAMETER = ')';
 	private static final char CHAR_LIST_SEPARATOR = ',';
 	private static final char CHAR_STRING = '\'';
-	private static final char CHAR_LITERAL = '`';
+	private static final char CHAR_IDENTIFIER = '`';
 	private static final char CHAR_DOT = '.';
-
-	private static boolean containsDelimiter(String string) {
-		final char[] charArray = string.toCharArray();
-		for (char c : charArray) {
-			if (isDelimiter(c)) {
-				return true;
-			}
-		}
-		return false;
-	}
 
 	private static boolean isDelimiter(char character) {
 		return Character.isWhitespace(character) ||
@@ -108,6 +120,10 @@ public final class LogicalTypeParser {
 			character == CHAR_DOT;
 	}
 
+	private static boolean isDigit(char c) {
+		return c >= '0' && c <= '9';
+	}
+
 	private static List<Token> tokenize(String typeString) {
 		final char[] chars = typeString.toCharArray();
 
@@ -117,33 +133,51 @@ public final class LogicalTypeParser {
 			char curChar = chars[cursor];
 			switch (curChar) {
 				case CHAR_BEGIN_SUBTYPE:
-					tokens.add(new Token(TokenType.BEGIN_SUBTYPE, Character.toString(curChar), cursor));
+					tokens.add(new Token(TokenType.BEGIN_SUBTYPE, cursor, Character.toString(CHAR_BEGIN_SUBTYPE)));
 					break;
 				case CHAR_END_SUBTYPE:
-					tokens.add(new Token(TokenType.END_SUBTYPE, Character.toString(curChar), cursor));
+					tokens.add(new Token(TokenType.END_SUBTYPE, cursor, Character.toString(CHAR_END_SUBTYPE)));
 					break;
 				case CHAR_BEGIN_PARAMETER:
-					tokens.add(new Token(TokenType.BEGIN_PARAMETER, Character.toString(curChar), cursor));
+					tokens.add(new Token(TokenType.BEGIN_PARAMETER, cursor, Character.toString(CHAR_BEGIN_PARAMETER)));
 					break;
 				case CHAR_END_PARAMETER:
-					tokens.add(new Token(TokenType.END_PARAMETER, Character.toString(curChar), cursor));
+					tokens.add(new Token(TokenType.END_PARAMETER, cursor, Character.toString(CHAR_END_PARAMETER)));
 					break;
 				case CHAR_LIST_SEPARATOR:
-					tokens.add(new Token(TokenType.LIST_SEPARATOR, Character.toString(curChar), cursor));
+					tokens.add(new Token(TokenType.LIST_SEPARATOR, cursor, Character.toString(CHAR_LIST_SEPARATOR)));
 					break;
 				case CHAR_DOT:
-					tokens.add(new Token(TokenType.DOT, Character.toString(curChar), cursor));
+					tokens.add(new Token(TokenType.DOT, cursor, Character.toString(CHAR_DOT)));
 					break;
 				case CHAR_STRING:
 					builder.setLength(0);
-					cursor = consumeString(builder, chars, cursor);
-					tokens.add(new Token(TokenType.STRING, builder.toString(), cursor));
+					cursor = consumeEscaped(builder, chars, cursor, CHAR_STRING);
+					tokens.add(new Token(TokenType.LITERAL_STRING, cursor, builder.toString()));
+					break;
+				case CHAR_IDENTIFIER:
+					builder.setLength(0);
+					cursor = consumeEscaped(builder, chars, cursor, CHAR_IDENTIFIER);
+					tokens.add(new Token(TokenType.IDENTIFIER, cursor, builder.toString()));
 					break;
 				default:
-					if (!Character.isWhitespace(curChar)) {
+					if (Character.isWhitespace(curChar)) {
+						continue;
+					}
+					if (isDigit(curChar)) {
 						builder.setLength(0);
-						cursor = consumeLiteral(builder, chars, cursor);
-						tokens.add(new Token(TokenType.LITERAL, builder.toString(), cursor));
+						cursor = consumeInt(builder, chars, cursor);
+						tokens.add(new Token(TokenType.LITERAL_INT, cursor, builder.toString()));
+						break;
+					}
+					builder.setLength(0);
+					cursor = consumeIdentifier(builder, chars, cursor);
+					final String token = builder.toString();
+					final String normalizedToken = token.toUpperCase();
+					if (KEYWORDS.contains(normalizedToken)) {
+						tokens.add(new Token(TokenType.KEYWORD, cursor, normalizedToken));
+					} else {
+						tokens.add(new Token(TokenType.IDENTIFIER, cursor, token));
 					}
 			}
 		}
@@ -151,14 +185,16 @@ public final class LogicalTypeParser {
 		return tokens;
 	}
 
-	private static int consumeString(StringBuilder builder, char[] chars, int cursor) {
-		while (chars.length > cursor) {
-			final char curChar = chars[cursor++];
-			if (curChar == CHAR_STRING && cursor < chars.length && chars[cursor] == CHAR_STRING) {
+	private static int consumeEscaped(StringBuilder builder, char[] chars, int cursor, char delimiter) {
+		// skip delimiter
+		cursor++;
+		for (; chars.length > cursor; cursor++) {
+			final char curChar = chars[cursor];
+			if (curChar == delimiter && cursor + 1 < chars.length && chars[cursor + 1] == delimiter) {
 				// escaping of the escaping char e.g. "'Hello '' World'"
 				cursor++;
 				builder.append(curChar);
-			} else if (curChar == CHAR_STRING) {
+			} else if (curChar == delimiter) {
 				break;
 			} else {
 				builder.append(curChar);
@@ -167,22 +203,16 @@ public final class LogicalTypeParser {
 		return cursor;
 	}
 
-	private static int consumeLiteral(StringBuilder builder, char[] chars, int cursor) {
-		boolean isEscaped = false;
-		while (cursor < chars.length && (!isDelimiter(chars[cursor]) || isEscaped)) {
-			final char curChar = chars[cursor++];
-			if (!isEscaped && curChar == CHAR_LITERAL) {
-				isEscaped = true;
-			} else if (isEscaped && curChar == CHAR_LITERAL &&
-					cursor < chars.length && chars[cursor] == CHAR_LITERAL) {
-				// escaping of the escaping char e.g. "`Hello `` World`"
-				cursor++;
-				builder.append(curChar);
-			} else if (isEscaped && curChar == CHAR_LITERAL) {
-				break;
-			} else {
-				builder.append(curChar);
-			}
+	private static int consumeInt(StringBuilder builder, char[] chars, int cursor) {
+		for (; chars.length > cursor && isDigit(chars[cursor]); cursor++) {
+			builder.append(chars[cursor]);
+		}
+		return cursor - 1;
+	}
+
+	private static int consumeIdentifier(StringBuilder builder, char[] chars, int cursor) {
+		for (; cursor < chars.length && !isDelimiter(chars[cursor]); cursor++) {
+			builder.append(chars[cursor]);
 		}
 		return cursor - 1;
 	}
@@ -204,24 +234,77 @@ public final class LogicalTypeParser {
 		LIST_SEPARATOR,
 
 		// e.g. "ROW<name INT 'Comment'"
-		STRING,
+		LITERAL_STRING,
 
-		// e.g. "ROW<`name`" or "CHAR" or "CHAR(12"
-		LITERAL,
+		// CHAR(12
+		LITERAL_INT,
+
+		// e.g. "CHAR" or "TO"
+		KEYWORD,
+
+		// e.g. "ROW<name" or "myCatalog.myDatabase"
+		IDENTIFIER,
 
 		// e.g. "myCatalog.myDatabase."
 		DOT
 	}
 
+	private enum Keyword {
+		CHAR,
+		VARCHAR,
+		STRING,
+		BOOLEAN,
+		BINARY,
+		VARBINARY,
+		BYTES,
+		DECIMAL,
+		NUMERIC,
+		DEC,
+		TINYINT,
+		SMALLINT,
+		INT,
+		INTEGER,
+		BIGINT,
+		FLOAT,
+		DOUBLE,
+		PRECISION,
+		DATE,
+		TIME,
+		WITH,
+		WITHOUT,
+		LOCAL,
+		ZONE,
+		TIMESTAMP,
+		INTERVAL,
+		YEAR,
+		MONTH,
+		DAY,
+		HOUR,
+		MINUTE,
+		SECOND,
+		TO,
+		ARRAY,
+		MULTISET,
+		MAP,
+		ROW,
+		NULL,
+		ANY,
+		NOT
+	}
+
+	private static final Set<String> KEYWORDS = Stream.of(Keyword.values())
+		.map(k -> k.toString().toUpperCase())
+		.collect(Collectors.toSet());
+
 	private static class Token {
 		public final TokenType type;
-		public final String literal;
 		public final int cursorPosition;
+		public final String value;
 
-		public Token(TokenType type, String literal, int cursorPosition) {
+		public Token(TokenType type, int cursorPosition, String value) {
 			this.type = type;
-			this.literal = literal;
 			this.cursorPosition = cursorPosition;
+			this.value = value;
 		}
 	}
 
@@ -229,78 +312,74 @@ public final class LogicalTypeParser {
 	// Token Parsing
 	// --------------------------------------------------------------------------------------------
 
-	private static final String LITERAL_NOT = "NOT";
-	private static final String LITERAL_NULL = "NULL";
-	private static final String LITERAL_CHAR = "CHAR";
-	private static final String LITERAL_VARCHAR = "VARCHAR";
-	private static final String LITERAL_STRING = "STRING";
-	private static final String LITERAL_BOOLEAN = "BOOLEAN";
-	private static final String LITERAL_BINARY = "BINARY";
-	private static final String LITERAL_VARBINARY = "VARBINARY";
-	private static final String LITERAL_BYTES = "BYTES";
-	private static final String LITERAL_DECIMAL = "DECIMAL";
-	private static final String LITERAL_DEC = "DEC";
-	private static final String LITERAL_NUMERIC = "NUMERIC";
-	private static final String LITERAL_INT = "INT";
-	private static final String LITERAL_INTEGER = "INTEGER";
-	private static final String LITERAL_TINYINT = "TINYINT";
-	private static final String LITERAL_SMALLINT = "SMALLINT";
-	private static final String LITERAL_BIGINT = "BIGINT";
-	private static final String LITERAL_FLOAT = "FLOAT";
-	private static final String LITERAL_DOUBLE = "DOUBLE";
-	private static final String LITERAL_PRECISION = "PRECISION";
-	private static final String LITERAL_DATE = "DATE";
-	private static final String LITERAL_TIME = "TIME";
-	private static final String LITERAL_TIMESTAMP = "TIMESTAMP";
-	private static final String LITERAL_WITH = "WITH";
-	private static final String LITERAL_WITHOUT = "WITHOUT";
-	private static final String LITERAL_ZONE = "ZONE";
-	private static final String LITERAL_LOCAL = "LOCAL";
-	private static final String LITERAL_INTERVAL = "INTERVAL";
-	private static final String LITERAL_YEAR = "YEAR";
-	private static final String LITERAL_MONTH = "MONTH";
-	private static final String LITERAL_DAY = "DAY";
-	private static final String LITERAL_HOUR = "HOUR";
-	private static final String LITERAL_MINUTE = "MINUTE";
-	private static final String LITERAL_SECOND = "SECOND";
-	private static final String LITERAL_TO = "TO";
-
 	private static class TokenParser {
 
-		private String inputString;
-		private List<Token> tokens;
+		private final String inputString;
+
+		private final List<Token> tokens;
+
+		private final ClassLoader classLoader;
+
 		private int lastValidToken;
+
 		private int currentToken;
 
-		public TokenParser(String inputString, List<Token> tokens) {
+		public TokenParser(String inputString, List<Token> tokens, ClassLoader classLoader) {
 			this.inputString = inputString;
 			this.tokens = tokens;
+			this.classLoader = classLoader;
 			this.lastValidToken = -1;
 			this.currentToken = -1;
 		}
 
-		public LogicalType parseTokens() {
-			final LogicalType type = parseType();
+		private LogicalType parseTokens() {
+			final LogicalType type = parseTypeWithNullability();
 			if (hasRemainingTokens()) {
 				nextToken();
-				throw parsingError("Unexpected token: " + token().literal);
+				throw parsingError("Unexpected token: " + token().value);
 			}
 			return type;
 		}
 
-		private void nextToken(TokenType type) {
-			nextToken(type, null);
+		private int lastCursor() {
+			if (lastValidToken < 0) {
+				return 0;
+			}
+			return tokens.get(lastValidToken).cursorPosition + 1;
 		}
 
-		private void nextToken(TokenType type, @Nullable String literal) {
-			nextToken();
-			final Token nextToken = tokens.get(currentToken);
-			if (nextToken.type != type) {
-				throw parsingError(type.name() + " expected but was " + nextToken.type + '.');
-			}
-			if (literal != null && !nextToken.literal.equals(literal)) {
-				throw parsingError("'" + literal + "' expected but was '" + nextToken.literal + "'.");
-			}
+		private ValidationException parsingError(String cause, @Nullable Throwable t) {
+			return new ValidationException(
+				String.format(
+					"Could not parse type at position %d: %s\n Input type string: %s",
+					lastCursor(),
+					cause,
+					inputString),
+				t);
+		}
+
+		private ValidationException parsingError(String cause) {
+			return parsingError(cause, null);
+		}
+
+		private boolean hasRemainingTokens() {
+			return currentToken + 1 < tokens.size();
+		}
+
+		private Token token() {
+			return tokens.get(currentToken);
+		}
+
+		private int tokenAsInt() {
+			return Integer.valueOf(token().value);
+		}
+
+		private Keyword tokenAsKeyword() {
+			return Keyword.valueOf(token().value);
+		}
+
+		private String tokenAsString() {
+			return token().value;
 		}
 
 		private void nextToken() {
@@ -311,253 +390,281 @@ public final class LogicalTypeParser {
 			lastValidToken = this.currentToken - 1;
 		}
 
-		private boolean isNextToken(int lookAhead, TokenType type) {
-			return currentToken + lookAhead < tokens.size() &&
-				tokens.get(currentToken + lookAhead).type == type;
+		private void nextToken(TokenType type) {
+			nextToken();
+			final Token token = token();
+			if (token.type != type) {
+				throw parsingError("Token <" + type.name() + "> expected but was <" + token.type + ">.");
+			}
 		}
 
-		private boolean isNextToken(int lookAhead, TokenType type, @Nullable String literal) {
-			if (currentToken + lookAhead >= tokens.size()) {
+		private void nextToken(Keyword keyword) {
+			nextToken(TokenType.KEYWORD);
+			final Token token = token();
+			if (!keyword.equals(Keyword.valueOf(token.value))) {
+				throw parsingError("Keyword '" + keyword + "' expected but was '" + token.value + "'.");
+			}
+		}
+
+		private boolean hasNextToken(TokenType... types) {
+			if (currentToken + types.length + 1 > tokens.size()) {
 				return false;
 			}
-			final Token nextToken = tokens.get(currentToken + lookAhead);
-			return nextToken.type == type && (literal == null || literal.equals(nextToken.literal));
-		}
-
-		private int lastCursor() {
-			if (lastValidToken < 0) {
-				return 0;
+			for (int i = 0; i < types.length; i++) {
+				final Token lookAhead = tokens.get(currentToken + i + 1);
+				if (lookAhead.type != types[i]) {
+					return false;
+				}
 			}
-			return tokens.get(lastValidToken).cursorPosition + 1;
+			return true;
 		}
 
-		private ValidationException parsingError(String cause) {
-			throw new ValidationException("Could not parse type at position " + lastCursor() + ": " + cause + "\n" +
-				"Input type string: " + inputString);
-		}
-
-		private Token token() {
-			return tokens.get(currentToken);
-		}
-
-		private boolean hasRemainingTokens() {
-			return currentToken + 1 < tokens.size();
-		}
-
-		private int parseInt() {
-			nextToken(TokenType.LITERAL);
-			return Integer.valueOf(token().literal);
+		private boolean hasNextToken(Keyword... keywords) {
+			if (currentToken + keywords.length + 1 > tokens.size()) {
+				return false;
+			}
+			for (int i = 0; i < keywords.length; i++) {
+				final Token lookAhead = tokens.get(currentToken + i + 1);
+				if (lookAhead.type != TokenType.KEYWORD ||
+						keywords[i] != Keyword.valueOf(lookAhead.value)) {
+					return false;
+				}
+			}
+			return true;
 		}
 
 		private boolean parseNullability() {
 			// "NOT NULL"
-			if (isNextToken(1, TokenType.LITERAL) && isNextToken(2, TokenType.LITERAL)) {
-				nextToken(TokenType.LITERAL, LITERAL_NOT);
-				nextToken(TokenType.LITERAL, LITERAL_NULL);
+			if (hasNextToken(Keyword.NOT, Keyword.NULL)) {
+				nextToken(Keyword.NOT);
+				nextToken(Keyword.NULL);
 				return false;
 			}
 			// explicit "NULL"
-			else if (isNextToken(1, TokenType.LITERAL)) {
-				nextToken(TokenType.LITERAL, LITERAL_NULL);
+			else if (hasNextToken(Keyword.NULL)) {
+				nextToken(Keyword.NULL);
 				return true;
 			}
 			// implicit "NULL"
 			return true;
 		}
 
-		private LogicalType parseType() {
-			nextToken(TokenType.LITERAL);
-			final LogicalType type;
-			switch (token().literal) {
-				case LITERAL_CHAR:
-					type = parseCharType();
-					break;
-				case LITERAL_VARCHAR:
-					type = parseVarCharType();
-					break;
-				case LITERAL_STRING:
-					type = new VarCharType(VarCharType.MAX_LENGTH);
-					break;
-				case LITERAL_BOOLEAN:
-					type = new BooleanType();
-					break;
-				case LITERAL_BINARY:
-					type = parseBinaryType();
-					break;
-				case LITERAL_VARBINARY:
-					type = parseVarBinaryType();
-					break;
-				case LITERAL_BYTES:
-					type = new VarBinaryType(VarBinaryType.MAX_LENGTH);
-					break;
-				case LITERAL_DECIMAL:
-				case LITERAL_DEC:
-				case LITERAL_NUMERIC:
-					type = parseDecimalType();
-					break;
-				case LITERAL_TINYINT:
-					type = new TinyIntType();
-					break;
-				case LITERAL_SMALLINT:
-					type = new SmallIntType();
-					break;
-				case LITERAL_INTEGER:
-				case LITERAL_INT:
-					type = new IntType();
-					break;
-				case LITERAL_BIGINT:
-					type = new BigIntType();
-					break;
-				case LITERAL_FLOAT:
-					type = new FloatType();
-					break;
-				case LITERAL_DOUBLE:
-					type = parseDoubleType();
-					break;
-				case LITERAL_DATE:
-					type = new DateType();
-					break;
-				case LITERAL_TIME:
-					type = parseTimeType();
-					break;
-				case LITERAL_TIMESTAMP:
-					type = parseTimestampType();
-					break;
-				case LITERAL_INTERVAL:
-					type = parseIntervalType();
-					break;
-				default:
-					throw parsingError("Unsupported type: " + token().literal);
+		private LogicalType parseTypeWithNullability() {
+			final LogicalType logicalType;
+			if (hasNextToken(TokenType.IDENTIFIER)) {
+				logicalType = parseTypeByIdentifier().copy(parseNullability());
+			} else {
+				logicalType = parseTypeByKeyword().copy(parseNullability());
 			}
+			// special case: suffix notation for ARRAY and MULTISET types
+			if (hasNextToken(Keyword.ARRAY)) {
+				nextToken(Keyword.ARRAY);
+				return new ArrayType(logicalType).copy(parseNullability());
+			} else if (hasNextToken(Keyword.MULTISET)) {
+				nextToken(Keyword.MULTISET);
+				return new MultisetType(logicalType).copy(parseNullability());
+			}
+			return logicalType;
+		}
 
-			return type.copy(parseNullability());
+		private LogicalType parseTypeByKeyword() {
+			nextToken(TokenType.KEYWORD);
+			switch (tokenAsKeyword()) {
+				case CHAR:
+					return parseCharType();
+				case VARCHAR:
+					return parseVarCharType();
+				case STRING:
+					return new VarCharType(VarCharType.MAX_LENGTH);
+				case BOOLEAN:
+					return new BooleanType();
+				case BINARY:
+					return parseBinaryType();
+				case VARBINARY:
+					return parseVarBinaryType();
+				case BYTES:
+					return new VarBinaryType(VarBinaryType.MAX_LENGTH);
+				case DECIMAL:
+				case NUMERIC:
+				case DEC:
+					return parseDecimalType();
+				case TINYINT:
+					return new TinyIntType();
+				case SMALLINT:
+					return new SmallIntType();
+				case INT:
+				case INTEGER:
+					return new IntType();
+				case BIGINT:
+					return new BigIntType();
+				case FLOAT:
+					return new FloatType();
+				case DOUBLE:
+					return parseDoubleType();
+				case DATE:
+					return new DateType();
+				case TIME:
+					return parseTimeType();
+				case TIMESTAMP:
+					return parseTimestampType();
+				case INTERVAL:
+					return parseIntervalType();
+				case ARRAY:
+					return parseArrayType();
+				case MULTISET:
+					return parseMultisetType();
+				case MAP:
+					return parseMapType();
+				case ROW:
+					return parseRowType();
+				case NULL:
+					return new NullType();
+				case ANY:
+					return parseAnyType();
+				default:
+					throw parsingError("Unsupported type: " + token().value);
+			}
+		}
+
+		private LogicalType parseTypeByIdentifier() {
+			nextToken(TokenType.IDENTIFIER);
+			List<String> parts = new ArrayList<>();
+			parts.add(tokenAsString());
+			if (hasNextToken(TokenType.DOT)) {
+				nextToken(TokenType.DOT);
+				nextToken(TokenType.IDENTIFIER);
+				parts.add(tokenAsString());
+			}
+			if (hasNextToken(TokenType.DOT)) {
+				nextToken(TokenType.DOT);
+				nextToken(TokenType.IDENTIFIER);
+				parts.add(tokenAsString());
+			}
+			return new UnresolvedUserDefinedType(
+				lastPart(parts, 2),
+				lastPart(parts, 1),
+				lastPart(parts, 0));
+		}
+
+		private @Nullable String lastPart(List<String> parts, int inversePos) {
+			final int pos = parts.size() - inversePos - 1;
+			if (pos < 0) {
+				return null;
+			}
+			return parts.get(pos);
+		}
+
+		private int parseStringType() {
+			// explicit length
+			if (hasNextToken(TokenType.BEGIN_PARAMETER)) {
+				nextToken(TokenType.BEGIN_PARAMETER);
+				nextToken(TokenType.LITERAL_INT);
+				final int length = tokenAsInt();
+				nextToken(TokenType.END_PARAMETER);
+				return length;
+			}
+			// implicit length
+			return -1;
 		}
 
 		private LogicalType parseCharType() {
-			// "CHAR(length)"
-			if (isNextToken(1, TokenType.BEGIN_PARAMETER)) {
-				nextToken(TokenType.BEGIN_PARAMETER);
-				final int length = parseInt();
-				nextToken(TokenType.END_PARAMETER);
+			final int length = parseStringType();
+			if (length < 0) {
+				return new CharType();
+			} else {
 				return new CharType(length);
 			}
-			// "CHAR"
-			return new CharType();
 		}
 
 		private LogicalType parseVarCharType() {
-			// "VARCHAR(length)"
-			if (isNextToken(1, TokenType.BEGIN_PARAMETER)) {
-				nextToken(TokenType.BEGIN_PARAMETER);
-				final int length = parseInt();
-				nextToken(TokenType.END_PARAMETER);
+			final int length = parseStringType();
+			if (length < 0) {
+				return new VarCharType();
+			} else {
 				return new VarCharType(length);
 			}
-			// "VARCHAR"
-			return new VarCharType();
 		}
 
 		private LogicalType parseBinaryType() {
-			// "BINARY(length)"
-			if (isNextToken(1, TokenType.BEGIN_PARAMETER)) {
-				nextToken(TokenType.BEGIN_PARAMETER);
-				final int length = parseInt();
-				nextToken(TokenType.END_PARAMETER);
+			final int length = parseStringType();
+			if (length < 0) {
+				return new BinaryType();
+			} else {
 				return new BinaryType(length);
 			}
-			// "BINARY"
-			return new BinaryType();
 		}
 
 		private LogicalType parseVarBinaryType() {
-			// "VARBINARY(length)"
-			if (isNextToken(1, TokenType.BEGIN_PARAMETER)) {
-				nextToken(TokenType.BEGIN_PARAMETER);
-				final int length = parseInt();
-				nextToken(TokenType.END_PARAMETER);
+			final int length = parseStringType();
+			if (length < 0) {
+				return new VarBinaryType();
+			} else {
 				return new VarBinaryType(length);
 			}
-			// "VARBINARY"
-			return new VarBinaryType();
 		}
 
 		private LogicalType parseDecimalType() {
-			if (isNextToken(1, TokenType.BEGIN_PARAMETER)) {
+			int precision = DecimalType.DEFAULT_PRECISION;
+			int scale = DecimalType.DEFAULT_SCALE;
+			if (hasNextToken(TokenType.BEGIN_PARAMETER)) {
 				nextToken(TokenType.BEGIN_PARAMETER);
-				final int precision = parseInt();
-				int scale = DecimalType.DEFAULT_SCALE;
-				// "DECIMAL(precision, scale)", "DEC(precision, scale)", "NUMERIC(precision, scale)"
-				if (isNextToken(1, TokenType.LIST_SEPARATOR)) {
+				nextToken(TokenType.LITERAL_INT);
+				precision = tokenAsInt();
+				if (hasNextToken(TokenType.LIST_SEPARATOR)) {
 					nextToken(TokenType.LIST_SEPARATOR);
-					scale = parseInt();
+					nextToken(TokenType.LITERAL_INT);
+					scale = tokenAsInt();
 				}
 				nextToken(TokenType.END_PARAMETER);
-				return new DecimalType(precision, scale);
 			}
-			// "DECIMAL", "DEC", "NUMERIC"
-			return new DecimalType();
+			return new DecimalType(precision, scale);
 		}
 
 		private LogicalType parseDoubleType() {
-			// "DOUBLE PRECISION"
-			if (isNextToken(1, TokenType.LITERAL, LITERAL_PRECISION)) {
-				nextToken(TokenType.LITERAL, LITERAL_PRECISION);
+			if (hasNextToken(Keyword.PRECISION)) {
+				nextToken(Keyword.PRECISION);
 			}
-			// "DOUBLE"
 			return new DoubleType();
 		}
 
 		private LogicalType parseTimeType() {
-			// "TIME"
 			int precision = TimeType.DEFAULT_PRECISION;
-			// "TIME(precision)"
-			if (isNextToken(1, TokenType.BEGIN_PARAMETER)) {
+			if (hasNextToken(TokenType.BEGIN_PARAMETER)) {
 				nextToken(TokenType.BEGIN_PARAMETER);
-				precision = parseInt();
+				nextToken(TokenType.LITERAL_INT);
+				precision = tokenAsInt();
 				nextToken(TokenType.END_PARAMETER);
 			}
-			// "TIME(precision) WITHOUT TIME ZONE"
-			if (isNextToken(1, TokenType.LITERAL, LITERAL_WITHOUT)) {
-				nextToken(TokenType.LITERAL, LITERAL_WITHOUT);
-				nextToken(TokenType.LITERAL, LITERAL_TIME);
-				nextToken(TokenType.LITERAL, LITERAL_ZONE);
+			if (hasNextToken(Keyword.WITHOUT)) {
+				nextToken(Keyword.WITHOUT);
+				nextToken(Keyword.TIME);
+				nextToken(Keyword.ZONE);
 			}
 			return new TimeType(precision);
 		}
 
 		private LogicalType parseTimestampType() {
 			int precision = TimestampType.DEFAULT_PRECISION;
-			// "TIMESTAMP(precision)"
-			if (isNextToken(1, TokenType.BEGIN_PARAMETER)) {
+			if (hasNextToken(TokenType.BEGIN_PARAMETER)) {
 				nextToken(TokenType.BEGIN_PARAMETER);
-				precision = parseInt();
+				nextToken(TokenType.LITERAL_INT);
+				precision = tokenAsInt();
 				nextToken(TokenType.END_PARAMETER);
 			}
-			// "TIMESTAMP" or "TIMESTAMP(precision)"
-			if (!isNextToken(1, TokenType.LITERAL)) {
-				return new TimestampType(precision);
-			}
-			// "TIMESTAMP(precision) WITHOUT TIME ZONE"
-			if (isNextToken(1, TokenType.LITERAL, LITERAL_WITHOUT)) {
-				nextToken(TokenType.LITERAL, LITERAL_WITHOUT);
-				nextToken(TokenType.LITERAL, LITERAL_TIME);
-				nextToken(TokenType.LITERAL, LITERAL_ZONE);
-				return new TimestampType(precision);
-			}
-			// "TIMESTAMP(precision) WITH
-			else if (isNextToken(1, TokenType.LITERAL, LITERAL_WITH)) {
-				nextToken(TokenType.LITERAL, LITERAL_WITH);
-				// "TIMESTAMP(precision) WITH LOCAL TIME ZONE"
-				if (isNextToken(1, TokenType.LITERAL, LITERAL_LOCAL)) {
-					nextToken(TokenType.LITERAL, LITERAL_LOCAL);
-					nextToken(TokenType.LITERAL, LITERAL_TIME);
-					nextToken(TokenType.LITERAL, LITERAL_ZONE);
+			if (hasNextToken(Keyword.WITHOUT)) {
+				nextToken(Keyword.WITHOUT);
+				nextToken(Keyword.TIME);
+				nextToken(Keyword.ZONE);
+			} else if (hasNextToken(Keyword.WITH)) {
+				nextToken(Keyword.WITH);
+				if (hasNextToken(Keyword.LOCAL)) {
+					nextToken(Keyword.LOCAL);
+					nextToken(Keyword.TIME);
+					nextToken(Keyword.ZONE);
 					return new LocalZonedTimestampType(precision);
-				}
-				// "TIMESTAMP(precision) WITH TIME ZONE"
-				else {
-					nextToken(TokenType.LITERAL, LITERAL_TIME);
-					nextToken(TokenType.LITERAL, LITERAL_ZONE);
+				} else {
+					nextToken(Keyword.TIME);
+					nextToken(Keyword.ZONE);
 					return new ZonedTimestampType(precision);
 				}
 			}
@@ -565,56 +672,224 @@ public final class LogicalTypeParser {
 		}
 
 		private LogicalType parseIntervalType() {
-			nextToken(TokenType.LITERAL);
-
-			switch (token().literal) {
-				case LITERAL_YEAR:
-				case LITERAL_MONTH:
+			nextToken(TokenType.KEYWORD);
+			switch (tokenAsKeyword()) {
+				case YEAR:
+				case MONTH:
 					return parseYearMonthIntervalType();
-				case LITERAL_DAY:
-				case LITERAL_HOUR:
-				case LITERAL_MINUTE:
-				case LITERAL_SECOND:
+				case DAY:
+				case HOUR:
+				case MINUTE:
+				case SECOND:
 					return parseDayTimeIntervalType();
 				default:
-					parsingError("Invalid interval resolution.");
+					throw parsingError("Invalid interval resolution.");
 			}
-			throw new RuntimeException();
 		}
 
 		private LogicalType parseYearMonthIntervalType() {
-			switch (token().literal) {
-				case LITERAL_YEAR:
-					int precision = YearMonthIntervalType.DEFAULT_PRECISION;
-					// "INTERVAL YEAR(precision)"
-					if (isNextToken(1, TokenType.BEGIN_PARAMETER)) {
-						nextToken(TokenType.BEGIN_PARAMETER);
-						precision = parseInt();
-						nextToken(TokenType.END_PARAMETER);
+			int yearPrecision = YearMonthIntervalType.DEFAULT_PRECISION;
+			switch (tokenAsKeyword()) {
+				case YEAR:
+					yearPrecision = parseOptionalPrecision(yearPrecision);
+					if (hasNextToken(Keyword.TO)) {
+						nextToken(Keyword.TO);
+						nextToken(Keyword.MONTH);
+						return new YearMonthIntervalType(
+							YearMonthResolution.YEAR_TO_MONTH,
+							yearPrecision);
 					}
-					// "INTERVAL YEAR TO MONTH"
-					if (isNextToken(1, TokenType.LITERAL, LITERAL_TO)) {
-						nextToken(TokenType.LITERAL, LITERAL_TO);
-						nextToken(TokenType.LITERAL, LITERAL_MONTH);
-						return new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH, precision);
-					}
-					// "INTERVAL YEAR"
-					return new YearMonthIntervalType(YearMonthResolution.YEAR, precision);
-				case LITERAL_MONTH:
-					// "INTERVAL MONTH"
-					return new YearMonthIntervalType(YearMonthResolution.MONTH);
+					return new YearMonthIntervalType(
+						YearMonthResolution.YEAR,
+						yearPrecision);
+				case MONTH:
+					return new YearMonthIntervalType(
+						YearMonthResolution.MONTH,
+						yearPrecision);
 				default:
-					parsingError("Invalid interval resolution.");
+					throw parsingError("Invalid year-month interval resolution.");
 			}
-			throw new RuntimeException();
 		}
 
 		private LogicalType parseDayTimeIntervalType() {
-			switch (token().literal) {
-				case LITERAL_DAY:
-					int precision = YearMonthIntervalType.DEFAULT_PRECISION;
+			int dayPrecision = DayTimeIntervalType.DEFAULT_DAY_PRECISION;
+			int fractionalPrecision = DayTimeIntervalType.DEFAULT_FRACTIONAL_PRECISION;
+			switch (tokenAsKeyword()) {
+				case DAY:
+					dayPrecision = parseOptionalPrecision(dayPrecision);
+					if (hasNextToken(Keyword.TO)) {
+						nextToken(Keyword.TO);
+						nextToken(TokenType.KEYWORD);
+						switch (tokenAsKeyword()) {
+							case HOUR:
+								return new DayTimeIntervalType(
+									DayTimeResolution.DAY_TO_HOUR,
+									dayPrecision,
+									fractionalPrecision);
+							case MINUTE:
+								return new DayTimeIntervalType(
+									DayTimeResolution.DAY_TO_MINUTE,
+									dayPrecision,
+									fractionalPrecision);
+							case SECOND:
+								fractionalPrecision = parseOptionalPrecision(fractionalPrecision);
+								return new DayTimeIntervalType(
+									DayTimeResolution.DAY_TO_SECOND,
+									dayPrecision,
+									fractionalPrecision);
+							default:
+								throw parsingError("Invalid day-time interval resolution.");
+						}
+					}
+					return new DayTimeIntervalType(
+						DayTimeResolution.DAY,
+						dayPrecision,
+						fractionalPrecision);
+				case HOUR:
+					if (hasNextToken(Keyword.TO)) {
+						nextToken(Keyword.TO);
+						nextToken(TokenType.KEYWORD);
+						switch (tokenAsKeyword()) {
+							case MINUTE:
+								return new DayTimeIntervalType(
+									DayTimeResolution.HOUR_TO_MINUTE,
+									dayPrecision,
+									fractionalPrecision);
+							case SECOND:
+								fractionalPrecision = parseOptionalPrecision(fractionalPrecision);
+								return new DayTimeIntervalType(
+									DayTimeResolution.HOUR_TO_SECOND,
+									dayPrecision,
+									fractionalPrecision);
+							default:
+								throw parsingError("Invalid day-time interval resolution.");
+						}
+					}
+					return new DayTimeIntervalType(
+						DayTimeResolution.HOUR,
+						dayPrecision,
+						fractionalPrecision);
+				case MINUTE:
+					if (hasNextToken(Keyword.TO)) {
+						nextToken(Keyword.TO);
+						nextToken(Keyword.SECOND);
+						fractionalPrecision = parseOptionalPrecision(fractionalPrecision);
+						return new DayTimeIntervalType(
+							DayTimeResolution.MINUTE_TO_SECOND,
+							dayPrecision,
+							fractionalPrecision);
+					}
+					return new DayTimeIntervalType(
+						DayTimeResolution.MINUTE,
+						dayPrecision,
+						fractionalPrecision);
+				case SECOND:
+					fractionalPrecision = parseOptionalPrecision(fractionalPrecision);
+					return new DayTimeIntervalType(
+						DayTimeResolution.SECOND,
+						dayPrecision,
+						fractionalPrecision);
+				default:
+					throw parsingError("Invalid day-time interval resolution.");
 			}
-			throw new RuntimeException();
+		}
+
+		private int parseOptionalPrecision(int defaultPrecision) {
+			int precision = defaultPrecision;
+			if (hasNextToken(TokenType.BEGIN_PARAMETER)) {
+				nextToken(TokenType.BEGIN_PARAMETER);
+				nextToken(TokenType.LITERAL_INT);
+				precision = tokenAsInt();
+				nextToken(TokenType.END_PARAMETER);
+			}
+			return precision;
+		}
+
+		private LogicalType parseArrayType() {
+			nextToken(TokenType.BEGIN_SUBTYPE);
+			final LogicalType elementType = parseTypeWithNullability();
+			nextToken(TokenType.END_SUBTYPE);
+			return new ArrayType(elementType);
+		}
+
+		private LogicalType parseMultisetType() {
+			nextToken(TokenType.BEGIN_SUBTYPE);
+			final LogicalType elementType = parseTypeWithNullability();
+			nextToken(TokenType.END_SUBTYPE);
+			return new MultisetType(elementType);
+		}
+
+		private LogicalType parseMapType() {
+			nextToken(TokenType.BEGIN_SUBTYPE);
+			final LogicalType keyType = parseTypeWithNullability();
+			nextToken(TokenType.LIST_SEPARATOR);
+			final LogicalType valueType = parseTypeWithNullability();
+			nextToken(TokenType.END_SUBTYPE);
+			return new MapType(keyType, valueType);
+		}
+
+		private LogicalType parseRowType() {
+			List<RowType.RowField> fields;
+			// SQL standard notation
+			if (hasNextToken(TokenType.BEGIN_PARAMETER)) {
+				nextToken(TokenType.BEGIN_PARAMETER);
+				fields = parseRowFields(TokenType.END_PARAMETER);
+				nextToken(TokenType.END_PARAMETER);
+			} else {
+				nextToken(TokenType.BEGIN_SUBTYPE);
+				fields = parseRowFields(TokenType.END_SUBTYPE);
+				nextToken(TokenType.END_SUBTYPE);
+			}
+			return new RowType(fields);
+		}
+
+		private List<RowType.RowField> parseRowFields(TokenType endToken) {
+			List<RowType.RowField> fields = new ArrayList<>();
+			boolean isFirst = true;
+			while (!hasNextToken(endToken)) {
+				if (isFirst) {
+					isFirst = false;
+				} else {
+					nextToken(TokenType.LIST_SEPARATOR);
+				}
+				nextToken(TokenType.IDENTIFIER);
+				final String name = tokenAsString();
+				final LogicalType type = parseTypeWithNullability();
+				if (hasNextToken(TokenType.LITERAL_STRING)) {
+					nextToken(TokenType.LITERAL_STRING);
+					final String description = tokenAsString();
+					fields.add(new RowType.RowField(name, type, description));
+				} else {
+					fields.add(new RowType.RowField(name, type));
+				}
+			}
+			return fields;
+		}
+
+		@SuppressWarnings("unchecked")
+		private LogicalType parseAnyType() {
+			nextToken(TokenType.BEGIN_PARAMETER);
+			nextToken(TokenType.LITERAL_STRING);
+			final String className = tokenAsString();
+
+			nextToken(TokenType.LIST_SEPARATOR);
+			nextToken(TokenType.LITERAL_STRING);
+			final String serializer = tokenAsString();
+			nextToken(TokenType.END_PARAMETER);
+
+			try {
+				final Class<?> clazz = Class.forName(className, true, classLoader);
+				final byte[] bytes = EncodingUtils.decodeBase64ToBytes(serializer);
+				final DataInputDeserializer inputDeserializer = new DataInputDeserializer(bytes);
+				final TypeSerializerSnapshot<?> snapshot = TypeSerializerSnapshot.readVersionedSnapshot(
+					inputDeserializer,
+					classLoader);
+				return new AnyType(clazz, snapshot.restoreSerializer());
+			} catch (Throwable t) {
+				throw parsingError(
+					"Unable to restore the ANY type of class '" + className + "' with " +
+						"serializer snapshot '" + serializer + "'.", t);
+			}
 		}
 	}
 }
