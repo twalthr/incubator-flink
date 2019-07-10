@@ -87,12 +87,27 @@ import java.util.stream.Stream;
 @PublicEvolving
 public final class LogicalTypeParser {
 
+	/**
+	 * Parses a type string. All types will be fully resolved except for {@link UnresolvedUserDefinedType}s.
+	 *
+	 * <p>Throws {@link ValidationException} in case of parsing errors.
+	 *
+	 * @param typeString a string like "ROW(field1 INT, field2 BOOLEAN)"
+	 * @param classLoader class loader for loading classes of the ANY type
+	 */
 	public static LogicalType parse(String typeString, ClassLoader classLoader) {
 		final List<Token> tokens = tokenize(typeString);
 		final TokenParser converter = new TokenParser(typeString, tokens, classLoader);
 		return converter.parseTokens();
 	}
 
+	/**
+	 * Parses a type string. All types will be fully resolved except for {@link UnresolvedUserDefinedType}s.
+	 *
+	 * <p>Throws {@link ValidationException} in case of parsing errors.
+	 *
+	 * @param typeString a string like "ROW(field1 INT, field2 BOOLEAN)"
+	 */
 	public static LogicalType parse(String typeString) {
 		return parse(typeString, Thread.currentThread().getContextClassLoader());
 	}
@@ -371,7 +386,11 @@ public final class LogicalTypeParser {
 		}
 
 		private int tokenAsInt() {
-			return Integer.valueOf(token().value);
+			try {
+				return Integer.valueOf(token().value);
+			} catch (NumberFormatException e) {
+				throw parsingError("Invalid integer value.", e);
+			}
 		}
 
 		private Keyword tokenAsKeyword() {
@@ -394,7 +413,7 @@ public final class LogicalTypeParser {
 			nextToken();
 			final Token token = token();
 			if (token.type != type) {
-				throw parsingError("Token <" + type.name() + "> expected but was <" + token.type + ">.");
+				throw parsingError("<" + type.name() + "> expected but was <" + token.type + ">.");
 			}
 		}
 
@@ -456,6 +475,7 @@ public final class LogicalTypeParser {
 			} else {
 				logicalType = parseTypeByKeyword().copy(parseNullability());
 			}
+
 			// special case: suffix notation for ARRAY and MULTISET types
 			if (hasNextToken(Keyword.ARRAY)) {
 				nextToken(Keyword.ARRAY);
@@ -464,6 +484,7 @@ public final class LogicalTypeParser {
 				nextToken(Keyword.MULTISET);
 				return new MultisetType(logicalType).copy(parseNullability());
 			}
+
 			return logicalType;
 		}
 

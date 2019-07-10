@@ -128,4 +128,26 @@ public final class UnresolvedUserDefinedType extends LogicalType {
 	public <R> R accept(LogicalTypeVisitor<R> visitor) {
 		return visitor.visit(this);
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		if (!super.equals(o)) {
+			return false;
+		}
+		UnresolvedUserDefinedType that = (UnresolvedUserDefinedType) o;
+		return Objects.equals(catalog, that.catalog) &&
+			Objects.equals(database, that.database) &&
+			typeIdentifier.equals(that.typeIdentifier);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(super.hashCode(), catalog, database, typeIdentifier);
+	}
 }

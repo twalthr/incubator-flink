@@ -20,6 +20,7 @@ package org.apache.flink.table.types;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -51,7 +52,9 @@ import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResol
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -77,120 +80,130 @@ public class LogicalTypeParserTest {
 		return Arrays.asList(
 			new Object[][]{
 
-				{"CHAR", new CharType()},
+				{"CHAR", new CharType(), null},
 
-				{"CHAR NOT NULL", new CharType().copy(false)},
+				{"CHAR NOT NULL", new CharType().copy(false), null},
 
-				{"CHAR NULL", new CharType()},
+				{"CHAR   NOT \t\nNULL", new CharType().copy(false), null},
 
-				{"CHAR(33)", new CharType(33)},
+				{"char not null", new CharType().copy(false), null},
 
-				{"VARCHAR", new VarCharType()},
+				{"CHAR NULL", new CharType(), null},
 
-				{"VARCHAR(33)", new VarCharType(33)},
+				{"CHAR(33)", new CharType(33), null},
 
-				{"STRING", new VarCharType(VarCharType.MAX_LENGTH)},
+				{"VARCHAR", new VarCharType(), null},
 
-				{"BOOLEAN", new BooleanType()},
+				{"VARCHAR(33)", new VarCharType(33), null},
 
-				{"BINARY", new BinaryType()},
+				{"STRING", new VarCharType(VarCharType.MAX_LENGTH), null},
 
-				{"BINARY(33)", new BinaryType(33)},
+				{"BOOLEAN", new BooleanType(), null},
 
-				{"VARBINARY", new VarBinaryType()},
+				{"BINARY", new BinaryType(), null},
 
-				{"VARBINARY(33)", new VarBinaryType(33)},
+				{"BINARY(33)", new BinaryType(33), null},
 
-				{"BYTES", new VarBinaryType(VarBinaryType.MAX_LENGTH)},
+				{"VARBINARY", new VarBinaryType(), null},
 
-				{"DECIMAL", new DecimalType()},
+				{"VARBINARY(33)", new VarBinaryType(33), null},
 
-				{"DEC", new DecimalType()},
+				{"BYTES", new VarBinaryType(VarBinaryType.MAX_LENGTH), null},
 
-				{"NUMERIC", new DecimalType()},
+				{"DECIMAL", new DecimalType(), null},
 
-				{"DECIMAL(10)", new DecimalType(10)},
+				{"DEC", new DecimalType(), null},
 
-				{"DEC(10)", new DecimalType(10)},
+				{"NUMERIC", new DecimalType(), null},
 
-				{"NUMERIC(10)", new DecimalType(10)},
+				{"DECIMAL(10)", new DecimalType(10), null},
 
-				{"DECIMAL(10, 3)", new DecimalType(10, 3)},
+				{"DEC(10)", new DecimalType(10), null},
 
-				{"DEC(10, 3)", new DecimalType(10, 3)},
+				{"NUMERIC(10)", new DecimalType(10), null},
 
-				{"NUMERIC(10, 3)", new DecimalType(10, 3)},
+				{"DECIMAL(10, 3)", new DecimalType(10, 3), null},
 
-				{"TINYINT", new TinyIntType()},
+				{"DEC(10, 3)", new DecimalType(10, 3), null},
 
-				{"SMALLINT", new SmallIntType()},
+				{"NUMERIC(10, 3)", new DecimalType(10, 3), null},
 
-				{"INTEGER", new IntType()},
+				{"TINYINT", new TinyIntType(), null},
 
-				{"INT", new IntType()},
+				{"SMALLINT", new SmallIntType(), null},
 
-				{"BIGINT", new BigIntType()},
+				{"INTEGER", new IntType(), null},
 
-				{"FLOAT", new FloatType()},
+				{"INT", new IntType(), null},
 
-				{"DOUBLE", new DoubleType()},
+				{"BIGINT", new BigIntType(), null},
 
-				{"DOUBLE PRECISION", new DoubleType()},
+				{"FLOAT", new FloatType(), null},
 
-				{"DATE", new DateType()},
+				{"DOUBLE", new DoubleType(), null},
 
-				{"TIME", new TimeType()},
+				{"DOUBLE PRECISION", new DoubleType(), null},
 
-				{"TIME(3)", new TimeType(3)},
+				{"DATE", new DateType(), null},
 
-				{"TIME WITHOUT TIME ZONE", new TimeType()},
+				{"TIME", new TimeType(), null},
 
-				{"TIME(3) WITHOUT TIME ZONE", new TimeType(3)},
+				{"TIME(3)", new TimeType(3), null},
 
-				{"TIMESTAMP", new TimestampType()},
+				{"TIME WITHOUT TIME ZONE", new TimeType(), null},
 
-				{"TIMESTAMP(3)", new TimestampType(3)},
+				{"TIME(3) WITHOUT TIME ZONE", new TimeType(3), null},
 
-				{"TIMESTAMP WITHOUT TIME ZONE", new TimestampType()},
+				{"TIMESTAMP", new TimestampType(), null},
 
-				{"TIMESTAMP(3) WITHOUT TIME ZONE", new TimestampType(3)},
+				{"TIMESTAMP(3)", new TimestampType(3), null},
 
-				{"TIMESTAMP WITH TIME ZONE", new ZonedTimestampType()},
+				{"TIMESTAMP WITHOUT TIME ZONE", new TimestampType(), null},
 
-				{"TIMESTAMP(3) WITH TIME ZONE", new ZonedTimestampType(3)},
+				{"TIMESTAMP(3) WITHOUT TIME ZONE", new TimestampType(3), null},
 
-				{"TIMESTAMP WITH LOCAL TIME ZONE", new LocalZonedTimestampType()},
+				{"TIMESTAMP WITH TIME ZONE", new ZonedTimestampType(), null},
 
-				{"TIMESTAMP(3) WITH LOCAL TIME ZONE", new LocalZonedTimestampType(3)},
+				{"TIMESTAMP(3) WITH TIME ZONE", new ZonedTimestampType(3), null},
+
+				{"TIMESTAMP WITH LOCAL TIME ZONE", new LocalZonedTimestampType(), null},
+
+				{"TIMESTAMP(3) WITH LOCAL TIME ZONE", new LocalZonedTimestampType(3), null},
 
 				{
 					"INTERVAL YEAR",
-					new YearMonthIntervalType(YearMonthResolution.YEAR)
+					new YearMonthIntervalType(YearMonthResolution.YEAR),
+					null
 				},
 
 				{
 					"INTERVAL YEAR(4)",
-					new YearMonthIntervalType(YearMonthResolution.YEAR, 4)
+					new YearMonthIntervalType(YearMonthResolution.YEAR, 4),
+					null
 				},
 
 				{
 					"INTERVAL MONTH",
-					new YearMonthIntervalType(YearMonthResolution.MONTH)
+					new YearMonthIntervalType(YearMonthResolution.MONTH),
+					null
 				},
 
 				{
 					"INTERVAL YEAR TO MONTH",
-					new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH)
+					new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH),
+					null
 				},
 
 				{
 					"INTERVAL YEAR(4) TO MONTH",
-					new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH, 4)
+					new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH, 4),
+					null
 				},
 
 				{
 					"INTERVAL DAY(2) TO SECOND(3)",
-					new DayTimeIntervalType(DayTimeResolution.DAY_TO_SECOND, 2, 3)
+					new DayTimeIntervalType(DayTimeResolution.DAY_TO_SECOND, 2, 3),
+					null
 				},
 
 				{
@@ -198,40 +211,43 @@ public class LogicalTypeParserTest {
 					new DayTimeIntervalType(
 						DayTimeResolution.HOUR_TO_SECOND,
 						DayTimeIntervalType.DEFAULT_DAY_PRECISION,
-						3)
+						3),
+					null
 				},
 
 				{
 					"INTERVAL MINUTE",
-					new DayTimeIntervalType(DayTimeResolution.MINUTE)
+					new DayTimeIntervalType(DayTimeResolution.MINUTE),
+					null
 				},
 
-				{"ARRAY<TIMESTAMP(3) WITH LOCAL TIME ZONE>", new ArrayType(new LocalZonedTimestampType(3))},
+				{"ARRAY<TIMESTAMP(3) WITH LOCAL TIME ZONE>", new ArrayType(new LocalZonedTimestampType(3)), null},
 
-				{"ARRAY<INT NOT NULL>", new ArrayType(new IntType(false))},
+				{"ARRAY<INT NOT NULL>", new ArrayType(new IntType(false)), null},
 
-				{"INT ARRAY", new ArrayType(new IntType())},
+				{"INT ARRAY", new ArrayType(new IntType()), null},
 
-				{"INT NOT NULL ARRAY", new ArrayType(new IntType(false))},
+				{"INT NOT NULL ARRAY", new ArrayType(new IntType(false)), null},
 
-				{"INT ARRAY NOT NULL", new ArrayType(false, new IntType())},
+				{"INT ARRAY NOT NULL", new ArrayType(false, new IntType()), null},
 
-				{"MULTISET<INT NOT NULL>", new MultisetType(new IntType(false))},
+				{"MULTISET<INT NOT NULL>", new MultisetType(new IntType(false)), null},
 
-				{"INT MULTISET", new MultisetType(new IntType())},
+				{"INT MULTISET", new MultisetType(new IntType()), null},
 
-				{"INT NOT NULL MULTISET", new MultisetType(new IntType(false))},
+				{"INT NOT NULL MULTISET", new MultisetType(new IntType(false)), null},
 
-				{"INT MULTISET NOT NULL", new MultisetType(false, new IntType())},
+				{"INT MULTISET NOT NULL", new MultisetType(false, new IntType()), null},
 
-				{"MAP<BIGINT, BOOLEAN>", new MapType(new BigIntType(), new BooleanType())},
+				{"MAP<BIGINT, BOOLEAN>", new MapType(new BigIntType(), new BooleanType()), null},
 
 				{
 					"ROW<f0 INT NOT NULL, f1 BOOLEAN>",
 					new RowType(
 						Arrays.asList(
 							new RowType.RowField("f0", new IntType(false)),
-							new RowType.RowField("f1", new BooleanType())))
+							new RowType.RowField("f1", new BooleanType()))),
+					null
 				},
 
 				{
@@ -239,29 +255,34 @@ public class LogicalTypeParserTest {
 					new RowType(
 						Arrays.asList(
 							new RowType.RowField("f0", new IntType(false)),
-							new RowType.RowField("f1", new BooleanType())))
+							new RowType.RowField("f1", new BooleanType()))),
+					null
 				},
 
 				{
 					"ROW<`f0` INT>",
 					new RowType(
-						Collections.singletonList(new RowType.RowField("f0", new IntType())))
+						Collections.singletonList(new RowType.RowField("f0", new IntType()))),
+					null
 				},
 
 				{
 					"ROW(`f0` INT)",
 					new RowType(
-						Collections.singletonList(new RowType.RowField("f0", new IntType())))
+						Collections.singletonList(new RowType.RowField("f0", new IntType()))),
+					null
 				},
 
 				{
 					"ROW<>",
-					new RowType(Collections.emptyList())
+					new RowType(Collections.emptyList()),
+					null
 				},
 
 				{
 					"ROW()",
-					new RowType(Collections.emptyList())
+					new RowType(Collections.emptyList()),
+					null
 				},
 
 				{
@@ -269,30 +290,47 @@ public class LogicalTypeParserTest {
 					new RowType(
 						Arrays.asList(
 							new RowType.RowField("f0", new IntType(false), "This is a comment."),
-							new RowType.RowField("f1", new BooleanType(), "This as well.")))
+							new RowType.RowField("f1", new BooleanType(), "This as well."))),
+					null
 				},
 
-				{"NULL", new NullType()},
+				{"NULL", new NullType(), null},
 
 				{
 					createAnyType(LogicalTypeParserTest.class).asSerializableString(),
-					createAnyType(LogicalTypeParserTest.class)
+					createAnyType(LogicalTypeParserTest.class),
+					null
 				},
 
-				{"cat.db.MyType", new UnresolvedUserDefinedType("cat", "db", "MyType")},
+				{"cat.db.MyType", new UnresolvedUserDefinedType("cat", "db", "MyType"), null},
 
-				{"`db`.`MyType`", new UnresolvedUserDefinedType(null, "db", "MyType")},
+				{"`db`.`MyType`", new UnresolvedUserDefinedType(null, "db", "MyType"), null},
 
-				{"MyType", new UnresolvedUserDefinedType(null, null, "MyType")},
+				{"MyType", new UnresolvedUserDefinedType(null, null, "MyType"), null},
 
-				{"ARRAY<MyType>", new ArrayType(new UnresolvedUserDefinedType(null, null, "MyType"))},
+				{"ARRAY<MyType>", new ArrayType(new UnresolvedUserDefinedType(null, null, "MyType")), null},
 
 				{
 					"ROW<f0 MyType, f1 `c`.`d`.`t`>",
 					RowType.of(
 						new UnresolvedUserDefinedType(null, null, "MyType"),
-						new UnresolvedUserDefinedType("c", "d", "t"))
+						new UnresolvedUserDefinedType("c", "d", "t")),
+					null
 				},
+
+				// error message testing
+
+				{"ROW<`f0", null, "Unexpected end"},
+
+				{"ROW<`f0`", null, "Unexpected end"},
+
+				{"VARCHAR(test)", null, "<LITERAL_INT> expected"},
+
+				{"VARCHAR(33333333333)", null, "Invalid integer value"},
+
+				{"ROW<field INT, field2>", null, "<KEYWORD> expected"},
+
+				{"ANY('unknown.class', '')", null, "Unable to restore the ANY type"}
 			}
 		);
 	}
@@ -303,20 +341,40 @@ public class LogicalTypeParserTest {
 	@Parameter(1)
 	public LogicalType type;
 
+	@Parameter(2)
+	public String errorMessage;
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
+
 	@Test
 	public void testParsing() {
-		assertThat(
-			LogicalTypeParser.parse(typeString),
-			equalTo(type));
+		if (errorMessage == null) {
+			assertThat(
+				LogicalTypeParser.parse(typeString),
+				equalTo(type));
+		}
 	}
 
 	@Test
 	public void testSerializableParsing() {
-		if (!hasRoot(type, UNRESOLVED) &&
-				type.getChildren().stream().noneMatch(t -> hasRoot(t, UNRESOLVED))) {
-			assertThat(
-				LogicalTypeParser.parse(type.asSerializableString()),
-				equalTo(type));
+		if (errorMessage == null) {
+			if (!hasRoot(type, UNRESOLVED) &&
+					type.getChildren().stream().noneMatch(t -> hasRoot(t, UNRESOLVED))) {
+				assertThat(
+					LogicalTypeParser.parse(type.asSerializableString()),
+					equalTo(type));
+			}
+		}
+	}
+
+	@Test
+	public void testErrorMessage() {
+		if (errorMessage != null) {
+			thrown.expect(ValidationException.class);
+			thrown.expectMessage(errorMessage);
+
+			LogicalTypeParser.parse(typeString);
 		}
 	}
 
