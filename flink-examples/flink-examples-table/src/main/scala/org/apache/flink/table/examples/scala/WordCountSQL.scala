@@ -56,6 +56,6 @@ object WordCountSQL {
   //     USER DATA TYPES
   // *************************************************************************
 
-  case class WC(word: String, frequency: Long)
+  case class WC(var word: String, var frequency: Long)
 
 }
