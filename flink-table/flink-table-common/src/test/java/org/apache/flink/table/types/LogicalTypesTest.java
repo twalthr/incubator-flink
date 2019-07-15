@@ -512,13 +512,13 @@ public class LogicalTypesTest {
 	@Test
 	public void testStructuredType() {
 		testAll(
-			createUserType(true),
+			createUserType(true, true),
 			"`cat`.`db`.`User`",
 			"`cat`.`db`.`User`",
 			new Class[]{Row.class, User.class},
 			new Class[]{Row.class, Human.class, User.class},
 			new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE},
-			createUserType(false)
+			createUserType(true, false)
 		);
 
 		testConversions(
@@ -527,7 +527,7 @@ public class LogicalTypesTest {
 			new Class[]{Row.class, Human.class});
 
 		// not every Human is User
-		assertFalse(createUserType(true).supportsInputConversion(Human.class));
+		assertFalse(createUserType(true, true).supportsInputConversion(Human.class));
 
 		// User is not implementing SpecialHuman
 		assertFalse(createHumanType(true).supportsInputConversion(User.class));
@@ -646,6 +646,28 @@ public class LogicalTypesTest {
 		testInvalidStringSerializability(varBinaryType);
 	}
 
+	@Test
+	public void testUnregisteredStructuredType() {
+		final StructuredType structuredType = createUserType(false, true);
+
+		testEquality(structuredType, createUserType(false, false));
+
+		testNullability(structuredType);
+
+		testJavaSerializability(structuredType);
+
+		testInvalidStringSerializability(structuredType);
+
+		testStringSummary(structuredType, User.class.getName());
+
+		testConversions(
+			structuredType,
+			new Class[]{Row.class, User.class},
+			new Class[]{Row.class, Human.class, User.class});
+
+		testChildren(structuredType, new LogicalType[]{UDT_NAME_TYPE, UDT_SETTING_TYPE});
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private static void testAll(
@@ -744,10 +766,10 @@ public class LogicalTypesTest {
 	}
 
 	private DistinctType createDistinctType(String typeName) {
-		return new DistinctType.Builder(
+		return DistinctType.newInstance(
 				ObjectIdentifier.of("cat", "db", typeName),
 				new DecimalType(10, 2))
-			.setDescription("Money type desc.")
+			.description("Money type desc.")
 			.build();
 	}
 
@@ -756,27 +778,37 @@ public class LogicalTypesTest {
 	private static final LogicalType UDT_SETTING_TYPE = new IntType();
 
 	private StructuredType createHumanType(boolean useDifferentImplementation) {
-		return new StructuredType.Builder(
+		return StructuredType.newInstance(
 				ObjectIdentifier.of("cat", "db", "Human"),
+				useDifferentImplementation ? SpecialHuman.class : Human.class
+			)
+			.attributes(
 				Collections.singletonList(
 					new StructuredType.StructuredAttribute("name", UDT_NAME_TYPE, "Description.")))
-			.setDescription("Human type desc.")
-			.setFinal(false)
-			.setInstantiable(false)
-			.setImplementationClass(useDifferentImplementation ? SpecialHuman.class : Human.class)
+			.description("Human type desc.")
+			.isFinal(false)
+			.isInstantiable(false)
 			.build();
 	}
 
-	private StructuredType createUserType(boolean isFinal) {
-		return new StructuredType.Builder(
+	private StructuredType createUserType(boolean isRegistered, boolean isFinal) {
+		final StructuredType.Builder builder;
+		if (isRegistered) {
+			builder = StructuredType.newInstance(
 				ObjectIdentifier.of("cat", "db", "User"),
+				User.class);
+		} else {
+			builder = StructuredType.newInstance(
+				User.class);
+		}
+		return builder
+			.attributes(
 				Collections.singletonList(
 					new StructuredType.StructuredAttribute("setting", UDT_SETTING_TYPE)))
-			.setDescription("User type desc.")
-			.setFinal(isFinal)
-			.setInstantiable(true)
-			.setImplementationClass(User.class)
-			.setSuperType(createHumanType(false))
+			.description("User type desc.")
+			.isFinal(isFinal)
+			.isInstantiable(true)
+			.superType(createHumanType(false))
 			.build();
 	}
 

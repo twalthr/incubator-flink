@@ -20,8 +20,18 @@ package org.apache.flink.table.examples.java;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.Label;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.MethodVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.Type;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.util.Preconditions;
+
+import java.io.IOException;
+import java.util.ArrayList;
 
 /**
  * Simple example that shows how the Batch SQL API is used in Java.
@@ -37,7 +47,43 @@ public class WordCountSQL {
 	//     PROGRAM
 	// *************************************************************************
 
+	private static ClassReader getClassReader(Class<?> cls) {
+		String className = cls.getName().replaceFirst("^.*\\.", "") + ".class";
+		try {
+			return new ClassReader(cls.getResourceAsStream(className));
+		} catch (IOException e) {
+			throw new RuntimeException("Could not create ClassReader: " + e.getMessage(), e);
+		}
+	}
+
 	public static void main(String[] args) throws Exception {
+
+		String s = Type.getConstructorDescriptor(WordCountSQL.WC.class.getDeclaredConstructors()[1]);
+
+		ArrayList<String> fields = new ArrayList<>();
+
+		getClassReader(WordCountSQL.WC.class).accept(new ClassVisitor(Opcodes.ASM6) {
+
+			@Override
+			public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+				return new MethodVisitor(Opcodes.ASM6) {
+					@Override
+					public void visitLocalVariable(String name, String descriptor, String signature, Label start, Label end, int index) {
+						super.visitLocalVariable(name, descriptor, signature, start, end, index);
+					}
+				};
+			}
+		}, 0);
+
+		System.out.println();
+
+//		MethodHandle handle = MethodHandles.lookup().findConstructor(
+//			org.apache.flink.table.examples.scala.WordCountSQL.WC.class,
+//			MethodType.methodType(void.class, String.class, long.class));
+//
+//		handle.bindTo()
+
+
 
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -47,6 +93,12 @@ public class WordCountSQL {
 			new WC("Hello", 1),
 			new WC("Ciao", 1),
 			new WC("Hello", 1));
+
+		Class c = org.apache.flink.table.examples.scala.WordCountSQL.WC.class;
+
+		Class c2 = Class.forName("org.apache.flink.table.examples.scala.WordCountSQL$WC$");
+
+		org.apache.flink.table.examples.scala.WordCountSQL.WC wc = new org.apache.flink.table.examples.scala.WordCountSQL.WC("", 12);
 
 		// register the DataSet as table "WordCount"
 		tEnv.registerDataSet("WordCount", input, "word, frequency");
@@ -75,8 +127,10 @@ public class WordCountSQL {
 		public WC() {}
 
 		public WC(String word, long frequency) {
-			this.word = word;
-			this.frequency = frequency;
+			long i = frequency % 2;
+			Preconditions.checkArgument(frequency > i);
+			this.word = Preconditions.checkNotNull(word, "test" + i);
+			this.frequency = frequency + i;
 		}
 
 		@Override
