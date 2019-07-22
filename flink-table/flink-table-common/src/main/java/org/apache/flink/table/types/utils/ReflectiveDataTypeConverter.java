@@ -27,7 +27,11 @@ import org.apache.flink.shaded.asm6.org.objectweb.asm.MethodVisitor;
 import org.apache.flink.shaded.asm6.org.objectweb.asm.Opcodes;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -57,15 +61,35 @@ public final class ReflectiveDataTypeConverter {
 
 	private static final int CURRENT_VERSION = 1;
 
+	private static final int NO_DECIMAL_PRECISION = -1;
+
+	private static final int NO_DECIMAL_SCALE = -1;
+
+	private static final int NO_SECOND_PRECISION = -1;
+
 	private static final List<String> ALWAYS_ANY_TYPE_PREFIXES = Arrays.asList("java", "scala");
 
 	private final int version;
 
 	private final boolean allowAny;
 
-	private ReflectiveDataTypeConverter(int version, boolean allowAny) {
+	private final int defaultDecimalPrecision;
+
+	private final int defaultDecimalScale;
+
+	private final int defaultSecondPrecision;
+
+	private ReflectiveDataTypeConverter(
+			int version,
+			boolean allowAny,
+			int defaultDecimalPrecision,
+			int defaultDecimalScale,
+			int defaultSecondPrecision) {
 		this.version = version;
 		this.allowAny = allowAny;
+		this.defaultDecimalPrecision = defaultDecimalPrecision;
+		this.defaultDecimalScale = defaultDecimalScale;
+		this.defaultSecondPrecision = defaultSecondPrecision;
 	}
 
 	public static Builder newInstance() {
@@ -115,20 +139,16 @@ public final class ReflectiveDataTypeConverter {
 	private DataType extractStructuredType(Type type) {
 		final List<Type> hierarchy = collectTypeHierarchy(type);
 
-		extractStructuredTypeHierarchy(hierarchy);
-
-		// TODO HIER WEITER MACHEN!!!
-
-		return null;
+		return extractStructuredTypeHierarchy(asClassType(type), hierarchy);
 	}
 
 	/**
 	 * Creates a {@link StructuredType} if all types in the hierarchy of types meet the
 	 * requirements of a {@link StructuredType}.
 	 */
-	private static DataType extractStructuredTypeHierarchy(List<Type> hierarchy) {
+	private DataType extractStructuredTypeHierarchy(Class<?> clazz, List<Type> hierarchy) {
 
-//		final StructuredType.Builder builder = StructuredType.newInstance();
+		final StructuredType.Builder builder = StructuredType.newInstance(clazz);
 
 		// traverse hierarchy from supertype to subtype and collect fields while traversing
 		final List<Field> superFields = new ArrayList<>();
@@ -153,7 +173,7 @@ public final class ReflectiveDataTypeConverter {
 	 *
 	 * <p>Adds its own fields to the given list of fields.
 	 */
-	private static void extractStructuredType(Type type, List<Field> superFields) {
+	private DataType extractStructuredType(@Nullable StructuredType superType, Type type, List<Field> superFields) {
 		final Class<?> clazz = asClassType(type);
 
 		validateStructuredClass(clazz);
@@ -163,6 +183,35 @@ public final class ReflectiveDataTypeConverter {
 		validateStructuredFields(clazz, superFields, fields);
 
 		superFields.addAll(fields);
+
+
+	}
+
+	@Override
+	public String toString() {
+		return String.format(
+			"%s(version=%d, allowAny=%b, defaultDecimalPrecision=%d, defaultDecimalScale=%d, defaultSecondPrecision=%d)",
+			getClass().getName(), version, allowAny, defaultDecimalPrecision, defaultDecimalScale, defaultSecondPrecision);
+	}
+
+	private DataType createStructuredType(@Nullable StructuredType superType, Class<?> clazz, List<Field> fields) {
+		final StructuredType.Builder builder = StructuredType.newInstance(clazz);
+		// extracted types are always nullable
+		builder.isNullable(true);
+		// extracted types cannot be extended
+		builder.isFinal(true);
+		// instantiation depends on the underlying class
+		builder.isInstantiable(Modifier.isAbstract(clazz.getModifiers()));
+		// comparision is not supported yet
+		builder.comparision(StructuredComparision.NONE);
+		// debugging information
+		builder.description(String.format("Extracted from %s using %s.", clazz.getName(), this.toString()));
+
+		if (superType != null) {
+			builder.superType(superType);
+		}
+
+
 	}
 
 	/**
@@ -569,11 +618,17 @@ public final class ReflectiveDataTypeConverter {
 	/**
 	 * Builder for creating an instance of {@link ReflectiveDataTypeConverter}.
 	 */
-	public static class Builder {
+	public static final class Builder {
 
 		private int version = ReflectiveDataTypeConverter.CURRENT_VERSION;
 
 		private boolean allowAny = false;
+
+		private int defaultDecimalPrecision = NO_DECIMAL_PRECISION;
+
+		private int defaultDecimalScale = NO_DECIMAL_SCALE;
+
+		private int defaultSecondPrecision = NO_SECOND_PRECISION;
 
 		public Builder() {
 			// default constructor for fluent definition
@@ -600,8 +655,32 @@ public final class ReflectiveDataTypeConverter {
 			return this;
 		}
 
+		/**
+		 * Sets a default precision and scale for all decimals that occur. By default, decimals are
+		 * not extracted.
+		 */
+		public Builder defaultDecimal(int precision, int scale) {
+			this.defaultDecimalPrecision = precision;
+			this.defaultDecimalScale = scale;
+			return this;
+		}
+
+		/**
+		 * Sets a default second fraction for timestamps and intervals that occur. By default, the
+		 * maximum is extracted.
+		 */
+		public Builder defaultSecondPrecision(int precision) {
+			this.defaultSecondPrecision = precision;
+			return this;
+		}
+
 		public ReflectiveDataTypeConverter build() {
-			return new ReflectiveDataTypeConverter(version, allowAny);
+			return new ReflectiveDataTypeConverter(
+				version,
+				allowAny,
+				defaultDecimalPrecision,
+				defaultDecimalScale,
+				defaultSecondPrecision);
 		}
 	}
 }
