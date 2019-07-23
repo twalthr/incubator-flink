@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.types;
 
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.utils.ReflectiveDataTypeConverter;
 
@@ -29,9 +31,13 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
 import javax.annotation.Nullable;
 
+import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Consumer;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -43,13 +49,23 @@ import static org.junit.Assert.assertThat;
 @RunWith(Parameterized.class)
 public class ReflectiveDataTypeConverterTest {
 
-	@Test
-	public void testCalaa() {
-//		final ReflectiveDataTypeConverter converter = ReflectiveDataTypeConverter.newInstance().build();
-//
-//		final ParameterizedType type = (ParameterizedType) TestFunction.class.getGenericSuperclass();
-//
-//		converter.createTypeVariableMapping(type);
+	@Parameters
+	public static List<TestSpec> testData() {
+		return Arrays.asList(
+
+			TestSpec
+				.forClass(Integer.class)
+				.expectDataType(DataTypes.INT()),
+
+			TestSpec
+				.forClass(BigDecimal.class)
+				.expectErrorMessage(""),
+
+			TestSpec
+				.forClass(BigDecimal.class)
+				.configuration(b -> b.defaultDecimal(12, 4))
+				.expectDataType(DataTypes.DECIMAL(12, 4))
+		);
 	}
 
 	@Parameter
@@ -60,7 +76,7 @@ public class ReflectiveDataTypeConverterTest {
 
 	@Test
 	public void testClassExtraction() {
-		if (testSpec.clazz != null && testSpec.expectedDataType != null) {
+		if (testSpec.argument == TestSpec.NO_ARGUMENT && testSpec.expectedDataType != null) {
 			assertThat(
 				getConfiguredExtractor().extractDataType(testSpec.clazz),
 				equalTo(testSpec.expectedDataType));
@@ -69,12 +85,32 @@ public class ReflectiveDataTypeConverterTest {
 
 	@Test
 	public void testArgumentExtraction() {
-		if (testSpec.function != null && testSpec.expectedDataType != null) {
+		if (testSpec.argument != TestSpec.NO_ARGUMENT && testSpec.expectedDataType != null) {
 			assertThat(
-				getConfiguredExtractor().extractDataType(testSpec.clazz),
+				getConfiguredExtractor().extractDataType(testSpec.clazz, testSpec.argument),
 				equalTo(testSpec.expectedDataType));
 		}
 	}
+
+	@Test
+	public void testClassExtractionError() {
+		if (testSpec.argument == TestSpec.NO_ARGUMENT && testSpec.expectedErrorMessage != null) {
+			thrown.expect(ValidationException.class);
+			thrown.expectMessage(testSpec.expectedErrorMessage);
+			getConfiguredExtractor().extractDataType(testSpec.clazz);
+		}
+	}
+
+	@Test
+	public void testArgumentExtractionError() {
+		if (testSpec.argument != TestSpec.NO_ARGUMENT && testSpec.expectedErrorMessage != null) {
+			thrown.expect(ValidationException.class);
+			thrown.expectMessage(testSpec.expectedErrorMessage);
+			getConfiguredExtractor().extractDataType(testSpec.clazz, testSpec.argument);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	private ReflectiveDataTypeConverter getConfiguredExtractor() {
 		final ReflectiveDataTypeConverter.Builder builder = ReflectiveDataTypeConverter.newInstance();
@@ -84,13 +120,13 @@ public class ReflectiveDataTypeConverterTest {
 		return builder.build();
 	}
 
-	// --------------------------------------------------------------------------------------------
-
 	private static class TestSpec {
 
-		final @Nullable Class<?> clazz;
+		static final int NO_ARGUMENT = -1;
 
-		final @Nullable Cl function;
+		final Class<?> clazz;
+
+		final int argument;
 
 		@Nullable Consumer<ReflectiveDataTypeConverter.Builder> configuration;
 
@@ -98,22 +134,17 @@ public class ReflectiveDataTypeConverterTest {
 
 		@Nullable String expectedErrorMessage;
 
-		TestSpec(Class<?> clazz) {
+		TestSpec(Class<?> clazz, int argument) {
 			this.clazz = clazz;
-			this.function = null;
-		}
-
-		TestSpec(TableFunction<?> function) {
-			this.clazz = null;
-			this.function = function;
+			this.argument = argument;
 		}
 
 		static TestSpec forClass(Class<?> clazz) {
-			return new TestSpec(clazz);
+			return new TestSpec(clazz, NO_ARGUMENT);
 		}
 
-		static TestSpec forArgumentOf(TableFunction<?> function) {
-			return new TestSpec(function);
+		static TestSpec forArgumentOf(Class<?> clazz, int argument) {
+			return new TestSpec(clazz, argument);
 		}
 
 		TestSpec configuration(Consumer<ReflectiveDataTypeConverter.Builder> configuration) {

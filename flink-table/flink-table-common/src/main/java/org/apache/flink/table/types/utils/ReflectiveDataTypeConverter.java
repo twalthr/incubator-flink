@@ -27,7 +27,6 @@ import org.apache.flink.shaded.asm6.org.objectweb.asm.MethodVisitor;
 import org.apache.flink.shaded.asm6.org.objectweb.asm.Opcodes;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
 
@@ -41,6 +40,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -61,11 +61,7 @@ public final class ReflectiveDataTypeConverter {
 
 	private static final int CURRENT_VERSION = 1;
 
-	private static final int NO_DECIMAL_PRECISION = -1;
-
-	private static final int NO_DECIMAL_SCALE = -1;
-
-	private static final int NO_SECOND_PRECISION = -1;
+	private static final int UNDEFINED = -1;
 
 	private static final List<String> ALWAYS_ANY_TYPE_PREFIXES = Arrays.asList("java", "scala");
 
@@ -78,6 +74,8 @@ public final class ReflectiveDataTypeConverter {
 	private final int defaultDecimalScale;
 
 	private final int defaultSecondPrecision;
+
+	private final int defaultYearPrecision;
 
 	private ReflectiveDataTypeConverter(
 			int version,
@@ -134,6 +132,65 @@ public final class ReflectiveDataTypeConverter {
 		// TODO use reflection-based extraction for MAP and ARRAY and primitives
 
 		return null;
+	}
+
+	private @Nullable DataType extractPredefinedType(Type type) {
+		// all predefined types are representable as classes
+		if (!(type instanceof Class)) {
+			return null;
+		}
+		final Class<?> clazz = (Class<?>) type;
+
+		// DECIMAL
+		if (clazz.equals(BigDecimal.class)) {
+			if (defaultDecimalPrecision != UNDEFINED && defaultDecimalScale != UNDEFINED) {
+				return DataTypes.DECIMAL(defaultDecimalPrecision, defaultDecimalScale)
+					.bridgedTo(clazz);
+			}
+			throw extractionError("Values of %s need fixed precision and scale.", BigDecimal.class.getName());
+		}
+
+		// TIME
+		else if (clazz.equals(java.sql.Time.class) || clazz.equals(java.time.LocalTime.class)) {
+			if (defaultSecondPrecision != UNDEFINED) {
+				return DataTypes.TIME(defaultSecondPrecision)
+					.bridgedTo(clazz);
+			}
+		}
+
+		// TIMESTAMP
+		else if (clazz.equals(java.sql.Timestamp.class) || clazz.equals(java.time.LocalDateTime.class)) {
+			if (defaultSecondPrecision != UNDEFINED) {
+				return DataTypes.TIMESTAMP(defaultSecondPrecision)
+					.bridgedTo(clazz);
+			}
+		}
+
+		// TIMESTAMP WITH TIME ZONE
+		else if (clazz.equals(java.time.OffsetDateTime.class)) {
+			if (defaultSecondPrecision != UNDEFINED) {
+				return DataTypes.TIMESTAMP_WITH_TIME_ZONE(defaultSecondPrecision)
+					.bridgedTo(clazz);
+			}
+		}
+
+		// TIMESTAMP WITH LOCAL TIME ZONE
+		else if (clazz.equals(java.time.Instant.class)) {
+			if (defaultSecondPrecision != UNDEFINED) {
+				return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(defaultSecondPrecision)
+					.bridgedTo(clazz);
+			}
+		}
+
+		// INTERVAL SECOND
+		else if (clazz.equals(java.time.Duration.class)) {
+			if (defaultSecondPrecision != UNDEFINED) {
+				return DataTypes.INTERVAL(DataTypes.SECOND(defaultSecondPrecision))
+					.bridgedTo(clazz);
+			}
+		}
+
+		return ClassDataTypeConverter.extractDataType(clazz).orElse(null);
 	}
 
 	private DataType extractStructuredType(Type type) {
@@ -624,11 +681,13 @@ public final class ReflectiveDataTypeConverter {
 
 		private boolean allowAny = false;
 
-		private int defaultDecimalPrecision = NO_DECIMAL_PRECISION;
+		private int defaultDecimalPrecision = UNDEFINED;
 
-		private int defaultDecimalScale = NO_DECIMAL_SCALE;
+		private int defaultDecimalScale = UNDEFINED;
 
-		private int defaultSecondPrecision = NO_SECOND_PRECISION;
+		private int defaultSecondPrecision = UNDEFINED;
+
+		private int defaultYearPrecision = UNDEFINED;
 
 		public Builder() {
 			// default constructor for fluent definition
@@ -671,6 +730,15 @@ public final class ReflectiveDataTypeConverter {
 		 */
 		public Builder defaultSecondPrecision(int precision) {
 			this.defaultSecondPrecision = precision;
+			return this;
+		}
+
+		/**
+		 * Sets a default year precision for year-month intervals. By default, an extraction of
+		 * year-month intervals is not supported.
+		 */
+		public Builder defaultYearPrecision(int precision) {
+			this.defaultYearPrecision = precision;
 			return this;
 		}
 
