@@ -20,11 +20,8 @@ package org.apache.flink.table.types;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.utils.ReflectiveDataTypeConverter;
 
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -167,5 +164,5 @@ public class ReflectiveDataTypeConverterTest {
 	// Test classes for extraction
 	// --------------------------------------------------------------------------------------------
 
-	public static class SimpleStructured
+//	public static class SimpleStructured
 }
