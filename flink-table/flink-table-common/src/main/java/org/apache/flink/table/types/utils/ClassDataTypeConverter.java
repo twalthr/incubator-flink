@@ -23,7 +23,9 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.SymbolType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.types.Row;
 
 import java.math.BigDecimal;
@@ -41,7 +43,7 @@ public final class ClassDataTypeConverter {
 	private static final Map<String, DataType> defaultDataTypes = new HashMap<>();
 	static {
 		// NOTE: this list explicitly excludes data types that need further parameters
-		// exclusions: DECIMAL, INTERVAL YEAR TO MONTH, MAP, MULTISET, ROW, NULL, ANY
+		// exclusions: DECIMAL, MAP, MULTISET, ROW, NULL, ANY
 		addDefaultDataType(String.class, DataTypes.STRING());
 		addDefaultDataType(Boolean.class, DataTypes.BOOLEAN());
 		addDefaultDataType(boolean.class, DataTypes.BOOLEAN());
@@ -65,7 +67,16 @@ public final class ClassDataTypeConverter {
 		addDefaultDataType(java.time.LocalDateTime.class, DataTypes.TIMESTAMP(9));
 		addDefaultDataType(java.time.OffsetDateTime.class, DataTypes.TIMESTAMP_WITH_TIME_ZONE(9));
 		addDefaultDataType(java.time.Instant.class, DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9));
-		addDefaultDataType(java.time.Duration.class, DataTypes.INTERVAL(DataTypes.SECOND(9)));
+		addDefaultDataType(
+			java.time.Duration.class,
+			DataTypes.INTERVAL(
+				DataTypes.DAY(DayTimeIntervalType.MAX_DAY_PRECISION),
+				DataTypes.SECOND(9)));
+		addDefaultDataType(
+			java.time.Period.class,
+			DataTypes.INTERVAL(
+				DataTypes.YEAR(YearMonthIntervalType.MAX_PRECISION),
+				DataTypes.SECOND(9)));
 	}
 
 	private static void addDefaultDataType(Class<?> clazz, DataType rootType) {

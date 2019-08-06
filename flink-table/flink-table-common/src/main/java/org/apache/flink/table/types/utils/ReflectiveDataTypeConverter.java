@@ -742,6 +742,15 @@ public final class ReflectiveDataTypeConverter {
 			return this;
 		}
 
+		/**
+		 * Sets a default day precision for year-month intervals. By default, an extraction of
+		 * year-month intervals is not supported.
+		 */
+		public Builder defaultDayPrecision(int precision) {
+			this.defaultYearPrecision = precision;
+			return this;
+		}
+
 		public ReflectiveDataTypeConverter build() {
 			return new ReflectiveDataTypeConverter(
 				version,
