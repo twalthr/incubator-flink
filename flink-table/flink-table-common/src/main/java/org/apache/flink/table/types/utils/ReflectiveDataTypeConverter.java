@@ -28,7 +28,6 @@ import org.apache.flink.shaded.asm6.org.objectweb.asm.Opcodes;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
 
 import javax.annotation.Nullable;
 
@@ -74,8 +73,6 @@ public final class ReflectiveDataTypeConverter {
 	private final int defaultDecimalScale;
 
 	private final int defaultSecondPrecision;
-
-	private final int defaultYearPrecision;
 
 	private ReflectiveDataTypeConverter(
 			int version,
@@ -193,56 +190,56 @@ public final class ReflectiveDataTypeConverter {
 		return ClassDataTypeConverter.extractDataType(clazz).orElse(null);
 	}
 
-	private DataType extractStructuredType(Type type) {
-		final List<Type> hierarchy = collectTypeHierarchy(type);
+//	private DataType extractStructuredType(Type type) {
+//		final List<Type> hierarchy = collectTypeHierarchy(type);
+//
+//		return extractStructuredTypeHierarchy(asClassType(type), hierarchy);
+//	}
+//
+//	/**
+//	 * Creates a {@link StructuredType} if all types in the hierarchy of types meet the
+//	 * requirements of a {@link StructuredType}.
+//	 */
+//	private DataType extractStructuredTypeHierarchy(Class<?> clazz, List<Type> hierarchy) {
+//
+//		final StructuredType.Builder builder = StructuredType.newInstance(clazz);
+//
+//		// traverse hierarchy from supertype to subtype and collect fields while traversing
+//		final List<Field> superFields = new ArrayList<>();
+//		for (int i = hierarchy.size() - 1; i >= 0; i++) {
+//			final Type type = hierarchy.get(i);
+//			extractStructuredType(type, superFields);
+//		}
+//
+//		// most concrete type must be instantiable
+//		final Class<?> concreteType = asClassType(hierarchy.get(0));
+//		if (Modifier.isAbstract(concreteType.getModifiers())) {
+//			throw extractionError(
+//				"Most concrete class in hierarchy %s must not be abstract.",
+//				concreteType.getName());
+//		}
+//
+//		return null;
+//	}
 
-		return extractStructuredTypeHierarchy(asClassType(type), hierarchy);
-	}
-
-	/**
-	 * Creates a {@link StructuredType} if all types in the hierarchy of types meet the
-	 * requirements of a {@link StructuredType}.
-	 */
-	private DataType extractStructuredTypeHierarchy(Class<?> clazz, List<Type> hierarchy) {
-
-		final StructuredType.Builder builder = StructuredType.newInstance(clazz);
-
-		// traverse hierarchy from supertype to subtype and collect fields while traversing
-		final List<Field> superFields = new ArrayList<>();
-		for (int i = hierarchy.size() - 1; i >= 0; i++) {
-			final Type type = hierarchy.get(i);
-			extractStructuredType(type, superFields);
-		}
-
-		// most concrete type must be instantiable
-		final Class<?> concreteType = asClassType(hierarchy.get(0));
-		if (Modifier.isAbstract(concreteType.getModifiers())) {
-			throw extractionError(
-				"Most concrete class in hierarchy %s must not be abstract.",
-				concreteType.getName());
-		}
-
-		return null;
-	}
-
-	/**
-	 * Validates if a type qualifies as a {@link StructuredType}.
-	 *
-	 * <p>Adds its own fields to the given list of fields.
-	 */
-	private DataType extractStructuredType(@Nullable StructuredType superType, Type type, List<Field> superFields) {
-		final Class<?> clazz = asClassType(type);
-
-		validateStructuredClass(clazz);
-
-		final List<Field> fields = collectStructuredDeclaredFields(clazz);
-		
-		validateStructuredFields(clazz, superFields, fields);
-
-		superFields.addAll(fields);
-
-
-	}
+//	/**
+//	 * Validates if a type qualifies as a {@link StructuredType}.
+//	 *
+//	 * <p>Adds its own fields to the given list of fields.
+//	 */
+//	private DataType extractStructuredType(@Nullable StructuredType superType, Type type, List<Field> superFields) {
+//		final Class<?> clazz = asClassType(type);
+//
+//		validateStructuredClass(clazz);
+//
+//		final List<Field> fields = collectStructuredDeclaredFields(clazz);
+//
+//		validateStructuredFields(clazz, superFields, fields);
+//
+//		superFields.addAll(fields);
+//
+//
+//	}
 
 	@Override
 	public String toString() {
@@ -251,25 +248,25 @@ public final class ReflectiveDataTypeConverter {
 			getClass().getName(), version, allowAny, defaultDecimalPrecision, defaultDecimalScale, defaultSecondPrecision);
 	}
 
-	private DataType createStructuredType(@Nullable StructuredType superType, Class<?> clazz, List<Field> fields) {
-		final StructuredType.Builder builder = StructuredType.newInstance(clazz);
-		// extracted types are always nullable
-		builder.isNullable(true);
-		// extracted types cannot be extended
-		builder.isFinal(true);
-		// instantiation depends on the underlying class
-		builder.isInstantiable(Modifier.isAbstract(clazz.getModifiers()));
-		// comparision is not supported yet
-		builder.comparision(StructuredComparision.NONE);
-		// debugging information
-		builder.description(String.format("Extracted from %s using %s.", clazz.getName(), this.toString()));
-
-		if (superType != null) {
-			builder.superType(superType);
-		}
-
-
-	}
+//	private DataType createStructuredType(@Nullable StructuredType superType, Class<?> clazz, List<Field> fields) {
+//		final StructuredType.Builder builder = StructuredType.newInstance(clazz);
+//		// extracted types are always nullable
+//		builder.isNullable(true);
+//		// extracted types cannot be extended
+//		builder.isFinal(true);
+//		// instantiation depends on the underlying class
+//		builder.isInstantiable(Modifier.isAbstract(clazz.getModifiers()));
+//		// comparision is not supported yet
+//		builder.comparision(StructuredComparision.NONE);
+//		// debugging information
+//		builder.description(String.format("Extracted from %s using %s.", clazz.getName(), this.toString()));
+//
+//		if (superType != null) {
+//			builder.superType(superType);
+//		}
+//
+//
+//	}
 
 	/**
 	 * Checks whether field requirements for a {@link StructuredType} are met.
