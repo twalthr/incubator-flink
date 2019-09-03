@@ -23,9 +23,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.SymbolType;
-import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.types.Row;
 
 import java.math.BigDecimal;
@@ -69,14 +67,12 @@ public final class ClassDataTypeConverter {
 		addDefaultDataType(java.time.Instant.class, DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9));
 		addDefaultDataType(
 			java.time.Duration.class,
-			DataTypes.INTERVAL(
-				DataTypes.DAY(DayTimeIntervalType.MAX_DAY_PRECISION),
-				DataTypes.SECOND(9)));
+			DataTypes.INTERVAL(DataTypes.SECOND(9)));
 		addDefaultDataType(
 			java.time.Period.class,
 			DataTypes.INTERVAL(
-				DataTypes.YEAR(YearMonthIntervalType.MAX_PRECISION),
-				DataTypes.SECOND(9)));
+				DataTypes.YEAR(4),
+				DataTypes.MONTH()));
 	}
 
 	private static void addDefaultDataType(Class<?> clazz, DataType rootType) {
