@@ -22,6 +22,13 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.types.annotations.DataTypeHint;
+import org.apache.flink.table.types.annotations.ExtractionContext;
+import org.apache.flink.table.types.annotations.FunctionHint;
+import org.apache.flink.types.Row;
+
+import java.math.BigDecimal;
 
 /**
  * Simple example for demonstrating the use of the Table API for a Word Count in Java.
@@ -55,6 +62,41 @@ public class WordCountTable {
 		DataSet<WC> result = tEnv.toDataSet(filtered, WC.class);
 
 		result.print();
+	}
+
+	// function level
+	@FunctionHint(
+		input = {
+			@DataTypeHint("Test"),
+			@DataTypeHint(extract = true, context = @ExtractionContext(version = 1)),
+			@DataTypeHint(value = "Test", bridgedTo = BigDecimal.class)
+		},
+		accumulator = @DataTypeHint(value = "Test", bridgedTo = BigDecimal.class),
+		output = @DataTypeHint(value = "Test", bridgedTo = BigDecimal.class)
+	)
+	public static class MyFunc extends TableFunction<Row> {
+
+		// method level
+		@FunctionHint(
+			input = @DataTypeHint("Test")
+		)
+		public void eval(Object... args) {
+			// ...
+		}
+
+		// parameter level
+		public void eval(@DataTypeHint("Test") Object arg) {
+			// ...
+		}
+
+		// structured type level
+		static class T {
+
+			int field1;
+
+			@DataTypeHint("Test")
+			Object field;
+		}
 	}
 
 	// *************************************************************************

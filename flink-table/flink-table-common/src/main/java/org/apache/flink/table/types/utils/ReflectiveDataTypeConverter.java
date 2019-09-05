@@ -21,25 +21,41 @@ package org.apache.flink.table.types.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.Label;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.MethodVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.Opcodes;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.apache.flink.shaded.asm6.org.objectweb.asm.Type.getConstructorDescriptor;
 
 /**
  * Reflection-based utility that analyzes a given {@link java.lang.reflect.Type} to extract a (possibly
@@ -93,7 +109,8 @@ public final class ReflectiveDataTypeConverter {
 		} catch (Throwable t) {
 			throw new ValidationException(
 				String.format(
-					"Could not extract a data type from %s for %s at position %d.",
+					"Could not extract a data type from %s for %s at position %d. " +
+						"Please pass the required data type manually or allow ANY types.",
 					type.toString(),
 					baseClass.getName(),
 					genericPos),
@@ -107,9 +124,110 @@ public final class ReflectiveDataTypeConverter {
 		} catch (Throwable t) {
 			throw new ValidationException(
 				String.format(
-					"Could not extract a data type from %s. Please pass the required data type manually.",
+					"Could not extract a data type from %s. " +
+						"Please pass the required data type manually or allow ANY types.",
 					type.toString()),
 				t);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Builder for creating an instance of {@link ReflectiveDataTypeConverter}.
+	 */
+	public static final class Builder {
+
+		private int version = ReflectiveDataTypeConverter.CURRENT_VERSION;
+
+		private boolean allowAny = false;
+
+		private List<String> anyPatterns = Collections.emptyList();
+
+		private int defaultDecimalPrecision = UNDEFINED;
+
+		private int defaultDecimalScale = UNDEFINED;
+
+		private int defaultYearPrecision = UNDEFINED;
+
+		private int defaultSecondPrecision = UNDEFINED;
+
+		private Map<String, Class<?>> predefinedTypeVariables = Collections.emptyMap();
+
+		public Builder() {
+			// default constructor for fluent definition
+		}
+
+		/**
+		 * Logic version for future backwards compatibility. Current version by default.
+		 */
+		public Builder version(int version) {
+			this.version = version;
+			return this;
+		}
+
+		/**
+		 * Defines whether {@link DataTypes#ANY(TypeInformation)} should be used for classes that
+		 * cannot be mapped to any SQL-like type. Set to {@code false} by default, which means that
+		 * an exception is thrown for unmapped types.
+		 *
+		 * <p>For example, {@link java.math.BigDecimal} cannot be mapped because the SQL standard
+		 * defines that decimals have a fixed precision and scale.
+		 */
+		public Builder allowAny(boolean allowAny) {
+			this.allowAny = allowAny;
+			return this;
+		}
+
+		/**
+		 * Patterns that force the usage of an ANY type. A pattern is a prefix or a fully qualified
+		 * name of {@link Class#getName()} excluding arrays.
+		 */
+		public Builder anyPatterns(List<String> anyPatterns) {
+			this.anyPatterns = anyPatterns;
+			return this;
+		}
+
+		/**
+		 * Sets a default precision and scale for all decimals that occur. By default, decimals are
+		 * not extracted.
+		 */
+		public Builder defaultDecimal(int precision, int scale) {
+			this.defaultDecimalPrecision = precision;
+			this.defaultDecimalScale = scale;
+			return this;
+		}
+
+		/**
+		 * Sets a default year precision for year-month intervals. If set to 0, a month interval is
+		 * assumed.
+		 *
+		 * @see ClassDataTypeConverter
+		 */
+		public Builder defaultYearPrecision(int precision) {
+			this.defaultYearPrecision = precision;
+			return this;
+		}
+
+		/**
+		 * Sets a default second fraction for timestamps and intervals that occur.
+		 *
+		 * @see ClassDataTypeConverter
+		 */
+		public Builder defaultSecondPrecision(int precision) {
+			this.defaultSecondPrecision = precision;
+			return this;
+		}
+
+		public ReflectiveDataTypeConverter build() {
+			return new ReflectiveDataTypeConverter(
+				version,
+				allowAny,
+				anyPatterns,
+				defaultDecimalPrecision,
+				defaultDecimalScale,
+				defaultYearPrecision,
+				defaultSecondPrecision);
 		}
 	}
 
@@ -142,6 +260,13 @@ public final class ReflectiveDataTypeConverter {
 		// resolve type variables
 		if (type instanceof TypeVariable) {
 			type = resolveVariable(typeHierarchy, (TypeVariable) type);
+		}
+		// still a type variable
+		if (type instanceof TypeVariable) {
+			throw extractionError(
+				"Unresolved type variable '%s'. A data type cannot be extracted from a type variable. " +
+					"The original content might have been erased due to Java type erasure.",
+				type.toString());
 		}
 
 		// skip extraction for patterns
@@ -176,7 +301,7 @@ public final class ReflectiveDataTypeConverter {
 		} catch (Throwable t) {
 			throw extractionError(
 				t,
-				"Unsupported type '%s'. Interpreting it as a structured type was also not successful.",
+				"Could not extract a data type from '%s'. Interpreting it as a structured type was also not successful.",
 				type.toString());
 		}
 	}
@@ -313,28 +438,251 @@ public final class ReflectiveDataTypeConverter {
 		if (clazz == null) {
 			throw extractionError("Not a class type.");
 		}
+
 		validateStructuredClass(clazz);
+
 		final List<Field> fields = collectStructuredFields(clazz);
 
-		return null;
+		if (fields.isEmpty()) {
+			throw extractionError(
+				"Class '%s' has no fields.",
+				clazz.getName());
+		}
+
+		boolean requireAssigningConstructor = false;
+		for (Field field : fields) {
+			validateStructuredFieldReadability(clazz, field);
+			final boolean isMutable = isStructuredFieldMutable(clazz, field);
+			// not all fields are mutable, a default constructor is not enough
+			if (!isMutable) {
+				requireAssigningConstructor = true;
+			}
+		}
+
+		final AssigningConstructor constructor = extractAssigningConstructor(clazz, fields);
+		if (requireAssigningConstructor && constructor == null) {
+			throw extractionError(
+				"Class '%s' has immutable fields and thus requires a constructor that is publicly " +
+					"accessible and assigns all fields: %s",
+				clazz.getName(),
+				fields.stream().map(Field::getName).collect(Collectors.joining(", ")));
+		}
+
+		final Map<String, DataType> fieldDataTypes = new HashMap<>();
+		final List<Type> structuredTypeHierarchy = collectTypeHierarchy(Object.class, type);
+		for (Field field : fields) {
+			final Type fieldType = field.getGenericType();
+			final List<Type> fieldTypeHierarchy = new ArrayList<>();
+			// hierarchy until structured type
+			fieldTypeHierarchy.addAll(typeHierarchy);
+			// hierarchy of structured type
+			fieldTypeHierarchy.addAll(structuredTypeHierarchy);
+			// field type
+			fieldTypeHierarchy.add(fieldType);
+			final DataType fieldDataType = extractDataTypeOrAny(fieldTypeHierarchy, fieldType);
+			fieldDataTypes.put(field.getName(), fieldDataType);
+		}
+
+		final List<StructuredAttribute> attributes;
+		// field order is defined by assigning constructor
+		if (constructor != null) {
+			attributes = constructor.parameterNames
+				.stream()
+				.map(name -> {
+					final LogicalType logicalType = fieldDataTypes.get(name).getLogicalType();
+					return new StructuredAttribute(name, logicalType);
+				})
+				.collect(Collectors.toList());
+		}
+		// field order is sorted
+		else {
+			attributes = fieldDataTypes.keySet()
+				.stream()
+				.sorted()
+				.map(name -> {
+					final LogicalType logicalType = fieldDataTypes.get(name).getLogicalType();
+					return new StructuredAttribute(name, logicalType);
+				})
+				.collect(Collectors.toList());
+		}
+
+		final StructuredType.Builder builder = StructuredType.newInstance(clazz);
+		builder.attributes(attributes);
+		builder.isFinal(true); // anonymous structured types should not allow inheritance
+		builder.isInstantiable(true);
+		return new FieldsDataType(builder.build(), clazz, fieldDataTypes);
 	}
 
 	// --------------------------------------------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Validates the characteristics of a class for a {@link StructuredType} such as accessibility.
+	 */
 	private static void validateStructuredClass(Class<?> clazz) {
 		final int m = clazz.getModifiers();
 		if (Modifier.isAbstract(m)) {
-			throw extractionError("Class %s must not be abstract.", clazz.getName());
+			throw extractionError("Class '%s' must not be abstract.", clazz.getName());
 		}
 		if (!Modifier.isPublic(m)) {
-			throw extractionError("Class %s is not public.", clazz.getName());
+			throw extractionError("Class '%s' is not public.", clazz.getName());
 		}
 		if (clazz.getEnclosingClass() != null &&
 				(clazz.getDeclaringClass() == null || !Modifier.isStatic(m))) {
-			throw extractionError("Class %s is a not a static, globally accessible class.", clazz.getName());
+			throw extractionError("Class '%s' is a not a static, globally accessible class.", clazz.getName());
 		}
+	}
+
+	/**
+	 * Checks if a field is mutable or immutable. Returns {@code true} if the field is properly
+	 * mutable. Returns {@code false} if it is properly immutable.
+	 */
+	private static boolean isStructuredFieldMutable(Class<?> clazz, Field field) {
+		final int m = field.getModifiers();
+
+		// field is immutable
+		if (Modifier.isFinal(m)) {
+			return false;
+		}
+		// field is directly mutable
+		if (Modifier.isPublic(m)) {
+			return true;
+		}
+		// field has setters by which it is mutable
+		if (hasFieldSetter(clazz, field)) {
+			return true;
+		}
+
+		throw extractionError(
+			"Field '%s' of class '%s' is mutable but is neither publicly accessible nor does it have " +
+				"a corresponding setter method.",
+			field.getName(),
+			clazz.getName());
+	}
+
+	/**
+	 * Checks for a field setters. The logic is as broad as possible to support both Java and Scala
+	 * in different flavors.
+	 */
+	private static boolean hasFieldSetter(Class<?> clazz, Field field) {
+		final String normalizedFieldName = field.getName().toUpperCase().replaceAll("_", "");
+
+		final List<Method> methods = collectStructuredMethods(clazz);
+		for (Method method : methods) {
+
+			// check name:
+			// set<Name>(type)
+			// <Name>(type)
+			// <Name>_$eq(type) for Scala
+			final String normalizedMethodName = method.getName().toUpperCase().replaceAll("_", "");
+			if (!normalizedMethodName.equals("SET" + normalizedFieldName) &&
+					!normalizedMethodName.equals(normalizedFieldName) &&
+					!normalizedMethodName.equals(normalizedFieldName + "$EQ")) {
+				continue;
+			}
+
+			// check return type:
+			// void or the declaring class
+			final Class<?> returnType = method.getReturnType();
+			if (returnType != Void.TYPE && returnType != clazz) {
+				continue;
+			}
+
+			// check parameters:
+			// one parameter that has the same (or primitive) type of the field
+			if (method.getParameterCount() != 1 ||
+					!boxPrimitive(method.getGenericParameterTypes()[0]).equals(field.getGenericType())) {
+				continue;
+			}
+
+			// matching setter found
+			return true;
+		}
+
+		// no setter found
+		return false;
+	}
+
+	private static final Map<Class<?>, Class<?>> primitiveWrapperMap = new HashMap<>();
+	static {
+		primitiveWrapperMap.put(Boolean.TYPE, Boolean.class);
+		primitiveWrapperMap.put(Byte.TYPE, Byte.class);
+		primitiveWrapperMap.put(Character.TYPE, Character.class);
+		primitiveWrapperMap.put(Short.TYPE, Short.class);
+		primitiveWrapperMap.put(Integer.TYPE, Integer.class);
+		primitiveWrapperMap.put(Long.TYPE, Long.class);
+		primitiveWrapperMap.put(Double.TYPE, Double.class);
+		primitiveWrapperMap.put(Float.TYPE, Float.class);
+	}
+
+	private static Type boxPrimitive(Type type) {
+		if (type instanceof Class && ((Class) type).isPrimitive()) {
+			return primitiveWrapperMap.get(type);
+		}
+		return type;
+	}
+
+	/**
+	 * Validates if a field is properly readable either directly or through a getter.
+	 */
+	private static void validateStructuredFieldReadability(Class<?> clazz, Field field) {
+		final int m = field.getModifiers();
+
+		// field is accessible
+		if (Modifier.isPublic(m)) {
+			return;
+		}
+
+		// field needs a getter
+		if (!hasStructuredFieldGetter(clazz, field)) {
+			throw extractionError(
+				"Field '%s' of class '%s' is neither publicly accessible nor does it have " +
+					"a corresponding getter method.",
+				field.getName(),
+				clazz.getName());
+		}
+	}
+
+	/**
+	 * Checks for a field getters. The logic is as broad as possible to support both Java and Scala
+	 * in different flavors.
+	 */
+	private static boolean hasStructuredFieldGetter(Class<?> clazz, Field field) {
+		final String normalizedFieldName = field.getName().toUpperCase().replaceAll("_", "");
+
+		final List<Method> methods = collectStructuredMethods(clazz);
+		for (Method method : methods) {
+			// check name:
+			// get<Name>()
+			// is<Name>()
+			// <Name>() for Scala
+			final String normalizedMethodName = method.getName().toUpperCase().replaceAll("_", "");
+			if (!normalizedMethodName.equals("GET" + normalizedFieldName) &&
+					!normalizedMethodName.equals("IS" + normalizedFieldName) &&
+					!normalizedMethodName.equals(normalizedFieldName)) {
+				continue;
+			}
+
+			// check return type:
+			// equal to field type
+			final Type returnType = method.getGenericReturnType();
+			if (!returnType.equals(field.getGenericType())) {
+				continue;
+			}
+
+			// check parameters:
+			// no parameters
+			if (method.getParameterCount() != 0) {
+				continue;
+			}
+
+			// matching getter found
+			return true;
+		}
+
+		// no getter found
+		return false;
 	}
 
 	private static @Nullable Class<?> toClass(Type type) {
@@ -368,18 +716,40 @@ public final class ReflectiveDataTypeConverter {
 			currentType = currentClass.getGenericSuperclass();
 			currentClass = toClass(currentType);
 		}
-		typeHierarchy.add(currentType);
+		if (currentClass != Object.class) {
+			typeHierarchy.add(currentType);
+		}
 		return typeHierarchy;
 	}
 
 	private static List<Field> collectStructuredFields(Class<?> clazz) {
-		final Field[] fields = clazz.getDeclaredFields();
-		return Stream.of(fields)
-			.filter(field -> {
-				final int m = field.getModifiers();
-				return !Modifier.isStatic(m) && !Modifier.isTransient(m);
-			})
-			.collect(Collectors.toList());
+		final List<Field> fields = new ArrayList<>();
+		while (clazz != Object.class) {
+			final Field[] declaredFields = clazz.getDeclaredFields();
+			Stream.of(declaredFields)
+				.filter(field -> {
+					final int m = field.getModifiers();
+					return !Modifier.isStatic(m) && !Modifier.isTransient(m);
+				})
+				.forEach(fields::add);
+			clazz = clazz.getSuperclass();
+		}
+		return fields;
+	}
+
+	private static List<Method> collectStructuredMethods(Class<?> clazz) {
+		final List<Method> methods = new ArrayList<>();
+		while (clazz != Object.class) {
+			final Method[] declaredMethods = clazz.getDeclaredMethods();
+			Stream.of(declaredMethods)
+				.filter(field -> {
+					final int m = field.getModifiers();
+					return Modifier.isPublic(m) && !Modifier.isNative(m) && !Modifier.isAbstract(m);
+				})
+				.forEach(methods::add);
+			clazz = clazz.getSuperclass();
+		}
+		return methods;
 	}
 
 	private static Type resolveVariable(List<Type> typeHierarchy, TypeVariable<?> variable) {
@@ -421,65 +791,6 @@ public final class ReflectiveDataTypeConverter {
 		return extractionError(null, cause, args);
 	}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 	@Override
 	public String toString() {
 		return String.format(
@@ -488,100 +799,144 @@ public final class ReflectiveDataTypeConverter {
 	}
 
 	// --------------------------------------------------------------------------------------------
+	// Assignable Constructor Utilities
+	// --------------------------------------------------------------------------------------------
+
+	private static class AssigningConstructor {
+		final Constructor<?> constructor;
+		final List<String> parameterNames;
+
+		AssigningConstructor(Constructor<?> constructor, List<String> parameterNames) {
+			this.constructor = constructor;
+			this.parameterNames = parameterNames;
+		}
+	}
 
 	/**
-	 * Builder for creating an instance of {@link ReflectiveDataTypeConverter}.
+	 * Checks whether the given constructor takes all of the given fields with matching (possibly
+	 * primitive) type and name. An assigning constructor can define the order of fields.
 	 */
-	public static final class Builder {
+	private static @Nullable AssigningConstructor extractAssigningConstructor(
+			Class<?> clazz,
+			List<Field> fields) {
+		AssigningConstructor foundConstructor = null;
+		for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
+			if (!Modifier.isPublic(constructor.getModifiers())) {
+				continue;
+			}
+			final List<String> parameterNames = extractConstructorParameterNames(clazz, constructor, fields);
+			if (parameterNames != null) {
+				if (foundConstructor != null) {
+					throw extractionError(
+						"Multiple constructors found that assign all fields for class '%s'.",
+						clazz.getName());
+				}
+				foundConstructor = new AssigningConstructor(constructor, parameterNames);
+			}
+		}
+		return foundConstructor;
+	}
 
-		private int version = ReflectiveDataTypeConverter.CURRENT_VERSION;
+	/**
+	 * Extracts ordered parameter names from a constructor that takes all of the given fields with matching (possibly
+	 * primitive) type and name.
+	 */
+	private static @Nullable List<String> extractConstructorParameterNames(
+			Class<?> clazz,
+			Constructor<?> constructor,
+			List<Field> fields) {
+		final Type[] parameterTypes = constructor.getGenericParameterTypes();
+		List<String> parameterNames = Stream.of(constructor.getParameters())
+			.map(Parameter::getName)
+			.collect(Collectors.toList());
 
-		private boolean allowAny = false;
+		// by default parameter names are "arg0, arg1, arg2, ..." if compiler flag is not set
+		// so we need to extract them manually if possible
+		if (parameterNames.stream().allMatch(n -> n.startsWith("arg"))) {
+			final ParameterExtractor extractor = new ParameterExtractor(constructor);
+			getClassReader(clazz).accept(extractor, 0);
 
-		private List<String> anyPatterns = Collections.emptyList();
-
-		private int defaultDecimalPrecision = UNDEFINED;
-
-		private int defaultDecimalScale = UNDEFINED;
-
-		private int defaultYearPrecision = UNDEFINED;
-
-		private int defaultSecondPrecision = UNDEFINED;
-
-		public Builder() {
-			// default constructor for fluent definition
+			final List<String> extractedNames = extractor.getParameterNames();
+			if (extractedNames.size() == 0 || !extractedNames.get(0).equals("this")) {
+				return null;
+			}
+			// remove "this" and additional local variables
+			parameterNames = extractedNames.subList(1, Math.min(fields.size() + 1, extractedNames.size()));
 		}
 
-		/**
-		 * Logic version for future backwards compatibility. Current version by default.
-		 */
-		public Builder version(int version) {
-			this.version = version;
-			return this;
+		if (parameterNames.size() != fields.size()) {
+			return null;
 		}
 
-		/**
-		 * Defines whether {@link DataTypes#ANY(TypeInformation)} should be used for classes that
-		 * cannot be mapped to any SQL-like type. Set to {@code false} by default, which means that
-		 * an exception is thrown for unmapped types.
-		 *
-		 * <p>For example, {@link java.math.BigDecimal} cannot be mapped because the SQL standard
-		 * defines that decimals have a fixed precision and scale.
-		 */
-		public Builder allowAny(boolean allowAny) {
-			this.allowAny = allowAny;
-			return this;
+		final Map<String, Type> fieldMap = fields.stream()
+			.collect(Collectors.toMap(Field::getName, Field::getGenericType));
+
+		// check that all fields are represented in the parameters of the constructor
+		for (int i = 0; i < parameterNames.size(); i++) {
+			final String parameterName = parameterNames.get(i);
+			final Type fieldType = fieldMap.get(parameterName); // might be null
+			final Type parameterType = parameterTypes[i];
+			// we are tolerant here because frameworks such as Avro accept a boxed type even though
+			// the field is primitive
+			if (!boxPrimitive(parameterType).equals(boxPrimitive(fieldType))) {
+				return null;
+			}
 		}
 
-		/**
-		 * Patterns that force the usage of an ANY type. A pattern is a prefix or a fully qualified
-		 * name of {@link Class#getName()} excluding arrays.
-		 */
-		public Builder anyPatterns(List<String> anyPatterns) {
-			this.anyPatterns = anyPatterns;
-			return this;
+		return parameterNames;
+	}
+
+	private static ClassReader getClassReader(Class<?> cls) {
+		final String className = cls.getName().replaceFirst("^.*\\.", "") + ".class";
+		try {
+			return new ClassReader(cls.getResourceAsStream(className));
+		} catch (IOException e) {
+			throw new IllegalStateException("Could not instantiate ClassReader.", e);
+		}
+	}
+
+	/**
+	 * Extracts the parameter names and descriptors from a constructor. Assuming the existence of a
+	 * local variable table.
+	 *
+	 * <p>For example:
+	 * <pre>
+	 * {@code
+	 * public WC(java.lang.String arg0, long arg1) { // <init> //(Ljava/lang/String;J)V
+	 *   <localVar:index=0 , name=this , desc=Lorg/apache/flink/WC;, sig=null, start=L1, end=L2>
+	 *   <localVar:index=1 , name=word , desc=Ljava/lang/String;, sig=null, start=L1, end=L2>
+	 *   <localVar:index=2 , name=frequency , desc=J, sig=null, start=L1, end=L2>
+	 *   <localVar:index=2 , name=otherLocal , desc=J, sig=null, start=L1, end=L2>
+	 *   <localVar:index=2 , name=otherLocal2 , desc=J, sig=null, start=L1, end=L2>
+	 * }
+	 * </pre>
+	 */
+	private static class ParameterExtractor extends ClassVisitor {
+
+		private final String constructorDescriptor;
+
+		private final List<String> parameterNames = new ArrayList<>();
+
+		public ParameterExtractor(Constructor constructor) {
+			super(Opcodes.ASM6);
+			constructorDescriptor = getConstructorDescriptor(constructor);
 		}
 
-		/**
-		 * Sets a default precision and scale for all decimals that occur. By default, decimals are
-		 * not extracted.
-		 */
-		public Builder defaultDecimal(int precision, int scale) {
-			this.defaultDecimalPrecision = precision;
-			this.defaultDecimalScale = scale;
-			return this;
+		public List<String> getParameterNames() {
+			return parameterNames;
 		}
 
-		/**
-		 * Sets a default year precision for year-month intervals. If set to 0, a month interval is
-		 * assumed.
-		 *
-		 * @see ClassDataTypeConverter
-		 */
-		public Builder defaultYearPrecision(int precision) {
-			this.defaultYearPrecision = precision;
-			return this;
-		}
-
-		/**
-		 * Sets a default second fraction for timestamps and intervals that occur.
-		 *
-		 * @see ClassDataTypeConverter
-		 */
-		public Builder defaultSecondPrecision(int precision) {
-			this.defaultSecondPrecision = precision;
-			return this;
-		}
-
-		public ReflectiveDataTypeConverter build() {
-			return new ReflectiveDataTypeConverter(
-				version,
-				allowAny,
-				anyPatterns,
-				defaultDecimalPrecision,
-				defaultDecimalScale,
-				defaultYearPrecision,
-				defaultSecondPrecision);
+		@Override
+		public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+			if (descriptor.equals(constructorDescriptor)) {
+				return new MethodVisitor(Opcodes.ASM6) {
+					@Override
+					public void visitLocalVariable(String name, String descriptor, String signature, Label start, Label end, int index) {
+						parameterNames.add(name);
+					}
+				};
+			}
+			return super.visitMethod(access, name, descriptor, signature, exceptions);
 		}
 	}
 }

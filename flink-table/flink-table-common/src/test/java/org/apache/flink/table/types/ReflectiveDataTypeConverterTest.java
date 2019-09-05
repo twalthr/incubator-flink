@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.types;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.MapType;
@@ -41,7 +43,9 @@ import org.junit.runners.Parameterized.Parameters;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Type;
+import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,81 +68,120 @@ public class ReflectiveDataTypeConverterTest {
 	public static List<TestSpec> testData() {
 		return Arrays.asList(
 
-//			TestSpec
-//				.forType(Integer.class)
-//				.expectDataType(DataTypes.INT()),
-//
-//			TestSpec
-//				.forType(Integer.class)
-//				.configuration(b -> b.anyPatterns(Collections.singletonList("java.lang.")))
-//				.expectDataType(DataTypes.ANY(new GenericTypeInfo<>(Integer.class))),
-//
-//			TestSpec
-//				.forType(BigDecimal.class)
-//				.expectErrorMessage("need fixed precision and scale"),
-//
-//			TestSpec
-//				.forType(BigDecimal.class)
-//				.configuration(b -> b.defaultDecimal(12, 4))
-//				.expectDataType(DataTypes.DECIMAL(12, 4)),
-//
-//			TestSpec
-//				.forType(java.time.LocalDateTime.class)
-//				.expectDataType(DataTypes.TIMESTAMP(9)),
-//
-//			TestSpec
-//				.forType(java.time.LocalDateTime.class)
-//				.configuration(b -> b.defaultSecondPrecision(3))
-//				.expectDataType(DataTypes.TIMESTAMP(3)),
-//
-//			TestSpec
-//				.forType(java.time.OffsetDateTime.class)
-//				.configuration(b -> b.defaultSecondPrecision(3))
-//				.expectDataType(DataTypes.TIMESTAMP_WITH_TIME_ZONE(3)),
-//
-//			TestSpec
-//				.forType(java.time.Instant.class)
-//				.configuration(b -> b.defaultSecondPrecision(3))
-//				.expectDataType(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
-//
-//			TestSpec
-//				.forType(java.time.Duration.class)
-//				.configuration(b -> b.defaultSecondPrecision(3))
-//				.expectDataType(DataTypes.INTERVAL(DataTypes.SECOND(3))),
-//
-//			TestSpec
-//				.forType(java.time.Period.class)
-//				.configuration(b -> b.defaultYearPrecision(2))
-//				.expectDataType(DataTypes.INTERVAL(DataTypes.YEAR(2), DataTypes.MONTH())),
-//
-//			TestSpec
-//				.forType(java.time.Period.class)
-//				.configuration(b -> b.defaultYearPrecision(0))
-//				.expectDataType(DataTypes.INTERVAL(DataTypes.MONTH())),
-//
-//			TestSpec
-//				.forType(Object[][].class)
-//				.configuration(b -> b.allowAny(true))
-//				.expectDataType(
-//					DataTypes.ARRAY(
-//						DataTypes.ARRAY(
-//							DataTypes.ANY(new GenericTypeInfo<>(Object.class))))),
-//
-//			TestSpec
-//				.forArgumentOf(TableFunction.class, 0, TableFunctionWithMapLevel2.class)
-//				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.BOOLEAN())),
-//
-//			TestSpec
-//				.forArgumentOf(TableFunction.class, 0, TableFunctionWithGenericArray1.class)
-//				.expectDataType(DataTypes.ARRAY(DataTypes.INT())),
-//
-//			TestSpec
-//				.forArgumentOf(TableFunction.class, 0, TableFunctionWithHashMap.class)
-//				.expectErrorMessage("Unsupported type"),
+			TestSpec
+				.forType(Integer.class)
+				.expectDataType(DataTypes.INT()),
+
+			TestSpec
+				.forType(Integer.class)
+				.configuration(b -> b.anyPatterns(Collections.singletonList("java.lang.")))
+				.expectDataType(DataTypes.ANY(new GenericTypeInfo<>(Integer.class))),
+
+			TestSpec
+				.forType(BigDecimal.class)
+				.expectErrorMessage("need fixed precision and scale"),
+
+			TestSpec
+				.forType(BigDecimal.class)
+				.configuration(b -> b.defaultDecimal(12, 4))
+				.expectDataType(DataTypes.DECIMAL(12, 4)),
+
+			TestSpec
+				.forType(java.time.LocalDateTime.class)
+				.expectDataType(DataTypes.TIMESTAMP(9)),
+
+			TestSpec
+				.forType(java.time.LocalDateTime.class)
+				.configuration(b -> b.defaultSecondPrecision(3))
+				.expectDataType(DataTypes.TIMESTAMP(3)),
+
+			TestSpec
+				.forType(java.time.OffsetDateTime.class)
+				.configuration(b -> b.defaultSecondPrecision(3))
+				.expectDataType(DataTypes.TIMESTAMP_WITH_TIME_ZONE(3)),
+
+			TestSpec
+				.forType(java.time.Instant.class)
+				.configuration(b -> b.defaultSecondPrecision(3))
+				.expectDataType(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
+
+			TestSpec
+				.forType(java.time.Duration.class)
+				.configuration(b -> b.defaultSecondPrecision(3))
+				.expectDataType(DataTypes.INTERVAL(DataTypes.SECOND(3))),
+
+			TestSpec
+				.forType(java.time.Period.class)
+				.configuration(b -> b.defaultYearPrecision(2))
+				.expectDataType(DataTypes.INTERVAL(DataTypes.YEAR(2), DataTypes.MONTH())),
+
+			TestSpec
+				.forType(java.time.Period.class)
+				.configuration(b -> b.defaultYearPrecision(0))
+				.expectDataType(DataTypes.INTERVAL(DataTypes.MONTH())),
+
+			TestSpec
+				.forType(Object[][].class)
+				.configuration(b -> b.allowAny(true))
+				.expectDataType(
+					DataTypes.ARRAY(
+						DataTypes.ARRAY(
+							DataTypes.ANY(new GenericTypeInfo<>(Object.class))))),
+
+			TestSpec
+				.forArgumentOf(TableFunction.class, 0, TableFunctionWithMapLevel2.class)
+				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.BOOLEAN())),
+
+			TestSpec
+				.forArgumentOf(TableFunction.class, 0, TableFunctionWithGenericArray1.class)
+				.expectDataType(DataTypes.ARRAY(DataTypes.INT())),
+
+			TestSpec
+				.forArgumentOf(TableFunction.class, 0, TableFunctionWithHashMap.class)
+				.expectErrorMessage("Unsupported type"),
 
 			TestSpec
 				.forType(SimplePojo.class)
-				.expectDataType(getSimplePojoDataType(SimplePojo.class))
+				.expectDataType(getSimplePojoDataType(SimplePojo.class)),
+
+			TestSpec
+				.forType(ComplexPojo.class)
+				.configuration(b -> b.allowAny(true))
+				.expectDataType(getComplexPojoDataType(ComplexPojo.class, SimplePojo.class)),
+
+			TestSpec
+				.forType(SimplePojoWithGeneric.class)
+				.expectErrorMessage("Unresolved type variable 'S'."),
+
+			TestSpec
+				.forArgumentOf(TableFunction.class, 0, TableFunctionWithGenericPojo.class)
+				.configuration(b -> b.allowAny(true))
+				.expectDataType(getComplexPojoDataType(ComplexPojoWithGeneric.class, SimplePojoWithGeneric.class)),
+
+			TestSpec
+				.forArgumentOf(TableFunction.class, 0, TableFunctionWithTuples.class)
+				.expectDataType(getOuterTupleDataType()),
+
+			TestSpec
+				.forType(ComplexPojoWithGettersAndSetters.class)
+				.configuration(b -> b.allowAny(true))
+				.expectDataType(getComplexPojoDataType(ComplexPojoWithGettersAndSetters.class, SimplePojo.class)),
+
+			TestSpec
+				.forType(SimplePojoWithMissingSetter.class)
+				.expectErrorMessage("corresponding setter method"),
+
+			TestSpec
+				.forType(SimplePojoWithMissingGetter.class)
+				.expectErrorMessage("corresponding getter method"),
+
+			TestSpec
+				.forType(SimplePojoWithAssigningConstructor.class)
+				.expectDataType(getSimplePojoDataType(SimplePojoWithAssigningConstructor.class)),
+
+			TestSpec
+				.forType(PojoWithCustomFieldOrder.class)
+				.expectDataType(getPojoWithCustomOrderDataType())
 		);
 	}
 
@@ -269,19 +312,19 @@ public class ReflectiveDataTypeConverterTest {
 		final StructuredType.Builder builder = StructuredType.newInstance(simplePojoClass);
 		builder.attributes(
 			Arrays.asList(
-				new StructuredType.StructuredAttribute("primitiveIntField", new IntType(false)),
 				new StructuredType.StructuredAttribute("intField", new IntType(true)),
-				new StructuredType.StructuredAttribute("stringField", new VarCharType(VarCharType.MAX_LENGTH)),
-				new StructuredType.StructuredAttribute("primitiveBooleanField", new BooleanType())));
-		builder.isInstantiable(true);
+				new StructuredType.StructuredAttribute("primitiveBooleanField", new BooleanType(false)),
+				new StructuredType.StructuredAttribute("primitiveIntField", new IntType(false)),
+				new StructuredType.StructuredAttribute("stringField", new VarCharType(VarCharType.MAX_LENGTH))));
 		builder.isFinal(true);
+		builder.isInstantiable(true);
 		final StructuredType structuredType = builder.build();
 
 		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("primitiveIntField", DataTypes.INT().notNull().bridgedTo(int.class));
 		fields.put("intField", DataTypes.INT());
-		fields.put("stringField", DataTypes.STRING());
 		fields.put("primitiveBooleanField", DataTypes.BOOLEAN().notNull().bridgedTo(boolean.class));
+		fields.put("primitiveIntField", DataTypes.INT().notNull().bridgedTo(int.class));
+		fields.put("stringField", DataTypes.STRING());
 
 		return new FieldsDataType(structuredType, simplePojoClass, fields);
 	}
@@ -290,19 +333,92 @@ public class ReflectiveDataTypeConverterTest {
 		final StructuredType.Builder builder = StructuredType.newInstance(complexPojoClass);
 		builder.attributes(
 			Arrays.asList(
-				new StructuredType.StructuredAttribute("someObject", new TypeInformationAnyType<>(new GenericTypeInfo<>(Object.class))),
-				new StructuredType.StructuredAttribute("mapField", new MapType(new VarCharType(VarCharType.MAX_LENGTH), new IntType())),
-				new StructuredType.StructuredAttribute("simplePojoField", getSimplePojoDataType(simplePojoClass).logicalType)));
+				new StructuredType.StructuredAttribute(
+					"mapField",
+					new MapType(new VarCharType(VarCharType.MAX_LENGTH), new IntType())),
+				new StructuredType.StructuredAttribute(
+					"simplePojoField",
+					getSimplePojoDataType(simplePojoClass).logicalType),
+				new StructuredType.StructuredAttribute(
+					"someObject",
+					new TypeInformationAnyType<>(new GenericTypeInfo<>(Object.class)))));
 		builder.isInstantiable(true);
 		builder.isFinal(true);
 		final StructuredType structuredType = builder.build();
 
 		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("someObject", DataTypes.ANY(new GenericTypeInfo<>(Object.class)));
-		fields.put("mapField", DataTypes.INT());
+		fields.put("mapField", DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()));
 		fields.put("simplePojoField", getSimplePojoDataType(simplePojoClass));
+		fields.put("someObject", DataTypes.ANY(new GenericTypeInfo<>(Object.class)));
 
-		return new FieldsDataType(structuredType, simplePojoClass, fields);
+		return new FieldsDataType(structuredType, complexPojoClass, fields);
+	}
+
+	private static DataType getOuterTupleDataType() {
+		final StructuredType.Builder builder = StructuredType.newInstance(Tuple2.class);
+		builder.attributes(
+			Arrays.asList(
+				new StructuredType.StructuredAttribute(
+					"f0",
+					new IntType()),
+				new StructuredType.StructuredAttribute(
+					"f1",
+					getInnerTupleDataType().logicalType)));
+		builder.isInstantiable(true);
+		builder.isFinal(true);
+		final StructuredType structuredType = builder.build();
+
+		final Map<String, DataType> fields = new HashMap<>();
+		fields.put("f0", DataTypes.INT());
+		fields.put("f1", getInnerTupleDataType());
+
+		return new FieldsDataType(structuredType, Tuple2.class, fields);
+	}
+
+	private static DataType getInnerTupleDataType() {
+		final StructuredType.Builder builder = StructuredType.newInstance(Tuple2.class);
+		builder.attributes(
+			Arrays.asList(
+				new StructuredType.StructuredAttribute(
+					"f0",
+					new VarCharType(VarCharType.MAX_LENGTH)),
+				new StructuredType.StructuredAttribute(
+					"f1",
+					new BooleanType())));
+		builder.isInstantiable(true);
+		builder.isFinal(true);
+		final StructuredType structuredType = builder.build();
+
+		final Map<String, DataType> fields = new HashMap<>();
+		fields.put("f0", DataTypes.STRING());
+		fields.put("f1", DataTypes.BOOLEAN());
+
+		return new FieldsDataType(structuredType, Tuple2.class, fields);
+	}
+
+	private static DataType getPojoWithCustomOrderDataType() {
+		final StructuredType.Builder builder = StructuredType.newInstance(PojoWithCustomFieldOrder.class);
+		builder.attributes(
+			Arrays.asList(
+				new StructuredType.StructuredAttribute(
+					"z",
+					new BigIntType()),
+				new StructuredType.StructuredAttribute(
+					"y",
+					new BooleanType()),
+				new StructuredType.StructuredAttribute(
+					"x",
+					new IntType())));
+		builder.isInstantiable(true);
+		builder.isFinal(true);
+		final StructuredType structuredType = builder.build();
+
+		final Map<String, DataType> fields = new HashMap<>();
+		fields.put("z", DataTypes.BIGINT());
+		fields.put("y", DataTypes.BOOLEAN());
+		fields.put("x", DataTypes.INT());
+
+		return new FieldsDataType(structuredType, PojoWithCustomFieldOrder.class, fields);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -346,15 +462,135 @@ public class ReflectiveDataTypeConverterTest {
 	// --------------------------------------------------------------------------------------------
 
 	public static class ComplexPojo {
-		public Object someObject;
 		public Map<String, Integer> mapField;
 		public SimplePojo simplePojoField;
+		public Object someObject;
 	}
 
 	public static class SimplePojo {
-		public int primitiveIntField;
 		public Integer intField;
-		public String stringField;
 		public boolean primitiveBooleanField;
+		public int primitiveIntField;
+		public String stringField;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public static class ComplexPojoWithGettersAndSetters {
+		private Map<String, Integer> mapField;
+		private SimplePojo simplePojoField;
+		private Object someObject;
+
+		// Java-like
+		public Map<String, Integer> getMapField() {
+			return mapField;
+		}
+
+		public void setMapField(Map<String, Integer> mapField) {
+			this.mapField = mapField;
+		}
+
+		public SimplePojo getSimplePojoField() {
+			return simplePojoField;
+		}
+
+		public void setSimplePojoField(SimplePojo simplePojoField) {
+			this.simplePojoField = simplePojoField;
+		}
+
+		// Scala-like
+		public Object someObject() {
+			return someObject;
+		}
+
+		public void someObject(Object someObject) {
+			this.someObject = someObject;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public static class SimplePojoWithMissingSetter {
+		public Integer intField;
+		public boolean primitiveBooleanField;
+		public int primitiveIntField;
+		private String stringField;
+
+		public String getStringField() {
+			return stringField;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public static class SimplePojoWithMissingGetter {
+		public Integer intField;
+		public boolean primitiveBooleanField;
+		public int primitiveIntField;
+		private String stringField;
+
+		public void setStringField(String stringField) {
+			this.stringField = stringField;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static class TableFunctionWithGenericPojo extends TableFunction<ComplexPojoWithGeneric<String, Integer>> {
+
+	}
+
+	public static class ComplexPojoWithGeneric<S, I> {
+		public Map<S, I> mapField;
+		public SimplePojoWithGeneric<S> simplePojoField;
+		public Object someObject;
+	}
+
+	public static class SimplePojoWithGeneric<S> {
+		public Integer intField;
+		public boolean primitiveBooleanField;
+		public int primitiveIntField;
+		public S stringField;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public static class TableFunctionWithTuples extends TableFunction<Tuple2<Integer, Tuple2<String, Boolean>>> {
+
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public static class SimplePojoWithAssigningConstructor {
+		public final Integer intField;
+		public final boolean primitiveBooleanField;
+		public final int primitiveIntField;
+		public final String stringField;
+
+		public SimplePojoWithAssigningConstructor(
+				Integer intField,
+				boolean primitiveBooleanField,
+				int primitiveIntField,
+				String stringField) {
+			this.intField = intField;
+			this.primitiveBooleanField = primitiveBooleanField;
+			this.primitiveIntField = primitiveIntField;
+			this.stringField = stringField;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public static class PojoWithCustomFieldOrder {
+
+		public Integer x;
+		public Boolean y;
+		public Long z;
+
+		public PojoWithCustomFieldOrder(long z, boolean y, int x) {
+			this.z = z;
+			this.y = y;
+			this.x = x;
+		}
 	}
 }

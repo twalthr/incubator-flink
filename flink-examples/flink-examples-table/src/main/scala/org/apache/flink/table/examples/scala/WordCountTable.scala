@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.examples.scala
 
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.types.utils.ReflectiveDataTypeConverter
 
 /**
   * Simple example for demonstrating the use of the Table API for a Word Count in Scala.
@@ -37,25 +36,44 @@ object WordCountTable {
 
   def main(args: Array[String]): Unit = {
 
-    // set up execution environment
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
+    val dt = ReflectiveDataTypeConverter.newInstance().build().extractDataType(classOf[WC2])
 
-    val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
-    val expr = input.toTable(tEnv)
-    val result = expr
-      .groupBy('word)
-      .select('word, 'frequency.sum as 'frequency)
-      .filter('frequency === 2)
-      .toDataSet[WC]
-
-    result.print()
+    println()
   }
 
   // *************************************************************************
   //     USER DATA TYPES
   // *************************************************************************
 
-  case class WC(word: String, frequency: Long)
+  // works
+  case class WC0(w: java.util.Map[java.lang.Long, String])
+
+  // does not work
+  case class WC1(w: java.util.Map[Long, String])
+
+  // does not work
+  case class WC2(w: Either[String, String])
+
+  // no tuples
+  case class WC(word: String, bool: Boolean, frequency: (Long, Long), either: Either[Long, Boolean], option: Option[Long])
+
+  class W {
+    def x(l: Long, s: String): Unit = {
+
+    }
+  }
+
+  class A[R] {
+    var test: R = _
+
+
+  }
+
+  // LONG
+  class T0 extends A[Long] {
+  }
+
+  class T1 extends A[java.lang.Long] {
+  }
 
 }
