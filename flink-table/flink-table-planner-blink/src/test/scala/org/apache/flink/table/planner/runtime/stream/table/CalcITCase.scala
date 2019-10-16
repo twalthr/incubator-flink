@@ -340,7 +340,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       // Adds columns by flattening
       .addColumns(row(1, "str").flatten())
       // If the added fields have duplicate field name, then the last one is used.
-      .addOrReplaceColumns(concat('c, "_kid") as 'kid, concat('c, "kid") as 'kid)
+      .addOrReplaceColumns('firstname + " " + 'lastname as 'fullname, concat('c, "kid") as 'kid)
       // Existing fields will be replaced.
       .addOrReplaceColumns("concat(c, ' is a kid') as kid")
       // Adds value literal column
@@ -351,7 +351,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .renameColumns('a as 'a2, 'b as 'b2)
       .renameColumns("c as c2")
       // Drops columns
-      .dropColumns('b2)
+      .dropColumns(12 to 34)
       .dropColumns("c2")
 
     val sink = new TestingAppendSink

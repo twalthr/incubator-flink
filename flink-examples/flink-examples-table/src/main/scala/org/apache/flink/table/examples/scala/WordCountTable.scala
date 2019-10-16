@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.examples.scala
 
+import org.apache.flink.api.java.tuple.Tuple
+import org.apache.flink.table.types.annotations.DataTypeHint
 import org.apache.flink.table.types.utils.ReflectiveDataTypeConverter
+import org.apache.flink.types.Row
 
 /**
   * Simple example for demonstrating the use of the Table API for a Word Count in Scala.
@@ -36,10 +39,42 @@ object WordCountTable {
 
   def main(args: Array[String]): Unit = {
 
-    val dt = ReflectiveDataTypeConverter.newInstance().build().extractDataType(classOf[WC2])
+    import scala.reflect.runtime.universe._
+
+    val tt = typeTag[TestXZZZ]
+
+    def paramInfo[T](x: T)(implicit tag: TypeTag[T]): Unit = {
+      val targs = tag.tpe match { case TypeRef(_, _, args) => args }
+      println(s"type of $x has type arguments $targs")
+    }
+
+    paramInfo(TestXZZZ)
+
+    val dt = ReflectiveDataTypeConverter.newInstance().build().extractDataType(classOf[TestXZZZ])
 
     println()
   }
+
+  case class TestXZZZ(strng: String, s: Long, i: java.util.Map[Long, Long])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // *************************************************************************
   //     USER DATA TYPES

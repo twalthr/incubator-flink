@@ -18,17 +18,10 @@
 
 package org.apache.flink.table.examples.java;
 
-import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.annotations.DataTypeHint;
-import org.apache.flink.table.types.annotations.ExtractionContext;
 import org.apache.flink.table.types.annotations.FunctionHint;
-import org.apache.flink.types.Row;
-
-import java.math.BigDecimal;
 
 /**
  * Simple example for demonstrating the use of the Table API for a Word Count in Java.
@@ -43,61 +36,89 @@ public class WordCountTable {
 	//     PROGRAM
 	// *************************************************************************
 
+
+
+	public static class TableFunction<String> {
+		@FunctionHint(input = {@DataTypeHint("INT"), @DataTypeHint("BOOLEAN")})
+		@FunctionHint(input = {@DataTypeHint("STRING")})
+		public void eval(Object... args) {
+			///...
+		}
+	}
+
 	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
-		DataSet<WC> input = env.fromElements(
-				new WC("Hello", 1),
-				new WC("Ciao", 1),
-				new WC("Hello", 1));
-
-		Table table = tEnv.fromDataSet(input);
-
-		Table filtered = table
-				.groupBy("word")
-				.select("word, frequency.sum as frequency")
-				.filter("frequency = 2");
-
-		DataSet<WC> result = tEnv.toDataSet(filtered, WC.class);
-
-		result.print();
+//		tEnv.registerFunction("tf", new HiveWrapper(HiveUDF.class));
+//
+//
+//		vvv(12, true);
+//
+//		DataSet<WC> input = env.fromElements(
+//				new WC("Hello", 1),
+//				new WC("Ciao", 1),
+//				new WC("Hello", 1));
+//
+//		Table table = tEnv.fromDataSet(input);
+//
+//		Table filtered = table
+//				.groupBy("word")
+//				.select("word, frequency.sum as frequency")
+//				.filter("frequency = 2");
+//
+//		DataSet<WC> result = tEnv.toDataSet(filtered, WC.class);
+//
+//		result.print();
 	}
 
-	// function level
-	@FunctionHint(
-		input = {
-			@DataTypeHint("Test"),
-			@DataTypeHint(extract = true, context = @ExtractionContext(version = 1)),
-			@DataTypeHint(value = "Test", bridgedTo = BigDecimal.class)
-		},
-		accumulator = @DataTypeHint(value = "Test", bridgedTo = BigDecimal.class),
-		output = @DataTypeHint(value = "Test", bridgedTo = BigDecimal.class)
-	)
-	public static class MyFunc extends TableFunction<Row> {
-
-		// method level
-		@FunctionHint(
-			input = @DataTypeHint("Test")
-		)
-		public void eval(Object... args) {
-			// ...
-		}
-
-		// parameter level
-		public void eval(@DataTypeHint("Test") Object arg) {
-			// ...
-		}
-
-		// structured type level
-		static class T {
-
-			int field1;
-
-			@DataTypeHint("Test")
-			Object field;
-		}
-	}
+//	// function level
+//	@FunctionHint(
+//		input = {
+//			@DataTypeHint("INT"),
+//			@DataTypeHint(extract = true, context = @ExtractionContext(
+//				version = 1,
+//				decimalPrecision = 12,
+//				anyPatterns = {"org.joda."}
+//			)),
+//			@DataTypeHint(value = "Test", bridgedTo = BigDecimal.class)
+//		},
+//		accumulator = @DataTypeHint(value = "Test", bridgedTo = BigDecimal.class),
+//		output = @DataTypeHint(value = "DECIMAL(2, 3)", bridgedTo = BigDecimal.class)
+//	)
+//	public static class MyFunc extends TableFunction<Object> {
+//
+//		// method level
+//		@FunctionHint(
+//			input = @DataTypeHint(value = "TIMESTAMP(3)", bridgedTo = Timestamp.class),
+//			output = @DataTypeHint(value = "INT")
+//		)
+//		public void eval(Object... args) {
+//			// ...
+//		}
+//
+//		// method level
+//		@FunctionHint(
+//			input = @DataTypeHint(value = "INT")
+//		)
+//		public void eval(int i, long l, @DataTypeHint("ROW<INT a, BOOLEAN b>") Row row) {
+//			// ...
+//		}
+//
+//		// parameter level
+//		public void eval(int f, double d, @DataTypeHint("ROW(INT a)") Row arg) {
+//			// ...
+//		}
+//
+//		// structured type level
+//		static class T {
+//
+//			int field1;
+//
+//			@DataTypeHint("MAP<INT, STRING>")
+//			Object field;
+//		}
+//	}
 
 	// *************************************************************************
 	//     USER DATA TYPES
@@ -122,5 +143,10 @@ public class WordCountTable {
 		public String toString() {
 			return "WC " + word + " " + frequency;
 		}
+	}
+
+
+	public static void vvv(long l, Object... e) {
+
 	}
 }
