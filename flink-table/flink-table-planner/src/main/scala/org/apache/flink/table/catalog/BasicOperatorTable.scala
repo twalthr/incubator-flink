@@ -20,16 +20,16 @@ package org.apache.flink.table.catalog
 
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlReturnTypeInference, SqlTypeTransforms}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.util.ReflectiveSqlOperatorTable
 import org.apache.calcite.sql.validate.{SqlNameMatcher, SqlNameMatchers}
-
 import _root_.java.util.{List => JList}
 import java.util
+
+import org.apache.calcite.util.Optionality
 
 import _root_.scala.collection.JavaConversions._
 
@@ -91,7 +91,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SUM,
     SqlStdOperatorTable.SUM0,
     SqlStdOperatorTable.COUNT,
-    SqlStdOperatorTable.COLLECT,
+    BasicOperatorTable.COLLECT,
     SqlStdOperatorTable.MIN,
     SqlStdOperatorTable.MAX,
     SqlStdOperatorTable.AVG,
@@ -376,4 +376,14 @@ object BasicOperatorTable {
     ) {
       override def isDeterministic: Boolean = false
     }
+
+  val COLLECT: SqlAggFunction = new SqlAggFunction("COLLECT",
+      null,
+      SqlKind.COLLECT,
+      ReturnTypes.cascade(ReturnTypes.TO_MULTISET, SqlTypeTransforms.TO_NULLABLE),
+      null,
+      OperandTypes.ANY,
+      SqlFunctionCategory.SYSTEM, false, false,
+      Optionality.OPTIONAL) {
+  }
 }

@@ -25,11 +25,12 @@ import org.apache.flink.table.operations.OperationUtils;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.QueryOperationVisitor;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 
 import java.util.Collections;
 import java.util.List;
@@ -49,11 +50,11 @@ public class PlannerQueryOperation implements QueryOperation {
 		RelDataType rowType = calciteTree.getRowType();
 		String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
 		DataType[] fieldTypes = rowType.getFieldList()
-				.stream()
-				.map(field ->
-						LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(
-								FlinkTypeFactory.toLogicalType(field.getType())))
-				.toArray(DataType[]::new);
+			.stream()
+			.map(RelDataTypeField::getType)
+			.map(FlinkTypeFactory::toLogicalType)
+			.map(TypeConversions::fromLogicalToDataType)
+			.toArray(DataType[]::new);
 
 		this.tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
 	}

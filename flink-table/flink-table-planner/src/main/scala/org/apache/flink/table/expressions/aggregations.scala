@@ -29,6 +29,7 @@ import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.MultisetTypeInfo
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.catalog.BasicOperatorTable
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
@@ -248,7 +249,7 @@ case class Collect(child: PlannerExpression) extends Aggregation  {
   override private[flink] def toAggCall(
       name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
-      SqlStdOperatorTable.COLLECT,
+      BasicOperatorTable.COLLECT,
       isDistinct,
       false,
       null,
@@ -257,7 +258,7 @@ case class Collect(child: PlannerExpression) extends Aggregation  {
   }
 
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
-    SqlStdOperatorTable.COLLECT
+    BasicOperatorTable.COLLECT
   }
 }
 

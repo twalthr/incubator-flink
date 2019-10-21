@@ -231,4 +231,20 @@ class TemporalTableJoinTest extends TableTestBase {
       term("select", "*(o_amount, rate) AS rate")
     )
   }
+
+  @Test
+  def testNullabilityProblems(): Unit = {
+    val util = streamTestUtil()
+
+    val sourceTable = util.addTable[(Timestamp, Long, String)]("MyTable", 'f1, 'f2, 'f3)
+    val temporal = util.tableEnv
+      .sqlQuery("SELECT f1, f2, COLLECT(DISTINCT f3) f3s FROM MyTable GROUP BY f1, f2")
+    val temporalFunc = temporal.createTemporalTableFunction('f1, 'f2)
+
+    util.addFunction("f", temporalFunc)
+    val queryTable =
+      util.tableEnv.sqlQuery("select f1, f2, b from MyTable, LATERAL TABLE(f(f1)) AS T(a, b, cs)")
+
+    util.printTable(queryTable)
+  }
 }
