@@ -40,7 +40,7 @@ import java.lang.annotation.Target;
  * for each {@code eval()/accumulate()} method for overloading function signatures. All hint parameters
  * are optional. If a parameter is not defined, the default reflection-based extraction is used. Hint
  * parameters defined on top of a {@link UserDefinedFunction} class are inherited by all {@code eval()/accumulate()}
- * methods unless annotated differently.
+ * methods.
  *
  * <p>The following examples show how to explicitly specify function signatures in whole or in part
  * and let the default extraction do the rest:
