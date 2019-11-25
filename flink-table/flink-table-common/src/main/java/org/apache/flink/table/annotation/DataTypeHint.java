@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -53,7 +52,7 @@ import java.lang.annotation.Target;
  * a extraction logic version of 1 and allowing the RAW data type in this structured type (and possibly
  * nested fields).
  *
- * <p>{@code @DataTypeHint(allowAnyInput = TRUE)} defines that the input validation should accept any
+ * <p>{@code @DataTypeHint(inputGroup = ANY)} defines that the input validation should accept any
  * data type.
  *
  * <p>Note: All hint parameters are optional. Hint parameters defined on top of a structured type are
@@ -88,6 +87,8 @@ public @interface DataTypeHint {
 	 *
 	 * <p>By default, the empty string represents an undefined data type.
 	 *
+	 * <p>Use {@link #inputGroup()} for accepting a group of similar data types.
+	 *
 	 * @see LogicalType#asSerializableString()
 	 * @see DataTypes
 	 */
@@ -121,19 +122,17 @@ public @interface DataTypeHint {
 	Class<?> rawSerializer() default void.class;
 
 	// --------------------------------------------------------------------------------------------
-	// Any input data type specification
+	// Group of data types specification
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Adds a hint for enabling input wildcards during the extraction of a {@link TypeInference} in
-	 * functions. If set to {@code TRUE}, any data type can be passed if the annotated element is used
-	 * as an input parameter of a function. The behavior is similar to an always passing {@link InputTypeValidator}.
+	 * This hint influences the extraction of a {@link TypeInference} in functions. It adds a hint for
+	 * accepting pre-defined groups of similar types, i.e., more than just one explicit data type.
 	 *
-	 * <p>Note: The class of the annotated element must be {@link Object} as this is the super class
-	 * of all possibly passed data types. This annotation is only allowed as a top-level hint and is
-	 * ignored within nested structured types.
+	 * <p>Note: This annotation is only allowed as a top-level hint and is ignored within nested
+	 * structured types. This parameter has higher precedence than {@link #value()}.
 	 */
-	HintFlag takeAnyInput() default HintFlag.UNKNOWN;
+	InputGroup inputGroup() default InputGroup.UNKNOWN;
 
 	// --------------------------------------------------------------------------------------------
 	// Parameterization of the reflection-based extraction
@@ -232,5 +231,4 @@ public @interface DataTypeHint {
 	 * <p>By default, those data types are extracted with nano second precision.
 	 */
 	int defaultSecondPrecision() default -1;
-
 }
