@@ -128,7 +128,7 @@ public @interface FunctionHint {
 	 * <p>By default, if {@link #input()} is defined, the last argument type is not a var-arg. Otherwise
 	 * the reflection-based extraction decides about var-arg parameters.
 	 */
-	HintFlag isVarArgs() default HintFlag.UNKNOWN;
+	boolean isVarArgs() default false;
 
 	/**
 	 * Explicitly lists the argument names that a function takes as input.

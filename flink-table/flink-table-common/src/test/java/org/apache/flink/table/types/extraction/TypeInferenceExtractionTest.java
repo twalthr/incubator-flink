@@ -20,7 +20,6 @@ package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
-import org.apache.flink.table.annotation.HintFlag;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
@@ -76,8 +75,11 @@ public class TypeInferenceExtractionTest {
 				.forFunction(FullFunctionHint.class)
 				.expectOutputMapping(
 					InputTypeValidators.sequence(
-						InputTypeValidators.explicit(DataTypes.INT()),
-						InputTypeValidators.explicit(DataTypes.STRING())),
+						new String[] {"i", "s"},
+						new SingleInputTypeValidator[] {
+							InputTypeValidators.explicit(DataTypes.INT()),
+							InputTypeValidators.explicit(DataTypes.STRING())}
+					),
 					TypeStrategies.explicit(DataTypes.BOOLEAN()))
 				.expectArgumentTypes(DataTypes.INT(), DataTypes.STRING())
 				.expectArgumentNames("i", "s"),
@@ -314,7 +316,7 @@ public class TypeInferenceExtractionTest {
 			input = {@DataTypeHint("INT"), @DataTypeHint(inputGroup = InputGroup.ANY)},
 			argumentNames = {"myInt", "myAny"},
 			output = @DataTypeHint("BOOLEAN"),
-			isVarArgs = HintFlag.TRUE
+			isVarArgs = true
 		)
 		public Boolean eval(Object... o) {
 			return null;

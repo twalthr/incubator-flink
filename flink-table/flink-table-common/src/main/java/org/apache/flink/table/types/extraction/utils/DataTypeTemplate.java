@@ -27,6 +27,8 @@ import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.DataTypeExtractor;
+import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.InputTypeValidators;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
@@ -34,16 +36,16 @@ import org.apache.flink.table.types.inference.validators.SingleInputTypeValidato
 
 import javax.annotation.Nullable;
 
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Function;
 
+import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.createRawType;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
 
 /**
- * Internal representation of a {@link DataTypeHint} with more contextual information used to produce
- * the final {@link DataType}.
+ * Template of a {@link DataType} or {@link InputTypeValidator}.
  */
 @Internal
 public final class DataTypeTemplate {
@@ -52,9 +54,7 @@ public final class DataTypeTemplate {
 
 	private static final String RAW_TYPE_NAME = "RAW";
 
-	public final @Nullable String typeName;
-
-	public final @Nullable Class<?> conversionClass;
+	public final @Nullable DataType dataType;
 
 	public final @Nullable Class<?> rawSerializer;
 
@@ -77,8 +77,7 @@ public final class DataTypeTemplate {
 	public final @Nullable Integer defaultSecondPrecision;
 
 	private DataTypeTemplate(
-			@Nullable String typeName,
-			@Nullable Class<?> conversionClass,
+			@Nullable DataType dataType,
 			@Nullable Class<?> rawSerializer,
 			@Nullable InputGroup inputGroup,
 			@Nullable ExtractionVersion version,
@@ -89,8 +88,7 @@ public final class DataTypeTemplate {
 			@Nullable Integer defaultDecimalScale,
 			@Nullable Integer defaultYearPrecision,
 			@Nullable Integer defaultSecondPrecision) {
-		this.typeName = typeName;
-		this.conversionClass = conversionClass;
+		this.dataType = dataType;
 		this.rawSerializer = rawSerializer;
 		this.inputGroup = inputGroup;
 		this.version = version;
@@ -103,10 +101,23 @@ public final class DataTypeTemplate {
 		this.defaultSecondPrecision = defaultSecondPrecision;
 	}
 
-	public static DataTypeTemplate fromAnnotation(DataTypeHint hint) {
+	public static DataTypeTemplate extractFromMethod(DataTypeLookup lookup, Method method) {
+		throw new UnsupportedOperationException(); // TODO
+	}
+
+	public static DataTypeTemplate fromAnnotation(DataTypeLookup lookup, DataTypeHint hint) {
+		final String typeName = defaultAsNull(hint, DataTypeHint::value);
+		final Class<?> conversionClass = defaultAsNull(hint, DataTypeHint::bridgedTo);
+		if (typeName != null || conversionClass != null) {
+			final DataTypeTemplate extractionTemplate = fromAnnotation(hint, null);
+			return fromAnnotation(hint, extractDataType(lookup, typeName, conversionClass, extractionTemplate));
+		}
+		return fromAnnotation(hint, null);
+	}
+
+	public static DataTypeTemplate fromAnnotation(DataTypeHint hint, @Nullable DataType dataType) {
 		return new DataTypeTemplate(
-			defaultAsNull(hint, DataTypeHint::value),
-			defaultAsNull(hint, DataTypeHint::bridgedTo),
+			dataType,
 			defaultAsNull(hint, DataTypeHint::rawSerializer),
 			defaultAsNull(hint, DataTypeHint::inputGroup),
 			defaultAsNull(hint, DataTypeHint::version),
@@ -120,52 +131,64 @@ public final class DataTypeTemplate {
 		);
 	}
 
-	public Optional<DataType> toDataType(DataTypeLookup lookup) {
-		// no explicit data type
-		if (typeName == null) {
-			return Optional.empty();
-		}
-		// RAW type
-		if (typeName.equals(RAW_TYPE_NAME)) {
-			return Optional.of(createRawType(lookup));
-		}
-		// regular type that must be resolvable
-		final DataType resolvedType = lookup.lookupDataType(typeName)
-			.map(dataType -> {
-				if (conversionClass != null) {
-					dataType.bridgedTo(conversionClass);
-				}
-				return dataType;
-			})
-			.orElseGet(() -> {
-				throw extractionError("Could not resolve type with name '%s'.", typeName);
-			});
-		return Optional.of(resolvedType);
+	public DataTypeTemplate copyWithErasedDataType() {
+		return new DataTypeTemplate(
+			null,
+			rawSerializer,
+			inputGroup,
+			version,
+			allowRawGlobally,
+			allowRawPattern,
+			forceRawPattern,
+			defaultDecimalPrecision,
+			defaultDecimalScale,
+			defaultYearPrecision,
+			defaultSecondPrecision
+		);
 	}
 
-	public SingleInputTypeValidator toSingleInputTypeValidator(DataTypeLookup lookup) {
-		if (inputGroup == null) {
-			final Optional<DataType> explicitDataType = toDataType(lookup);
-			return explicitDataType
-				.map(InputTypeValidators::explicit)
-				.orElseThrow(() ->ExtractionUtils.extractionError(
-					"Data type hint does neither specify an explicit data type nor an input group."));
+	public DataTypeTemplate mergeWithAnnotation(DataTypeLookup lookup, DataTypeHint hint) {
+		final DataTypeTemplate otherTemplate = fromAnnotation(lookup, hint);
+		return new DataTypeTemplate(
+			otherTemplate.dataType,
+			rightValueIfNotNull(rawSerializer, otherTemplate.rawSerializer),
+			rightValueIfNotNull(inputGroup, otherTemplate.inputGroup),
+			rightValueIfNotNull(version, otherTemplate.version),
+			rightValueIfNotNull(allowRawGlobally, otherTemplate.allowRawGlobally),
+			rightValueIfNotNull(allowRawPattern, otherTemplate.allowRawPattern),
+			rightValueIfNotNull(forceRawPattern, otherTemplate.forceRawPattern),
+			rightValueIfNotNull(defaultDecimalPrecision, otherTemplate.defaultDecimalPrecision),
+			rightValueIfNotNull(defaultDecimalScale, otherTemplate.defaultDecimalScale),
+			rightValueIfNotNull(defaultYearPrecision, otherTemplate.defaultYearPrecision),
+			rightValueIfNotNull(defaultSecondPrecision, otherTemplate.defaultSecondPrecision)
+		);
+	}
+
+	public boolean hasDataTypeDefinition() {
+		return dataType != null;
+	}
+
+	public boolean hasInputGroupDefinition() {
+		return inputGroup != null && inputGroup != InputGroup.UNKNOWN;
+	}
+
+	public SingleInputTypeValidator toSingleInputTypeValidator() {
+		// data type
+		if (hasDataTypeDefinition()) {
+			return InputTypeValidators.explicit(dataType);
 		}
-		switch (inputGroup) {
-			case ANY:
+		// input group
+		else if (hasInputGroupDefinition()) {
+			if (inputGroup == InputGroup.ANY) {
 				return InputTypeValidators.ANY;
-			case UNKNOWN:
-			default:
-				throw new IllegalStateException("Unsupported input group.");
+			}
 		}
+		throw ExtractionUtils.extractionError(
+			"Data type hint does neither specify an explicit data type nor an input group.");
 	}
 
-	public TypeStrategy toTypeStrategy(DataTypeLookup lookup) {
-		final Optional<DataType> explicitDataType = toDataType(lookup);
-		return explicitDataType
-			.map(TypeStrategies::explicit)
-			.orElseThrow(() ->ExtractionUtils.extractionError(
-				"Data type hint does not specify an explicit data type."));
+	public TypeStrategy toTypeStrategy() {
+		return TypeStrategies.explicit(dataType);
 	}
 
 	@Override
@@ -177,8 +200,7 @@ public final class DataTypeTemplate {
 			return false;
 		}
 		DataTypeTemplate that = (DataTypeTemplate) o;
-		return Objects.equals(typeName, that.typeName) &&
-			Objects.equals(conversionClass, that.conversionClass) &&
+		return Objects.equals(dataType, that.dataType) &&
 			Objects.equals(rawSerializer, that.rawSerializer) &&
 			Objects.equals(inputGroup, that.inputGroup) &&
 			version == that.version &&
@@ -194,8 +216,7 @@ public final class DataTypeTemplate {
 	@Override
 	public int hashCode() {
 		int result = Objects.hash(
-			typeName,
-			conversionClass,
+			dataType,
 			rawSerializer,
 			inputGroup,
 			version,
@@ -207,23 +228,6 @@ public final class DataTypeTemplate {
 		result = 31 * result + Arrays.hashCode(allowRawPattern);
 		result = 31 * result + Arrays.hashCode(forceRawPattern);
 		return result;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private Class<?> createConversionClass() {
-		if (conversionClass != null) {
-			return conversionClass;
-		}
-		return Object.class;
-	}
-
-	@SuppressWarnings("unchecked")
-	private DataType createRawType(DataTypeLookup lookup) {
-		if (rawSerializer != null) {
-			return DataTypes.ANY((Class) createConversionClass(), instantiateRawSerializer(rawSerializer));
-		}
-		return lookup.resolveRawDataType(createConversionClass());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -246,6 +250,13 @@ public final class DataTypeTemplate {
 		return actualValue;
 	}
 
+	public static <T> T rightValueIfNotNull(T l, T r) {
+		if (r != null) {
+			return r;
+		}
+		return l;
+	}
+
 	private static Boolean hintFlagToBoolean(HintFlag flag) {
 		if (flag == null) {
 			return null;
@@ -253,23 +264,33 @@ public final class DataTypeTemplate {
 		return flag == HintFlag.TRUE;
 	}
 
-	private static TypeSerializer<?> instantiateRawSerializer(Class<?> rawSerializer) {
-		if (!TypeSerializer.class.isAssignableFrom(rawSerializer)) {
-			throw extractionError(
-				"Defined class '%s' for RAW serializer does not extend '%s'.",
-				rawSerializer.getName(),
-				TypeSerializer.class.getName()
-			);
+	private static DataType extractDataType(
+			DataTypeLookup lookup,
+			@Nullable String typeName,
+			@Nullable Class<?> conversionClass,
+			DataTypeTemplate template) {
+		// explicit data type
+		if (typeName != null) {
+			// RAW type
+			if (typeName.equals(RAW_TYPE_NAME)) {
+				return createRawType(lookup, template.rawSerializer, conversionClass);
+			}
+			// regular type that must be resolvable
+			return lookup.lookupDataType(typeName)
+				.map(dataType -> {
+					if (conversionClass != null) {
+						dataType.bridgedTo(conversionClass);
+					}
+					return dataType;
+				})
+				.orElseGet(() -> {
+					throw extractionError("Could not resolve type with name '%s'.", typeName);
+				});
 		}
-		try {
-			return (TypeSerializer<?>) rawSerializer.newInstance();
-		} catch (Exception e) {
-			throw extractionError(
-				e,
-				"Cannot instantiate type serializer '%s' for RAW type. " +
-					"Make sure the class is publicly accessible and has a default constructor",
-				rawSerializer.getName()
-			);
+		// extracted data type
+		else if (conversionClass != null) {
+			return DataTypeExtractor.extractFromType(template, conversionClass);
 		}
+		throw ExtractionUtils.extractionError("Data type hint does not specify a data type.");
 	}
 }

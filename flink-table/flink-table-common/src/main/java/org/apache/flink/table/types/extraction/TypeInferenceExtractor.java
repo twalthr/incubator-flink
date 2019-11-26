@@ -21,7 +21,6 @@ package org.apache.flink.table.types.extraction;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AsyncTableFunction;
@@ -30,21 +29,22 @@ import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.utils.DataTypeTemplate;
 import org.apache.flink.table.types.extraction.utils.ExtractionUtils;
+import org.apache.flink.table.types.extraction.utils.FunctionInputTemplate;
 import org.apache.flink.table.types.extraction.utils.FunctionTemplate;
 import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.InputTypeValidators;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
-import org.apache.flink.table.types.inference.validators.CompositeTypeValidator;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -109,114 +109,130 @@ public final class TypeInferenceExtractor {
 
 	public static TypeInference extractFromScalarFunction(DataTypeLookup lookup, Class<? extends ScalarFunction> function) {
 		final Set<FunctionTemplate> globalTemplates =
-			asFunctionTemplates(collectAnnotationsOfClass(FunctionHint.class, function));
+			asFunctionTemplates(lookup, collectAnnotationsOfClass(FunctionHint.class, function));
 
 		// collect all global templates that only specify an output
-		final Set<FunctionTemplate> globalOutputOnlyTemplates = globalTemplates.stream()
-			.filter(t -> !t.hasInputTypeValidator() && t.hasOutputTypeStrategy())
+		final Set<DataTypeTemplate> globalOutputTemplates = globalTemplates.stream()
+			.filter(t -> !t.hasInputDefinition() && t.hasOutputDefinition())
+			.map(t -> t.outputTemplate)
 			.collect(Collectors.toSet());
 
 		// go through methods and collect output strategies
-		final List<Method> methods =
-			collectImplementationMethods(function, SCALAR_FUNCTION_EVAL);
-		final Map<InputTypeValidator, TypeStrategy> outputStrategies = new HashMap<>();
+		final List<Method> methods = collectImplementationMethods(function, SCALAR_FUNCTION_EVAL);
+		final Map<FunctionInputTemplate, DataTypeTemplate> outputMapping = new HashMap<>();
 		for (Method method : methods) {
 			try {
 				final Set<FunctionTemplate> localTemplates =
-					asFunctionTemplates(collectAnnotationsOfMethod(FunctionHint.class, method));
+					asFunctionTemplates(lookup, collectAnnotationsOfMethod(FunctionHint.class, method));
 
 				// collect all templates where input should map to some output
 				final Set<FunctionTemplate> mappingTemplates = Stream.concat(globalTemplates.stream(), localTemplates.stream())
-					.filter(t -> t.hasInputTypeValidator() && t.hasOutputTypeStrategy())
+					.filter(t -> t.hasInputDefinition() && t.hasOutputDefinition())
 					.collect(Collectors.toSet());
 
 				// collect all local templates that only specify an output
-				final Set<FunctionTemplate> localOutputOnlyTemplates = localTemplates.stream()
-					.filter(t -> !t.hasInputTypeValidator() && t.hasOutputTypeStrategy())
+				final Set<DataTypeTemplate> localOutputTemplates = localTemplates.stream()
+					.filter(t -> !t.hasInputDefinition() && t.hasOutputDefinition())
+					.map(t -> t.outputTemplate)
 					.collect(Collectors.toSet());
 
-				final Set<FunctionTemplate> outputOnlyTemplates = Stream.concat(globalOutputOnlyTemplates.stream(), localOutputOnlyTemplates.stream())
+				final Set<DataTypeTemplate> outputTemplates = Stream.concat(globalOutputTemplates.stream(), localOutputTemplates.stream())
 					.collect(Collectors.toSet());
 
 				// output overloading is not supported
-				if (outputOnlyTemplates.size() > 1 || (!outputOnlyTemplates.isEmpty() && !mappingTemplates.isEmpty())) {
+				if (outputTemplates.size() > 1 || (!outputTemplates.isEmpty() && !mappingTemplates.isEmpty())) {
 					throw ExtractionUtils.extractionError(
 						"Function hints with same input definition but different output types are not allowed.");
 				}
 
 				// collect all templates where only an input is defined
-				final Set<InputTypeValidator> inputOnlyValidators = Stream.concat(globalTemplates.stream(), localTemplates.stream())
-					.filter(t -> t.hasInputTypeValidator() && !t.hasOutputTypeStrategy())
-					.map(t -> t.toInputTypeValidator(lookup))
+				final Set<FunctionInputTemplate> inputTemplates = Stream.concat(globalTemplates.stream(), localTemplates.stream())
+					.filter(t -> t.hasInputDefinition() && !t.hasOutputDefinition())
+					.map(t -> t.inputTemplate)
 					.collect(Collectors.toSet());
 
-				final Map<InputTypeValidator, TypeStrategy> perMethodOutputStrategies = new HashMap<>();
+				final Map<FunctionInputTemplate, DataTypeTemplate> perMethodOutputMapping = new HashMap<>();
 				// add all mapping templates because they are complete signatures
 				mappingTemplates.forEach(t -> {
-					final InputTypeValidator mappingValidator = t.toInputTypeValidator(lookup);
-					// input only validators are valid everywhere + mapping validator
-					Stream.concat(inputOnlyValidators.stream(), Stream.of(mappingValidator))
-						.forEach(v -> putStrategyMapping(perMethodOutputStrategies, v, t.toOutputTypeStrategy(lookup)));
+					// input templates are valid everywhere + mapping validator
+					Stream.concat(inputTemplates.stream(), Stream.of(t.inputTemplate))
+						.forEach(v -> putMapping(perMethodOutputMapping, v, t.outputTemplate));
 				});
 				// handle the output only templates
-				outputOnlyTemplates.forEach(t -> {
-					final TypeStrategy outputStrategy = t.toOutputTypeStrategy(lookup);
-					// input only validators are valid everywhere if they don't exist fallback to extraction
-					if (!inputOnlyValidators.isEmpty()) {
-						inputOnlyValidators.forEach(v -> putStrategyMapping(perMethodOutputStrategies, v, outputStrategy));
+				outputTemplates.forEach(t -> {
+					// input templates are valid everywhere if they don't exist fallback to extraction
+					if (!inputTemplates.isEmpty()) {
+						inputTemplates.forEach(v -> putMapping(perMethodOutputMapping, v, t));
 					} else {
-						putStrategyMapping(perMethodOutputStrategies, extractInputTypeValidator(lookup, method), outputStrategy);
+						putMapping(perMethodOutputMapping, FunctionInputTemplate.extractFromMethod(lookup, method), t);
 					}
 				});
 				// handle missing output strategy
-				if (perMethodOutputStrategies.isEmpty()) {
+				if (perMethodOutputMapping.isEmpty()) {
 					// input only validators are valid everywhere if they don't exist fallback to extraction
-					if (!inputOnlyValidators.isEmpty()) {
-						inputOnlyValidators.forEach(v -> putStrategyMapping(perMethodOutputStrategies, v, extractOutputTypeStrategy(lookup, method)));
+					if (!inputTemplates.isEmpty()) {
+						inputTemplates.forEach(v -> putMapping(perMethodOutputMapping, v, DataTypeTemplate.extractFromMethod(lookup, method)));
 					} else {
-						putStrategyMapping(perMethodOutputStrategies, extractInputTypeValidator(lookup, method), extractOutputTypeStrategy(lookup, method));
+						putMapping(
+							perMethodOutputMapping,
+							FunctionInputTemplate.extractFromMethod(lookup, method),
+							DataTypeTemplate.extractFromMethod(lookup, method));
 					}
 				}
 
 				// check if method strategies conflict with function strategies
-				perMethodOutputStrategies.forEach((key, value) -> putStrategyMapping(outputStrategies, key, value));
+				perMethodOutputMapping.forEach((key, value) -> putMapping(outputMapping, key, value));
 			} catch (Exception e) {
-				throw new ValidationException(
-					String.format(
-						"Unable to extract a type inference from function class '%s'. Analyzed method:\n%s",
-						function.getName(),
-						method.toString()
-					),
-					e
-				);
+				throw ExtractionUtils.extractionError(
+					e,
+					"Unable to extract a type inference from function class '%s'. Analyzed method:\n%s",
+					function.getName(),
+					method.toString());
 			}
 		}
 
 		final TypeInference.Builder builder = TypeInference.newBuilder();
 
 		// set argument name and type for the assignment operator "=>"
-		// if the input signature is not ambiguous
-		if (outputStrategies.size() == 1) {
-			final InputTypeValidator validator = outputStrategies.keySet().iterator().next();
-			if (validator instanceof CompositeTypeValidator) {
-				final CompositeTypeValidator sequence = (CompositeTypeValidator) outputStrategies.keySet().iterator().next();
-				final Optional<List<DataType>> explicitTypes = sequence.getExplicitArgumentTypes();
-				final Optional<List<String>> explicitNames = sequence.getExplicitArgumentNames();
-				if (explicitTypes.isPresent() && explicitNames.isPresent()) {
-					builder.typedArguments(explicitTypes.get());
-					builder.namedArguments(explicitNames.get());
+		// if the input signature is not ambiguous and not vararg
+		if (outputMapping.size() == 1) {
+			final FunctionInputTemplate inputTemplate = outputMapping.keySet().iterator().next();
+			final List<DataType> dataTypes = inputTemplate.argumentTemplates.stream()
+				.map(t -> t.dataType)
+				.collect(Collectors.toList());
+			if (!inputTemplate.isVarArgs && dataTypes.stream().allMatch(Objects::nonNull)) {
+				builder.typedArguments(dataTypes);
+				if (inputTemplate.argumentNames != null) {
+					builder.namedArguments(Arrays.asList(inputTemplate.argumentNames));
 				}
 			}
 		}
 
-		final InputTypeValidator finalValidator = outputStrategies.keySet()
-			.stream()
-			.reduce(InputTypeValidators::or)
-			.orElseThrow(IllegalStateException::new);
-		builder.inputTypeValidator(finalValidator);
+		try {
+			final Map<InputTypeValidator, TypeStrategy> matchers = outputMapping.entrySet()
+				.stream()
+				.collect(
+					Collectors.toMap(
+						e -> e.getKey().toInputTypeValidator(),
+						e -> e.getValue().toTypeStrategy()));
 
-		final TypeStrategy finalOutputStrategy = TypeStrategies.matching(outputStrategies);
-		builder.outputTypeStrategy(finalOutputStrategy);
+			final TypeStrategy finalOutputStrategy = TypeStrategies.matching(matchers);
+			builder.outputTypeStrategy(finalOutputStrategy);
+
+			final InputTypeValidator finalValidator = matchers.keySet()
+				.stream()
+				.reduce(InputTypeValidators::or)
+				.orElseThrow(IllegalStateException::new);
+			builder.inputTypeValidator(finalValidator);
+
+		} catch (Exception e) {
+			throw ExtractionUtils.extractionError(
+				e,
+				"Unable to extract a type inference from function class '%s'.",
+				function.getName());
+		}
+
+
 
 		return builder.build();
 	}
@@ -239,9 +255,9 @@ public final class TypeInferenceExtractor {
 
 	// -------------------------------------------------------------------------------------------
 
-	private static Set<FunctionTemplate> asFunctionTemplates(Set<FunctionHint> hints) {
+	private static Set<FunctionTemplate> asFunctionTemplates(DataTypeLookup lookup, Set<FunctionHint> hints) {
 		return hints.stream()
-			.map(FunctionTemplate::fromAnnotation)
+			.map(hint -> FunctionTemplate.fromAnnotation(lookup, hint))
 			.collect(Collectors.toSet());
 	}
 
@@ -259,16 +275,16 @@ public final class TypeInferenceExtractor {
 		throw new IllegalStateException();
 	}
 
-	private static void putStrategyMapping(
-			Map<InputTypeValidator, TypeStrategy> mapping,
-			InputTypeValidator validator,
-			TypeStrategy strategy) {
-		final TypeStrategy existingStrategy = mapping.get(validator);
-		if (existingStrategy == null) {
-			mapping.put(validator, strategy);
+	private static void putMapping(
+			Map<FunctionInputTemplate, DataTypeTemplate> mapping,
+			FunctionInputTemplate inputTemplate,
+			DataTypeTemplate template) {
+		final DataTypeTemplate existingMapping = mapping.get(inputTemplate);
+		if (existingMapping == null) {
+			mapping.put(inputTemplate, template);
 		}
-		// strategies must not conflict with same input
-		else if (!existingStrategy.equals(strategy)) {
+		// template must not conflict with same input
+		else if (!existingMapping.equals(template)) {
 			throw ExtractionUtils.extractionError(
 				"Function hints with same input definition but different output types are not allowed.");
 		}
