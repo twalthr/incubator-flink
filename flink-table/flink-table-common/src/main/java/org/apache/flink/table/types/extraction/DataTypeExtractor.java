@@ -21,13 +21,14 @@ package org.apache.flink.table.types.extraction;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.extraction.utils.DataTypeTemplate;
 import org.apache.flink.table.types.extraction.utils.ExtractionUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
 
 import javax.annotation.Nullable;
@@ -35,6 +36,7 @@ import javax.annotation.Nullable;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -44,10 +46,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectAnnotationsOfField;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectStructuredFields;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectTypeHierarchy;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.createRawType;
@@ -72,33 +72,78 @@ public final class DataTypeExtractor {
 		this.lookup = lookup;
 	}
 
-	public static DataType extractFromGeneric(
+	public static DataType extractFromType(
 			DataTypeLookup lookup,
-			DataTypeTemplate template,
-			Class<?> baseClass,
-			int genericPos,
 			Type type) {
-		try {
-			final DataTypeExtractor extractor = new DataTypeExtractor(lookup);
-			return extractor.extractDataTypeOrRaw(template, baseClass, genericPos, type);
-		} catch (Throwable t) {
-			throw extractionError(
-				t,
-				"Could not extract a data type from '%s' for '%s' at position %d. " +
-					"Please pass the required data type manually or allow RAW types.",
-				type.toString(),
-				baseClass.getName(),
-				genericPos);
-		}
+		return extractDataTypeWithContext(lookup, DataTypeTemplate.withDefaults(), null, type);
 	}
 
 	public static DataType extractFromType(
 			DataTypeLookup lookup,
 			DataTypeTemplate template,
 			Type type) {
+		return extractDataTypeWithContext(lookup, template, null, type);
+	}
+
+	public static DataType extractFromGeneric(
+			DataTypeLookup lookup,
+			Class<?> baseClass,
+			int genericPos,
+			Type contextType) {
+		final TypeVariable<?> variable = baseClass.getTypeParameters()[genericPos];
+		return extractDataTypeWithContext(lookup, DataTypeTemplate.withDefaults(), contextType, variable);
+	}
+
+	public static DataType extractFromMethodParameter(
+			DataTypeLookup lookup,
+			Method method,
+			int paramPos) {
+		final Parameter parameter = method.getParameters()[paramPos];
+		final DataTypeHint hint = parameter.getAnnotation(DataTypeHint.class);
+		final DataTypeTemplate template;
+		if (hint != null) {
+			template = DataTypeTemplate.fromAnnotation(lookup, hint);
+		} else {
+			template = DataTypeTemplate.withDefaults();
+		}
+		return extractDataTypeWithContext(
+			lookup,
+			template,
+			method.getDeclaringClass(),
+			parameter.getParameterizedType());
+	}
+
+	public static DataType extractFromMethodOutput(
+			DataTypeLookup lookup,
+			Method method) {
+		final DataTypeHint hint = method.getAnnotation(DataTypeHint.class);
+		final DataTypeTemplate template;
+		if (hint != null) {
+			template = DataTypeTemplate.fromAnnotation(lookup, hint);
+		} else {
+			template = DataTypeTemplate.withDefaults();
+		}
+		return extractDataTypeWithContext(
+			lookup,
+			template,
+			method.getDeclaringClass(),
+			method.getGenericReturnType());
+	}
+
+	private static DataType extractDataTypeWithContext(
+			DataTypeLookup lookup,
+			DataTypeTemplate outerTemplate,
+			@Nullable Type contextType,
+			Type type) {
+		final DataTypeExtractor extractor = new DataTypeExtractor(lookup);
 		try {
-			final DataTypeExtractor extractor = new DataTypeExtractor(lookup);
-			return extractor.extractDataTypeOrRaw(template, Collections.singletonList(type), type);
+			final List<Type> typeHierarchy;
+			if (contextType != null) {
+				typeHierarchy = collectTypeHierarchy(Object.class, contextType);
+			} else {
+				typeHierarchy = Collections.singletonList(type);
+			}
+			return extractor.extractDataTypeOrRaw(outerTemplate, typeHierarchy, type);
 		} catch (Throwable t) {
 			throw extractionError(
 				t,
@@ -108,32 +153,12 @@ public final class DataTypeExtractor {
 		}
 	}
 
-	public static DataType extractFromMethod(
-			DataTypeLookup lookup,
-			DataTypeTemplate template,
-			Method method,
-			int paramPos) {
-		throw new ValidationException("Unsupported.");
-	}
-
 	// --------------------------------------------------------------------------------------------
 
 	private DataType extractDataTypeOrRaw(
-			DataTypeTemplate template,
-			Class<?> baseClass,
-			int genericPos,
+			DataTypeTemplate outerTemplate,
+			List<Type> typeHierarchy,
 			Type type) {
-		final List<Type> typeHierarchy = collectTypeHierarchy(baseClass, type);
-		final TypeVariable<?> variable = baseClass.getTypeParameters()[genericPos];
-		return extractDataTypeOrError(template, typeHierarchy, variable);
-	}
-
-	private DataType extractDataTypeOrRaw(DataTypeTemplate template, List<Type> typeHierarchy, Type type) {
-		// template defines a data type
-		if (template.hasDataTypeDefinition()) {
-			return template.dataType;
-		}
-
 		// best effort resolution of type variables, the resolved type can still be a variable
 		final Type resolvedType;
 		if (type instanceof TypeVariable) {
@@ -142,15 +167,29 @@ public final class DataTypeExtractor {
 			resolvedType = type;
 		}
 
+		// merge outer template with template of type itself
+		DataTypeTemplate template = outerTemplate;
+		final Class<?> clazz = toClass(resolvedType);
+		if (clazz != null) {
+			final DataTypeHint hint = clazz.getAnnotation(DataTypeHint.class);
+			if (hint != null) {
+				template = outerTemplate.mergeWithAnnotation(lookup, hint);
+			}
+		}
+
+		// template defines a data type
+		if (template.hasDataTypeDefinition()) {
+			return template.dataType;
+		}
+
 		try {
 			return extractDataTypeOrError(template, typeHierarchy, resolvedType);
 		} catch (Throwable t) {
 			// ignore the exception and just treat it as RAW type
-			final Class<?> clazz = toClass(resolvedType);
 			if (isAllowRawGlobally(template) || isAllowAnyPattern(template, clazz)) {
 				return createRawType(lookup, template.rawSerializer, clazz);
 			}
-			// forward the root cause
+			// forward the root cause otherwise
 			throw t;
 		}
 	}
@@ -190,7 +229,7 @@ public final class DataTypeExtractor {
 
 		// try interpret the type as a STRUCTURED type
 		try {
-			return extractStructuredType(typeHierarchy, type);
+			return extractStructuredType(template, typeHierarchy, type);
 		} catch (Throwable t) {
 			throw extractionError(
 				t,
@@ -350,6 +389,24 @@ public final class DataTypeExtractor {
 				fields.stream().map(Field::getName).collect(Collectors.joining(", ")));
 		}
 
+		final Map<String, DataType> fieldDataTypes = extractStructuredTypeFields(
+			template,
+			typeHierarchy,
+			type,
+			fields);
+
+		final StructuredType.Builder builder = StructuredType.newBuilder(clazz);
+		builder.attributes(createStructuredTypeAttributes(constructor, fieldDataTypes));
+		builder.setFinal(true); // anonymous structured types should not allow inheritance
+		builder.setInstantiable(true);
+		return new FieldsDataType(builder.build(), clazz, fieldDataTypes);
+	}
+
+	private Map<String, DataType> extractStructuredTypeFields(
+			DataTypeTemplate template,
+			List<Type> typeHierarchy,
+			Type type,
+			List<Field> fields) {
 		final Map<String, DataType> fieldDataTypes = new HashMap<>();
 		final List<Type> structuredTypeHierarchy = collectTypeHierarchy(Object.class, type);
 		for (Field field : fields) {
@@ -365,43 +422,40 @@ public final class DataTypeExtractor {
 			final DataType fieldDataType = extractDataTypeOrRaw(fieldTemplate, fieldTypeHierarchy, fieldType);
 			fieldDataTypes.put(field.getName(), fieldDataType);
 		}
+		return fieldDataTypes;
+	}
 
-		final List<StructuredType.StructuredAttribute> attributes;
+	private List<StructuredAttribute> createStructuredTypeAttributes(
+			ExtractionUtils.AssigningConstructor constructor,
+			Map<String, DataType> fieldDataTypes) {
 		// field order is defined by assigning constructor
 		if (constructor != null) {
-			attributes = constructor.parameterNames
+			return constructor.parameterNames
 				.stream()
 				.map(name -> {
 					final LogicalType logicalType = fieldDataTypes.get(name).getLogicalType();
-					return new StructuredType.StructuredAttribute(name, logicalType);
+					return new StructuredAttribute(name, logicalType);
 				})
 				.collect(Collectors.toList());
 		}
 		// field order is sorted
 		else {
-			attributes = fieldDataTypes.keySet()
+			return fieldDataTypes.keySet()
 				.stream()
 				.sorted()
 				.map(name -> {
 					final LogicalType logicalType = fieldDataTypes.get(name).getLogicalType();
-					return new StructuredType.StructuredAttribute(name, logicalType);
+					return new StructuredAttribute(name, logicalType);
 				})
 				.collect(Collectors.toList());
 		}
-
-		final StructuredType.Builder builder = StructuredType.newInstance(clazz);
-		builder.attributes(attributes);
-		builder.isFinal(true); // anonymous structured types should not allow inheritance
-		builder.isInstantiable(true);
-		return new FieldsDataType(builder.build(), clazz, fieldDataTypes);
 	}
 
 	private DataTypeTemplate mergeFieldTemplate(DataTypeLookup lookup, Field field, DataTypeTemplate structuredTemplate) {
-		final Set<DataTypeHint> hints = collectAnnotationsOfField(DataTypeHint.class, field);
-		if (hints.size() != 1) {
+		final DataTypeHint hint = field.getAnnotation(DataTypeHint.class);
+		if (hint == null) {
 			return structuredTemplate.copyWithErasedDataType();
 		}
-		final DataTypeHint hint = hints.iterator().next();
 		return structuredTemplate.mergeWithAnnotation(lookup, hint);
 	}
 

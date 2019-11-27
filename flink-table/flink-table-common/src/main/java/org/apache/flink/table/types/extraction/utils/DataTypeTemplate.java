@@ -28,6 +28,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.DataTypeExtractor;
+import org.apache.flink.table.types.inference.ArgumentTypeValidator;
 import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.InputTypeValidators;
 import org.apache.flink.table.types.inference.TypeStrategies;
@@ -131,6 +132,22 @@ public final class DataTypeTemplate {
 		);
 	}
 
+	public static DataTypeTemplate withDefaults() {
+		return new DataTypeTemplate(
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null
+		);
+	}
+
 	public DataTypeTemplate copyWithErasedDataType() {
 		return new DataTypeTemplate(
 			null,
@@ -172,7 +189,7 @@ public final class DataTypeTemplate {
 		return inputGroup != null && inputGroup != InputGroup.UNKNOWN;
 	}
 
-	public SingleInputTypeValidator toSingleInputTypeValidator() {
+	public ArgumentTypeValidator toArgumentTypeValidator() {
 		// data type
 		if (hasDataTypeDefinition()) {
 			return InputTypeValidators.explicit(dataType);
@@ -250,7 +267,7 @@ public final class DataTypeTemplate {
 		return actualValue;
 	}
 
-	public static <T> T rightValueIfNotNull(T l, T r) {
+	private static <T> T rightValueIfNotNull(T l, T r) {
 		if (r != null) {
 			return r;
 		}

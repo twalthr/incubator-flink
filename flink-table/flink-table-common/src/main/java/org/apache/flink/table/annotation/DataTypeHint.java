@@ -117,7 +117,7 @@ public @interface DataTypeHint {
 	 *
 	 * <p>By default, Flink's default RAW serializer is used.
 	 *
-	 * @see DataTypes#ANY(Class, TypeSerializer)
+	 * @see DataTypes#RAW(Class, TypeSerializer)
 	 */
 	Class<?> rawSerializer() default void.class;
 
@@ -159,7 +159,7 @@ public @interface DataTypeHint {
 	 *
 	 * <p>This parameter has higher precedence than {@link #allowRawPattern()}.
 	 *
-	 * @see DataTypes#ANY(Class, TypeSerializer)
+	 * @see DataTypes#RAW(Class, TypeSerializer)
 	 */
 	HintFlag allowRawGlobally() default HintFlag.UNKNOWN;
 
@@ -177,7 +177,7 @@ public @interface DataTypeHint {
 	 *
 	 * <p>This parameter has lower precedence than {@link #allowRawGlobally()}.
 	 *
-	 * @see DataTypes#ANY(Class, TypeSerializer)
+	 * @see DataTypes#RAW(Class, TypeSerializer)
 	 */
 	String[] allowRawPattern() default {""};
 
@@ -195,7 +195,7 @@ public @interface DataTypeHint {
 	 *
 	 * <p>This parameter has the highest precedence of all hint parameters.
 	 *
-	 * @see DataTypes#ANY(Class, TypeSerializer)
+	 * @see DataTypes#RAW(Class, TypeSerializer)
 	 */
 	String[] forceRawPattern() default {""};
 

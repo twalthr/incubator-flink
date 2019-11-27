@@ -32,12 +32,12 @@ import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.ArgumentTypeValidator;
 import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.InputTypeValidators;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
-import org.apache.flink.table.types.inference.validators.SingleInputTypeValidator;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -76,7 +76,7 @@ public class TypeInferenceExtractionTest {
 				.expectOutputMapping(
 					InputTypeValidators.sequence(
 						new String[] {"i", "s"},
-						new SingleInputTypeValidator[] {
+						new ArgumentTypeValidator[] {
 							InputTypeValidators.explicit(DataTypes.INT()),
 							InputTypeValidators.explicit(DataTypes.STRING())}
 					),
@@ -128,7 +128,7 @@ public class TypeInferenceExtractionTest {
 				.expectOutputMapping(
 					InputTypeValidators.varyingSequence(
 						new String[]{"myInt", "myAny"},
-						new SingleInputTypeValidator[]{InputTypeValidators.explicit(DataTypes.INT()), InputTypeValidators.ANY}),
+						new ArgumentTypeValidator[]{InputTypeValidators.explicit(DataTypes.INT()), InputTypeValidators.ANY}),
 					TypeStrategies.explicit(DataTypes.BOOLEAN())),
 
 			TestSpec
@@ -136,7 +136,7 @@ public class TypeInferenceExtractionTest {
 				.expectOutputMapping(
 					InputTypeValidators.varyingSequence(
 						new String[]{"myInt", "myAny"},
-						new SingleInputTypeValidator[]{InputTypeValidators.explicit(DataTypes.INT()), InputTypeValidators.ANY}),
+						new ArgumentTypeValidator[]{InputTypeValidators.explicit(DataTypes.INT()), InputTypeValidators.ANY}),
 					TypeStrategies.explicit(DataTypes.BOOLEAN())),
 
 			TestSpec

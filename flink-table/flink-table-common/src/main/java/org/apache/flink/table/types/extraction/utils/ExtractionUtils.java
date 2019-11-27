@@ -85,15 +85,6 @@ public final class ExtractionUtils {
 	}
 
 	/**
-	 * Collects all annotations of the given type defined in the given field. Duplicates are ignored.
-	 */
-	public static <T extends Annotation> Set<T> collectAnnotationsOfField(
-			Class<T> annotation,
-			Field annotatedField) {
-		return new HashSet<>(Arrays.asList(annotatedField.getAnnotationsByType(annotation)));
-	}
-
-	/**
 	 * Helper method for creating consistent exceptions during extraction.
 	 */
 	public static ValidationException extractionError(String message, Object... args) {

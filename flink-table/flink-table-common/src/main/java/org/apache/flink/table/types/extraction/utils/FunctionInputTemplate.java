@@ -20,9 +20,9 @@ package org.apache.flink.table.types.extraction.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.types.inference.ArgumentTypeValidator;
 import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.InputTypeValidators;
-import org.apache.flink.table.types.inference.validators.SingleInputTypeValidator;
 
 import javax.annotation.Nullable;
 
@@ -63,9 +63,9 @@ public final class FunctionInputTemplate {
 	}
 
 	public InputTypeValidator toInputTypeValidator() {
-		final SingleInputTypeValidator[] argumentValidators = argumentTemplates.stream()
-			.map(DataTypeTemplate::toSingleInputTypeValidator)
-			.toArray(SingleInputTypeValidator[]::new);
+		final ArgumentTypeValidator[] argumentValidators = argumentTemplates.stream()
+			.map(DataTypeTemplate::toArgumentTypeValidator)
+			.toArray(ArgumentTypeValidator[]::new);
 
 		final InputTypeValidator validator;
 		if (isVarArgs) {
