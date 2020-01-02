@@ -19,20 +19,34 @@
 package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.ArgumentCount;
 
-import org.apache.calcite.sql.SqlCallBinding;
+import org.apache.calcite.sql.SqlOperandCountRange;
 
 /**
- * A {@link SqlCallBinding} backed by {@link CallContext}.
+ * A {@link SqlOperandCountRange} backed by {@link ArgumentCount}.
  */
 @Internal
-public final class CallContextBinding extends SqlCallBinding {
+public final class ArgumentCountRange implements SqlOperandCountRange {
 
-	private final CallContext context;
+	private final ArgumentCount argumentCount;
 
-	public CallContextBinding(SqlCallBinding originalBinding, CallContext context) {
-		super(originalBinding.getValidator(), originalBinding.getScope(), originalBinding.getCall());
-		this.context = context;
+	public ArgumentCountRange(ArgumentCount argumentCount) {
+		this.argumentCount = argumentCount;
+	}
+
+	@Override
+	public boolean isValidCount(int count) {
+		return argumentCount.isValidCount(count);
+	}
+
+	@Override
+	public int getMin() {
+		return argumentCount.getMinCount().orElse(-1);
+	}
+
+	@Override
+	public int getMax() {
+		return argumentCount.getMaxCount().orElse(-1);
 	}
 }

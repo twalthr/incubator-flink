@@ -18,104 +18,81 @@
 
 package org.apache.flink.table.planner.functions.inference;
 
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.InputTypeStrategy;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
 
-import javax.annotation.Nullable;
-
 import java.util.List;
-import java.util.stream.Collectors;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.inference.TypeInferenceUtil.createUnexpectedException;
 
 /**
- * A {@link SqlOperandTypeInference} backed by {@link InputTypeStrategy}.
+ * A {@link SqlOperandTypeInference} backed by {@link TypeInference}.
  *
  * <p>Note: This class must be kept in sync with {@link TypeInferenceUtil}.
  */
-public final class InputStrategyInference implements SqlOperandTypeInference {
+@Internal
+public final class TypeInferenceOperandInference implements SqlOperandTypeInference {
 
 	private final DataTypeLookup lookup;
 
 	private final FunctionDefinition definition;
 
-	private final InputTypeStrategy strategy;
+	private final TypeInference typeInference;
 
-	private final @Nullable List<DataType> typedArguments;
-
-	public InputStrategyInference(
+	public TypeInferenceOperandInference(
 			DataTypeLookup lookup,
 			FunctionDefinition definition,
-			InputTypeStrategy strategy,
-			@Nullable List<DataType> typedArguments) {
+			TypeInference typeInference) {
 		this.lookup = lookup;
 		this.definition = definition;
-		this.strategy = strategy;
-		this.typedArguments = typedArguments;
+		this.typeInference = typeInference;
 	}
 
 	@Override
 	public void inferOperandTypes(SqlCallBinding callBinding, RelDataType returnType, RelDataType[] operandTypes) {
-		final CallContext callContext = new SqlCallContext(lookup, definition, callBinding, returnType);
+		final CallContext callContext = new CallBindingCallContext(lookup, definition, callBinding, returnType);
 		try {
 			inferOperandTypesOrError(callBinding.getTypeFactory(), callContext, operandTypes);
-		} catch (ValidationException e) {
-			throw new ValidationException(
-				String.format(
-					"Invalid function call:\n%s(%s)",
-					callContext.getName(),
-					callContext.getArgumentDataTypes().stream()
-						.map(DataType::toString)
-						.collect(Collectors.joining(", "))),
-				e);
 		} catch (Throwable t) {
-			throw new TableException(
-				String.format(
-					"Unexpected error in type inference logic of function '%s'. This is a bug.",
-					callContext.getName()),
-				t);
+			throw createUnexpectedException(callContext, t);
 		}
 	}
+
+	// --------------------------------------------------------------------------------------------
 
 	private void inferOperandTypesOrError(RelDataTypeFactory typeFactory, CallContext callContext, RelDataType[] operandTypes) {
 		final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
-		final List<DataType> inferredDataTypes;
+
+		final List<DataType> expectedDataTypes;
 		// typed arguments have highest priority
-		if (typedArguments != null) {
-			inferredDataTypes = typedArguments;
+		if (typeInference.getTypedArguments().isPresent()) {
+			expectedDataTypes = typeInference.getTypedArguments().get();
 		} else {
-			inferredDataTypes = strategy.inferInputTypes(callContext, false)
-				.orElseThrow(() -> new ValidationException("Invalid input arguments."));
+			expectedDataTypes = typeInference.getInputTypeStrategy()
+				.inferInputTypes(callContext, false)
+				.orElse(null);
 		}
 
-		// input must not contain unknown types at this point
-		if (inferredDataTypes.stream().anyMatch(InputStrategyInference::isUnknown)) {
-			throw new ValidationException("Invalid use of untyped NULL in arguments.");
-		}
-		if (inferredDataTypes.size() != operandTypes.length) {
+		// early out for invalid input
+		if (expectedDataTypes == null || expectedDataTypes.size() != operandTypes.length) {
 			return;
 		}
+
 		for (int i = 0; i < operandTypes.length; i++) {
-			final LogicalType inferredType = inferredDataTypes.get(i).getLogicalType();
+			final LogicalType inferredType = expectedDataTypes.get(i).getLogicalType();
 			operandTypes[i] = flinkTypeFactory.createFieldTypeFromLogicalType(inferredType);
 		}
-	}
-
-	private static boolean isUnknown(DataType dataType) {
-		return hasRoot(dataType.getLogicalType(), LogicalTypeRoot.NULL);
 	}
 }
