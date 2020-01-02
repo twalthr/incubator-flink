@@ -47,7 +47,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * A {@link CallContext} backed by {@link org.apache.calcite.sql.SqlCallBinding}.
+ * A {@link CallContext} backed by {@link SqlCallBinding}.
  */
 @Internal
 public final class SqlCallContext implements CallContext {
@@ -68,11 +68,11 @@ public final class SqlCallContext implements CallContext {
 			DataTypeLookup lookup,
 			FunctionDefinition definition,
 			SqlCallBinding binding,
-			@Nullable DataType outputType) {
+			@Nullable RelDataType outputType) {
 		this.lookup = lookup;
 		this.definition = definition;
 		this.binding = binding;
-		this.outputType = outputType;
+		this.outputType = convertOutputType(binding, outputType);
 		this.adaptedArguments = binding.operands(); // reorders the operands
 		this.argumentDataTypes = new AbstractList<DataType>() {
 			@Override
@@ -139,6 +139,15 @@ public final class SqlCallContext implements CallContext {
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	private static @Nullable DataType convertOutputType(SqlCallBinding binding, @Nullable RelDataType returnType) {
+		if (returnType == null || returnType.equals(binding.getValidator().getUnknownType())) {
+			return null;
+		} else {
+			final LogicalType logicalType = FlinkTypeFactory.toLogicalType(returnType);
+			return TypeConversions.fromLogicalToDataType(logicalType);
+		}
+	}
 
 	/**
 	 * Bridges {@link SqlLiteral#getValueAs(Class)} and {@link ValueLiteralExpression#getValueAs(Class)}.
