@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -134,6 +135,19 @@ public interface TableEnvironment {
 	 * user-defined functions under this name.
 	 */
 	void registerFunction(String name, ScalarFunction function);
+
+	/**
+	 * Registers a {@link UserDefinedFunction} as a temporary system function.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object under a given name exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param name The name under which the function will be globally registered as a system function.
+	 * @param function The function to register.
+	 */
+	@Experimental
+	void createTemporarySystemFunction(String name, UserDefinedFunction function);
 
 	/**
 	 * Registers a {@link Table} under a unique name in the TableEnvironment's catalog.
@@ -623,7 +637,6 @@ public interface TableEnvironment {
 	 * @param catalogName The name of the catalog to set as the current default catalog.
 	 * @see TableEnvironment#useDatabase(String)
 	 */
-	@Experimental
 	void useCatalog(String catalogName);
 
 	/**
@@ -690,7 +703,6 @@ public interface TableEnvironment {
 	 * @param databaseName The name of the database to set as the current database.
 	 * @see TableEnvironment#useCatalog(String)
 	 */
-	@Experimental
 	void useDatabase(String databaseName);
 
 	/**

@@ -38,6 +38,7 @@ import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedAggregateFunction;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.util.Preconditions;
@@ -81,10 +82,24 @@ public class FunctionCatalog implements FunctionLookup {
 		this.plannerTypeInferenceUtil = plannerTypeInferenceUtil;
 	}
 
+	public void registerTemporarySystemFunction(String name, FunctionDefinition definition) {
+		if (definition instanceof UserDefinedFunction) {
+			UserDefinedFunctionHelper.prepareFunction(config, (UserDefinedFunction) definition);
+		}
+		tempSystemFunctions.put(FunctionIdentifier.normalizeName(name), definition);
+	}
+
+	public void registerTemporaryCatalogFunction(ObjectIdentifier identifier, FunctionDefinition definition) {
+		if (definition instanceof UserDefinedFunction) {
+			UserDefinedFunctionHelper.prepareFunction(config, (UserDefinedFunction) definition);
+		}
+		tempCatalogFunctions.put(FunctionIdentifier.normalizeObjectIdentifier(identifier), definition);
+	}
+
 	public void registerTempSystemScalarFunction(String name, ScalarFunction function) {
 		UserDefinedFunctionHelper.prepareFunction(config, function);
 
-		registerTempSystemFunction(
+		registerTemporarySystemFunction(
 			name,
 			new ScalarFunctionDefinition(name, function)
 		);
@@ -96,7 +111,7 @@ public class FunctionCatalog implements FunctionLookup {
 			TypeInformation<T> resultType) {
 		UserDefinedFunctionHelper.prepareFunction(config, function);
 
-		registerTempSystemFunction(
+		registerTemporarySystemFunction(
 			name,
 			new TableFunctionDefinition(
 				name,
@@ -129,7 +144,7 @@ public class FunctionCatalog implements FunctionLookup {
 			throw new TableException("Unknown function class: " + function.getClass());
 		}
 
-		registerTempSystemFunction(
+		registerTemporarySystemFunction(
 			name,
 			definition
 		);
@@ -138,7 +153,7 @@ public class FunctionCatalog implements FunctionLookup {
 	public void registerTempCatalogScalarFunction(ObjectIdentifier oi, ScalarFunction function) {
 		UserDefinedFunctionHelper.prepareFunction(config, function);
 
-		registerTempCatalogFunction(
+		registerTemporaryCatalogFunction(
 			oi,
 			new ScalarFunctionDefinition(oi.getObjectName(), function)
 		);
@@ -150,7 +165,7 @@ public class FunctionCatalog implements FunctionLookup {
 			TypeInformation<T> resultType) {
 		UserDefinedFunctionHelper.prepareFunction(config, function);
 
-		registerTempCatalogFunction(
+		registerTemporaryCatalogFunction(
 			oi,
 			new TableFunctionDefinition(
 				oi.getObjectName(),
@@ -183,7 +198,7 @@ public class FunctionCatalog implements FunctionLookup {
 			throw new TableException("Unknown function class: " + function.getClass());
 		}
 
-		registerTempCatalogFunction(
+		registerTemporaryCatalogFunction(
 			oi,
 			definition
 		);
@@ -380,13 +395,5 @@ public class FunctionCatalog implements FunctionLookup {
 			plannerTypeInferenceUtil,
 			"A planner should have set the type inference utility.");
 		return plannerTypeInferenceUtil;
-	}
-
-	private void registerTempSystemFunction(String name, FunctionDefinition functionDefinition) {
-		tempSystemFunctions.put(FunctionIdentifier.normalizeName(name), functionDefinition);
-	}
-
-	private void registerTempCatalogFunction(ObjectIdentifier oi, FunctionDefinition functionDefinition) {
-		tempCatalogFunctions.put(FunctionIdentifier.normalizeObjectIdentifier(oi), functionDefinition);
 	}
 }

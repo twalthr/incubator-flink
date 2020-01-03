@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.catalog.Catalog
 import org.apache.flink.table.descriptors.{ConnectTableDescriptor, ConnectorDescriptor}
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.{ScalarFunction, UserDefinedFunction}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import java.util.Optional
@@ -35,6 +35,8 @@ class MockTableEnvironment extends TableEnvironment {
   override def fromTableSource(source: TableSource[_]): Table = ???
 
   override def registerFunction(name: String, function: ScalarFunction): Unit = ???
+
+  override def createTemporarySystemFunction(name: String, function: UserDefinedFunction): Unit = ???
 
   override def registerTable(name: String, table: Table): Unit = ???
 

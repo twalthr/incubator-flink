@@ -749,6 +749,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
              |""".stripMargin
         GeneratedExpression(nullValue.resultTerm, nullValue.nullTerm, code, resultType)
 
+      case ssf: org.apache.flink.table.planner.functions.bridging.ScalarSqlFunction =>
+        ???
+
       case ssf: ScalarSqlFunction =>
         new ScalarFunctionCallGen(
           ssf.makeFunction(getOperandLiterals(operands), operands.map(_.resultType).toArray))

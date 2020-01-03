@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -29,18 +30,21 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.functions.bridging.ScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
@@ -79,12 +83,6 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			return;
 		}
 
-		// We lookup only user functions via CatalogOperatorTable. Built in functions should
-		// go through BasicOperatorTable
-		if (isNotUserFunction(category)) {
-			return;
-		}
-
 		UnresolvedIdentifier identifier = UnresolvedIdentifier.of(opName.names.toArray(new String[0]));
 
 		Optional<FunctionLookup.Result> candidateFunction = functionCatalog.lookupFunction(identifier);
@@ -92,10 +90,6 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 		candidateFunction.flatMap(lookupResult ->
 			convertToSqlFunction(category, lookupResult.getFunctionIdentifier(), lookupResult.getFunctionDefinition())
 		).ifPresent(operatorList::add);
-	}
-
-	private boolean isNotUserFunction(SqlFunctionCategory category) {
-		return category != null && !category.isUserDefinedNotSpecificFunction();
 	}
 
 	private Optional<SqlFunction> convertToSqlFunction(
@@ -135,6 +129,24 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 						HiveTableSqlFunction.operandTypeChecker(identifier.toString(), def.getTableFunction())));
 			} else {
 				return convertTableFunction(identifier, (TableFunctionDefinition) functionDefinition);
+			}
+		} else if (functionDefinition.getTypeInference() != null &&
+				functionDefinition.getTypeInference().getOutputTypeStrategy() != TypeStrategies.MISSING) {
+			switch (functionDefinition.getKind()) {
+				case SCALAR:
+					return Optional.of(
+						ScalarSqlFunction.of(
+							typeFactory,
+							SqlKind.OTHER_FUNCTION,
+							identifier,
+							functionDefinition,
+							functionDefinition.getTypeInference()));
+				case TABLE:
+				case ASYNC_TABLE:
+				case AGGREGATE:
+				case TABLE_AGGREGATE:
+				case OTHER:
+					throw new TableException("Unsupported function kind.");
 			}
 		}
 

@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.inference.CallContext;
@@ -29,7 +28,6 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
@@ -45,26 +43,23 @@ import static org.apache.flink.table.types.inference.TypeInferenceUtil.inferOutp
 @Internal
 public final class TypeInferenceReturnInference implements SqlReturnTypeInference {
 
-	private final DataTypeLookup lookup;
-
 	private final FunctionDefinition definition;
 
 	private final TypeInference typeInference;
 
 	public TypeInferenceReturnInference(
-			DataTypeLookup lookup,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
-		this.lookup = lookup;
 		this.definition = definition;
 		this.typeInference = typeInference;
 	}
 
 	@Override
 	public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-		final CallContext callContext = new OperatorBindingCallContext(lookup, definition, opBinding);
+		final FlinkTypeFactory typeFactory = (FlinkTypeFactory) opBinding.getTypeFactory();
+		final CallContext callContext = new OperatorBindingCallContext(definition, opBinding);
 		try {
-			return inferReturnTypeOrError(opBinding.getTypeFactory(), callContext);
+			return inferReturnTypeOrError(typeFactory, callContext);
 		}
 		catch (ValidationException e) {
 			throw createInvalidCallException(callContext, e);
@@ -75,10 +70,9 @@ public final class TypeInferenceReturnInference implements SqlReturnTypeInferenc
 
 	// --------------------------------------------------------------------------------------------
 
-	private RelDataType inferReturnTypeOrError(RelDataTypeFactory typeFactory, CallContext callContext) {
-		final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
+	private RelDataType inferReturnTypeOrError(FlinkTypeFactory typeFactory, CallContext callContext) {
 		final LogicalType inferredType = inferOutputType(callContext, typeInference.getOutputTypeStrategy())
 			.getLogicalType();
-		return flinkTypeFactory.createFieldTypeFromLogicalType(inferredType);
+		return typeFactory.createFieldTypeFromLogicalType(inferredType);
 	}
 }

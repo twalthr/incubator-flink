@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
@@ -44,10 +43,13 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 	private final List<DataType> argumentDataTypes;
 
 	public OperatorBindingCallContext(
-			DataTypeLookup lookup,
 			FunctionDefinition definition,
 			SqlOperatorBinding binding) {
-		super(lookup, definition, binding.getOperator().getNameAsId().toString());
+		super(
+			((FlinkTypeFactory) binding.getTypeFactory()).getDataTypeLookup(),
+			definition,
+			binding.getOperator().getNameAsId().toString());
+
 		this.binding = binding;
 		this.argumentDataTypes = new AbstractList<DataType>() {
 			@Override

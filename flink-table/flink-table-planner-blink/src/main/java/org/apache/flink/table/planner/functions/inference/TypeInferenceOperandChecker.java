@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
@@ -57,8 +56,6 @@ import static org.apache.flink.table.types.inference.TypeInferenceUtil.createUne
 @Internal
 public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker {
 
-	private final DataTypeLookup lookup;
-
 	private final FunctionDefinition definition;
 
 	private final TypeInference typeInference;
@@ -66,10 +63,8 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
 	private final SqlOperandCountRange countRange;
 
 	public TypeInferenceOperandChecker(
-			DataTypeLookup lookup,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
-		this.lookup = lookup;
 		this.definition = definition;
 		this.typeInference = typeInference;
 		this.countRange = new ArgumentCountRange(typeInference.getInputTypeStrategy().getArgumentCount());
@@ -77,7 +72,7 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
 
 	@Override
 	public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-		final CallContext callContext = new CallBindingCallContext(lookup, definition, callBinding, null);
+		final CallContext callContext = new CallBindingCallContext(definition, callBinding, null);
 		try {
 			return checkOperandTypesOrError(callBinding, callContext);
 		}

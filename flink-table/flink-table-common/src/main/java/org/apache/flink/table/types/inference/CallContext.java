@@ -34,9 +34,6 @@ import java.util.Optional;
 @PublicEvolving
 public interface CallContext {
 
-
-	DataTypeLookup getDataTypeLookup();
-
 	/**
 	 * Enables to lookup types in a catalog and resolve RAW types.
 	 */

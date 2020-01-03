@@ -18,10 +18,17 @@
 
 package org.apache.flink.table.examples.java;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.types.inference.InputTypeStrategies;
+import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.types.Row;
 
 /**
  * Simple example that shows how the Batch SQL API is used in Java.
@@ -40,10 +47,14 @@ public class WordCountSQL {
 	public static void main(String[] args) throws Exception {
 
 		// set up execution environment
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(
+			env,
+			EnvironmentSettings.newInstance().useBlinkPlanner().build());
 
-		DataSet<WC> input = env.fromElements(
+		tEnv.createTemporarySystemFunction("myfunc", new MyFunc());
+
+		DataStream<WC> input = env.fromElements(
 			new WC("Hello", 1),
 			new WC("Ciao", 1),
 			new WC("Hello", 1));
@@ -53,11 +64,29 @@ public class WordCountSQL {
 
 		// run a SQL query on the Table and retrieve the result as a new Table
 		Table table = tEnv.sqlQuery(
-			"SELECT word, SUM(frequency) as frequency FROM WordCount GROUP BY word");
+			"SELECT myfunc(frequency, 44) FROM WordCount");
 
-		DataSet<WC> result = tEnv.toDataSet(table, WC.class);
+		tEnv.toAppendStream(table, Row.class).print();
 
-		result.print();
+		env.execute();
+	}
+
+	public static class MyFunc extends ScalarFunction {
+
+		@Override
+		public TypeInference getTypeInference() {
+			return TypeInference.newBuilder()
+//				.typedArguments(Arrays.asList(DataTypes.BIGINT(), DataTypes.TINYINT()))
+				.inputTypeStrategy(InputTypeStrategies.sequence(
+					InputTypeStrategies.explicit(DataTypes.BIGINT()),
+					InputTypeStrategies.explicit(DataTypes.INT())))
+				.outputTypeStrategy(TypeStrategies.explicit(DataTypes.STRING()))
+				.build();
+		}
+
+		String eval(Integer i) {
+			return String.valueOf(i);
+		}
 	}
 
 	// *************************************************************************
@@ -69,12 +98,12 @@ public class WordCountSQL {
 	 */
 	public static class WC {
 		public String word;
-		public long frequency;
+		public int frequency;
 
 		// public constructor to make it a Flink POJO
 		public WC() {}
 
-		public WC(String word, long frequency) {
+		public WC(String word, int frequency) {
 			this.word = word;
 			this.frequency = frequency;
 		}

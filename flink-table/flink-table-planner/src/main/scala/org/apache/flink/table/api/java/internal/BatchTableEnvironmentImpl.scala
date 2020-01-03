@@ -25,7 +25,7 @@ import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.api.java.BatchTableEnvironment
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.ExpressionParser
-import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
+import org.apache.flink.table.functions.{AggregateFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.module.ModuleManager
 
 import _root_.scala.collection.JavaConverters._
@@ -128,6 +128,8 @@ class BatchTableEnvironmentImpl(
 
     registerAggregateFunctionInternal[T, ACC](name, f)
   }
+
+  override def createTemporarySystemFunction(name: String, function: UserDefinedFunction): Unit = ???
 
   override def sqlUpdate(
     stmt: String,

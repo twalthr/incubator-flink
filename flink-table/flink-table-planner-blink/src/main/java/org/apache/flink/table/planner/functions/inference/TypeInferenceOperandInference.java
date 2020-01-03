@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.DataTypeLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
@@ -45,24 +44,20 @@ import static org.apache.flink.table.types.inference.TypeInferenceUtil.createUne
 @Internal
 public final class TypeInferenceOperandInference implements SqlOperandTypeInference {
 
-	private final DataTypeLookup lookup;
-
 	private final FunctionDefinition definition;
 
 	private final TypeInference typeInference;
 
 	public TypeInferenceOperandInference(
-			DataTypeLookup lookup,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
-		this.lookup = lookup;
 		this.definition = definition;
 		this.typeInference = typeInference;
 	}
 
 	@Override
 	public void inferOperandTypes(SqlCallBinding callBinding, RelDataType returnType, RelDataType[] operandTypes) {
-		final CallContext callContext = new CallBindingCallContext(lookup, definition, callBinding, returnType);
+		final CallContext callContext = new CallBindingCallContext(definition, callBinding, returnType);
 		try {
 			inferOperandTypesOrError(callBinding.getTypeFactory(), callContext, operandTypes);
 		} catch (Throwable t) {

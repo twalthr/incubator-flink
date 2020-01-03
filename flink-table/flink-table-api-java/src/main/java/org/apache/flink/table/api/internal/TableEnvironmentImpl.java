@@ -65,6 +65,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
@@ -255,6 +256,11 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		functionCatalog.registerTempSystemScalarFunction(
 			name,
 			function);
+	}
+
+	@Override
+	public void createTemporarySystemFunction(String name, UserDefinedFunction function) {
+		functionCatalog.registerTemporarySystemFunction(name, function);
 	}
 
 	@Override

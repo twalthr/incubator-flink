@@ -21,6 +21,8 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
@@ -70,6 +72,10 @@ public final class ObjectIdentifier implements Serializable {
 
 	public ObjectPath toObjectPath() {
 		return new ObjectPath(databaseName, objectName);
+	}
+
+	public List<String> toList() {
+		return Arrays.asList(getCatalogName(), getDatabaseName(), getObjectName());
 	}
 
 	/**

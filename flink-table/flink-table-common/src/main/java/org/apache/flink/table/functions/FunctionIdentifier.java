@@ -96,6 +96,7 @@ public final class FunctionIdentifier implements Serializable {
 	/**
 	 * List of the component names of this function identifier.
 	 */
+	@Deprecated
 	public List<String> getNames() {
 		if (objectIdentifier != null) {
 			return Arrays.asList(
