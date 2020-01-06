@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.functions.bridging;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
@@ -29,103 +28,24 @@ import org.apache.flink.table.planner.functions.inference.TypeInferenceReturnInf
 import org.apache.flink.table.types.inference.TypeInference;
 
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Calcite's representation of a scalar function (either system or user-defined).
+ * Utilities for bridging {@link FunctionDefinition} with Calcite's representation of functions.
  */
-@Internal
-public final class ScalarSqlFunction extends SqlFunction {
+final class BridgingUtils {
 
-	private final FunctionIdentifier identifier;
-
-	private final FunctionDefinition definition;
-
-	private final TypeInference typeInference;
-
-	private ScalarSqlFunction(
-			FlinkTypeFactory typeFactory,
-			SqlKind kind,
-			FunctionIdentifier identifier,
-			FunctionDefinition definition,
-			TypeInference typeInference) {
-		super(
-			createName(identifier),
-			createSqlIdentifier(identifier),
-			kind,
-			createSqlReturnTypeInference(definition, typeInference),
-			createSqlOperandTypeInference(definition, typeInference),
-			createSqlOperandTypeChecker(definition, typeInference),
-			createParamTypes(typeFactory, typeInference),
-			createSqlFunctionCategory(identifier));
-
-		this.identifier = identifier;
-		this.definition = definition;
-		this.typeInference = typeInference;
-	}
-
-	/**
-	 * Creates an instance of a scalar function (either system or user-defined).
-	 *
-	 * @param typeFactory used for resolving typed arguments
-	 * @param kind commonly used SQL standard function; use {@link SqlKind#OTHER_FUNCTION} if this function
-	 *             cannot be mapped to a common function kind.
-	 * @param identifier catalog identifier
-	 * @param definition system or user-defined {@link FunctionDefinition}
-	 * @param typeInference type inference logic
-	 */
-	public static ScalarSqlFunction of(
-			FlinkTypeFactory typeFactory,
-			SqlKind kind,
-			FunctionIdentifier identifier,
-			FunctionDefinition definition,
-			TypeInference typeInference) {
-		return new ScalarSqlFunction(
-			typeFactory,
-			kind,
-			identifier,
-			definition,
-			typeInference);
-	}
-
-	public FunctionIdentifier getIdentifier() {
-		return identifier;
-	}
-
-	public FunctionDefinition getDefinition() {
-		return definition;
-	}
-
-	public TypeInference getTypeInference() {
-		return typeInference;
-	}
-
-	@Override
-	public List<String> getParamNames() {
-		if (typeInference.getNamedArguments().isPresent()) {
-			return typeInference.getNamedArguments().get();
-		}
-		return super.getParamNames();
-	}
-
-	@Override
-	public boolean isDeterministic() {
-		return definition.isDeterministic();
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private static String createName(FunctionIdentifier identifier) {
+	static String createName(FunctionIdentifier identifier) {
 		if (identifier.getSimpleName().isPresent()) {
 			return identifier.getSimpleName().get();
 		}
@@ -134,31 +54,33 @@ public final class ScalarSqlFunction extends SqlFunction {
 			.orElseThrow(IllegalStateException::new);
 	}
 
-	private static SqlIdentifier createSqlIdentifier(FunctionIdentifier identifier) {
+	static @Nullable SqlIdentifier createSqlIdentifier(FunctionIdentifier identifier) {
 		return identifier.getIdentifier()
 			.map(i -> new SqlIdentifier(i.toList(), SqlParserPos.ZERO))
-			.orElse(null);
+			.orElse(null); // null indicates a built-in system function
 	}
 
-	private static SqlReturnTypeInference createSqlReturnTypeInference(
+	static SqlReturnTypeInference createSqlReturnTypeInference(
 			FunctionDefinition definition,
 			TypeInference typeInference) {
 		return new TypeInferenceReturnInference(definition, typeInference);
 	}
 
-	private static SqlOperandTypeInference createSqlOperandTypeInference(
+	static SqlOperandTypeInference createSqlOperandTypeInference(
 			FunctionDefinition definition,
 			TypeInference typeInference) {
 		return new TypeInferenceOperandInference(definition, typeInference);
 	}
 
-	private static SqlOperandTypeChecker createSqlOperandTypeChecker(
+	static SqlOperandTypeChecker createSqlOperandTypeChecker(
 			FunctionDefinition definition,
 			TypeInference typeInference) {
 		return new TypeInferenceOperandChecker(definition, typeInference);
 	}
 
-	private static List<RelDataType> createParamTypes(FlinkTypeFactory typeFactory, TypeInference typeInference) {
+	static @Nullable List<RelDataType> createParamTypes(
+			FlinkTypeFactory typeFactory,
+			TypeInference typeInference) {
 		return typeInference.getTypedArguments()
 			.map(dataTypes ->
 				dataTypes.stream()
@@ -167,10 +89,14 @@ public final class ScalarSqlFunction extends SqlFunction {
 			.orElse(null);
 	}
 
-	private static SqlFunctionCategory createSqlFunctionCategory(FunctionIdentifier identifier) {
+	static SqlFunctionCategory createSqlFunctionCategory(FunctionIdentifier identifier) {
 		if (identifier.getSimpleName().isPresent()) {
 			return SqlFunctionCategory.SYSTEM;
 		}
 		return SqlFunctionCategory.USER_DEFINED_FUNCTION;
+	}
+
+	private BridgingUtils() {
+		// no instantiation
 	}
 }

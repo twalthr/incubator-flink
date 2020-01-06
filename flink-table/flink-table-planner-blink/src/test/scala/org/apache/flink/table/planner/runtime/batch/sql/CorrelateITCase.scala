@@ -55,8 +55,15 @@ class CorrelateITCase extends BatchTestBase {
   @Test
   def testTableFunction(): Unit = {
     registerFunction("func", new TableFunc1)
+    registerFunction("func2", new ScalarFunction {
+      def eval(s: String): Row = ???
+
+      override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
+        Types.ROW(Types.STRING)
+      }
+    })
     checkResult(
-      "select c, s from inputT, LATERAL TABLE(func(c)) as T(s)",
+      "select c, s from inputT, LATERAL TABLE(func2(c)) as T(s)",
       Seq(
         row("Jack#22", "Jack"),
         row("Jack#22", "22"),

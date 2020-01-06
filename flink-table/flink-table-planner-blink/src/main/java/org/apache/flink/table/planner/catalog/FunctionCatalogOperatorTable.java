@@ -30,7 +30,7 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.functions.bridging.ScalarSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
@@ -135,7 +135,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			switch (functionDefinition.getKind()) {
 				case SCALAR:
 					return Optional.of(
-						ScalarSqlFunction.of(
+						BridgingSqlFunction.of(
 							typeFactory,
 							SqlKind.OTHER_FUNCTION,
 							identifier,

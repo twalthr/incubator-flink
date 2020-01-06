@@ -41,6 +41,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.util.TimestampString
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 import scala.collection.JavaConversions._
 
@@ -749,7 +750,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
              |""".stripMargin
         GeneratedExpression(nullValue.resultTerm, nullValue.nullTerm, code, resultType)
 
-      case ssf: org.apache.flink.table.planner.functions.bridging.ScalarSqlFunction =>
+      case ssf: BridgingSqlFunction =>
         ???
 
       case ssf: ScalarSqlFunction =>
