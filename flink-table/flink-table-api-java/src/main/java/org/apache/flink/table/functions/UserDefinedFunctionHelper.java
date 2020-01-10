@@ -147,26 +147,52 @@ public class UserDefinedFunctionHelper {
 	}
 
 	/**
-	 * Prepares a {@link UserDefinedFunction} for usage in the API.
+	 * Instantiates a {@link UserDefinedFunction} assuming a default constructor.
 	 */
-	public static void prepareFunction(TableConfig config, UserDefinedFunction function) {
-		if (function instanceof TableFunction) {
-			UserDefinedFunctionHelper.validateNotSingleton(function.getClass());
+	public static UserDefinedFunction instantiateFunction(Class<? extends UserDefinedFunction> functionClass) {
+		validateClass(functionClass, true);
+		try {
+			return functionClass.newInstance();
+		} catch (Exception e) {
+			throw new ValidationException(
+				String.format("Cannot instantiate user-defined function class '%s'.", functionClass.getName()),
+				e);
 		}
-		UserDefinedFunctionHelper.validateInstantiation(function.getClass());
-		UserDefinedFunctionHelper.cleanFunction(config, function);
+	}
+
+	/**
+	 * Prepares a {@link UserDefinedFunction} instance for usage in the API.
+	 */
+	public static void prepareInstance(TableConfig config, UserDefinedFunction function) {
+		validateClass(function.getClass(), false);
+		cleanFunction(config, function);
+	}
+
+	/**
+	 * Validates a {@link UserDefinedFunction} class for usage in the API.
+	 */
+	public static void validateClass(Class<? extends UserDefinedFunction> functionClass, boolean requiresDefaultConstructor) {
+		if (functionClass.isAssignableFrom(TableFunction.class)) {
+			UserDefinedFunctionHelper.validateNotSingleton(functionClass);
+		}
+		UserDefinedFunctionHelper.validateInstantiation(functionClass, requiresDefaultConstructor);
 	}
 
 	/**
 	 * Checks if a user-defined function can be easily instantiated.
 	 */
-	private static void validateInstantiation(Class<?> clazz) {
+	private static void validateInstantiation(Class<?> clazz, boolean requiresDefaultConstructor) {
 		if (!InstantiationUtil.isPublic(clazz)) {
 			throw new ValidationException(String.format("Function class %s is not public.", clazz.getCanonicalName()));
 		} else if (!InstantiationUtil.isProperClass(clazz)) {
 			throw new ValidationException(String.format(
 				"Function class %s is no proper class," +
 					" it is either abstract, an interface, or a primitive type.", clazz.getCanonicalName()));
+		} else if (requiresDefaultConstructor && !InstantiationUtil.hasPublicNullaryConstructor(clazz)) {
+			throw new ValidationException(
+				String.format(
+					"Function class '%s' must have a public default constructor.",
+					clazz.getName()));
 		}
 	}
 

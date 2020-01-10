@@ -38,6 +38,7 @@ import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedAggregateFunction;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.util.Preconditions;
@@ -53,6 +54,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Simple function catalog to store {@link FunctionDefinition}s in catalogs.
+ *
+ * <p>Note: This class can be cleaned up a lot once we drop the methods deprecated as part of FLIP-65.
  */
 @Internal
 public class FunctionCatalog implements FunctionLookup {
@@ -81,8 +84,185 @@ public class FunctionCatalog implements FunctionLookup {
 		this.plannerTypeInferenceUtil = plannerTypeInferenceUtil;
 	}
 
+	/**
+	 * Registers a temporary system function.
+	 */
+	public void registerTemporarySystemFunction(
+			String name,
+			FunctionDefinition definition,
+			boolean ignoreIfExists) {
+		final String normalizedName = FunctionIdentifier.normalizeName(name);
+
+		if (definition instanceof UserDefinedFunction) {
+			UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
+		}
+
+		if (!tempSystemFunctions.containsKey(normalizedName)) {
+			tempSystemFunctions.put(normalizedName, definition);
+		} else if (!ignoreIfExists) {
+			throw new ValidationException(
+				String.format(
+					"Could not register temporary system function. A function named '%s' does already exist.",
+					name));
+		}
+	}
+
+	/**
+	 * Drops a temporary system function. Returns true if a function was dropped.
+	 */
+	public boolean dropTemporarySystemFunction(
+			String name,
+			boolean ignoreIfNotExist) {
+		final String normalizedName = FunctionIdentifier.normalizeName(name);
+		final FunctionDefinition definition = tempSystemFunctions.remove(normalizedName);
+
+		if (definition == null && !ignoreIfNotExist) {
+			throw new ValidationException(
+				String.format(
+					"Could not drop temporary system function. A function named '%s' doesn't exist.",
+					name));
+		}
+
+		return definition != null;
+	}
+
+	/**
+	 * Registers a temporary catalog function.
+	 */
+	public void registerTemporaryCatalogFunction(
+			UnresolvedIdentifier unresolvedIdentifier,
+			FunctionDefinition definition,
+			boolean ignoreIfExists) {
+		final ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		final ObjectIdentifier normalizedIdentifier = FunctionIdentifier.normalizeObjectIdentifier(identifier);
+
+		if (definition instanceof UserDefinedFunction) {
+			UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
+		}
+
+		if (!tempCatalogFunctions.containsKey(normalizedIdentifier)) {
+			tempCatalogFunctions.put(normalizedIdentifier, definition);
+		} else if (!ignoreIfExists) {
+			throw new ValidationException(
+				String.format(
+					"Could not register temporary catalog function. A function '%s' does already exist.",
+					identifier.asSummaryString()));
+		}
+	}
+
+	/**
+	 * Drops a temporary catalog function.
+	 */
+	public boolean dropTemporaryCatalogFunction(
+			UnresolvedIdentifier unresolvedIdentifier,
+			boolean ignoreIfNotExist) {
+		final ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		final ObjectIdentifier normalizedIdentifier = FunctionIdentifier.normalizeObjectIdentifier(identifier);
+		final FunctionDefinition definition = tempCatalogFunctions.remove(normalizedIdentifier);
+
+		if (definition == null && !ignoreIfNotExist) {
+			throw new ValidationException(
+				String.format(
+					"Could not drop temporary catalog function. A function '%s' doesn't exist.",
+					identifier.asSummaryString()));
+		}
+
+		return definition != null;
+	}
+
+	/**
+	 * Registers a catalog function by also considering temporary catalog functions.
+	 */
+	public void registerCatalogFunction(
+			UnresolvedIdentifier unresolvedIdentifier,
+			Class<? extends UserDefinedFunction> functionClass,
+			boolean ignoreIfExists) {
+		final ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		final ObjectIdentifier normalizedIdentifier = FunctionIdentifier.normalizeObjectIdentifier(identifier);
+
+		UserDefinedFunctionHelper.validateClass(functionClass, true);
+
+		final Catalog catalog = catalogManager.getCatalog(normalizedIdentifier.getCatalogName())
+			.orElseThrow(IllegalStateException::new);
+		final ObjectPath path = identifier.toObjectPath();
+
+		if (tempCatalogFunctions.containsKey(normalizedIdentifier)) {
+			if (ignoreIfExists) {
+				return;
+			}
+			throw new ValidationException(
+				String.format(
+					"Could not register catalog function. A temporary function '%s' does already exist.",
+					identifier.asSummaryString()));
+		}
+
+		if (catalog.functionExists(path)) {
+			if (ignoreIfExists) {
+				return;
+			}
+			throw new ValidationException(
+				String.format(
+					"Could not register catalog function. A catalog function '%s' does already exist.",
+					identifier.asSummaryString()));
+		}
+
+		final CatalogFunction catalogFunction = new CatalogFunctionImpl(
+			functionClass.getName(),
+			FunctionLanguage.JAVA,
+			false);
+		try {
+			catalog.createFunction(path, catalogFunction, ignoreIfExists);
+		} catch (Throwable t) {
+			throw new TableException(
+				String.format(
+					"Could not register catalog function '%s'.",
+					identifier.asSummaryString()),
+				t);
+		}
+	}
+
+	public boolean dropCatalogFunction(
+			UnresolvedIdentifier unresolvedIdentifier,
+			boolean ignoreIfNotExist) {
+		final ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		final ObjectIdentifier normalizedIdentifier = FunctionIdentifier.normalizeObjectIdentifier(identifier);
+
+		final Catalog catalog = catalogManager.getCatalog(normalizedIdentifier.getCatalogName())
+			.orElseThrow(IllegalStateException::new);
+		final ObjectPath path = identifier.toObjectPath();
+
+		// we force users to deal with temporary catalog functions first
+		if (tempCatalogFunctions.containsKey(normalizedIdentifier)) {
+			throw new ValidationException(
+				String.format(
+					"Could not register catalog function. A temporary function '%s' does already exist.",
+					identifier.asSummaryString()));
+		}
+
+		if (!catalog.functionExists(path)) {
+			if (ignoreIfNotExist) {
+				return false;
+			}
+			throw new ValidationException(
+				String.format(
+					"Could not drop catalog function. A function '%s' doesn't exist.",
+					identifier.asSummaryString()));
+		}
+
+		try {
+			catalog.dropFunction(path, ignoreIfNotExist);
+		} catch (Throwable t) {
+			throw new TableException(
+				String.format(
+					"Could not drop catalog function '%s'.",
+					identifier.asSummaryString()),
+				t);
+		}
+		return true;
+	}
+
 	public void registerTempSystemScalarFunction(String name, ScalarFunction function) {
-		UserDefinedFunctionHelper.prepareFunction(config, function);
+		UserDefinedFunctionHelper.prepareInstance(config, function);
 
 		registerTempSystemFunction(
 			name,
@@ -94,7 +274,7 @@ public class FunctionCatalog implements FunctionLookup {
 			String name,
 			TableFunction<T> function,
 			TypeInformation<T> resultType) {
-		UserDefinedFunctionHelper.prepareFunction(config, function);
+		UserDefinedFunctionHelper.prepareInstance(config, function);
 
 		registerTempSystemFunction(
 			name,
@@ -110,7 +290,7 @@ public class FunctionCatalog implements FunctionLookup {
 			UserDefinedAggregateFunction<T, ACC> function,
 			TypeInformation<T> resultType,
 			TypeInformation<ACC> accType) {
-		UserDefinedFunctionHelper.prepareFunction(config, function);
+		UserDefinedFunctionHelper.prepareInstance(config, function);
 
 		final FunctionDefinition definition;
 		if (function instanceof AggregateFunction) {
@@ -136,7 +316,7 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	public void registerTempCatalogScalarFunction(ObjectIdentifier oi, ScalarFunction function) {
-		UserDefinedFunctionHelper.prepareFunction(config, function);
+		UserDefinedFunctionHelper.prepareInstance(config, function);
 
 		registerTempCatalogFunction(
 			oi,
@@ -148,7 +328,7 @@ public class FunctionCatalog implements FunctionLookup {
 			ObjectIdentifier oi,
 			TableFunction<T> function,
 			TypeInformation<T> resultType) {
-		UserDefinedFunctionHelper.prepareFunction(config, function);
+		UserDefinedFunctionHelper.prepareInstance(config, function);
 
 		registerTempCatalogFunction(
 			oi,
@@ -164,7 +344,7 @@ public class FunctionCatalog implements FunctionLookup {
 			UserDefinedAggregateFunction<T, ACC> function,
 			TypeInformation<T> resultType,
 			TypeInformation<ACC> accType) {
-		UserDefinedFunctionHelper.prepareFunction(config, function);
+		UserDefinedFunctionHelper.prepareInstance(config, function);
 
 		final FunctionDefinition definition;
 		if (function instanceof AggregateFunction) {
@@ -207,24 +387,6 @@ public class FunctionCatalog implements FunctionLookup {
 	 */
 	public boolean hasTemporarySystemFunction(String functionName) {
 		return tempSystemFunctions.containsKey(functionName);
-	}
-
-	/**
-	 * Drop a temporary system function.
-	 *
-	 * @param funcName name of the function
-	 * @param ignoreIfNotExist Flag to specify behavior when the function does not exist:
-	 *                         if set to false, throw an exception,
-	 *                         if set to true, do nothing.
-	 */
-	public void dropTempSystemFunction(String funcName, boolean ignoreIfNotExist) {
-		String normalizedName = FunctionIdentifier.normalizeName(funcName);
-
-		FunctionDefinition fd = tempSystemFunctions.remove(normalizedName);
-
-		if (fd == null && !ignoreIfNotExist) {
-			throw new ValidationException(String.format("Temporary system function %s doesn't exist", funcName));
-		}
 	}
 
 	/**
@@ -382,10 +544,18 @@ public class FunctionCatalog implements FunctionLookup {
 		return plannerTypeInferenceUtil;
 	}
 
+	/**
+	 * @deprecated Use {@link #registerTemporarySystemFunction(String, FunctionDefinition, boolean)} instead.
+	 */
+	@Deprecated
 	private void registerTempSystemFunction(String name, FunctionDefinition functionDefinition) {
 		tempSystemFunctions.put(FunctionIdentifier.normalizeName(name), functionDefinition);
 	}
 
+	/**
+	 * @deprecated Use {@link #registerTemporaryCatalogFunction(UnresolvedIdentifier, FunctionDefinition, boolean)} instead.
+	 */
+	@Deprecated
 	private void registerTempCatalogFunction(ObjectIdentifier oi, FunctionDefinition functionDefinition) {
 		tempCatalogFunctions.put(FunctionIdentifier.normalizeObjectIdentifier(oi), functionDefinition);
 	}

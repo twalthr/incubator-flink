@@ -241,20 +241,20 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		private FunctionDefinition prepareUserDefinedFunction(FunctionDefinition definition) {
 			if (definition instanceof ScalarFunctionDefinition) {
 				final ScalarFunctionDefinition sf = (ScalarFunctionDefinition) definition;
-				UserDefinedFunctionHelper.prepareFunction(resolutionContext.configuration(), sf.getScalarFunction());
+				UserDefinedFunctionHelper.prepareInstance(resolutionContext.configuration(), sf.getScalarFunction());
 				return new ScalarFunctionDefinition(
 					sf.getName(),
 					sf.getScalarFunction());
 			} else if (definition instanceof TableFunctionDefinition) {
 				final TableFunctionDefinition tf = (TableFunctionDefinition) definition;
-				UserDefinedFunctionHelper.prepareFunction(resolutionContext.configuration(), tf.getTableFunction());
+				UserDefinedFunctionHelper.prepareInstance(resolutionContext.configuration(), tf.getTableFunction());
 				return new TableFunctionDefinition(
 					tf.getName(),
 					tf.getTableFunction(),
 					tf.getResultType());
 			} else if (definition instanceof AggregateFunctionDefinition) {
 				final AggregateFunctionDefinition af = (AggregateFunctionDefinition) definition;
-				UserDefinedFunctionHelper.prepareFunction(resolutionContext.configuration(), af.getAggregateFunction());
+				UserDefinedFunctionHelper.prepareInstance(resolutionContext.configuration(), af.getAggregateFunction());
 				return new AggregateFunctionDefinition(
 					af.getName(),
 					af.getAggregateFunction(),
@@ -262,7 +262,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 					af.getAccumulatorTypeInfo());
 			} else if (definition instanceof TableAggregateFunctionDefinition) {
 				final TableAggregateFunctionDefinition taf = (TableAggregateFunctionDefinition) definition;
-				UserDefinedFunctionHelper.prepareFunction(resolutionContext.configuration(), taf.getTableAggregateFunction());
+				UserDefinedFunctionHelper.prepareInstance(resolutionContext.configuration(), taf.getTableAggregateFunction());
 				return new TableAggregateFunctionDefinition(
 					taf.getName(),
 					taf.getTableAggregateFunction(),

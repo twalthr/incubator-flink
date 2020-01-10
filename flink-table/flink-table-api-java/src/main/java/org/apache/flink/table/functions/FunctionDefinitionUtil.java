@@ -18,13 +18,18 @@
 
 package org.apache.flink.table.functions;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+
 /**
  * A util to instantiate {@link FunctionDefinition} in the default way.
  */
 public class FunctionDefinitionUtil {
 
+	/**
+	 * Currently only handles Java class-based functions until FLIP-65 is implemented for all
+	 * function kinds.
+	 */
 	public static FunctionDefinition createFunctionDefinition(String name, String className) {
-		// Currently only handles Java class-based functions
 		Object func;
 		try {
 			func = Thread.currentThread().getContextClassLoader().loadClass(className).newInstance();
@@ -41,29 +46,39 @@ public class FunctionDefinitionUtil {
 				(ScalarFunction) udf
 			);
 		} else if (udf instanceof TableFunction) {
-			TableFunction t = (TableFunction) udf;
+			TableFunction<?> tableFunction = (TableFunction<?>) udf;
+			TypeInformation<?> returnTypeInfo = UserDefinedFunctionHelper
+				.getReturnTypeOfTableFunction(tableFunction);
 			return new TableFunctionDefinition(
 				name,
-				t,
-				t.getResultType()
+				tableFunction,
+				returnTypeInfo
 			);
 		} else if (udf instanceof AggregateFunction) {
-			AggregateFunction a = (AggregateFunction) udf;
+			AggregateFunction<?, ?> aggregateFunction = (AggregateFunction<?, ?>) udf;
+			TypeInformation<?> returnTypeInfo = UserDefinedFunctionHelper
+				.getReturnTypeOfAggregateFunction(aggregateFunction);
+			TypeInformation<?> accTypeInfo = UserDefinedFunctionHelper
+				.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
 
 			return new AggregateFunctionDefinition(
 				name,
-				a,
-				a.getAccumulatorType(),
-				a.getResultType()
+				aggregateFunction,
+				accTypeInfo,
+				returnTypeInfo
 			);
 		} else if (udf instanceof TableAggregateFunction) {
-			TableAggregateFunction a = (TableAggregateFunction) udf;
+			TableAggregateFunction<?, ?> tableAggregateFunction = (TableAggregateFunction<?, ?>) udf;
+			TypeInformation<?> returnTypeInfo = UserDefinedFunctionHelper
+				.getReturnTypeOfAggregateFunction(tableAggregateFunction);
+			TypeInformation<?> accTypeInfo = UserDefinedFunctionHelper
+				.getAccumulatorTypeOfAggregateFunction(tableAggregateFunction);
 
 			return new TableAggregateFunctionDefinition(
 				name,
-				a,
-				a.getAccumulatorType(),
-				a.getResultType()
+				tableAggregateFunction,
+				returnTypeInfo,
+				accTypeInfo
 			);
 		} else {
 			throw new UnsupportedOperationException(

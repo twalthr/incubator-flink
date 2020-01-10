@@ -189,10 +189,10 @@ public class FunctionCatalogTest {
 		functionCatalog.registerTempSystemScalarFunction(TEST_FUNCTION_NAME, new TestFunction1());
 		assertTrue(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(TEST_FUNCTION_NAME));
 
-		functionCatalog.dropTempSystemFunction(TEST_FUNCTION_NAME, false);
+		functionCatalog.dropTemporarySystemFunction(TEST_FUNCTION_NAME, false);
 		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(TEST_FUNCTION_NAME));
 
-		functionCatalog.dropTempSystemFunction(TEST_FUNCTION_NAME, true);
+		functionCatalog.dropTemporarySystemFunction(TEST_FUNCTION_NAME, true);
 		assertFalse(Arrays.asList(functionCatalog.getUserDefinedFunctions()).contains(TEST_FUNCTION_NAME));
 	}
 
