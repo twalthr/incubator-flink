@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, req
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
-import org.apache.flink.table.planner.codegen.calls.{FunctionGenerator, ScalarFunctionCallGen, StringCallGen, TableFunctionCallGen}
+import org.apache.flink.table.planner.codegen.calls.{BridgingSqlFunctionCallGen, FunctionGenerator, ScalarFunctionCallGen, StringCallGen, TableFunctionCallGen}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
@@ -41,6 +41,8 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.util.TimestampString
+import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 import scala.collection.JavaConversions._
 
@@ -779,6 +781,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         new TableFunctionCallGen(
           tsf.makeFunction(getOperandLiterals(operands), operands.map(_.resultType).toArray))
             .generate(ctx, operands, resultType)
+
+      case bf: BridgingSqlFunction if bf.getDefinition.isInstanceOf[UserDefinedFunction] =>
+        new BridgingSqlFunctionCallGen(bf.getDefinition, bf.getTypeInference)
 
       // advanced scalar functions
       case sqlOperator: SqlOperator =>

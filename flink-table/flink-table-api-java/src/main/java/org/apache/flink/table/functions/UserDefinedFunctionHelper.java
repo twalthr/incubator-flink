@@ -171,24 +171,26 @@ public class UserDefinedFunctionHelper {
 	/**
 	 * Validates a {@link UserDefinedFunction} class for usage in the API.
 	 */
-	public static void validateClass(Class<? extends UserDefinedFunction> functionClass, boolean requiresDefaultConstructor) {
+	public static void validateClass(Class<? extends UserDefinedFunction> functionClass, boolean checkInstantiantion) {
 		if (functionClass.isAssignableFrom(TableFunction.class)) {
 			UserDefinedFunctionHelper.validateNotSingleton(functionClass);
 		}
-		UserDefinedFunctionHelper.validateInstantiation(functionClass, requiresDefaultConstructor);
+		if (checkInstantiantion) {
+			UserDefinedFunctionHelper.validateInstantiation(functionClass);
+		}
 	}
 
 	/**
 	 * Checks if a user-defined function can be easily instantiated.
 	 */
-	private static void validateInstantiation(Class<?> clazz, boolean requiresDefaultConstructor) {
+	private static void validateInstantiation(Class<?> clazz) {
 		if (!InstantiationUtil.isPublic(clazz)) {
 			throw new ValidationException(String.format("Function class %s is not public.", clazz.getCanonicalName()));
 		} else if (!InstantiationUtil.isProperClass(clazz)) {
 			throw new ValidationException(String.format(
 				"Function class %s is no proper class," +
 					" it is either abstract, an interface, or a primitive type.", clazz.getCanonicalName()));
-		} else if (requiresDefaultConstructor && !InstantiationUtil.hasPublicNullaryConstructor(clazz)) {
+		} else if (!InstantiationUtil.hasPublicNullaryConstructor(clazz)) {
 			throw new ValidationException(
 				String.format(
 					"Function class '%s' must have a public default constructor.",

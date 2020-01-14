@@ -420,7 +420,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	public void insertInto(Table table, String sinkPath, String... sinkPathContinued) {
 		List<String> fullPath = new ArrayList<>(Arrays.asList(sinkPathContinued));
 		fullPath.add(0, sinkPath);
-		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(fullPath.toArray(new String[0]));
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(fullPath);
 
 		insertIntoInternal(unresolvedIdentifier, table);
 	}

@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.examples.java;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.types.Row;
 
 /**
  * Simple example that shows how the Batch SQL API is used in Java.
@@ -40,10 +43,18 @@ public class WordCountSQL {
 	public static void main(String[] args) throws Exception {
 
 		// set up execution environment
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(
+			env,
+			EnvironmentSettings.newInstance().useBlinkPlanner().build());
 
-		DataSet<WC> input = env.fromElements(
+		tEnv.createTemporarySystemFunction("testi", new ScalarFunction() {
+			public String eval(int i) {
+				return String.valueOf(i);
+			}
+		});
+
+		DataStream<WC> input = env.fromElements(
 			new WC("Hello", 1),
 			new WC("Ciao", 1),
 			new WC("Hello", 1));
@@ -53,11 +64,9 @@ public class WordCountSQL {
 
 		// run a SQL query on the Table and retrieve the result as a new Table
 		Table table = tEnv.sqlQuery(
-			"SELECT word, SUM(frequency) as frequency FROM WordCount GROUP BY word");
+			"SELECT testi(12) FROM WordCount");
 
-		DataSet<WC> result = tEnv.toDataSet(table, WC.class);
-
-		result.print();
+		tEnv.toRetractStream(table, Row.class).print();
 	}
 
 	// *************************************************************************
