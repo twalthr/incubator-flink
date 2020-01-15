@@ -41,6 +41,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectMethods;
+import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.createMethodSignatureString;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.isAssignable;
 import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.isMethodInvokable;
@@ -437,26 +438,9 @@ public final class FunctionMappingExtractor {
 			String methodName,
 			Class<?>[] parameters,
 			@Nullable Class<?> returnType) {
-		final StringBuilder builder = new StringBuilder();
-		if (returnType != null) {
-			builder.append(returnType.getName()).append(" ");
-		}
-		builder
-			.append(methodName)
-			.append(
-				Stream.of(parameters)
-					.map(parameter -> {
-						// in case we don't know the parameter at this location (i.e. for accumulators)
-						if (parameter == null) {
-							return "_";
-						} else {
-							return parameter.getName();
-						}
-					})
-					.collect(Collectors.joining(", ", "(", ")")));
 		return extractionError(
 			"Considering all hints, the method should comply with the signature:\n%s",
-			builder.toString());
+			createMethodSignatureString(methodName, parameters, returnType));
 	}
 
 	// --------------------------------------------------------------------------------------------

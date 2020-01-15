@@ -107,7 +107,7 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
     val resultUnboxing = if (resultClass.isPrimitive) {
       GenerateUtils.generateNonNullField(returnType, resultTerm)
     } else {
-      GenerateUtils.generateInputFieldUnboxing(ctx, returnType, resultTerm)
+      GenerateUtils.generateInputFieldUnboxing(ctx, returnType, resultTerm, resultTerm)
     }
     resultUnboxing.copy(code =
       s"""
@@ -161,10 +161,8 @@ object ScalarFunctionCallGen {
           } else {
             signatureTypes(i)
           }
-        val externalResultTerm = genToExternalIfNeeded(
-          ctx, signatureType, operandExpr.resultTerm)
-        val exprOrNull = s"${operandExpr.nullTerm} ? null : ($externalResultTerm)"
-        operandExpr.copy(resultTerm = exprOrNull)
+        val externalResultTerm = genToExternalIfNeeded(ctx, signatureType, operandExpr)
+        operandExpr.copy(resultTerm = externalResultTerm)
       }
     }
   }
