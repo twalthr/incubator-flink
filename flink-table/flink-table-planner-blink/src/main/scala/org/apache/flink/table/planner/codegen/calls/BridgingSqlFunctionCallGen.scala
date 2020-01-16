@@ -18,27 +18,27 @@
 
 package org.apache.flink.table.planner.codegen.calls
 import java.lang.reflect.Method
-import java.util
-import java.util.Optional
+import java.util.Collections
 
-import org.apache.flink.table.catalog.DataTypeLookup
-import org.apache.flink.table.functions.{FunctionDefinition, ScalarFunction, TableFunction, UserDefinedFunction}
+import org.apache.calcite.rex.{RexCall, RexCallBinding}
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{genToExternalIfNeeded, genToInternalIfNeeded, typeTerm}
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.utils.ExtractionUtils
 import org.apache.flink.table.types.extraction.utils.ExtractionUtils.{createMethodSignatureString, isAssignable, isMethodInvokable}
-import org.apache.flink.table.types.inference.{CallContext, TypeInferenceUtil}
+import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.types.utils.TypeConversions
 
 /**
  * Generates a call to a user-defined [[ScalarFunction]] or [[TableFunction]] (future work).
  */
-class BridgingSqlFunctionCallGen(function: BridgingSqlFunction) extends CallGenerator {
+class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
 
+  private val function: BridgingSqlFunction = call.getOperator.asInstanceOf[BridgingSqlFunction]
   private val udf: UserDefinedFunction = function.getDefinition.asInstanceOf[UserDefinedFunction]
 
   override def generate(
@@ -48,13 +48,21 @@ class BridgingSqlFunctionCallGen(function: BridgingSqlFunction) extends CallGene
     : GeneratedExpression = {
 
     val inference = function.getTypeInference
-    val callContext = new CodeGenerationCallContext(operands, returnType)
+
+    // we could have implemented a dedicated code generation context but the closer we are to
+    // Calcite the more consistent is the type inference during the data type enrichment
+    val callContext = new OperatorBindingCallContext(
+      udf,
+      RexCallBinding.create(
+        function.getTypeFactory,
+        call,
+        Collections.emptyList()))
 
     // enrich argument types with conversion class
     val adaptedCallContext = TypeInferenceUtil.adaptArguments(
       inference,
       callContext,
-      TypeConversions.fromLogicalToDataType(returnType))
+      null)
     val enrichedArgumentDataTypes = toScala(adaptedCallContext.getArgumentDataTypes)
     verifyArgumentTypes(operands.map(_.resultType), enrichedArgumentDataTypes)
 
@@ -91,7 +99,7 @@ class BridgingSqlFunctionCallGen(function: BridgingSqlFunction) extends CallGene
     internalExpr.copy(code =
       s"""
         |${externalOperands.map(_.code).mkString("\n")}
-        |$externalResultTerm = ($externalResultTypeTerm) $functionTerm.getClass().getMethod("eval").invoke($externalOperandTerms);
+        |$externalResultTerm = ($externalResultTypeTerm) $functionTerm.eval($externalOperandTerms);
         |${internalExpr.code}
         |""".stripMargin)
   }
@@ -113,9 +121,14 @@ class BridgingSqlFunctionCallGen(function: BridgingSqlFunction) extends CallGene
       enrichedDataTypes: Seq[DataType])
     : Unit = {
     val enrichedTypes = enrichedDataTypes.map(_.getLogicalType)
-    if (operandTypes != enrichedTypes) {
-      throw new CodeGenException(
-        "Mismatch of inferred argument data types and logical argument types.")
+    operandTypes.zip(enrichedTypes).foreach { case (operandType, enrichedType) =>
+      // check that the logical type has not changed during the enrichment
+      // a nullability mismatch is acceptable if the enriched type can handle it
+      if (operandType != enrichedType && operandType.copy(true) != enrichedType) {
+        throw new CodeGenException(
+          s"Mismatch of function's argument data type '$enrichedType' and actual " +
+            s"argument type '$operandType'.")
+      }
     }
     // the data type class can only partially verify the conversion class,
     // now is the time for the final check
@@ -133,9 +146,12 @@ class BridgingSqlFunctionCallGen(function: BridgingSqlFunction) extends CallGene
       enrichedDataType: DataType)
     : Unit = {
     val enrichedType = enrichedDataType.getLogicalType
-    if (outputType != enrichedType) {
+    // check that the logical type has not changed during the enrichment
+    // a nullability mismatch is acceptable if the output type can handle it
+    if (outputType != enrichedType && outputType != enrichedType.copy(true)) {
       throw new CodeGenException(
-        "Mismatch of inferred output data type and logical output type.")
+        s"Mismatch of expected output data type '$outputType' and function's " +
+          s"output type '$enrichedType'.")
     }
     // the data type class can only partially verify the conversion class,
     // now is the time for the final check
@@ -153,67 +169,15 @@ class BridgingSqlFunctionCallGen(function: BridgingSqlFunction) extends CallGene
     val methods = toScala(ExtractionUtils.collectMethods(udf.getClass, "eval"))
     val argumentClasses = argumentDataTypes.map(_.getConversionClass).toArray
     val outputClass = outputDataType.getConversionClass
+    // verifies regular JVM calling semantics
     def methodMatches(method: Method): Boolean = {
       isMethodInvokable(method, argumentClasses: _*) &&
-        isAssignable(method.getReturnType, outputClass, true)
+        isAssignable(outputClass, method.getReturnType, true)
     }
     if (!methods.exists(methodMatches)) {
       throw new CodeGenException(
         s"Could not find a implementation method that matches the following signature: " +
           s"${createMethodSignatureString("eval", argumentClasses, outputClass)}")
-    }
-  }
-
-  private class CodeGenerationCallContext(
-      operands: Seq[GeneratedExpression],
-      outputType: LogicalType)
-    extends CallContext {
-
-    private val argumentDataTypes = new util.AbstractList[DataType] {
-      override def get(index: Int): DataType = {
-        TypeConversions.fromLogicalToDataType(operands(index).resultType)
-      }
-
-      override def size(): Int = {
-        operands.length
-      }
-    }
-
-    override def getDataTypeLookup: DataTypeLookup = {
-      throw new UnsupportedOperationException(
-        "Data type lookup not available in code generation yet.")
-    }
-
-    override def getFunctionDefinition: FunctionDefinition = {
-      function.getDefinition
-    }
-
-    override def isArgumentLiteral(pos: Int): Boolean = {
-      operands(pos).literal
-    }
-
-    override def isArgumentNull(pos: Int): Boolean = {
-      operands(pos).literalValue.contains(null)
-    }
-
-    override def getArgumentValue[T](pos: Int, clazz: Class[T]): Optional[T] = {
-      val value = operands(pos)
-        .literalValue
-        .getOrElse(throw new IllegalArgumentException("Literal value expected."))
-      if (clazz.isAssignableFrom(value.getClass)) {
-        return Optional.of(value.asInstanceOf[T])
-      }
-      throw new UnsupportedOperationException("TODO") // TODO
-    }
-
-    override def getName: String = function.getNameAsId.toString
-
-    override def getArgumentDataTypes: util.List[DataType] = {
-      argumentDataTypes
-    }
-
-    override def getOutputDataType: Optional[DataType] = {
-      Optional.of(TypeConversions.fromLogicalToDataType(outputType))
     }
   }
 }

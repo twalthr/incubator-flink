@@ -48,20 +48,7 @@ public class WordCountSQL {
 			env,
 			EnvironmentSettings.newInstance().useBlinkPlanner().build());
 
-		tEnv.createTemporarySystemFunction("testi", new ScalarFunction() {
-			public String eval(Integer i) {
-				return String.valueOf(i);
-			}
-		});
-
-		ScalarFunction f = new ScalarFunction() {
-			public String eval(Integer i) {
-				return String.valueOf(i);
-			}
-		};
-		Class<?> c = f.getClass();
-
-		c.getMethod("eval", Integer.class).invoke(f, 12);
+		tEnv.createTemporarySystemFunction("testi", new TestFunc());
 
 		DataStream<WC> input = env.fromElements(
 			new WC("Hello", 1),
@@ -73,11 +60,17 @@ public class WordCountSQL {
 
 		// run a SQL query on the Table and retrieve the result as a new Table
 		Table table = tEnv.sqlQuery(
-			"SELECT testi(CAST(NULL AS INT)) FROM WordCount");
+			"SELECT testi(TIMESTAMP '2021-12-12 12:12:12') FROM WordCount");
 
 		tEnv.toRetractStream(table, Row.class).print();
 
 		tEnv.execute("s");
+	}
+
+	public static class TestFunc extends ScalarFunction {
+		public String eval(java.sql.Timestamp dt) {
+			return dt.toString();
+		}
 	}
 
 	// *************************************************************************
