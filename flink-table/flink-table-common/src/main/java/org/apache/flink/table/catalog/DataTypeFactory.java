@@ -32,7 +32,7 @@ import java.util.Optional;
  * {@link StructuredType}.
  */
 @PublicEvolving
-public interface DataTypeLookup {
+public interface DataTypeFactory {
 
 	/**
 	 * Lookup a type by a fully or partially defined name.

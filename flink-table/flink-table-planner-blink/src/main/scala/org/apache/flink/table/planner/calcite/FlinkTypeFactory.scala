@@ -42,7 +42,7 @@ import java.nio.charset.Charset
 import java.util
 import java.util.Optional
 
-import org.apache.flink.table.catalog.{DataTypeLookup, UnresolvedIdentifier}
+import org.apache.flink.table.catalog.{DataTypeFactory, UnresolvedIdentifier}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -56,7 +56,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
   private val seenTypes = mutable.HashMap[LogicalType, RelDataType]()
 
-  def getDataTypeLookup: DataTypeLookup = new DataTypeLookup {
+  def getDataTypeFactory: DataTypeFactory = new DataTypeFactory {
     override def lookupDataType(name: String): Optional[DataType] =
       throw new UnsupportedOperationException("Looking up a data type is not supported yet.")
 

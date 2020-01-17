@@ -23,7 +23,7 @@ import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -410,22 +410,22 @@ public class TypeInferenceExtractorTest {
 
 		static TestSpec forScalarFunction(Class<? extends ScalarFunction> function) {
 			return new TestSpec(() ->
-				TypeInferenceExtractor.forScalarFunction(new DataTypeLookupMock(), function));
+				TypeInferenceExtractor.forScalarFunction(new DataTypeFactoryMock(), function));
 		}
 
 		static TestSpec forAggregateFunction(Class<? extends AggregateFunction<?, ?>> function) {
 			return new TestSpec(() ->
-				TypeInferenceExtractor.forAggregateFunction(new DataTypeLookupMock(), function));
+				TypeInferenceExtractor.forAggregateFunction(new DataTypeFactoryMock(), function));
 		}
 
 		static TestSpec forTableFunction(Class<? extends TableFunction<?>> function) {
 			return new TestSpec(() ->
-				TypeInferenceExtractor.forTableFunction(new DataTypeLookupMock(), function));
+				TypeInferenceExtractor.forTableFunction(new DataTypeFactoryMock(), function));
 		}
 
 		static TestSpec forTableAggregateFunction(Class<? extends TableAggregateFunction<?, ?>> function) {
 			return new TestSpec(() ->
-				TypeInferenceExtractor.forTableAggregateFunction(new DataTypeLookupMock(), function));
+				TypeInferenceExtractor.forTableAggregateFunction(new DataTypeFactoryMock(), function));
 		}
 
 		TestSpec expectNamedArguments(String... expectedArgumentNames) {
@@ -454,7 +454,7 @@ public class TypeInferenceExtractorTest {
 		}
 	}
 
-	private static class DataTypeLookupMock implements DataTypeLookup {
+	private static class DataTypeFactoryMock implements DataTypeFactory {
 
 		@Override
 		public Optional<DataType> lookupDataType(String name) {

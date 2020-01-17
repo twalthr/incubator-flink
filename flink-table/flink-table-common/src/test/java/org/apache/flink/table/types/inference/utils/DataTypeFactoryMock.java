@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.types.inference.utils;
 
-import org.apache.flink.table.catalog.DataTypeLookup;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
@@ -29,9 +29,9 @@ import java.util.Optional;
 import static org.junit.Assert.assertEquals;
 
 /**
- * {@link DataTypeLookup} mock for testing purposes.
+ * {@link DataTypeFactory} mock for testing purposes.
  */
-public class DataTypeLookupMock implements DataTypeLookup {
+public class DataTypeFactoryMock implements DataTypeFactory {
 
 	public Optional<DataType> dataType = Optional.empty();
 
