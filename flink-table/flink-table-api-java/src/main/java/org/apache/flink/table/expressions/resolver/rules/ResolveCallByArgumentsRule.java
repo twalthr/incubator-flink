@@ -278,18 +278,18 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 	private static class UnsupportedDataTypeFactory implements DataTypeFactory {
 
 		@Override
-		public Optional<DataType> lookupDataType(String name) {
-			throw new TableException("Data type lookup is not supported yet.");
+		public Optional<DataType> createDataType(String name) {
+			throw new TableException("Data type factory is not supported yet.");
 		}
 
 		@Override
-		public Optional<DataType> lookupDataType(UnresolvedIdentifier identifier) {
-			throw new TableException("Data type lookup is not supported yet.");
+		public Optional<DataType> createDataType(UnresolvedIdentifier identifier) {
+			throw new TableException("Data type factory is not supported yet.");
 		}
 
 		@Override
-		public DataType resolveRawDataType(Class<?> clazz) {
-			throw new TableException("Data type lookup is not supported yet.");
+		public DataType createRawDataType(Class<?> clazz) {
+			throw new TableException("Data type factory is not supported yet.");
 		}
 	}
 

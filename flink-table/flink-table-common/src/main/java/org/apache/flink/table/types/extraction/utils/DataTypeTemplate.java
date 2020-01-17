@@ -315,7 +315,7 @@ public final class DataTypeTemplate {
 				return createRawType(typeFactory, template.rawSerializer, conversionClass);
 			}
 			// regular type that must be resolvable
-			return typeFactory.lookupDataType(typeName)
+			return typeFactory.createDataType(typeName)
 				.map(dataType -> {
 					if (conversionClass != null) {
 						return dataType.bridgedTo(conversionClass);

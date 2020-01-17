@@ -57,14 +57,14 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   private val seenTypes = mutable.HashMap[LogicalType, RelDataType]()
 
   def getDataTypeFactory: DataTypeFactory = new DataTypeFactory {
-    override def lookupDataType(name: String): Optional[DataType] =
-      throw new UnsupportedOperationException("Looking up a data type is not supported yet.")
+    override def createDataType(name: String): Optional[DataType] =
+      throw new UnsupportedOperationException("Data type factory is not supported yet.")
 
-    override def lookupDataType(identifier: UnresolvedIdentifier): Optional[DataType] =
-      throw new UnsupportedOperationException("Looking up a data type is not supported yet.")
+    override def createDataType(identifier: UnresolvedIdentifier): Optional[DataType] =
+      throw new UnsupportedOperationException("Data type factory is not supported yet.")
 
-    override def resolveRawDataType(clazz: Class[_]): DataType =
-      throw new UnsupportedOperationException("Looking up a data type is not supported yet.")
+    override def createRawDataType(clazz: Class[_]): DataType =
+      throw new UnsupportedOperationException("Data type factory is not supported yet.")
   }
 
   /**

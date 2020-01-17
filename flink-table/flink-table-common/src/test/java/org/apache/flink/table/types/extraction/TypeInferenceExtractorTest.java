@@ -457,17 +457,17 @@ public class TypeInferenceExtractorTest {
 	private static class DataTypeFactoryMock implements DataTypeFactory {
 
 		@Override
-		public Optional<DataType> lookupDataType(String name) {
+		public Optional<DataType> createDataType(String name) {
 			return Optional.of(TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(name)));
 		}
 
 		@Override
-		public Optional<DataType> lookupDataType(UnresolvedIdentifier identifier) {
+		public Optional<DataType> createDataType(UnresolvedIdentifier identifier) {
 			return Optional.empty();
 		}
 
 		@Override
-		public DataType resolveRawDataType(Class<?> clazz) {
+		public DataType createRawDataType(Class<?> clazz) {
 			return null;
 		}
 	}

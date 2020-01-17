@@ -38,17 +38,17 @@ public class DataTypeFactoryMock implements DataTypeFactory {
 	public Optional<Class<?>> expectedClass = Optional.empty();
 
 	@Override
-	public Optional<DataType> lookupDataType(String name) {
+	public Optional<DataType> createDataType(String name) {
 		return Optional.of(TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(name)));
 	}
 
 	@Override
-	public Optional<DataType> lookupDataType(UnresolvedIdentifier identifier) {
+	public Optional<DataType> createDataType(UnresolvedIdentifier identifier) {
 		return dataType;
 	}
 
 	@Override
-	public DataType resolveRawDataType(Class<?> clazz) {
+	public DataType createRawDataType(Class<?> clazz) {
 		expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
 		return dataType.orElseThrow(IllegalStateException::new);
 	}

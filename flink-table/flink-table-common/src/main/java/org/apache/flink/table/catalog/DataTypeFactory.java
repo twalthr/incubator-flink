@@ -37,12 +37,12 @@ public interface DataTypeFactory {
 	/**
 	 * Lookup a type by a fully or partially defined name.
 	 */
-	Optional<DataType> lookupDataType(String name);
+	Optional<DataType> createDataType(String name);
 
 	/**
 	 * Lookup a type by an unresolved identifier.
 	 */
-	Optional<DataType> lookupDataType(UnresolvedIdentifier identifier);
+	Optional<DataType> createDataType(UnresolvedIdentifier identifier);
 
 	/**
 	 * Resolves a RAW type for the given class.
@@ -50,5 +50,5 @@ public interface DataTypeFactory {
 	 * <p>The {@link RawType} requires an instantiated serializer. Flink's default RAW serializer is
 	 * configured during the resolution process.
 	 */
-	DataType resolveRawDataType(Class<?> clazz);
+	DataType createRawDataType(Class<?> clazz);
 }

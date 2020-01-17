@@ -140,7 +140,7 @@ public final class ExtractionUtils {
 		if (rawSerializer != null) {
 			return DataTypes.RAW((Class) createConversionClass(conversionClass), instantiateRawSerializer(rawSerializer));
 		}
-		return typeFactory.resolveRawDataType(createConversionClass(conversionClass));
+		return typeFactory.createRawDataType(createConversionClass(conversionClass));
 	}
 
 	private static Class<?> createConversionClass(@Nullable Class<?> conversionClass) {
