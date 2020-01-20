@@ -154,7 +154,9 @@ trait BatchExecAggRuleBase {
   protected def isAggBufferFixedLength(agg: Aggregate): Boolean = {
     val (_, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
     val (_, aggBufferTypes, _) = AggregateUtil.transformToBatchAggregateFunctions(
-      aggCallsWithoutAuxGroupCalls, agg.getInput.getRowType)
+      agg.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory],
+      aggCallsWithoutAuxGroupCalls,
+      agg.getInput.getRowType)
 
     isAggBufferFixedLength(aggBufferTypes.map(_.map(fromDataTypeToLogicalType)))
   }

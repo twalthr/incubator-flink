@@ -81,7 +81,7 @@ import static java.util.Collections.singletonList;
 @Internal
 public class PlannerContext {
 	private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
-	private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
+	private final FlinkTypeFactory typeFactory;
 	private final TableConfig tableConfig;
 	private final RelOptCluster cluster;
 	private final FlinkContext context;
@@ -94,6 +94,7 @@ public class PlannerContext {
 			CatalogManager catalogManager,
 			CalciteSchema rootSchema,
 			List<RelTraitDef> traitDefs) {
+		this.typeFactory = new FlinkTypeFactory(typeSystem, catalogManager.getDataTypeFactory());
 		this.tableConfig = tableConfig;
 		this.context = new FlinkContextImpl(tableConfig, functionCatalog, catalogManager);
 		this.rootSchema = rootSchema;

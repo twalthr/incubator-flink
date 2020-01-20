@@ -92,7 +92,10 @@ class BatchExecOverAggregateRule
       val groupToAggCallToAggFunction = groupBuffer.map { group =>
         val aggregateCalls = group.getAggregateCalls(logicWindow)
         val (_, _, aggregates) = AggregateUtil.transformToBatchAggregateFunctions(
-          aggregateCalls, inputTypeWithConstants, orderKeyIndexes)
+          typeFactory,
+          aggregateCalls,
+          inputTypeWithConstants,
+          orderKeyIndexes)
         val aggCallToAggFunction = aggregateCalls.zip(aggregates)
         (group, aggCallToAggFunction)
       }

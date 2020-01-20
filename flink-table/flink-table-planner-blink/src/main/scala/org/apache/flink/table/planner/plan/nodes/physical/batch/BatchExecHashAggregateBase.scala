@@ -126,7 +126,9 @@ abstract class BatchExecHashAggregateBase(
     val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
 
     val aggInfos = transformToBatchAggregateInfoList(
-      aggCallToAggFunction.map(_._1), aggInputRowType)
+      planner.getTypeFactory,
+      aggCallToAggFunction.map(_._1),
+      aggInputRowType)
 
     var managedMemory: Long = 0L
     val generatedOperator = if (grouping.isEmpty) {

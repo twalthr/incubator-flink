@@ -384,6 +384,7 @@ class BatchExecOverAggregate(
       //operator needn't cache data
       val aggHandlers = modeToGroupToAggCallToAggFunction.map { case (_, _, aggCallToAggFunction) =>
         val aggInfoList = transformToBatchAggregateInfoList(
+          planner.getTypeFactory,
           aggCallToAggFunction.map(_._1),
           // use aggInputType which considers constants as input instead of inputType
           inputTypeWithConstants,
@@ -409,7 +410,7 @@ class BatchExecOverAggregate(
         }.toArray
       new NonBufferOverWindowOperator(aggHandlers, genComparator, resetAccumulators)
     } else {
-      val windowFrames = createOverWindowFrames(config)
+      val windowFrames = createOverWindowFrames(planner.getTypeFactory, config)
       managedMemory = MemorySize.parse(config.getConfiguration.getString(
         ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
       new BufferDataOverWindowOperator(
@@ -426,7 +427,10 @@ class BatchExecOverAggregate(
       managedMemory)
   }
 
-  def createOverWindowFrames(config: TableConfig): Array[OverWindowFrame] = {
+  def createOverWindowFrames(
+      typeFactory: FlinkTypeFactory,
+      config: TableConfig)
+    : Array[OverWindowFrame] = {
 
     def isUnboundedWindow(group: Window.Group) =
       group.lowerBound.isUnbounded && group.upperBound.isUnbounded
@@ -447,6 +451,7 @@ class BatchExecOverAggregate(
           //lies on the offset of the window frame.
           aggCallToAggFunction.map { case (aggCall, _) =>
             val aggInfoList = transformToBatchAggregateInfoList(
+              typeFactory,
               Seq(aggCall),
               inputTypeWithConstants,
               orderKeyIndices,
@@ -519,6 +524,7 @@ class BatchExecOverAggregate(
 
         case _ =>
           val aggInfoList = transformToBatchAggregateInfoList(
+            typeFactory,
             aggCallToAggFunction.map(_._1),
             //use aggInputType which considers constants as input instead of inputSchema.relDataType
             inputTypeWithConstants,

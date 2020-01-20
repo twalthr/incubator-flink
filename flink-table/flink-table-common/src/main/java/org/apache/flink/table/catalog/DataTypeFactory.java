@@ -19,36 +19,92 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.DistinctType;
-import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.StructuredType;
 
 import java.util.Optional;
 
 /**
- * Catalog of types that can resolve the name of type to a {@link DataType}. This includes both
- * built-in logical types as well as user-defined logical types such as {@link DistinctType} and
- * {@link StructuredType}.
+ * Factory for creating fully resolved data types that can be used for planning.
+ *
+ * <p>The factory is useful for types that cannot be created with one of the static methods in
+ * {@link DataTypes}) because they require access to configuration or catalog.
  */
 @PublicEvolving
 public interface DataTypeFactory {
 
 	/**
-	 * Lookup a type by a fully or partially defined name.
+	 * Creates a type by a fully or partially defined name.
+	 *
+	 * <p>The factory will parse and resolve the name of a type to a {@link DataType}. This includes
+	 * both built-in types as well as user-defined types (see {@link DistinctType} and {@link StructuredType}).
 	 */
 	Optional<DataType> createDataType(String name);
 
 	/**
-	 * Lookup a type by an unresolved identifier.
+	 * Creates a type by a fully or partially defined identifier.
+	 *
+	 * <p>The factory will parse and resolve the name of a type to a {@link DataType}. This includes
+	 * both built-in types as well as user-defined types (see {@link DistinctType} and {@link StructuredType}).
 	 */
 	Optional<DataType> createDataType(UnresolvedIdentifier identifier);
 
 	/**
-	 * Resolves a RAW type for the given class.
+	 * Creates a type by analyzing the given class.
 	 *
-	 * <p>The {@link RawType} requires an instantiated serializer. Flink's default RAW serializer is
-	 * configured during the resolution process.
+	 * <p>It does this by using Java reflection which can be supported by {@link DataTypeHint} annotations
+	 * for nested, structured types.
+	 *
+	 * <p>It will throw an {@link ValidationException} in cases where the reflective extraction needs
+	 * more information or simply fails.
+	 *
+	 * <p>The following examples show how to use and enrich the extraction process:
+	 *
+	 * <pre>
+	 * {@code
+	 *   // returns INT
+	 *   createDataType(Integer.class)
+	 *
+	 *   // returns TIMESTAMP(9)
+	 *   createDataType(java.time.LocalDateTime.class)
+	 *
+	 *   // returns an anonymous, unregistered structured type
+	 *   // that is deeply integrated into the API compared to opaque RAW types
+	 *   class User {
+	 *
+	 *     // extract fields automatically
+	 *     public String name;
+	 *     public int age;
+	 *
+	 *     // enrich the extraction with precision information
+	 *     public @DataTypeHint("DECIMAL(10,2)") BigDecimal accountBalance;
+	 *
+	 *     // enrich the extraction with forcing using RAW types
+	 *     public @DataTypeHint(forceRawPattern = "scala.") Address address;
+	 *
+	 *     // enrich the extraction by specifying defaults
+	 *     public @DataTypeHint(defaultSecondPrecision = 3) Log log;
+	 *   }
+	 * }
+	 * </pre>
 	 */
-	DataType createRawDataType(Class<?> clazz);
+	default <T> DataType createDataType(Class<T> clazz) {
+		return DataTypeExtractor.extractFromType(this, clazz);
+	}
+
+	/**
+	 * Creates a RAW type for the given class. This type is a black box within the table ecosystem
+	 * and is only deserialized at the edges.
+	 *
+	 * <p>The factory will create {@link DataTypes#RAW(Class, TypeSerializer)} in cases where no serializer
+	 * is known and a generic serializer should be used. Flink's default RAW serializer is automatically
+	 * configured.
+	 */
+	<T> DataType createRawDataType(Class<T> clazz);
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.java.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
@@ -104,11 +105,21 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 				"StreamTableEnvironment can not run in batch mode for now, please use TableEnvironment.");
 		}
 
-		CatalogManager catalogManager = new CatalogManager(
-			settings.getBuiltInCatalogName(),
-			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
+		// temporary solution until FLINK-15635 is fixed
+		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
 		ModuleManager moduleManager = new ModuleManager();
+
+		CatalogManager catalogManager = CatalogManager.newBuilder()
+			.classLoader(classLoader)
+			.config(tableConfig.getConfiguration())
+			.defaultCatalog(
+				settings.getBuiltInCatalogName(),
+				new GenericInMemoryCatalog(
+					settings.getBuiltInCatalogName(),
+					settings.getBuiltInDatabaseName()))
+			.executionConfig(executionEnvironment.getConfig())
+			.build();
 
 		FunctionCatalog functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
@@ -433,5 +444,10 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 				"A rowtime attribute requires an EventTime time characteristic in stream environment. But is: %s",
 				executionEnvironment.getStreamTimeCharacteristic()));
 		}
+	}
+
+	@Override
+	protected ExecutionConfig createExecutionConfig() {
+		return executionEnvironment.getConfig();
 	}
 }

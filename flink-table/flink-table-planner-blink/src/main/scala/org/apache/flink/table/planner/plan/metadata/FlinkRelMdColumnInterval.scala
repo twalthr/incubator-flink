@@ -28,7 +28,6 @@ import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ColumnIntervalUtil, FlinkRelOptUtil, RankUtil}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, VariableRankRange}
 import org.apache.flink.util.Preconditions
-
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
@@ -39,6 +38,7 @@ import org.apache.calcite.sql.SqlKind._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlBinaryOperator, SqlKind}
 import org.apache.calcite.util.Util
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 
 import scala.collection.JavaConversions._
 
@@ -364,146 +364,198 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   /**
     * Gets interval of the given column on Aggregates.
     *
+    * @param typeFactory type factory
     * @param aggregate Aggregate RelNode
     * @param mq        RelMetadataQuery instance
     * @param index     the index of the given column
     * @return interval of the given column on Aggregate
     */
-  def getColumnInterval(aggregate: Aggregate, mq: RelMetadataQuery, index: Int): ValueInterval =
-    estimateColumnIntervalOfAggregate(aggregate, mq, index)
+  def getColumnInterval(
+      typeFactory: FlinkTypeFactory,
+      aggregate: Aggregate,
+      mq: RelMetadataQuery,
+      index: Int)
+    : ValueInterval = {
+    estimateColumnIntervalOfAggregate(typeFactory, aggregate, mq, index)
+  }
 
   /**
     * Gets interval of the given column on TableAggregates.
     *
+    * @param typeFactory type factory
     * @param aggregate TableAggregate RelNode
     * @param mq        RelMetadataQuery instance
     * @param index     the index of the given column
     * @return interval of the given column on TableAggregate
     */
   def getColumnInterval(
+      typeFactory: FlinkTypeFactory,
       aggregate: TableAggregate,
-      mq: RelMetadataQuery, index: Int): ValueInterval =
-
-    estimateColumnIntervalOfAggregate(aggregate, mq, index)
+      mq: RelMetadataQuery, index: Int)
+    : ValueInterval = {
+    estimateColumnIntervalOfAggregate(typeFactory, aggregate, mq, index)
+  }
 
   /**
     * Gets interval of the given column on batch group aggregate.
     *
+    * @param typeFactory type factory
     * @param aggregate batch group aggregate RelNode
     * @param mq        RelMetadataQuery instance
     * @param index     the index of the given column
     * @return interval of the given column on batch group aggregate
     */
   def getColumnInterval(
+      typeFactory: FlinkTypeFactory,
       aggregate: BatchExecGroupAggregateBase,
       mq: RelMetadataQuery,
-      index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
+      index: Int)
+    : ValueInterval = {
+    estimateColumnIntervalOfAggregate(typeFactory, aggregate, mq, index)
+  }
 
   /**
     * Gets interval of the given column on stream group aggregate.
-    *
+    * @param typeFactory type factory
     * @param aggregate stream group aggregate RelNode
     * @param mq        RelMetadataQuery instance
     * @param index     the index of the given column
     * @return interval of the given column on stream group Aggregate
     */
   def getColumnInterval(
+      typeFactory: FlinkTypeFactory,
       aggregate: StreamExecGroupAggregate,
       mq: RelMetadataQuery,
-      index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
+      index: Int)
+    : ValueInterval = {
+    estimateColumnIntervalOfAggregate(typeFactory, aggregate, mq, index)
+  }
 
   /**
     * Gets interval of the given column on stream group table aggregate.
     *
+    * @param typeFactory type factory
     * @param aggregate stream group table aggregate RelNode
     * @param mq        RelMetadataQuery instance
     * @param index     the index of the given column
     * @return interval of the given column on stream group TableAggregate
     */
   def getColumnInterval(
-    aggregate: StreamExecGroupTableAggregate,
-    mq: RelMetadataQuery,
-    index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
+      typeFactory: FlinkTypeFactory,
+      aggregate: StreamExecGroupTableAggregate,
+      mq: RelMetadataQuery,
+      index: Int)
+    : ValueInterval = {
+    estimateColumnIntervalOfAggregate(typeFactory, aggregate, mq, index)
+  }
 
   /**
     * Gets interval of the given column on stream local group aggregate.
     *
+    * @param typeFactory type factory
     * @param aggregate stream local group aggregate RelNode
     * @param mq        RelMetadataQuery instance
     * @param index     the index of the given column
     * @return interval of the given column on stream local group Aggregate
     */
   def getColumnInterval(
+      typeFactory: FlinkTypeFactory,
       aggregate: StreamExecLocalGroupAggregate,
       mq: RelMetadataQuery,
-      index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
+      index: Int)
+    : ValueInterval = {
+    estimateColumnIntervalOfAggregate(typeFactory, aggregate, mq, index)
+  }
 
   /**
     * Gets interval of the given column on stream global group aggregate.
     *
+    * @param typeFactory type factory
     * @param aggregate stream global group aggregate RelNode
     * @param mq        RelMetadataQuery instance
     * @param index     the index of the given column
     * @return interval of the given column on stream global group Aggregate
     */
   def getColumnInterval(
+      typeFactory: FlinkTypeFactory,
       aggregate: StreamExecGlobalGroupAggregate,
       mq: RelMetadataQuery,
-      index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
+      index: Int)
+    : ValueInterval = {
+    estimateColumnIntervalOfAggregate(typeFactory, aggregate, mq, index)
+  }
 
   /**
     * Gets interval of the given column on window aggregate.
     *
+    * @param typeFactory type factory
     * @param agg   window aggregate RelNode
     * @param mq    RelMetadataQuery instance
     * @param index the index of the given column
     * @return interval of the given column on window Aggregate
     */
   def getColumnInterval(
+      typeFactory: FlinkTypeFactory,
       agg: WindowAggregate,
       mq: RelMetadataQuery,
-      index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
+      index: Int)
+    : ValueInterval = {
+    estimateColumnIntervalOfAggregate(typeFactory, agg, mq, index)
+  }
 
   /**
     * Gets interval of the given column on batch window aggregate.
     *
+    * @param typeFactory type factory
     * @param agg   batch window aggregate RelNode
     * @param mq    RelMetadataQuery instance
     * @param index the index of the given column
     * @return interval of the given column on batch window Aggregate
     */
   def getColumnInterval(
+      typeFactory: FlinkTypeFactory,
       agg: BatchExecWindowAggregateBase,
       mq: RelMetadataQuery,
-      index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
+      index: Int)
+    : ValueInterval = {
+    estimateColumnIntervalOfAggregate(typeFactory, agg, mq, index)
+  }
 
   /**
     * Gets interval of the given column on stream window aggregate.
     *
+    * @param typeFactory type factory
     * @param agg   stream window aggregate RelNode
     * @param mq    RelMetadataQuery instance
     * @param index the index of the given column
     * @return interval of the given column on stream window Aggregate
     */
   def getColumnInterval(
+      typeFactory: FlinkTypeFactory,
       agg: StreamExecGroupWindowAggregate,
       mq: RelMetadataQuery,
-      index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
+      index: Int): ValueInterval = estimateColumnIntervalOfAggregate(typeFactory, agg, mq, index)
 
   /**
     * Gets interval of the given column on stream window table aggregate.
     *
+    * @param typeFactory type factory
     * @param agg   stream window table aggregate RelNode
     * @param mq    RelMetadataQuery instance
     * @param index the index of the given column
     * @return interval of the given column on stream window Aggregate
     */
   def getColumnInterval(
-    agg: StreamExecGroupWindowTableAggregate,
-    mq: RelMetadataQuery,
-    index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
+      typeFactory: FlinkTypeFactory,
+      agg: StreamExecGroupWindowTableAggregate,
+      mq: RelMetadataQuery,
+      index: Int)
+    : ValueInterval = {
+    estimateColumnIntervalOfAggregate(typeFactory, agg, mq, index)
+  }
 
   private def estimateColumnIntervalOfAggregate(
+      typeFactory: FlinkTypeFactory,
       aggregate: SingleRel,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = {
@@ -539,7 +591,9 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           aggCalls: Seq[AggregateCall],
           inputType: RelDataType): AggregateCall = {
         val outputIndexToAggCallIndexMap = AggregateUtil.getOutputIndexToAggCallIndexMap(
-          aggCalls, inputType)
+          typeFactory,
+          aggCalls,
+          inputType)
         if (outputIndexToAggCallIndexMap.containsKey(index)) {
           val realIndex = outputIndexToAggCallIndexMap.get(index)
           aggCalls(realIndex)
@@ -553,7 +607,9 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           globalAggCalls: Seq[AggregateCall],
           inputRowType: RelDataType): Integer = {
         val outputIndexToAggCallIndexMap = AggregateUtil.getOutputIndexToAggCallIndexMap(
-          globalAggCalls, inputRowType)
+          typeFactory,
+          globalAggCalls,
+          inputRowType)
 
         outputIndexToAggCallIndexMap.foreach {
           case (k, v) => if (v == index) {

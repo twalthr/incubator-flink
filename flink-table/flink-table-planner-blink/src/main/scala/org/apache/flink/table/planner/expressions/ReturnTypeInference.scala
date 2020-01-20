@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.planner.expressions
 
+import java.util.Optional
+
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
@@ -26,16 +28,28 @@ import org.apache.flink.table.planner.typeutils.TypeCoercion
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.{fromLogicalTypeToTypeInfo, fromTypeInfoToLogicalType}
 import org.apache.flink.table.runtime.typeutils.{BigDecimalTypeInfo, DecimalTypeInfo}
 import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql.`type`.SqlTypeUtil
+import org.apache.flink.table.catalog.{DataTypeFactory, UnresolvedIdentifier}
+import org.apache.flink.table.types.DataType
 
 import scala.collection.JavaConverters._
 
 object ReturnTypeInference {
 
   private lazy val typeSystem = new FlinkTypeSystem
-  private lazy val typeFactory = new FlinkTypeFactory(typeSystem)
+  private lazy val typeFactory = new FlinkTypeFactory(
+    typeSystem,
+    new DataTypeFactory {
+      override def createDataType(name: String): Optional[DataType] =
+        throw new TableException("Data type factory not supported at this location.")
+
+      override def createDataType(identifier: UnresolvedIdentifier): Optional[DataType] =
+        throw new TableException("Data type factory not supported at this location.")
+
+      override def createRawDataType[T](clazz: Class[T]): DataType =
+        throw new TableException("Data type factory not supported at this location.")
+    })
 
   /**
     * Infer resultType of [[Minus]] expression.

@@ -107,7 +107,9 @@ abstract class BatchExecSortAggregateBase(
     val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
 
     val aggInfos = transformToBatchAggregateInfoList(
-      aggCallToAggFunction.map(_._1), aggInputRowType)
+      planner.getTypeFactory,
+      aggCallToAggFunction.map(_._1),
+      aggInputRowType)
 
     val generatedOperator = if (grouping.isEmpty) {
       AggWithoutKeysCodeGenerator.genWithoutKeys(

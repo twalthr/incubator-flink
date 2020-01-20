@@ -682,6 +682,7 @@ class MatchCodeGenerator(
         matchAgg.inputExprs.indices.map(i => s"TMP$i"))
 
       val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+        typeFactory,
         aggCalls,
         inputRelType,
         needRetraction,

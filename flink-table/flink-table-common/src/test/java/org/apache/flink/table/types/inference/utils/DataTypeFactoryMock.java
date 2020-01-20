@@ -48,7 +48,7 @@ public class DataTypeFactoryMock implements DataTypeFactory {
 	}
 
 	@Override
-	public DataType createRawDataType(Class<?> clazz) {
+	public <T> DataType createRawDataType(Class<T> clazz) {
 		expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
 		return dataType.orElseThrow(IllegalStateException::new);
 	}

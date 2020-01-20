@@ -70,6 +70,7 @@ class StreamExecGroupAggregate(
     val needRetractionArray = AggregateUtil.getNeedRetractions(
       grouping.length, needRetraction, monotonicity, aggCalls)
     AggregateUtil.transformToStreamAggregateInfoList(
+      cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory],
       aggCalls,
       getInput.getRowType,
       needRetractionArray,

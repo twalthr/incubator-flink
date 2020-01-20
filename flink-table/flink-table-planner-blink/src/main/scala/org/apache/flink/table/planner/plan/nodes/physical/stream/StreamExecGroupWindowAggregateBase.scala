@@ -166,6 +166,7 @@ abstract class StreamExecGroupWindowAggregateBase(
 
     val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
     val aggInfoList = transformToStreamAggregateInfoList(
+      planner.getTypeFactory,
       aggCalls,
       inputRowType,
       Array.fill(aggCalls.size)(needRetraction),

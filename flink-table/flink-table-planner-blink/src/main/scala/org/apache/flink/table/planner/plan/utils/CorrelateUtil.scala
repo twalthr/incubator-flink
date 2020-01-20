@@ -58,11 +58,11 @@ object CorrelateUtil {
   }
 
   def projectCorrelateOutputType(
+      typeFactory: FlinkTypeFactory,
       originalType: RelDataType,
       projectableFieldSet: Set[Int]): (RelDataType, ListBuffer[Int]) = {
     val selects =  new ListBuffer[Int]
     // generate new output type that removed unused column(s) for Correlate
-    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
     val typeBuilder = typeFactory.builder
     val reserveFieldTypes = originalType.getFieldList.zipWithIndex.filter {
       // filter unused fields

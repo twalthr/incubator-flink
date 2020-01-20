@@ -288,7 +288,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		}
 
 		@Override
-		public DataType createRawDataType(Class<?> clazz) {
+		public <T> DataType createRawDataType(Class<T> clazz) {
 			throw new TableException("Data type factory is not supported yet.");
 		}
 	}

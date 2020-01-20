@@ -467,7 +467,7 @@ public class TypeInferenceExtractorTest {
 		}
 
 		@Override
-		public DataType createRawDataType(Class<?> clazz) {
+		public <T> DataType createRawDataType(Class<T> clazz) {
 			return null;
 		}
 	}
