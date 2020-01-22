@@ -208,8 +208,7 @@ public class FunctionCatalog implements FunctionLookup {
 
 		final CatalogFunction catalogFunction = new CatalogFunctionImpl(
 			functionClass.getName(),
-			FunctionLanguage.JAVA,
-			false);
+			FunctionLanguage.JAVA);
 		try {
 			catalog.createFunction(path, catalogFunction, ignoreIfExists);
 		} catch (Throwable t) {

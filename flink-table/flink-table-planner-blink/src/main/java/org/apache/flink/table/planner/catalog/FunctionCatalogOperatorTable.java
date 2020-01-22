@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -67,12 +68,17 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
 public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 
 	private final FunctionCatalog functionCatalog;
+
+	private final DataTypeFactory dataTypeFactory;
+
 	private final FlinkTypeFactory typeFactory;
 
 	public FunctionCatalogOperatorTable(
 			FunctionCatalog functionCatalog,
+			DataTypeFactory dataTypeFactory,
 			FlinkTypeFactory typeFactory) {
 		this.functionCatalog = functionCatalog;
+		this.dataTypeFactory = dataTypeFactory;
 		this.typeFactory = typeFactory;
 	}
 
@@ -147,7 +153,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			FunctionDefinition definition) {
 		final TypeInference typeInference;
 		try {
-			typeInference = definition.getTypeInference(typeFactory.getDataTypeLookup());
+			typeInference = definition.getTypeInference(dataTypeFactory);
 		} catch (Throwable t) {
 			throw new ValidationException(
 				String.format(
@@ -163,6 +169,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 		if (definition.getKind() == FunctionKind.AGGREGATE ||
 				definition.getKind() == FunctionKind.TABLE_AGGREGATE) {
 			function = BridgingSqlAggFunction.of(
+				dataTypeFactory,
 				typeFactory,
 				SqlKind.OTHER_FUNCTION,
 				identifier,
@@ -170,6 +177,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 				typeInference);
 		} else {
 			function = BridgingSqlFunction.of(
+				dataTypeFactory,
 				typeFactory,
 				SqlKind.OTHER_FUNCTION,
 				identifier,

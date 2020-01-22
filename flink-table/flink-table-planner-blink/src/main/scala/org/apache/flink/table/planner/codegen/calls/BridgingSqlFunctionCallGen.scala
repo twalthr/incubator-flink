@@ -52,6 +52,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     // we could have implemented a dedicated code generation context but the closer we are to
     // Calcite the more consistent is the type inference during the data type enrichment
     val callContext = new OperatorBindingCallContext(
+      function.getDataTypeFactory,
       udf,
       RexCallBinding.create(
         function.getTypeFactory,
