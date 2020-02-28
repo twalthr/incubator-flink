@@ -31,5 +31,11 @@ public interface SupportsFilterPushDown extends SupportsChangelogReading {
 
 	boolean supportsFilterPushDown();
 
-	void applyFilter(List<ResolvedExpression> predicates);
+	/**
+	 * Returns all filters that cannot be handled by the {@link DynamicTableSource} and need to be
+	 * handled by the framework.
+	 */
+	List<ResolvedExpression> getUnsupportedPredicates(List<ResolvedExpression> allPredicates);
+
+	void applyFilter(List<ResolvedExpression> supportedPredicates);
 }
