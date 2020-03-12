@@ -25,30 +25,8 @@ package org.apache.flink.table.connectors;
  */
 public interface ChangelogRow {
 
-	Kind getKind();
+	RowKind getKind();
 
 	int getArity();
 
-	enum Kind {
-
-		/**
-		 * Insertion operation.
-		 */
-		INSERT,
-
-		/**
-		 * Previous content of an updated row.
-		 */
-		UPDATE_BEFORE,
-
-		/**
-		 * New content of an updated row.
-		 */
-		UPDATE_AFTER,
-
-		/**
-		 * Deletion operation.
-		 */
-		DELETE
-	}
 }

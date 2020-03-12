@@ -22,12 +22,10 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableSchema;
 
 /**
- * Allows to push down (possibly nested) projections into a {@link DynamicTableSource) if it {@link SupportsChangelogReading}.
+ * Allows to push down (possibly nested) projections into a {@link ScanTableSource}.
  */
 @PublicEvolving
-public interface SupportsProjectionPushDown extends SupportsChangelogReading {
-
-	boolean supportsProjectionPushDown();
+public interface SupportsProjectionPushDown {
 
 	void applyProjection(TableSchema schema);
 }

@@ -19,15 +19,19 @@
 package org.apache.flink.table.connectors;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+
+import javax.annotation.Nullable;
 
 /**
  * Sink of a dynamic table to an external storage system.
  *
- * <p>A dynamic table sink can be seen as a factory that produces concrete runtime implementation. Depending
- * on the specified {@link WritingAbility}, the planner might apply changes to instances of this class and thus
- * mutates the produced runtime implementation.
+ * <p>A dynamic table sink can be seen as a factory that produces concrete runtime implementation.
  *
- * <p>Use {@link WritingAbility}s to specify how to write the table.
+ * <p>Depending on optionally declared interfaces such as {@link SupportsPartitioning}, the planner
+ * might apply changes to instances of this class and thus mutates the produced runtime
+ * implementation.
  */
 @PublicEvolving
 public interface DynamicTableSink {
@@ -36,4 +40,58 @@ public interface DynamicTableSink {
 	 * Returns a string that summarizes this sink for printing to a console or log.
 	 */
 	String asSummaryString();
+
+	/**
+	 * Returns the {@link ChangelogMode} that this writer consumes.
+	 *
+	 * <p>The runtime can make suggestions but the sink has the final decision what it requires. If
+	 * the runtime does not support this mode, it will throw an error. For example, the sink can
+	 * return that it only supports {@link RowKind#INSERT}s.
+	 *
+	 * @param requestedMode expected kind of changes by the current plan
+	 */
+	ChangelogMode getChangelogMode(ChangelogMode requestedMode);
+
+	/**
+	 * Returns the actual implementation for writing the data.
+	 */
+	SinkRuntimeProvider getSinkRuntimeProvider(Context context);
+
+	// --------------------------------------------------------------------------------------------
+	// Helper Interfaces
+	// --------------------------------------------------------------------------------------------
+
+	interface Context {
+
+		/**
+		 * Returns the user code class loader.
+		 */
+		ClassLoader getUserClassLoader();
+
+		/**
+		 * Creates a runtime data structure converter that converts Flink's internal data structures
+		 * to data of the given {@link DataType}.
+		 *
+		 * <p>Allows to implement runtime logic without depending on Flink's internal structures for
+		 * timestamps, decimals, and structured types.
+		 *
+		 * @see LogicalType#supportsOutputConversion(Class)
+		 */
+		DataStructureConverter createDataStructureConverter(DataType consumedDataType);
+	}
+
+	/**
+	 * Converts data structures during runtime.
+	 */
+	interface DataStructureConverter extends RuntimeConverter {
+
+		/**
+		 * Converts the given object into an external data structure.
+		 */
+		@Nullable Object toExternal(@Nullable Object internalStructure);
+	}
+
+	interface SinkRuntimeProvider {
+		// marker interface
+	}
 }

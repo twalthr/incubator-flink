@@ -18,26 +18,31 @@
 
 package org.apache.flink.table.connectors;
 
-import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * {@link SupportsChangelogReading} by using a {@link InputFormat} during runtime.
+ * A kind of row in a changelog.
  */
-public interface InputFormatTableReader extends SupportsChangelogReading.ChangelogReader {
+@PublicEvolving
+public enum RowKind {
 
-	InputFormat<ChangelogRow, ?> createInputFormat();
+	/**
+	 * Insertion operation.
+	 */
+	INSERT,
 
-	static InputFormatTableReader of(InputFormat<ChangelogRow, ?> inputFormat) {
-		return new InputFormatTableReader() {
-			@Override
-			public InputFormat<ChangelogRow, ?> createInputFormat() {
-				return inputFormat;
-			}
+	/**
+	 * Previous content of an updated row.
+	 */
+	UPDATE_BEFORE,
 
-			@Override
-			public boolean isBounded() {
-				return true;
-			}
-		};
-	}
+	/**
+	 * New content of an updated row.
+	 */
+	UPDATE_AFTER,
+
+	/**
+	 * Deletion operation.
+	 */
+	DELETE
 }

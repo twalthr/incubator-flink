@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.EnumSet;
 import java.util.Set;
 
 /**
@@ -31,10 +31,12 @@ import java.util.Set;
 @PublicEvolving
 public final class ChangelogMode {
 
-	private final Set<ChangelogRow.Kind> kinds;
+	private final Set<RowKind> kinds;
 
-	private ChangelogMode(Set<ChangelogRow.Kind> kinds) {
-		Preconditions.checkArgument(kinds.size() > 0, "At least one kind of row should be contained in a changelog.");
+	private ChangelogMode(Set<RowKind> kinds) {
+		Preconditions.checkArgument(
+			kinds.size() > 0,
+			"At least one kind of row should be contained in a changelog.");
 		this.kinds = Collections.unmodifiableSet(kinds);
 	}
 
@@ -42,25 +44,29 @@ public final class ChangelogMode {
 		return new Builder();
 	}
 
-	public Set<ChangelogRow.Kind> getSupportedKinds() {
+	public Set<RowKind> getContainedKinds() {
 		return kinds;
 	}
 
-	public boolean supportsKind(ChangelogRow.Kind kind) {
+	public boolean contains(RowKind kind) {
 		return kinds.contains(kind);
+	}
+
+	public boolean containsOnly(RowKind kind) {
+		return kinds.size() == 1 && kinds.contains(kind);
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	public static class Builder {
 
-		private final Set<ChangelogRow.Kind> kinds = new HashSet<>();
+		private final Set<RowKind> kinds = EnumSet.noneOf(RowKind.class);
 
 		public Builder() {
 			// default constructor to allow a fluent definition
 		}
 
-		public Builder addSupportedKind(ChangelogRow.Kind kind) {
+		public Builder addContainedKind(RowKind kind) {
 			this.kinds.add(kind);
 			return this;
 		}

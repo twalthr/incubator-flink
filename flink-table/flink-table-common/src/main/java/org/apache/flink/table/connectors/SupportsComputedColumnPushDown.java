@@ -23,12 +23,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 
 /**
- * Allows to push down computed columns into a {@link DynamicTableSource) if it {@link SupportsChangelogReading}.
+ * Allows to push down computed columns into a {@link ScanTableSource}.
  */
 @PublicEvolving
-public interface SupportsComputedColumnPushDown extends SupportsChangelogReading {
-
-	boolean supportsComputedColumnPushDown();
+public interface SupportsComputedColumnPushDown {
 
 	/**
 	 * Provides a converter that converts the produced {@link ChangelogRow} containing the physical
@@ -38,19 +36,18 @@ public interface SupportsComputedColumnPushDown extends SupportsChangelogReading
 	 * the converter will convert a {@code ChangelogRow(s, i)} to {@code ChangelogRow(s, ts, i, i2)}.
 	 *
 	 * <p>Note: Use {@link TableSchema#toRowDataType()} instead of {@link TableSchema#toProducedRowDataType()}
-	 * for describing the final output data type when create a {@link TypeInformation}.
+	 * for describing the final output data type when creating {@link TypeInformation}.
 	 */
 	void applyComputedColumn(ComputedColumnConverter converter);
 
 	/**
 	 * Generates and adds computed columns to a {@link ChangelogRow} if necessary.
 	 */
-	interface ComputedColumnConverter extends FormatConverter {
+	interface ComputedColumnConverter extends RuntimeConverter {
 
 		/**
 		 * Generates and adds computed columns to a {@link ChangelogRow} if necessary.
 		 */
 		ChangelogRow convert(ChangelogRow changelogRow);
-
 	}
 }

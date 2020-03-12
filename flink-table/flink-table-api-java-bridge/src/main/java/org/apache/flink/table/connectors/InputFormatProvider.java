@@ -18,28 +18,26 @@
 
 package org.apache.flink.table.connectors;
 
-import java.io.Serializable;
+import org.apache.flink.api.common.io.InputFormat;
 
 /**
- * Converts between the internal formats of the Table & SQL API and external produced/consumed formats.
+ * Uses an {@link InputFormat} during runtime for reading.
  */
-public interface FormatConverter extends Serializable {
+public interface InputFormatProvider extends ScanTableSource.ScanRuntimeProvider {
 
-	/**
-	 * Initializes the producer during runtime. This should be called in the {@code open()} method
-	 * of a runtime class.
-	 */
-	void open(Context context);
+	InputFormat<ChangelogRow, ?> createInputFormat();
 
-	/**
-	 * Context for format conversions in {@link SupportsChangelogReading} and {@link SupportsChangelogWriting}.
-	 */
-	interface Context {
+	static InputFormatProvider of(InputFormat<ChangelogRow, ?> inputFormat) {
+		return new InputFormatProvider() {
+			@Override
+			public InputFormat<ChangelogRow, ?> createInputFormat() {
+				return inputFormat;
+			}
 
-		// empty for now until we have an understanding what is needed
-
-		static Context empty() {
-			return new EmptyFormatConverterContext();
-		}
+			@Override
+			public boolean isBounded() {
+				return true;
+			}
+		};
 	}
 }

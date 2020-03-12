@@ -18,20 +18,29 @@
 
 package org.apache.flink.table.connectors;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.expressions.ResolvedExpression;
-
-import java.util.List;
+import java.io.Serializable;
 
 /**
- * Allows to push down filters into a {@link ScanTableSource}.
+ * Converts between the data structure of the Table & SQL API and external representation.
  */
-@PublicEvolving
-public interface SupportsFilterPushDown {
+public interface RuntimeConverter extends Serializable {
 
-	List<ResolvedExpression> getAcceptedPredicates(List<ResolvedExpression> allPredicates);
+	/**
+	 * Initializes the converter during runtime.
+	 *
+	 * <p>This should be called in the {@code open()} method of a runtime class.
+	 */
+	void open(Context context);
 
-	List<ResolvedExpression> getRemainingPredicates(List<ResolvedExpression> allPredicates);
+	/**
+	 * Context for conversions during runtime.
+	 */
+	interface Context {
 
-	void applyFilters(List<ResolvedExpression> acceptedPredicates);
+		static Context empty() {
+			return new Context() {
+				// nothing to do
+			};
+		}
+	}
 }

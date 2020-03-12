@@ -24,17 +24,18 @@ import org.apache.flink.table.expressions.FieldReferenceExpression;
 import java.util.List;
 
 /**
- * A {@link ReadingAbility} that looks up rows of an external storage system by one or more keys.
+ * A {@link DynamicTableSource} that looks up rows of an external storage system by one or more
+ * keys.
  */
 @PublicEvolving
-public interface SupportsLookupReading extends ReadingAbility {
+public interface LookupTableSource extends DynamicTableSource {
 
 	/**
 	 * Returns the actual implementation for reading the data.
 	 */
-	LookupReader getLookupReader(List<FieldReferenceExpression> fields);
+	LookupRuntimeProvider getLookupRuntimeProvider(List<FieldReferenceExpression> fields);
 
-	interface LookupReader {
+	interface LookupRuntimeProvider {
 		// marker interface
 	}
 }

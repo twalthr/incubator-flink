@@ -20,28 +20,31 @@ package org.apache.flink.table.connectors;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import javax.annotation.Nullable;
 
 /**
- * A {@link ReadingAbility} that reads a changelog of rows from an external storage system.
+ * A {@link DynamicTableSource} that scans all rows from an external storage system.
+ *
+ * <p>Depending on the specified {@link ChangelogMode}, the scanned rows must not contain only
+ * insertions but can also contain updates and deletions.
  */
 @PublicEvolving
-public interface SupportsChangelogReading extends ReadingAbility {
+public interface ScanTableSource extends DynamicTableSource {
 
 	/**
-	 * Returns what kind of changes are produced by this reader.
+	 * Returns what kind of changes are produced by this source.
 	 *
-	 * @see ChangelogRow.Kind
+	 * @see RowKind
 	 */
 	ChangelogMode getChangelogMode();
 
 	/**
 	 * Returns the actual implementation for reading the data.
 	 */
-	ChangelogReader getChangelogReader(Context context);
+	ScanRuntimeProvider getScanRuntimeProvider(Context context);
 
 	// --------------------------------------------------------------------------------------------
 	// Helper Interfaces
@@ -55,46 +58,38 @@ public interface SupportsChangelogReading extends ReadingAbility {
 		ClassLoader getUserClassLoader();
 
 		/**
-		 * Creates type information describing the internal format of the given {@link DataType}.
+		 * Creates type information describing the internal data structures of the given
+		 * {@link DataType}.
 		 */
 		TypeInformation<?> createTypeInformation(DataType producedDataType);
 
 		/**
-		 * Creates a runtime data format converter that converts data of the given {@link DataType}
+		 * Creates a runtime data structure converter that converts data of the given {@link DataType}
 		 * to Flink's internal data structures.
 		 *
-		 * <p>Note: This converter is only applicable for the top-level record. The planner will validate
-		 * that this method is only called with a row data type that corresponds to {@link TableSchema}.
+		 * <p>Allows to implement runtime logic without depending on Flink's internal structures for
+		 * timestamps, decimals, and structured types.
+		 *
+		 * @see LogicalType#supportsInputConversion(Class)
 		 */
-		ChangelogRowConverter createChangelogRowConverter(DataType producedDataType);
-
-		/**
-		 * Creates a runtime data format converter that converts data of the given {@link DataType}
-		 * to Flink's internal data structures.
-		 */
-		DataFormatConverter createDataFormatConverter(DataType producedDataType);
+		DataStructureConverter createDataStructureConverter(DataType producedDataType);
 	}
 
 	/**
-	 * Converter for creating top-level rows that describe the kind of change.
+	 * Converts data structures during runtime.
 	 */
-	interface ChangelogRowConverter extends FormatConverter {
+	interface DataStructureConverter extends RuntimeConverter {
 
 		/**
-		 * Converts the given external object into a top-level row using an internal row data format.
+		 * Converts the given object into an internal data structure.
 		 */
-		ChangelogRow toChangelogRow(ChangelogRow.Kind kind, Object externalFormat);
+		@Nullable Object toInternal(@Nullable Object externalStructure);
 	}
 
-	interface DataFormatConverter extends FormatConverter {
-
-		/**
-		 * Converts the given object into an internal data format.
-		 */
-		@Nullable Object toInternal(@Nullable Object externalFormat);
-	}
-
-	interface ChangelogReader {
+	/**
+	 * Actual implementation for reading the data.
+	 */
+	interface ScanRuntimeProvider {
 
 		/**
 		 * Whether the data is bounded or not.

@@ -21,9 +21,9 @@ package org.apache.flink.table.connectors;
 import org.apache.flink.table.functions.AsyncTableFunction;
 
 /**
- * {@link SupportsLookupReading} by using a {@link AsyncTableFunction} during runtime.
+ * Uses a {@link AsyncTableFunction} during runtime for reading.
  */
-public interface AsyncTableFunctionReader<T> extends SupportsLookupReading.LookupReader {
+public interface AsyncTableFunctionReader<T> extends LookupTableSource.LookupRuntimeProvider {
 
 	AsyncTableFunction<T> createAsyncTableFunction();
 

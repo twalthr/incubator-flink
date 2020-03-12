@@ -19,9 +19,9 @@
 package org.apache.flink.table.connectors;
 
 /**
- * Empty {@link FormatConverter.Context} that is unconnected from the runtime.
+ * Empty {@link RuntimeConverter.Context} that is unconnected from the runtime.
  */
-final class EmptyFormatConverterContext implements FormatConverter.Context {
+final class EmptyFormatConverterContext implements RuntimeConverter.Context {
 
 	EmptyFormatConverterContext() {
 		// nothing to do

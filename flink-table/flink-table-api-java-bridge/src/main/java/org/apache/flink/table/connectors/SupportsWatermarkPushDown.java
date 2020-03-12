@@ -27,12 +27,10 @@ import javax.annotation.Nullable;
 import java.util.Optional;
 
 /**
- * Allows to push down watermarks into a {@link DynamicTableSource) if it {@link SupportsChangelogReading}.
+ * Allows to push down watermarks into a {@link ScanTableSource}.
  */
 @PublicEvolving
-public interface SupportsWatermarkPushDown extends SupportsChangelogReading {
-
-	boolean supportsWatermarkPushDown();
+public interface SupportsWatermarkPushDown {
 
 	void applyWatermark(WatermarkAssigner assigner);
 
@@ -51,11 +49,13 @@ public interface SupportsWatermarkPushDown extends SupportsChangelogReading {
 			this.punctuatedAssigner = punctuatedAssigner;
 		}
 
-		public static WatermarkAssigner periodic(AssignerWithPeriodicWatermarks<ChangelogRow> periodicWatermarks) {
+		public static WatermarkAssigner periodic(
+				AssignerWithPeriodicWatermarks<ChangelogRow> periodicWatermarks) {
 			return new WatermarkAssigner(periodicWatermarks, null);
 		}
 
-		public static WatermarkAssigner punctuated(AssignerWithPunctuatedWatermarks<ChangelogRow> punctuatedWatermarks) {
+		public static WatermarkAssigner punctuated(
+				AssignerWithPunctuatedWatermarks<ChangelogRow> punctuatedWatermarks) {
 			return new WatermarkAssigner(null, punctuatedWatermarks);
 		}
 

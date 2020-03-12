@@ -21,9 +21,9 @@ package org.apache.flink.table.connectors;
 import org.apache.flink.table.functions.TableFunction;
 
 /**
- * {@link SupportsLookupReading} by using a {@link TableFunction} during runtime.
+ * Uses a {@link TableFunction} during runtime for reading.
  */
-public interface TableFunctionReader<T> extends SupportsLookupReading.LookupReader {
+public interface TableFunctionReader<T> extends LookupTableSource.LookupRuntimeProvider {
 
 	TableFunction<T> createTableFunction();
 

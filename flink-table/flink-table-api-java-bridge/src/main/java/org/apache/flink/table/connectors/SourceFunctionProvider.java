@@ -21,14 +21,14 @@ package org.apache.flink.table.connectors;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 /**
- * {@link SupportsChangelogReading} by using a {@link SourceFunction} during runtime.
+ * Uses a {@link SourceFunction} during runtime for reading.
  */
-interface SourceFunctionReader extends SupportsChangelogReading.ChangelogReader {
+interface SourceFunctionProvider extends ScanTableSource.ScanRuntimeProvider {
 
 	SourceFunction<ChangelogRow> createSourceFunction();
 
-	static SourceFunctionReader of(SourceFunction<ChangelogRow> sourceFunction, boolean isBounded) {
-		return new SourceFunctionReader() {
+	static SourceFunctionProvider of(SourceFunction<ChangelogRow> sourceFunction, boolean isBounded) {
+		return new SourceFunctionProvider() {
 			@Override
 			public SourceFunction<ChangelogRow> createSourceFunction() {
 				return sourceFunction;
