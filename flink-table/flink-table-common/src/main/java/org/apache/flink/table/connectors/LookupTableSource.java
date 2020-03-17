@@ -20,6 +20,8 @@ package org.apache.flink.table.connectors;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.List;
 
@@ -33,7 +35,30 @@ public interface LookupTableSource extends DynamicTableSource {
 	/**
 	 * Returns the actual implementation for reading the data.
 	 */
-	LookupRuntimeProvider getLookupRuntimeProvider(List<FieldReferenceExpression> fields);
+	LookupRuntimeProvider getLookupRuntimeProvider(Context context);
+
+	// --------------------------------------------------------------------------------------------
+	// Helper Interfaces
+	// --------------------------------------------------------------------------------------------
+
+	interface Context {
+
+		/**
+		 * Returns the key fields that should be used during the lookup.
+		 */
+		List<FieldReferenceExpression> getKeyFields();
+
+		/**
+		 * Creates a runtime data structure converter that converts data of the given {@link DataType}
+		 * to Flink's internal data structures.
+		 *
+		 * <p>Allows to implement runtime logic without depending on Flink's internal structures for
+		 * timestamps, decimals, and structured types.
+		 *
+		 * @see LogicalType#supportsInputConversion(Class)
+		 */
+		DataStructureConverter createDataStructureConverter(DataType producedDataType);
+	}
 
 	interface LookupRuntimeProvider {
 		// marker interface

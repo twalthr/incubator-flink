@@ -20,6 +20,8 @@ package org.apache.flink.table.connectors;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import javax.annotation.Nullable;
+
 /**
  * Source of a dynamic table from an external storage system.
  *
@@ -36,4 +38,25 @@ public interface DynamicTableSource {
 	 * Returns a string that summarizes this source for printing to a console or log.
 	 */
 	String asSummaryString();
+
+	/**
+	 * Creates a copy of this instance during planning.
+	 */
+	DynamicTableSource copy();
+
+	// --------------------------------------------------------------------------------------------
+	// Helper Interfaces
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Converts data structures during runtime.
+	 */
+	interface DataStructureConverter extends RuntimeConverter {
+
+		/**
+		 * Converts the given object into an internal data structure.
+		 */
+		@Nullable
+		Object toInternal(@Nullable Object externalStructure);
+	}
 }

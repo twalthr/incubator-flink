@@ -29,9 +29,25 @@ import java.util.List;
 @PublicEvolving
 public interface SupportsFilterPushDown {
 
-	List<ResolvedExpression> getAcceptedPredicates(List<ResolvedExpression> allPredicates);
+	void applyFilters(List<ResolvedExpression> filters);
 
-	List<ResolvedExpression> getRemainingPredicates(List<ResolvedExpression> allPredicates);
+	final class Result {
+		private final List<ResolvedExpression> acceptedFilters;
+		private final List<ResolvedExpression> remainingFilters;
 
-	void applyFilters(List<ResolvedExpression> acceptedPredicates);
+		protected Result(
+				List<ResolvedExpression> acceptedFilters,
+				List<ResolvedExpression> remainingFilters) {
+			this.acceptedFilters = acceptedFilters;
+			this.remainingFilters = remainingFilters;
+		}
+
+		public List<ResolvedExpression> getAcceptedFilters() {
+			return acceptedFilters;
+		}
+
+		public List<ResolvedExpression> getRemainingFilters() {
+			return remainingFilters;
+		}
+	}
 }

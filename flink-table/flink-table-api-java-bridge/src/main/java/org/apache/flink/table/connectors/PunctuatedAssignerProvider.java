@@ -18,16 +18,22 @@
 
 package org.apache.flink.table.connectors;
 
-import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 
 /**
- * Uses a {@link TableFunction} during runtime for reading.
+ * Uses a {@link AssignerWithPunctuatedWatermarks} during runtime for watermarks.
  */
-public interface TableFunctionReader<T> extends LookupTableSource.LookupRuntimeProvider {
+@PublicEvolving
+public class PunctuatedAssignerProvider extends SupportsWatermarkPushDown.WatermarkAssignerProvider {
 
-	TableFunction<T> createTableFunction();
+	private AssignerWithPunctuatedWatermarks<ChangelogRow> punctuatedAssigner;
 
-	static <T> TableFunctionReader<T> of(TableFunction<T> tableFunction) {
-		return () -> tableFunction;
+	public PunctuatedAssignerProvider(AssignerWithPunctuatedWatermarks<ChangelogRow> punctuatedAssigner) {
+		this.punctuatedAssigner = punctuatedAssigner;
+	}
+
+	public AssignerWithPunctuatedWatermarks<ChangelogRow> getPunctuatedAssigner() {
+		return punctuatedAssigner;
 	}
 }

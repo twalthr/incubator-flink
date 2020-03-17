@@ -19,60 +19,18 @@
 package org.apache.flink.table.connectors;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
-
-import javax.annotation.Nullable;
-
-import java.util.Optional;
-
 /**
  * Allows to push down watermarks into a {@link ScanTableSource}.
  */
 @PublicEvolving
 public interface SupportsWatermarkPushDown {
 
-	void applyWatermark(WatermarkAssigner assigner);
+	void applyWatermark(WatermarkAssignerProvider assigner);
 
 	// --------------------------------------------------------------------------------------------
 
-	final class WatermarkAssigner {
-
-		private @Nullable AssignerWithPeriodicWatermarks<ChangelogRow> periodicAssigner;
-
-		private @Nullable AssignerWithPunctuatedWatermarks<ChangelogRow> punctuatedAssigner;
-
-		private WatermarkAssigner(
-				@Nullable AssignerWithPeriodicWatermarks<ChangelogRow> periodicAssigner,
-				@Nullable AssignerWithPunctuatedWatermarks<ChangelogRow> punctuatedAssigner) {
-			this.periodicAssigner = periodicAssigner;
-			this.punctuatedAssigner = punctuatedAssigner;
-		}
-
-		public static WatermarkAssigner periodic(
-				AssignerWithPeriodicWatermarks<ChangelogRow> periodicWatermarks) {
-			return new WatermarkAssigner(periodicWatermarks, null);
-		}
-
-		public static WatermarkAssigner punctuated(
-				AssignerWithPunctuatedWatermarks<ChangelogRow> punctuatedWatermarks) {
-			return new WatermarkAssigner(null, punctuatedWatermarks);
-		}
-
-		public static WatermarkAssigner undefined() {
-			return new WatermarkAssigner(null, null);
-		}
-
-		public boolean isUndefined() {
-			return periodicAssigner == null && punctuatedAssigner == null;
-		}
-
-		public Optional<AssignerWithPeriodicWatermarks<ChangelogRow>> getPeriodicAssigner() {
-			return Optional.ofNullable(periodicAssigner);
-		}
-
-		public Optional<AssignerWithPunctuatedWatermarks<ChangelogRow>> getPunctuatedAssigner() {
-			return Optional.ofNullable(punctuatedAssigner);
-		}
+	class WatermarkAssignerProvider {
+		// marker interface that will be filled with FLIP-27
 	}
 }
+

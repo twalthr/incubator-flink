@@ -18,16 +18,16 @@
 
 package org.apache.flink.table.connectors;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.functions.TableFunction;
 
 /**
- * Allows to push down (possibly nested) projections into a {@link ScanTableSource}.
+ * Uses a {@link TableFunction} during runtime for reading.
  */
-@PublicEvolving
-public interface SupportsProjectionPushDown {
+public interface TableFunctionProvider<T> extends LookupTableSource.LookupRuntimeProvider {
 
-	boolean supportsNestedProjectionPushedDown();
+	TableFunction<T> createTableFunction();
 
-	void applyProjection(TableSchema schema);
+	static <T> TableFunctionProvider<T> of(TableFunction<T> tableFunction) {
+		return () -> tableFunction;
+	}
 }

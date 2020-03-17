@@ -23,8 +23,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import javax.annotation.Nullable;
-
 /**
  * A {@link DynamicTableSource} that scans all rows from an external storage system.
  *
@@ -73,17 +71,6 @@ public interface ScanTableSource extends DynamicTableSource {
 		 * @see LogicalType#supportsInputConversion(Class)
 		 */
 		DataStructureConverter createDataStructureConverter(DataType producedDataType);
-	}
-
-	/**
-	 * Converts data structures during runtime.
-	 */
-	interface DataStructureConverter extends RuntimeConverter {
-
-		/**
-		 * Converts the given object into an internal data structure.
-		 */
-		@Nullable Object toInternal(@Nullable Object externalStructure);
 	}
 
 	/**

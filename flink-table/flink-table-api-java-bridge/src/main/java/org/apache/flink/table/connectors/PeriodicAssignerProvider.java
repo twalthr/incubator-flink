@@ -18,16 +18,22 @@
 
 package org.apache.flink.table.connectors;
 
-import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 
 /**
- * Uses a {@link AsyncTableFunction} during runtime for reading.
+ * Uses a {@link AssignerWithPeriodicWatermarks} during runtime for watermarks.
  */
-public interface AsyncTableFunctionReader<T> extends LookupTableSource.LookupRuntimeProvider {
+@PublicEvolving
+public class PeriodicAssignerProvider extends SupportsWatermarkPushDown.WatermarkAssignerProvider {
 
-	AsyncTableFunction<T> createAsyncTableFunction();
+	private AssignerWithPeriodicWatermarks<ChangelogRow> periodicAssigner;
 
-	static <T> AsyncTableFunctionReader<T> of(AsyncTableFunction<T> tableFunction) {
-		return () -> tableFunction;
+	public PeriodicAssignerProvider(AssignerWithPeriodicWatermarks<ChangelogRow> periodicAssigner) {
+		this.periodicAssigner = periodicAssigner;
+	}
+
+	public AssignerWithPeriodicWatermarks<ChangelogRow> getPeriodicAssigner() {
+		return periodicAssigner;
 	}
 }
