@@ -51,11 +51,6 @@ public interface ScanTableSource extends DynamicTableSource {
 	interface Context {
 
 		/**
-		 * Returns the user code class loader.
-		 */
-		ClassLoader getUserClassLoader();
-
-		/**
 		 * Creates type information describing the internal data structures of the given
 		 * {@link DataType}.
 		 */

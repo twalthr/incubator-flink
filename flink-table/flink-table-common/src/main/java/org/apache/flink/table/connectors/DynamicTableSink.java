@@ -64,11 +64,6 @@ public interface DynamicTableSink {
 	interface Context {
 
 		/**
-		 * Returns the user code class loader.
-		 */
-		ClassLoader getUserClassLoader();
-
-		/**
 		 * Creates a runtime data structure converter that converts Flink's internal data structures
 		 * to data of the given {@link DataType}.
 		 *
