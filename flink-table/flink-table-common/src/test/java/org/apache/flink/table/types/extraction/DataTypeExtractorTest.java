@@ -74,6 +74,7 @@ import static org.junit.Assert.assertThat;
 @RunWith(Parameterized.class)
 public class DataTypeExtractorTest {
 
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Parameters
 	public static List<TestSpec> testData() {
 		return Arrays.asList(
@@ -244,7 +245,9 @@ public class DataTypeExtractorTest {
 						}
 					},
 					Integer.class)
-				.expectDataType(DataTypes.RAW(Integer.class, new IntSerializer())),
+				.expectDataType(
+					DataTypes.RAW(Object.class, (TypeSerializer) new IntSerializer())
+						.bridgedTo(Integer.class)),
 
 			// RAW with different conversion class
 			TestSpec
