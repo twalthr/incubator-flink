@@ -55,6 +55,7 @@
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec"
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlMapTypeNameSpec"
+    "org.apache.calcite.sql.SqlRawTypeNameSpec"
     "org.apache.flink.sql.parser.utils.ParserResource"
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance"
     "org.apache.flink.sql.parser.SqlProperty"
@@ -444,9 +445,10 @@
   # Return type of method implementation should be "SqlTypeNameSpec".
   # Example: SqlParseTimeStampZ().
   dataTypeParserMethods: [
-    "ExtendedSqlBasicTypeName()"
-    "CustomizedCollectionsTypeName()"
-    "SqlMapTypeName()"
+    "ExtendedSqlBasicTypeName()",
+    "CustomizedCollectionsTypeName()",
+    "SqlMapTypeName()",
+    "SqlRawTypeName()",
     "ExtendedSqlRowTypeName()"
   ]
 

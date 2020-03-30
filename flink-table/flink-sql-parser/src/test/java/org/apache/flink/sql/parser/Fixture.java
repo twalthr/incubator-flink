@@ -19,7 +19,6 @@
 package org.apache.flink.sql.parser;
 
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.List;
@@ -28,7 +27,18 @@ import java.util.List;
  * Type used during tests.
  */
 public class Fixture {
-	private final RelDataTypeFactory typeFactory;
+	private final TestRelDataTypeFactory typeFactory;
+
+	static final String RAW_TYPE_INT_CLASS = "java.lang.Integer";
+	static final String RAW_TYPE_INT_SERIALIZER_STRING =
+		"AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uS3J5b1NlcmlhbGl6ZXJ" +
+		"TbmFwc2hvdAAAAAIAEWphdmEubGFuZy5JbnRlZ2VyAAAE8saaPXAAAAACABFqYXZhLmxhbmcuSW50ZWdlcgEAAA" +
+		"ATABFqYXZhLmxhbmcuSW50ZWdlcgEAAAAXABFqYXZhLmxhbmcuSW50ZWdlcgAAAAAAKW9yZy5hcGFjaGUuYXZyb" +
+		"y5nZW5lcmljLkdlbmVyaWNEYXRhJEFycmF5AQAAACsAKW9yZy5hcGFjaGUuYXZyby5nZW5lcmljLkdlbmVyaWNE" +
+		"YXRhJEFycmF5AQAAALYAVW9yZy5hcGFjaGUuZmxpbmsuYXBpLmphdmEudHlwZXV0aWxzLnJ1bnRpbWUua3J5by5" +
+		"TZXJpYWxpemVycyREdW1teUF2cm9SZWdpc3RlcmVkQ2xhc3MAAAABAFlvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYX" +
+		"ZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uU2VyaWFsaXplcnMkRHVtbXlBdnJvS3J5b1NlcmlhbGl6ZXJDbGFzc" +
+		"wAABPLGmj1wAAAAAAAABPLGmj1wAAAAAA==";
 
 	final RelDataType char1Type;
 	final RelDataType char33Type;
@@ -56,8 +66,9 @@ public class Fixture {
 	final RelDataType timestampWithLocalTimeZoneType;
 	final RelDataType timestamp3WithLocalTimeZoneType;
 	final RelDataType nullType;
+	final RelDataType rawTypeOfInteger;
 
-	Fixture(RelDataTypeFactory typeFactory) {
+	Fixture(TestRelDataTypeFactory typeFactory) {
 		this.typeFactory = typeFactory;
 		this.char1Type = typeFactory.createSqlType(SqlTypeName.CHAR);
 		this.char33Type = typeFactory.createSqlType(SqlTypeName.CHAR, 33);
@@ -87,6 +98,7 @@ public class Fixture {
 		this.timestamp3WithLocalTimeZoneType =
 			typeFactory.createSqlType(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, 3);
 		this.nullType = typeFactory.createSqlType(SqlTypeName.NULL);
+		this.rawTypeOfInteger = typeFactory.createRawType(RAW_TYPE_INT_CLASS, RAW_TYPE_INT_SERIALIZER_STRING);
 	}
 
 	public RelDataType createSqlType(SqlTypeName sqlTypeName, int precision) {
@@ -107,6 +119,10 @@ public class Fixture {
 
 	public RelDataType createStructType(List<RelDataType> keyTypes, List<String> names) {
 		return typeFactory.createStructType(keyTypes, names);
+	}
+
+	public RelDataType createRawType(String className, String serializerString) {
+		return typeFactory.createRawType(className, serializerString);
 	}
 
 	public RelDataType nullable(RelDataType type) {

@@ -879,7 +879,6 @@ SqlTypeNameSpec SqlMapTypeName() :
 {
     SqlDataTypeSpec keyType;
     SqlDataTypeSpec valType;
-    boolean nullable = true;
 }
 {
     <MAP>
@@ -890,6 +889,30 @@ SqlTypeNameSpec SqlMapTypeName() :
     <GT>
     {
         return new SqlMapTypeNameSpec(keyType, valType, getPos());
+    }
+}
+
+/** Parses a SQL raw type such as {@code RAW('org.my.Class', 'sW3Djsds...')}. */
+SqlTypeNameSpec SqlRawTypeName() :
+{
+    SqlCharStringLiteral className;
+    SqlCharStringLiteral serializerString;
+}
+{
+    <RAW>
+    <LPAREN>
+    <QUOTED_STRING> {
+        String cn = SqlParserUtil.parseString(token.image);
+        className = SqlLiteral.createCharString(cn, getPos());
+    }
+    <COMMA>
+    <QUOTED_STRING> {
+        String ss = SqlParserUtil.parseString(token.image);
+        serializerString = SqlLiteral.createCharString(ss, getPos());
+    }
+    <RPAREN>
+    {
+        return new SqlRawTypeNameSpec(className, serializerString, getPos());
     }
 }
 

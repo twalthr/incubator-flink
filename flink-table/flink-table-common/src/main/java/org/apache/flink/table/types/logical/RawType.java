@@ -21,8 +21,10 @@ package org.apache.flink.table.types.logical;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -136,6 +138,34 @@ public final class RawType<T> extends LogicalType {
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Restores a raw type from the components of a serialized string representation.
+	 */
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public static RawType<?> restore(
+			ClassLoader classLoader,
+			String className,
+			String serializerString) {
+		try {
+			final Class<?> clazz = Class.forName(className, true, classLoader);
+			// allow formatting of the very long Base64 strings with whitespaces
+			final String lenientSerializerString = serializerString.replaceAll("\\s+", "");
+			final byte[] bytes = EncodingUtils.decodeBase64ToBytes(lenientSerializerString);
+			final DataInputDeserializer inputDeserializer = new DataInputDeserializer(bytes);
+			final TypeSerializerSnapshot<?> snapshot = TypeSerializerSnapshot.readVersionedSnapshot(
+				inputDeserializer,
+				classLoader);
+			return (RawType<?>) new RawType(clazz, snapshot.restoreSerializer());
+		} catch (Throwable t) {
+			throw new ValidationException(
+				String.format(
+					"Unable to restore the RAW type of class '%s' with serializer snapshot '%s'.",
+					className,
+					serializerString),
+				t);
+		}
+	}
 
 	private String getOrCreateSerializerString() {
 		if (serializerString == null) {

@@ -24,10 +24,8 @@ import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
 import org.apache.calcite.avatica.util.Casing;
 import org.apache.calcite.avatica.util.Quoting;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.DelegatingTypeSystem;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlDialect;
@@ -211,6 +209,14 @@ public class FlinkDDLDataTypeTest {
 					Arrays.asList("f0", "f1"))),
 				"ROW< `f0` INTEGER NOT NULL 'This is a comment.', "
 					+ "`f1` BOOLEAN 'This as well.' >"),
+			createTestItem(
+				"RAW(    '" + Fixture.RAW_TYPE_INT_CLASS + "'   ,   '" + Fixture.RAW_TYPE_INT_SERIALIZER_STRING + "'   )",
+				nullable(FIXTURE.rawTypeOfInteger),
+				"RAW('" + Fixture.RAW_TYPE_INT_CLASS + "', '" + Fixture.RAW_TYPE_INT_SERIALIZER_STRING + "')"),
+			createTestItem(
+				"RAW('" + Fixture.RAW_TYPE_INT_CLASS + "', '" + Fixture.RAW_TYPE_INT_SERIALIZER_STRING + "') NOT NULL",
+				FIXTURE.rawTypeOfInteger,
+				"RAW('" + Fixture.RAW_TYPE_INT_CLASS + "', '" + Fixture.RAW_TYPE_INT_SERIALIZER_STRING + "') NOT NULL"),
 
 			// Test parse throws error.
 			createTestItem("TIMESTAMP WITH ^TIME^ ZONE",
@@ -227,10 +233,15 @@ public class FlinkDDLDataTypeTest {
 				"ROW< `f0` `MyType`, `f1` `c`.`d`.`t` >"),
 			createTestItem("^INTERVAL^ YEAR",
 				"(?s).*Encountered \"INTERVAL\" at line 2, column 6..*"),
-			createTestItem("ANY(^'unknown.class'^, '')",
-				"(?s).*Encountered \"\\\\'unknown.class\\\\'\" at line 2, column 10.\n.*"
+			createTestItem("RAW(^)^",
+				"(?s).*Encountered \"\\)\" at line 2, column 10.\n.*"
 					+ "Was expecting:\n"
-					+ "    <UNSIGNED_INTEGER_LITERAL> ...\n"
+					+ "    <QUOTED_STRING> ...\n"
+					+ ".*"),
+			createTestItem("RAW('java.lang.Integer', ^)^",
+				"(?s).*Encountered \"\\)\" at line 2, column 31.\n.*"
+					+ "Was expecting:\n"
+					+ "    <QUOTED_STRING> ...\n"
 					+ ".*"));
 	}
 
@@ -454,7 +465,7 @@ public class FlinkDDLDataTypeTest {
 		private final Map<String, Object> options;
 		private final SqlTestFactory.ValidatorFactory validatorFactory;
 
-		private final RelDataTypeFactory typeFactory;
+		private final TestRelDataTypeFactory typeFactory;
 		private final SqlOperatorTable operatorTable;
 		private final SqlValidatorCatalogReader catalogReader;
 		private final SqlParser.Config parserConfig;
@@ -489,7 +500,7 @@ public class FlinkDDLDataTypeTest {
 				.withIdentifierQuoteString(parserConfig.quoting().string));
 		}
 
-		public RelDataTypeFactory getTypeFactory() {
+		public TestRelDataTypeFactory getTypeFactory() {
 			return this.typeFactory;
 		}
 
@@ -521,7 +532,7 @@ public class FlinkDDLDataTypeTest {
 				.build();
 		}
 
-		private static RelDataTypeFactory createTypeFactory(SqlConformance conformance) {
+		private static TestRelDataTypeFactory createTypeFactory(SqlConformance conformance) {
 			RelDataTypeSystem typeSystem = RelDataTypeSystem.DEFAULT;
 			if (conformance.shouldConvertRaggedUnionTypesToVarying()) {
 				typeSystem = new DelegatingTypeSystem(typeSystem) {
@@ -537,7 +548,7 @@ public class FlinkDDLDataTypeTest {
 					}
 				};
 			}
-			return new JavaTypeFactoryImpl(typeSystem);
+			return new TestRelDataTypeFactory(typeSystem);
 		}
 
 		private static Map<String, Object> buildDefaultOptions() {

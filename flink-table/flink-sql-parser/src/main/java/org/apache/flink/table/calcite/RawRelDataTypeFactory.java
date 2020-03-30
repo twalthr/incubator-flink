@@ -16,21 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.typeutils;
+package org.apache.flink.table.calcite;
 
-import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.apache.calcite.rel.type.RelDataType;
 
 /**
- * Test for {@link BigDecimalTypeInfo}.
+ * A factory for creating a {@link RelDataType} that describes a RAW type such as
+ * {@code RAW('org.my.Class', 'sW3Djsds...')}.
  */
-public class BigDecimalTypeInfoTest extends TypeInformationTestBase<BigDecimalTypeInfo> {
+public interface RawRelDataTypeFactory {
 
-	@Override
-	protected BigDecimalTypeInfo[] getTestData() {
-		return new BigDecimalTypeInfo[] {
-				new BigDecimalTypeInfo(38, 18),
-				new BigDecimalTypeInfo(17, 0),
-				new BigDecimalTypeInfo(25, 21)
-		};
-	}
+	RelDataType createRawType(String className, String serializerString);
 }
