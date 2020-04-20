@@ -58,7 +58,7 @@ public final class SqlRawTypeNameSpec extends SqlTypeNameSpec {
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword(RAW_TYPE_NAME);
 		final SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "(", ")");
-		writer.sep(",");
+		writer.sep(","); // configures the writer
 		className.unparse(writer, leftPrec, rightPrec);
 		writer.sep(",");
 		serializerString.unparse(writer, leftPrec, rightPrec);
