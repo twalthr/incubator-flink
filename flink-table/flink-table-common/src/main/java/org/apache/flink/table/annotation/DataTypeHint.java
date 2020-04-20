@@ -46,7 +46,7 @@ import java.lang.annotation.Target;
  * data type of millisecond precision with an explicit conversion class.
  *
  * <p>{@code @DataTypeHint(value = "RAW", bridgedTo = MyCustomClass.class)} defines a RAW data type with
- * Flink's default serializer.
+ * Flink's default serializer for class {@code MyCustomClass}.
  *
  * <p>{@code @DataTypeHint(value = "RAW", rawSerializer = MyCustomSerializer.class)} defines a RAW data type
  * with a custom serializer class.
