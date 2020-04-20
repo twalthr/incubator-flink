@@ -580,6 +580,7 @@ public class LogicalTypesTest {
 			Human.class,
 			new KryoSerializer<>(Human.class, new ExecutionConfig()));
 		final String className = "org.apache.flink.table.types.LogicalTypesTest$Human";
+		// use rawType.getSerializerString() to regenerate the following string
 		final String serializerString =
 			"AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uS3J5b1Nlcml" +
 			"hbGl6ZXJTbmFwc2hvdAAAAAIAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNhbFR5cG" +

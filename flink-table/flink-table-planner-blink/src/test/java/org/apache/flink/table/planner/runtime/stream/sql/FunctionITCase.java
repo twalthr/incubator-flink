@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
@@ -36,6 +38,7 @@ import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.Row;
 
@@ -529,6 +532,10 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
+		final RawType<Object> rawType = new RawType<>(
+			Object.class,
+			new KryoSerializer<>(Object.class, new ExecutionConfig()));
+
 		tEnv().sqlUpdate(
 			"CREATE TABLE SourceTable(i INT, b BYTES) " +
 			"WITH ('connector' = 'COLLECTION')");
@@ -538,15 +545,7 @@ public class FunctionITCase extends StreamingTestBase {
 			"  s1 STRING, " +
 			"  s2 STRING, " +
 			"  d DECIMAL(5, 2)," +
-			"  r RAW('java.lang.Object', 'AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW" +
-			"      1lLmtyeW8uS3J5b1NlcmlhbGl6ZXJTbmFwc2hvdAAAAAIAEGphdmEubGFuZy5PYmplY3QAAATyxpo9cAA" +
-			"      AAAIAEGphdmEubGFuZy5PYmplY3QBAAAAEgAQamF2YS5sYW5nLk9iamVjdAEAAAAWABBqYXZhLmxhbmcu" +
-			"      T2JqZWN0AAAAAAApb3JnLmFwYWNoZS5hdnJvLmdlbmVyaWMuR2VuZXJpY0RhdGEkQXJyYXkBAAAAKwApb" +
-			"      3JnLmFwYWNoZS5hdnJvLmdlbmVyaWMuR2VuZXJpY0RhdGEkQXJyYXkBAAAAtgBVb3JnLmFwYWNoZS5mbG" +
-			"      luay5hcGkuamF2YS50eXBldXRpbHMucnVudGltZS5rcnlvLlNlcmlhbGl6ZXJzJER1bW15QXZyb1JlZ2l" +
-			"      zdGVyZWRDbGFzcwAAAAEAWW9yZy5hcGFjaGUuZmxpbmsuYXBpLmphdmEudHlwZXV0aWxzLnJ1bnRpbWUu" +
-			"      a3J5by5TZXJpYWxpemVycyREdW1teUF2cm9LcnlvU2VyaWFsaXplckNsYXNzAAAE8saaPXAAAAAAAAAE8" +
-			"      saaPXAAAAAA')" +
+			"  r " + rawType.asSerializableString() +
 			") " +
 			"WITH ('connector' = 'COLLECTION')");
 
@@ -638,33 +637,21 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
+		final RawType<DayOfWeek> rawType = new RawType<>(
+			DayOfWeek.class,
+			new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig()));
+
 		tEnv().sqlUpdate(
 			"CREATE TABLE SourceTable(" +
 			"  i INT, " +
-			"  r RAW('java.time.DayOfWeek', 'AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW5" +
-			"      0aW1lLmtyeW8uS3J5b1NlcmlhbGl6ZXJTbmFwc2hvdAAAAAIAE2phdmEudGltZS5EYXlPZldlZWsAAATy" +
-			"      xpo9cAAAAAIAE2phdmEudGltZS5EYXlPZldlZWsBAAAAFQATamF2YS50aW1lLkRheU9mV2VlawEAAAAZA" +
-			"      BNqYXZhLnRpbWUuRGF5T2ZXZWVrAAAAAAApb3JnLmFwYWNoZS5hdnJvLmdlbmVyaWMuR2VuZXJpY0RhdG" +
-			"      EkQXJyYXkBAAAAKwApb3JnLmFwYWNoZS5hdnJvLmdlbmVyaWMuR2VuZXJpY0RhdGEkQXJyYXkBAAAAtgB" +
-			"      Vb3JnLmFwYWNoZS5mbGluay5hcGkuamF2YS50eXBldXRpbHMucnVudGltZS5rcnlvLlNlcmlhbGl6ZXJz" +
-			"      JER1bW15QXZyb1JlZ2lzdGVyZWRDbGFzcwAAAAEAWW9yZy5hcGFjaGUuZmxpbmsuYXBpLmphdmEudHlwZ" +
-			"      XV0aWxzLnJ1bnRpbWUua3J5by5TZXJpYWxpemVycyREdW1teUF2cm9LcnlvU2VyaWFsaXplckNsYXNzAA" +
-			"      AE8saaPXAAAAAAAAAE8saaPXAAAAAA')" +
+			"  r " + rawType.asSerializableString() +
 			") " +
 			"WITH ('connector' = 'COLLECTION')");
 		tEnv().sqlUpdate(
 			"CREATE TABLE SinkTable(" +
 			"  i INT, " +
 			"  s STRING, " +
-			"  r RAW('java.time.DayOfWeek', 'AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW5" +
-			"      0aW1lLmtyeW8uS3J5b1NlcmlhbGl6ZXJTbmFwc2hvdAAAAAIAE2phdmEudGltZS5EYXlPZldlZWsAAATy" +
-			"      xpo9cAAAAAIAE2phdmEudGltZS5EYXlPZldlZWsBAAAAFQATamF2YS50aW1lLkRheU9mV2VlawEAAAAZA" +
-			"      BNqYXZhLnRpbWUuRGF5T2ZXZWVrAAAAAAApb3JnLmFwYWNoZS5hdnJvLmdlbmVyaWMuR2VuZXJpY0RhdG" +
-			"      EkQXJyYXkBAAAAKwApb3JnLmFwYWNoZS5hdnJvLmdlbmVyaWMuR2VuZXJpY0RhdGEkQXJyYXkBAAAAtgB" +
-			"      Vb3JnLmFwYWNoZS5mbGluay5hcGkuamF2YS50eXBldXRpbHMucnVudGltZS5rcnlvLlNlcmlhbGl6ZXJz" +
-			"      JER1bW15QXZyb1JlZ2lzdGVyZWRDbGFzcwAAAAEAWW9yZy5hcGFjaGUuZmxpbmsuYXBpLmphdmEudHlwZ" +
-			"      XV0aWxzLnJ1bnRpbWUua3J5by5TZXJpYWxpemVycyREdW1teUF2cm9LcnlvU2VyaWFsaXplckNsYXNzAA" +
-			"      AE8saaPXAAAAAAAAAE8saaPXAAAAAA')" +
+			"  r " + rawType.asSerializableString() +
 			") " +
 			"WITH ('connector' = 'COLLECTION')");
 

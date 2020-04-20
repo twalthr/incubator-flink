@@ -895,21 +895,15 @@ SqlTypeNameSpec SqlMapTypeName() :
 /** Parses a SQL raw type such as {@code RAW('org.my.Class', 'sW3Djsds...')}. */
 SqlTypeNameSpec SqlRawTypeName() :
 {
-    SqlCharStringLiteral className;
-    SqlCharStringLiteral serializerString;
+    SqlNode className;
+    SqlNode serializerString;
 }
 {
     <RAW>
     <LPAREN>
-    <QUOTED_STRING> {
-        String cn = SqlParserUtil.parseString(token.image);
-        className = SqlLiteral.createCharString(cn, getPos());
-    }
+    className = StringLiteral()
     <COMMA>
-    <QUOTED_STRING> {
-        String ss = SqlParserUtil.parseString(token.image);
-        serializerString = SqlLiteral.createCharString(ss, getPos());
-    }
+    serializerString = StringLiteral()
     <RPAREN>
     {
         return new SqlRawTypeNameSpec(className, serializerString, getPos());

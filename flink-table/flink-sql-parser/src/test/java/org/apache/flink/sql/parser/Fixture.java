@@ -30,15 +30,7 @@ public class Fixture {
 	private final TestRelDataTypeFactory typeFactory;
 
 	static final String RAW_TYPE_INT_CLASS = "java.lang.Integer";
-	static final String RAW_TYPE_INT_SERIALIZER_STRING =
-		"AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uS3J5b1NlcmlhbGl6ZXJ" +
-		"TbmFwc2hvdAAAAAIAEWphdmEubGFuZy5JbnRlZ2VyAAAE8saaPXAAAAACABFqYXZhLmxhbmcuSW50ZWdlcgEAAA" +
-		"ATABFqYXZhLmxhbmcuSW50ZWdlcgEAAAAXABFqYXZhLmxhbmcuSW50ZWdlcgAAAAAAKW9yZy5hcGFjaGUuYXZyb" +
-		"y5nZW5lcmljLkdlbmVyaWNEYXRhJEFycmF5AQAAACsAKW9yZy5hcGFjaGUuYXZyby5nZW5lcmljLkdlbmVyaWNE" +
-		"YXRhJEFycmF5AQAAALYAVW9yZy5hcGFjaGUuZmxpbmsuYXBpLmphdmEudHlwZXV0aWxzLnJ1bnRpbWUua3J5by5" +
-		"TZXJpYWxpemVycyREdW1teUF2cm9SZWdpc3RlcmVkQ2xhc3MAAAABAFlvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYX" +
-		"ZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uU2VyaWFsaXplcnMkRHVtbXlBdnJvS3J5b1NlcmlhbGl6ZXJDbGFzc" +
-		"wAABPLGmj1wAAAAAAAABPLGmj1wAAAAAA==";
+	static final String RAW_TYPE_INT_SERIALIZER_STRING = "<Serializer Snapshot>";
 
 	final RelDataType char1Type;
 	final RelDataType char33Type;

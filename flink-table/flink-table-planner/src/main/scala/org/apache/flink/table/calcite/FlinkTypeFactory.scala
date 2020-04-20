@@ -50,7 +50,7 @@ import scala.collection.mutable
   */
 class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
   extends JavaTypeFactoryImpl(typeSystem)
-  with RawRelDataTypeFactory {
+  with ExtendedRelTypeFactory {
 
   // NOTE: for future data types it might be necessary to
   // override more methods of RelDataTypeFactoryImpl

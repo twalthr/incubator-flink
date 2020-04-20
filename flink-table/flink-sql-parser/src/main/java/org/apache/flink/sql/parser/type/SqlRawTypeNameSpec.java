@@ -16,15 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.calcite.sql;
+package org.apache.flink.sql.parser.type;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.calcite.RawRelDataTypeFactory;
+import org.apache.flink.table.calcite.ExtendedRelTypeFactory;
 
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlTypeNameSpec;
+import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.util.Litmus;
+import org.apache.calcite.util.NlsString;
 
 import java.util.Objects;
 
@@ -38,11 +44,11 @@ public final class SqlRawTypeNameSpec extends SqlTypeNameSpec {
 
 	private static final String RAW_TYPE_NAME = "RAW";
 
-	private final SqlCharStringLiteral className;
+	private final SqlNode className;
 
-	private final SqlCharStringLiteral serializerString;
+	private final SqlNode serializerString;
 
-	public SqlRawTypeNameSpec(SqlCharStringLiteral className, SqlCharStringLiteral serializerString, SqlParserPos pos) {
+	public SqlRawTypeNameSpec(SqlNode className, SqlNode serializerString, SqlParserPos pos) {
 		super(new SqlIdentifier(RAW_TYPE_NAME, pos), pos);
 		this.className = className;
 		this.serializerString = serializerString;
@@ -50,8 +56,9 @@ public final class SqlRawTypeNameSpec extends SqlTypeNameSpec {
 
 	@Override
 	public RelDataType deriveType(SqlValidator validator) {
-		return ((RawRelDataTypeFactory) validator.getTypeFactory())
-			.createRawType(className.toValue(), serializerString.toValue());
+		return ((ExtendedRelTypeFactory) validator.getTypeFactory()).createRawType(
+			((NlsString) SqlLiteral.value(className)).getValue(),
+			((NlsString) SqlLiteral.value(serializerString)).getValue());
 	}
 
 	@Override

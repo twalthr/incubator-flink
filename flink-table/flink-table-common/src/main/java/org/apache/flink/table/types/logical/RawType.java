@@ -87,7 +87,7 @@ public final class RawType<T> extends LogicalType {
 
 	@Override
 	public String asSerializableString() {
-		return withNullability(FORMAT, clazz.getName(), getOrCreateSerializerString());
+		return withNullability(FORMAT, clazz.getName(), getSerializerString());
 	}
 
 	@Override
@@ -167,7 +167,10 @@ public final class RawType<T> extends LogicalType {
 		}
 	}
 
-	private String getOrCreateSerializerString() {
+	/**
+	 * Returns the serialized {@link TypeSerializerSnapshot} in Base64 encoding of this raw type.
+	 */
+	public String getSerializerString() {
 		if (serializerString == null) {
 			final DataOutputSerializer outputSerializer = new DataOutputSerializer(128);
 			try {

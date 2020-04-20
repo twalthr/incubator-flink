@@ -18,7 +18,7 @@
 
 package org.apache.flink.sql.parser;
 
-import org.apache.flink.table.calcite.RawRelDataTypeFactory;
+import org.apache.flink.table.calcite.ExtendedRelTypeFactory;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -29,7 +29,7 @@ import org.apache.calcite.sql.type.SqlTypeFactoryImpl;
 /**
  * {@link RelDataTypeFactory} for testing purposes.
  */
-public final class TestRelDataTypeFactory extends SqlTypeFactoryImpl implements RawRelDataTypeFactory {
+public final class TestRelDataTypeFactory extends SqlTypeFactoryImpl implements ExtendedRelTypeFactory {
 
 	TestRelDataTypeFactory(RelDataTypeSystem typeSystem) {
 		super(typeSystem);

@@ -33,7 +33,7 @@ import org.apache.calcite.util.ConversionUtil
 import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
-import org.apache.flink.table.calcite.RawRelDataTypeFactory
+import org.apache.flink.table.calcite.ExtendedRelTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
@@ -52,7 +52,7 @@ import scala.collection.mutable
   */
 class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
   extends JavaTypeFactoryImpl(typeSystem)
-  with RawRelDataTypeFactory {
+  with ExtendedRelTypeFactory {
 
   private val seenTypes = mutable.HashMap[LogicalType, RelDataType]()
 
@@ -496,7 +496,7 @@ object FlinkTypeFactory {
       // CURSOR for UDTF case, whose type info will never be used, just a placeholder
       case CURSOR => new TypeInformationRawType[Nothing](new NothingTypeInfo)
 
-      case null if relDataType.isInstanceOf[RawRelDataType] =>
+      case OTHER =>
         relDataType.asInstanceOf[RawRelDataType].getRawType
 
       case _@t =>
