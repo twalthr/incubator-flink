@@ -65,6 +65,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
     */
   def createFieldTypeFromLogicalType(t: LogicalType): RelDataType = {
     def newRelDataType(): RelDataType = t.getTypeRoot match {
+      case LogicalTypeRoot.NULL => createSqlType(NULL)
       case LogicalTypeRoot.BOOLEAN => createSqlType(BOOLEAN)
       case LogicalTypeRoot.TINYINT => createSqlType(TINYINT)
       case LogicalTypeRoot.SMALLINT => createSqlType(SMALLINT)
@@ -467,8 +468,7 @@ object FlinkTypeFactory {
         DataTypes.INTERVAL(DataTypes.SECOND(3)).getLogicalType
 
       case NULL =>
-        throw new TableException(
-          "Type NULL is not supported. Null values must have a supported type.")
+        new NullType()
 
       // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
       // are represented as Enum

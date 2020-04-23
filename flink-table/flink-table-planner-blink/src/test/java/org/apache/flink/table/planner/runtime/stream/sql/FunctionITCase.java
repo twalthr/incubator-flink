@@ -464,7 +464,32 @@ public class FunctionITCase extends StreamingTestBase {
 		tEnv().sqlUpdate("CREATE TABLE TestTable(i INT NOT NULL, b BIGINT NOT NULL, s STRING) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("PrimitiveScalarFunction", PrimitiveScalarFunction.class);
-		tEnv().sqlUpdate("INSERT INTO TestTable SELECT i, PrimitiveScalarFunction(i, b, s), s FROM TestTable");
+		tEnv().sqlUpdate("INSERT INTO TestTable SELECT i, PrimitiveScalarFunction(i, b, s), , s FROM TestTable");
+		tEnv().execute("Test Job");
+
+		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+	}
+
+	@Test
+	public void testNullableScalarFunction() throws Exception {
+		final List<Row> sourceData = Arrays.asList(
+			Row.of("1"),
+			Row.of((String) null)
+		);
+
+		final List<Row> sinkData = Arrays.asList(
+			Row.of(1, 3L, "-"),
+			Row.of(2, 6L, "--"),
+			Row.of(3, 9L, "---")
+		);
+
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(sourceData);
+
+		tEnv().sqlUpdate("CREATE TABLE TestTable(s STRING) WITH ('connector' = 'COLLECTION')");
+
+		tEnv().createTemporarySystemFunction("ClassNameScalarFunction", ClassNameScalarFunction.class);
+		tEnv().sqlUpdate("INSERT INTO TestTable SELECT ClassNameScalarFunction(NULL) FROM TestTable");
 		tEnv().execute("Test Job");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
@@ -942,6 +967,20 @@ public class FunctionITCase extends StreamingTestBase {
 			} else {
 				collect(i);
 			}
+		}
+	}
+
+	public static class ClassNameScalarFunction extends ScalarFunction {
+		public String eval(String s) {
+			return "String";
+		}
+
+		public String eval(Integer i) {
+			return "Integer";
+		}
+
+		public String eval(Boolean b) {
+			return "Boolean";
 		}
 	}
 }

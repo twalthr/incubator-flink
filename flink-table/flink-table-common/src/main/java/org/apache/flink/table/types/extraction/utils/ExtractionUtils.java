@@ -46,6 +46,7 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -88,6 +89,7 @@ public final class ExtractionUtils {
 	public static List<Method> collectMethods(Class<?> function, String methodName) {
 		return Arrays.stream(function.getMethods())
 			.filter(method -> method.getName().equals(methodName))
+			.sorted(Comparator.comparing(Method::toString)) // for deterministic order
 			.collect(Collectors.toList());
 	}
 
