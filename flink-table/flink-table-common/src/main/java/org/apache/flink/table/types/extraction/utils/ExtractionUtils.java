@@ -46,9 +46,10 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -417,13 +418,17 @@ public final class ExtractionUtils {
 	public static <T extends Annotation> Set<T> collectAnnotationsOfClass(
 			Class<T> annotation,
 			Class<?> annotatedClass) {
-		final Set<T> collectedAnnotations = new HashSet<>();
+		final List<Class<?>> classHierarchy = new ArrayList<>();
 		Class<?> currentClass = annotatedClass;
 		while (currentClass != null) {
-			collectedAnnotations.addAll(Arrays.asList(currentClass.getAnnotationsByType(annotation)));
+			classHierarchy.add(currentClass);
 			currentClass = currentClass.getSuperclass();
 		}
-		return collectedAnnotations;
+		// convert to top down
+		Collections.reverse(classHierarchy);
+		return classHierarchy.stream()
+			.flatMap(c -> Stream.of(c.getAnnotationsByType(annotation)))
+			.collect(Collectors.toCollection(LinkedHashSet::new));
 	}
 
 	/**
@@ -432,7 +437,7 @@ public final class ExtractionUtils {
 	public static <T extends Annotation> Set<T> collectAnnotationsOfMethod(
 			Class<T> annotation,
 			Method annotatedMethod) {
-		return new HashSet<>(Arrays.asList(annotatedMethod.getAnnotationsByType(annotation)));
+		return new LinkedHashSet<>(Arrays.asList(annotatedMethod.getAnnotationsByType(annotation)));
 	}
 
 	/**

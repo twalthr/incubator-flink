@@ -48,6 +48,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.DayOfWeek;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -464,32 +465,39 @@ public class FunctionITCase extends StreamingTestBase {
 		tEnv().sqlUpdate("CREATE TABLE TestTable(i INT NOT NULL, b BIGINT NOT NULL, s STRING) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("PrimitiveScalarFunction", PrimitiveScalarFunction.class);
-		tEnv().sqlUpdate("INSERT INTO TestTable SELECT i, PrimitiveScalarFunction(i, b, s), , s FROM TestTable");
+		tEnv().sqlUpdate("INSERT INTO TestTable SELECT i, PrimitiveScalarFunction(i, b, s), s FROM TestTable");
 		tEnv().execute("Test Job");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
 
 	@Test
-	public void testNullableScalarFunction() throws Exception {
-		final List<Row> sourceData = Arrays.asList(
-			Row.of("1"),
-			Row.of((String) null)
-		);
-
-		final List<Row> sinkData = Arrays.asList(
-			Row.of(1, 3L, "-"),
-			Row.of(2, 6L, "--"),
-			Row.of(3, 9L, "---")
-		);
+	public void testNullScalarFunction() throws Exception {
+		final List<Row> sinkData = Collections.singletonList(Row.of("Boolean", "String"));
 
 		TestCollectionTableFactory.reset();
-		TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate("CREATE TABLE TestTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().sqlUpdate("CREATE TABLE TestTable(s1 STRING, s2 STRING) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("ClassNameScalarFunction", ClassNameScalarFunction.class);
-		tEnv().sqlUpdate("INSERT INTO TestTable SELECT ClassNameScalarFunction(NULL) FROM TestTable");
+		tEnv().sqlUpdate("INSERT INTO TestTable " +
+			"SELECT ClassNameScalarFunction(NULL), ClassNameScalarFunction(CAST(NULL AS STRING))");
+		tEnv().execute("Test Job");
+
+		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+	}
+
+	@Test
+	public void testWildcardNullScalarFunction() throws Exception {
+		final List<Row> sinkData = Collections.singletonList(Row.of("Object", "Boolean"));
+
+		TestCollectionTableFactory.reset();
+
+		tEnv().sqlUpdate("CREATE TABLE TestTable(s1 STRING, s2 STRING) WITH ('connector' = 'COLLECTION')");
+
+		tEnv().createTemporarySystemFunction("WildcardClassNameScalarFunction", WildcardClassNameScalarFunction.class);
+		tEnv().sqlUpdate("INSERT INTO TestTable " +
+			"SELECT WildcardClassNameScalarFunction(NULL), WildcardClassNameScalarFunction(CAST(NULL AS BOOLEAN))");
 		tEnv().execute("Test Job");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
@@ -970,10 +978,12 @@ public class FunctionITCase extends StreamingTestBase {
 		}
 	}
 
+	/**
+	 * Function that returns which method has been called.
+	 *
+	 * <p>{@code f(NULL)} is determined by alphabetical method signature order.
+	 */
 	public static class ClassNameScalarFunction extends ScalarFunction {
-		public String eval(String s) {
-			return "String";
-		}
 
 		public String eval(Integer i) {
 			return "Integer";
@@ -981,6 +991,27 @@ public class FunctionITCase extends StreamingTestBase {
 
 		public String eval(Boolean b) {
 			return "Boolean";
+		}
+
+		public String eval(String s) {
+			return "String";
+		}
+	}
+
+	/**
+	 * Function that returns which method has been called but with default input type inference.
+	 */
+	public static class WildcardClassNameScalarFunction extends ClassNameScalarFunction {
+
+		public String eval(Object o) {
+			return "Object";
+		}
+
+		@Override
+		public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+			return TypeInference.newBuilder()
+				.outputTypeStrategy(TypeStrategies.explicit(DataTypes.STRING()))
+				.build();
 		}
 	}
 }

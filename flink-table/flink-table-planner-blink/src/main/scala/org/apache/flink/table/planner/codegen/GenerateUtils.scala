@@ -30,15 +30,16 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.util.TimestampString
 import org.apache.commons.lang3.StringEscapeUtils
-
 import java.math.{BigDecimal => JBigDecimal}
-import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
 
+import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
 import java.time.ZoneOffset
+
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 
 import scala.collection.mutable
 
@@ -246,18 +247,17 @@ object GenerateUtils {
   def generateNullLiteral(
       resultType: LogicalType,
       nullCheck: Boolean): GeneratedExpression = {
-    val defaultValue = primitiveDefaultValue(resultType)
-    val resultTypeTerm = primitiveTypeTermForType(resultType)
-    if (nullCheck) {
-      GeneratedExpression(
-        s"(($resultTypeTerm) $defaultValue)",
-        ALWAYS_NULL,
-        NO_CODE,
-        resultType,
-        literalValue = Some(null))  // the literal is null
-    } else {
+    if (!nullCheck) {
       throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
     }
+    val defaultValue = primitiveDefaultValue(resultType)
+    val resultTypeTerm = primitiveTypeTermForType(resultType)
+    GeneratedExpression(
+      s"(($resultTypeTerm) $defaultValue)",
+      ALWAYS_NULL,
+      NO_CODE,
+      resultType,
+      literalValue = Some(null))
   }
 
   def generateNonNullLiteral(

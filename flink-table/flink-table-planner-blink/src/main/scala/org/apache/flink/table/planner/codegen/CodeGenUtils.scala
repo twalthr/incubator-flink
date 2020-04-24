@@ -36,10 +36,12 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.types.Row
 import java.lang.reflect.Method
-import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
+import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
 import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.flink.table.planner.codegen.GenerateUtils.{generateInputFieldUnboxing, generateNonNullField}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 
 object CodeGenUtils {
 
@@ -186,6 +188,9 @@ object CodeGenUtils {
     case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[SqlTimestamp]
 
     case RAW => className[BinaryGeneric[_]]
+
+    // special case for untyped null literals
+    case NULL => className[JObject]
   }
 
   /**
@@ -763,9 +768,16 @@ object CodeGenUtils {
       internalExpr: GeneratedExpression)
     : String = {
     val targetType = fromDataTypeToLogicalType(targetDataType)
+    val targetTypeTerm = boxedTypeTermForType(targetType)
+
+    // untyped null literal
+    if (hasRoot(internalExpr.resultType, NULL)) {
+      return s"($targetTypeTerm) null"
+    }
+
     // convert internal format to target type
     val externalResultTerm = if (isInternalClass(targetDataType)) {
-      s"(${boxedTypeTermForType(targetType)}) ${internalExpr.resultTerm}"
+      s"($targetTypeTerm) ${internalExpr.resultTerm}"
     } else {
       genToExternal(ctx, targetDataType, internalExpr.resultTerm)
     }

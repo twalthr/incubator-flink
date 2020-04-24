@@ -46,9 +46,10 @@ class ArrayTypeValidationTest extends ArrayTypeTestBase {
     testTableApi("FAIL", "array()", "FAIL")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testNullArraySql(): Unit = {
-    testSqlApi("ARRAY[NULL]", "FAIL")
+   testTableApi(array(null), "array(null)", "")
+    //testSqlApi("ARRAY[NULL]", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
