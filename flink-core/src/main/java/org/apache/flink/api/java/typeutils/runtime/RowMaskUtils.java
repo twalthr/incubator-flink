@@ -21,13 +21,22 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.io.IOException;
 
+/**
+ * Utilities for reading and writing binary masks for {@link Row}.
+ */
 @Internal
-public class NullMaskUtils {
+public final class RowMaskUtils {
 
-	public static void writeNullMask(int len, Row value, DataOutputView target) throws IOException {
+	public static final int ROW_KIND_OFFSET = 2;
+
+	@SuppressWarnings("UnusedAssignment")
+	public static void writeMask(boolean[] mask, DataOutputView target) throws IOException {
+		final int len = mask.length;
+
 		int b = 0x00;
 		int bytePos = 0;
 
@@ -40,8 +49,8 @@ public class NullMaskUtils {
 			numPos = Math.min(8, len - fieldPos);
 			while (bytePos < numPos) {
 				b = b << 1;
-				// set bit if field is null
-				if (value.getField(fieldPos + bytePos) == null) {
+				// set bit if element is true
+				if (mask[fieldPos + bytePos]) {
 					b |= 0x01;
 				}
 				bytePos += 1;
@@ -54,10 +63,9 @@ public class NullMaskUtils {
 		}
 	}
 
-	public static void readIntoNullMask(
-		int len,
-		DataInputView source,
-		boolean[] nullMask) throws IOException {
+	@SuppressWarnings("UnusedAssignment")
+	public static void readIntoMask(DataInputView source, boolean[] mask) throws IOException {
+		final int len = mask.length;
 
 		int b = 0x00;
 		int bytePos = 0;
@@ -70,7 +78,7 @@ public class NullMaskUtils {
 			bytePos = 0;
 			numPos = Math.min(8, len - fieldPos);
 			while (bytePos < numPos) {
-				nullMask[fieldPos + bytePos] = (b & 0x80) > 0;
+				mask[fieldPos + bytePos] = (b & 0x80) > 0;
 				b = b << 1;
 				bytePos += 1;
 			}
@@ -78,11 +86,12 @@ public class NullMaskUtils {
 		}
 	}
 
-	public static void readIntoAndCopyNullMask(
-		int len,
-		DataInputView source,
-		DataOutputView target,
-		boolean[] nullMask) throws IOException {
+	@SuppressWarnings("UnusedAssignment")
+	public static void readIntoAndCopyMask(
+			DataInputView source,
+			DataOutputView target,
+			boolean[] mask) throws IOException {
+		final int len = mask.length;
 
 		int b = 0x00;
 		int bytePos = 0;
@@ -97,11 +106,26 @@ public class NullMaskUtils {
 			bytePos = 0;
 			numPos = Math.min(8, len - fieldPos);
 			while (bytePos < numPos) {
-				nullMask[fieldPos + bytePos] = (b & 0x80) > 0;
+				mask[fieldPos + bytePos] = (b & 0x80) > 0;
 				b = b << 1;
 				bytePos += 1;
 			}
 			fieldPos += numPos;
 		}
+	}
+
+	public static void fillMask(int fieldLength, Row row, boolean[] mask) {
+		final byte kind = row.getKind().toByteValue();
+		mask[0] = (kind & 0x01) > 0;
+		mask[1] = (kind & 0x02) > 0;
+
+		for (int fieldPos = 0; fieldPos < fieldLength; fieldPos++) {
+			mask[ROW_KIND_OFFSET + fieldPos] = row.getField(fieldPos) == null;
+		}
+	}
+
+	public static RowKind readKindFromMask(boolean[] mask) {
+		final byte kind = (byte) ((mask[0] ? 0x01 : 0x00) + (mask[1] ? 0x02 : 0x00));
+		return RowKind.fromByteValue(kind);
 	}
 }

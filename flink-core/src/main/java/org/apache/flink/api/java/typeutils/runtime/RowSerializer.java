@@ -28,35 +28,54 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.util.Arrays;
+import java.util.Objects;
 
-import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readIntoAndCopyNullMask;
-import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readIntoNullMask;
-import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.writeNullMask;
+import static org.apache.flink.api.java.typeutils.runtime.RowMaskUtils.ROW_KIND_OFFSET;
+import static org.apache.flink.api.java.typeutils.runtime.RowMaskUtils.fillMask;
+import static org.apache.flink.api.java.typeutils.runtime.RowMaskUtils.readIntoAndCopyMask;
+import static org.apache.flink.api.java.typeutils.runtime.RowMaskUtils.readIntoMask;
+import static org.apache.flink.api.java.typeutils.runtime.RowMaskUtils.readKindFromMask;
+import static org.apache.flink.api.java.typeutils.runtime.RowMaskUtils.writeMask;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Serializer for {@link Row}.
+ *
+ * <p>It uses the following serialization format:
+ * <pre>
+ *     |bitmask|field|field|....
+ * </pre>
+ * The bitmask consist of {@link RowMaskUtils#ROW_KIND_OFFSET} bits for encoding the {@link RowKind}
+ * and n bits for whether a field is null.
+ *<p>
  */
 @Internal
 public final class RowSerializer extends TypeSerializer<Row> {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 2L;
 
 	private final TypeSerializer<Object>[] fieldSerializers;
 
 	private final int arity;
 
-	private transient boolean[] nullMask;
+	private final boolean[] mask;
+
+	private final boolean legacyModeEnabled;
+
+	public RowSerializer(TypeSerializer<?>[] fieldSerializers) {
+		this(fieldSerializers, false);
+	}
 
 	@SuppressWarnings("unchecked")
-	public RowSerializer(TypeSerializer<?>[] fieldSerializers) {
+	private RowSerializer(TypeSerializer<?>[] fieldSerializers, boolean legacyModeEnabled) {
 		this.fieldSerializers = (TypeSerializer<Object>[]) checkNotNull(fieldSerializers);
 		this.arity = fieldSerializers.length;
-		this.nullMask = new boolean[fieldSerializers.length];
+		this.mask = new boolean[(legacyModeEnabled ? 0 : ROW_KIND_OFFSET) + fieldSerializers.length];
+		this.legacyModeEnabled = legacyModeEnabled;
 	}
 
 	@Override
@@ -86,7 +105,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 			throw new RuntimeException("Row arity of from does not match serializers.");
 		}
 
-		Row result = new Row(len);
+		Row result = new Row(from.getKind(), len);
 		for (int i = 0; i < len; i++) {
 			Object fromField = from.getField(i);
 			if (fromField != null) {
@@ -113,6 +132,8 @@ public final class RowSerializer extends TypeSerializer<Row> {
 			throw new RuntimeException(
 				"Row arity of reuse or from is incompatible with this RowSerializer.");
 		}
+
+		reuse.setKind(from.getKind());
 
 		for (int i = 0; i < len; i++) {
 			Object fromField = from.getField(i);
@@ -145,39 +166,36 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 	@Override
 	public void serialize(Row record, DataOutputView target) throws IOException {
-		int len = fieldSerializers.length;
+		final int len = fieldSerializers.length;
 
 		if (record.getArity() != len) {
 			throw new RuntimeException("Row arity of from does not match serializers.");
 		}
 
-		// write a null mask
-		writeNullMask(len, record, target);
+		// write bitmask
+		fillMask(len, record, mask);
+		writeMask(mask, target);
 
 		// serialize non-null fields
-		for (int i = 0; i < len; i++) {
-			Object o = record.getField(i);
-			if (o != null) {
-				fieldSerializers[i].serialize(o, target);
+		for (int fieldPos = 0; fieldPos < len; fieldPos++) {
+			if (!mask[ROW_KIND_OFFSET + fieldPos]) {
+				fieldSerializers[fieldPos].serialize(record.getField(fieldPos), target);
 			}
 		}
 	}
 
 	@Override
 	public Row deserialize(DataInputView source) throws IOException {
-		int len = fieldSerializers.length;
+		final int len = fieldSerializers.length;
 
-		Row result = new Row(len);
+		// read bitmask
+		readIntoMask(source, mask);
+		final Row result = new Row(legacyModeEnabled ? RowKind.INSERT : readKindFromMask(mask), len);
 
-		// read null mask
-		readIntoNullMask(len, source, nullMask);
-
-		for (int i = 0; i < len; i++) {
-			if (nullMask[i]) {
-				result.setField(i, null);
-			}
-			else {
-				result.setField(i, fieldSerializers[i].deserialize(source));
+		// deserialize fields
+		for (int fieldPos = 0; fieldPos < len; fieldPos++) {
+			if (!mask[(legacyModeEnabled ? 0 : ROW_KIND_OFFSET) + fieldPos]) {
+				result.setField(fieldPos, fieldSerializers[fieldPos].deserialize(source));
 			}
 		}
 
@@ -186,26 +204,29 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 	@Override
 	public Row deserialize(Row reuse, DataInputView source) throws IOException {
-		int len = fieldSerializers.length;
+		final int len = fieldSerializers.length;
 
 		if (reuse.getArity() != len) {
 			throw new RuntimeException("Row arity of from does not match serializers.");
 		}
 
-		// read null mask
-		readIntoNullMask(len, source, nullMask);
+		// read bitmask
+		readIntoMask(source, mask);
+		if (!legacyModeEnabled) {
+			reuse.setKind(readKindFromMask(mask));
+		}
 
-		for (int i = 0; i < len; i++) {
-			if (nullMask[i]) {
-				reuse.setField(i, null);
-			}
-			else {
-				Object reuseField = reuse.getField(i);
+		// deserialize fields
+		for (int fieldPos = 0; fieldPos < len; fieldPos++) {
+			if (mask[(legacyModeEnabled ? 0 : ROW_KIND_OFFSET) + fieldPos]) {
+				reuse.setField(fieldPos, null);
+			} else {
+				Object reuseField = reuse.getField(fieldPos);
 				if (reuseField != null) {
-					reuse.setField(i, fieldSerializers[i].deserialize(reuseField, source));
+					reuse.setField(fieldPos, fieldSerializers[fieldPos].deserialize(reuseField, source));
 				}
 				else {
-					reuse.setField(i, fieldSerializers[i].deserialize(source));
+					reuse.setField(fieldPos, fieldSerializers[fieldPos].deserialize(source));
 				}
 			}
 		}
@@ -217,46 +238,38 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		int len = fieldSerializers.length;
 
-		// copy null mask
-		readIntoAndCopyNullMask(len, source, target, nullMask);
+		// copy bitmask
+		readIntoAndCopyMask(source, target, mask);
 
-		for (int i = 0; i < len; i++) {
-			if (!nullMask[i]) {
-				fieldSerializers[i].copy(source, target);
+		// copy non-null fields
+		for (int fieldPos = 0; fieldPos < len; fieldPos++) {
+			if (!mask[ROW_KIND_OFFSET + fieldPos]) {
+				fieldSerializers[fieldPos].copy(source, target);
 			}
 		}
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof RowSerializer) {
-			RowSerializer other = (RowSerializer) obj;
-			if (this.fieldSerializers.length == other.fieldSerializers.length) {
-				for (int i = 0; i < this.fieldSerializers.length; i++) {
-					if (!this.fieldSerializers[i].equals(other.fieldSerializers[i])) {
-						return false;
-					}
-				}
-				return true;
-			}
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
 		}
-
-		return false;
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		RowSerializer that = (RowSerializer) o;
+		return legacyModeEnabled == that.legacyModeEnabled &&
+			Arrays.equals(fieldSerializers, that.fieldSerializers);
 	}
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(fieldSerializers);
+		int result = Objects.hash(legacyModeEnabled);
+		result = 31 * result + Arrays.hashCode(fieldSerializers);
+		return result;
 	}
 
-	// --------------------------------------------------------------------------------------------
-
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-		this.nullMask = new boolean[fieldSerializers.length];
-	}
-
-	// --------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------
 	// Serializer configuration snapshoting & compatibility
 	// --------------------------------------------------------------------------------------------
 
@@ -282,7 +295,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		public RowSerializerConfigSnapshot() {
 		}
 
-		public RowSerializerConfigSnapshot(TypeSerializer[] fieldSerializers) {
+		public RowSerializerConfigSnapshot(TypeSerializer<?>[] fieldSerializers) {
 			super(fieldSerializers);
 		}
 
@@ -310,7 +323,11 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	 */
 	public static final class RowSerializerSnapshot extends CompositeTypeSerializerSnapshot<Row, RowSerializer> {
 
-		private static final int VERSION = 2;
+		private static final int VERSION = 3;
+
+		private static final int VERSION_WITHOUT_ROW_KIND = 2;
+
+		private boolean legacyModeEnabled = false;
 
 		@SuppressWarnings("WeakerAccess")
 		public RowSerializerSnapshot() {
@@ -327,13 +344,23 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		}
 
 		@Override
+		protected void readOuterSnapshot(
+				int readOuterSnapshotVersion,
+				DataInputView in,
+				ClassLoader userCodeClassLoader) {
+			if (readOuterSnapshotVersion == VERSION_WITHOUT_ROW_KIND) {
+				legacyModeEnabled = true;
+			}
+		}
+
+		@Override
 		protected TypeSerializer<?>[] getNestedSerializers(RowSerializer outerSerializer) {
 			return outerSerializer.fieldSerializers;
 		}
 
 		@Override
 		protected RowSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-			return new RowSerializer(nestedSerializers);
+			return new RowSerializer(nestedSerializers, legacyModeEnabled);
 		}
 	}
 }
