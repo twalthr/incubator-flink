@@ -24,6 +24,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.SortTestUtils._
 import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
@@ -71,7 +72,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
         .sortBy(_.head)(Ordering.by((r : Row) => -r.getField(0).asInstanceOf[Int]))
         .reduceLeft(_ ++ _)
 
-    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
+    TestBaseUtils.compareOrderedResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -99,7 +100,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
         .sortBy(_.head)(Ordering.by((r : Row) => r.getField(0).asInstanceOf[Int]))
         .reduceLeft(_ ++ _)
 
-    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
+    TestBaseUtils.compareOrderedResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -133,7 +134,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
         .sortBy(_.head)(rowOrdering)
         .reduceLeft(_ ++ _)
 
-    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
+    TestBaseUtils.compareOrderedResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -161,7 +162,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
         .sortBy(_.head)(Ordering.by((r : Row) => r.getField(0).asInstanceOf[Int]))
         .reduceLeft(_ ++ _)
 
-    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
+    TestBaseUtils.compareOrderedResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -189,7 +190,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
         .sortBy(_.head)(Ordering.by((r : Row) => -r.getField(0).asInstanceOf[Int]))
         .reduceLeft(_ ++ _)
 
-    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
+    TestBaseUtils.compareOrderedResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -219,6 +220,6 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
         .sortBy(_.head)
         .reduceLeft(_ ++ _)
 
-    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
+    TestBaseUtils.compareOrderedResultAsText(result.asJava, normalizeRowData(expected))
   }
 }

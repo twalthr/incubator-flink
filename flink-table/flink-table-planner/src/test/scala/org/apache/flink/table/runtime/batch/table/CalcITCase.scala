@@ -30,6 +30,7 @@ import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
 import org.apache.flink.types.Row
@@ -60,7 +61,7 @@ class CalcITCase(
       "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
       "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -77,7 +78,7 @@ class CalcITCase(
       "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
       "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -93,7 +94,7 @@ class CalcITCase(
       "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" + "15,5\n" +
       "16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -109,7 +110,7 @@ class CalcITCase(
       "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" + "15,5\n" +
       "16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -119,8 +120,7 @@ class CalcITCase(
 
     val t = CollectionDataSets.getSmallNestedTupleDataSet(env).toTable(tEnv, 'a, 'b).select('*)
 
-    val expected =
-      "(1,1),one\n" + "(2,2),two\n" + "(3,3),three\n"
+    val expected = "+I((1,1), one)\n" + "+I((2,2), two)\n" + "+I((3,3), three)\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -154,7 +154,7 @@ class CalcITCase(
       "Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" + "19," +
       "6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
     val results = filterDs.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -167,7 +167,7 @@ class CalcITCase(
 
     val expected = "3,2,Hello world\n" + "4,3,Hello world, how are you?\n"
     val results = filterDs.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -184,7 +184,7 @@ class CalcITCase(
       "12,5,Comment#6\n" + "14,5,Comment#8\n" + "16,6," +
       "Comment#10\n" + "18,6,Comment#12\n" + "20,6,Comment#14\n"
     val results = filterDs.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -200,7 +200,7 @@ class CalcITCase(
       "11,5,Comment#5\n" + "13,5,Comment#7\n" + "15,5,Comment#9\n" +
       "17,6,Comment#11\n" + "19,6,Comment#13\n" + "21,6,Comment#15\n"
     val results = filterDs.collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -213,7 +213,7 @@ class CalcITCase(
     val filterDs = ds.filter( 'a < 2 || 'a > 20)
     val expected = "1,1,Hi\n" + "21,6,Comment#15\n"
     val results = filterDs.collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -228,7 +228,7 @@ class CalcITCase(
       "9,4,Comment#3\n" + "17,6,Comment#11\n" +
       "19,6,Comment#13\n" + "21,6,Comment#15\n"
     val results = filterDs.collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -242,7 +242,7 @@ class CalcITCase(
 
     val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hello world, how are you?\n"
     val results = filterDs.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -256,7 +256,7 @@ class CalcITCase(
 
     val expected = "3,3,Hello world, how are you?\n" + "3,4,I am fine.\n" + "3,5,Luke Skywalker\n"
     val results = filterDs.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -272,7 +272,7 @@ class CalcITCase(
     val expected = "1,Hi\n" + "2,Hello\n" + "3,Hello world\n" +
       "4,Hello world, how are you?\n" + "5,I am fine.\n" + "6,Luke Skywalker\n"
       val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -289,7 +289,7 @@ class CalcITCase(
 
     val expected = "4\n"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -306,7 +306,7 @@ class CalcITCase(
 
     val expected = "7,4\n" + "11,4\n"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -322,7 +322,7 @@ class CalcITCase(
 
     val expected = "2,2\n" + "3,2\n"
     val results = joinT.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -347,7 +347,7 @@ class CalcITCase(
     val expected = "78.454654654654654,4E+9999,1984-07-12,14:34:24,1984-07-12 14:34:24.0," +
       "11.2,11.2,1984-07-12,14:34:24,1984-07-12 14:34:24.0,0.333333333333333333333333333333"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -360,7 +360,7 @@ class CalcITCase(
     val result = table.select("text.hashCode()")
     val results = result.toDataSet[Row].collect()
     val expected = "97\n98\n99"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -376,7 +376,7 @@ class CalcITCase(
 
     val results = table.toDataSet[Row].collect()
     val expected = "2,2,2,2.0,2.0,2.0,2.0,1002.1"
-    compareResultAsText(results.asJava, expected)
+    compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -392,7 +392,7 @@ class CalcITCase(
 
     val results = table.toDataSet[Row].collect()
     val expected: String = "2,2,2,2,2.0,2.0"
-    compareResultAsText(results.asJava, expected)
+    compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -415,7 +415,7 @@ class CalcITCase(
     val results = table.toDataSet[Row].collect()
     val expected = "1,0.0,1,true," + "true,false,true," +
       "1.0,0,1," + "1.0," + "1,0.0,1,true\n"
-    compareResultAsText(results.asJava, expected)
+    compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -428,7 +428,7 @@ class CalcITCase(
 
     val results = table.toDataSet[Row].collect()
     val expected = "1,1,1,1,2.0,2.0,true\n"
-    compareResultAsText(results.asJava, expected)
+    compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -447,7 +447,7 @@ class CalcITCase(
 
     val expected = "Hello"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -468,7 +468,7 @@ class CalcITCase(
 
     val expected = "Hello"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -487,7 +487,8 @@ class CalcITCase(
       map('a, 'c).at('a) === 'c
     )
 
-    val expected = "foo,12,1984-07-12 14:34:24.0,[12, 12],{foo=1984-07-12 14:34:24.0},true"
+    val expected =
+      "+I(+I(foo, 12, 1984-07-12 14:34:24.0), [12, 12], {foo=1984-07-12 14:34:24.0}, true)"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
 
@@ -517,7 +518,7 @@ class CalcITCase(
 
     val expected = "Hello\nHello world"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -544,7 +545,7 @@ class CalcITCase(
       "default-Jack#22,Sunny-Jack#22,kevin2-Jack#22\n" +
       "default-John#19,Sunny-John#19,kevin2-John#19\n" +
       "default-nosharp,Sunny-nosharp,kevin2-nosharp"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -574,7 +575,7 @@ class CalcITCase(
     val results = ds.collect()
 
     val expected = List("a,a,d,d,e,e", "x,x,z,z,z,z").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -590,7 +591,7 @@ class CalcITCase(
 
     val expected = "3,3,25\n" + "3,5,14\n"
     val results = filterDs.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 }
 

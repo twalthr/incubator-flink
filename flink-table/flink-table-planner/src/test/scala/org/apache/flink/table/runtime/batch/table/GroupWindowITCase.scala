@@ -25,6 +25,7 @@ import org.apache.flink.table.api.{Session, Slide, Tumble}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
@@ -86,7 +87,7 @@ class GroupWindowITCase(
     val expected = "Hello,7,2,5,2,3,7.0,2,5.0,2.0,3.5,7.0,2,5.0,2.0,3.5,7,2,5,2,3.5\n" +
       "Hello world,7,2,4,3,3,7.0,2,4.0,3.0,3.5,7.0,2,4.0,3.0,3.5,7,2,4,3,3.5\n"
     val results = windowedTable.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -113,7 +114,7 @@ class GroupWindowITCase(
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,1970-01-01 00:00:00.004\n"
 
     val results = windowedTable.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -136,7 +137,7 @@ class GroupWindowITCase(
       "4,1970-01-01 00:00:00.015,1970-01-01 00:00:00.02,1970-01-01 00:00:00.019\n"
 
     val results = windowedTable.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -160,7 +161,7 @@ class GroupWindowITCase(
       "Hello world,1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.023,1970-01-01 00:00:00.022\n" +
       "Hello,3,1970-01-01 00:00:00.003,1970-01-01 00:00:00.014,1970-01-01 00:00:00.013\n" +
       "Hi,1,1970-01-01 00:00:00.001,1970-01-01 00:00:00.008,1970-01-01 00:00:00.007"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -181,7 +182,7 @@ class GroupWindowITCase(
       "4,1970-01-01 00:00:00.001,1970-01-01 00:00:00.006,1970-01-01 00:00:00.005\n" +
       "2,1970-01-01 00:00:00.007,1970-01-01 00:00:00.01,1970-01-01 00:00:00.009\n" +
       "1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.018,1970-01-01 00:00:00.017"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -209,7 +210,7 @@ class GroupWindowITCase(
       "Hello,1,1970-01-01 00:00:00.012\n" +
       "Hello,2,1970-01-01 00:00:00.006\n" +
       "Hi,1,1970-01-01 00:00:00.006\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -260,7 +261,7 @@ class GroupWindowITCase(
       "4,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,1970-01-01 00:00:00.004"
 
     val results = windowedTable.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -293,7 +294,7 @@ class GroupWindowITCase(
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01"
 
     val results = windowedTable.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -322,7 +323,7 @@ class GroupWindowITCase(
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005"
 
     val results = windowedTable.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -346,7 +347,7 @@ class GroupWindowITCase(
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005"
 
     val results = windowedTable.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -369,6 +370,6 @@ class GroupWindowITCase(
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003"
 
     val results = windowedTable.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 }

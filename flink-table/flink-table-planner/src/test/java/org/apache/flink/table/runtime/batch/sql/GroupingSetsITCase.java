@@ -39,6 +39,8 @@ import org.junit.runners.Parameterized;
 import java.util.Comparator;
 import java.util.List;
 
+import static org.apache.flink.table.utils.RowStringUtils.normalizeRowData;
+
 /**
  * This test should be replaced by a DataSetAggregateITCase.
  * We should only perform logical unit tests here.
@@ -118,7 +120,7 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 			"null,Luke Skywalker,6,0,0,1,0,1,1,1\n" +
 			"null,null,11,0,0,0,0,0,0,21";
 
-		checkSql(query, expected);
+		checkSql(query, normalizeRowData(expected));
 	}
 
 	@Test
@@ -150,7 +152,7 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 			"6,Comment#14,20,0\n" +
 			"6,Comment#15,21,0";
 
-		checkSql(query, expected);
+		checkSql(query, normalizeRowData(expected));
 	}
 
 	@Test

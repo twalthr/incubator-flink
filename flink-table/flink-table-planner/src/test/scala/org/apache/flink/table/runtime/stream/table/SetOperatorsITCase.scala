@@ -24,9 +24,9 @@ import org.apache.flink.table.api.EnvironmentSettings
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
@@ -57,7 +57,7 @@ class SetOperatorsITCase extends AbstractTestBase {
 
     val expected = mutable.MutableList(
         "Hi", "Hello", "Hello world", "Hi", "Hello", "Hello world")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -72,7 +72,7 @@ class SetOperatorsITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList("Hi", "Hallo")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -85,7 +85,7 @@ class SetOperatorsITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList("1,{}", "2,{}", "3,{}", "4,{}")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -99,7 +99,8 @@ class SetOperatorsITCase extends AbstractTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = mutable.MutableList("1,(1,a)", "2,(2,b)", "3,(3,c)", "4,(4,d)")
+    val expected =
+      mutable.MutableList("+I(1, (1,a))", "+I(2, (2,b))", "+I(3, (3,c))", "+I(4, (4,d))")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -132,7 +133,7 @@ class SetOperatorsITCase extends AbstractTestBase {
       "1,1,Hello", "2,2,Hello", "4,4,Hello"
     )
 
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -168,7 +169,7 @@ class SetOperatorsITCase extends AbstractTestBase {
       "2,2,Hello", "3,3,Hello World"
     )
 
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -209,6 +210,6 @@ class SetOperatorsITCase extends AbstractTestBase {
       "1,1,Hello", "2,2,Hello"
     )
 
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 }

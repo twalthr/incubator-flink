@@ -33,6 +33,8 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+import static org.apache.flink.table.utils.RowStringUtils.normalizeRowData;
+
 /**
  * Integration tests for {@link BatchTableSource}.
  */
@@ -67,7 +69,7 @@ public class JavaTableSourceITCase extends TableProgramsCollectionTestBase {
 			"7,Alice,Smith,90.1\n" +
 			"8,Kelly,Williams,2.34\n";
 
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -90,6 +92,6 @@ public class JavaTableSourceITCase extends TableProgramsCollectionTestBase {
 			"Miller,6,13.56\n" +
 			"Williams,8,4.68\n";
 
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 }

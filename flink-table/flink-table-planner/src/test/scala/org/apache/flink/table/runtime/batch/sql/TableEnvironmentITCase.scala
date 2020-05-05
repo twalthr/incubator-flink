@@ -26,9 +26,9 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
-
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit._
 import org.junit.rules.TemporaryFolder
@@ -63,7 +63,7 @@ class TableEnvironmentITCase(
 
     val expected = "15,65,12"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -83,7 +83,7 @@ class TableEnvironmentITCase(
 
     val expected = "16,60,12"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -104,7 +104,7 @@ class TableEnvironmentITCase(
 
     val expected = "6"
     val results = result2.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -122,7 +122,7 @@ class TableEnvironmentITCase(
     val expected = "Hello,true\n"
 
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -144,7 +144,7 @@ class TableEnvironmentITCase(
     tEnv.execute("job name")
 
     val expected = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
-    assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+    assertEquals(normalizeRowData(expected), MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
 
   @Test
@@ -182,7 +182,7 @@ class TableEnvironmentITCase(
 
     tEnv.execute("job name")
     val expected1 = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
-    assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+    assertEquals(normalizeRowData(expected1), MemoryTableSourceSinkUtil.tableDataStrings.sorted)
     // the DataSet has not been executed
     assertEquals("", Source.fromFile(resultFile).mkString)
 
@@ -191,7 +191,7 @@ class TableEnvironmentITCase(
     val actual = Source.fromFile(resultFile).mkString
     assertEquals(expected2, actual)
     // does not trigger the table program execution again
-    assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+    assertEquals(normalizeRowData(expected1), MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
 
   @Test
@@ -218,7 +218,7 @@ class TableEnvironmentITCase(
 
     tEnv.execute("job name")
     val expected1 = List("Kelly,8,2.34,Williams")
-    assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+    assertEquals(normalizeRowData(expected1), MemoryTableSourceSinkUtil.tableDataStrings.sorted)
     // the DataSet has not been executed
     assertEquals("", Source.fromFile(resultFile).mkString)
 
@@ -227,7 +227,7 @@ class TableEnvironmentITCase(
     val actual = Source.fromFile(resultFile).mkString
     assertEquals(expected2, actual)
     // does not trigger the table program execution again
-    assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+    assertEquals(normalizeRowData(expected1), MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
 
   @Test
@@ -259,7 +259,7 @@ class TableEnvironmentITCase(
 
     tEnv.execute("job name")
     val expected2 = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
-    assertEquals(expected2.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+    assertEquals(normalizeRowData(expected2), MemoryTableSourceSinkUtil.tableDataStrings.sorted)
     // does not trigger the DataSet program execution again
     assertEquals(expected1, Source.fromFile(resultFile).mkString)
   }

@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.stream.sql
 
 import java.sql.Timestamp
 import java.util.TimeZone
+
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
@@ -31,8 +32,8 @@ import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, Sca
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit.{Before, Test}
 
@@ -89,7 +90,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList("6,7,8")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -132,7 +133,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList("1,null,3,null", "6,null,8,null")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -186,7 +187,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val expected = mutable.MutableList(
       "key1,second_key3,1,key1,2,3,second_key3",
       "key2,second_key4,6,key2,7,8,second_key4")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -245,7 +246,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList("10,11,12")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -307,7 +308,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List("ACME,2,1970-01-01 00:00:03.0")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -363,7 +364,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val expected = List(
       "ACME,3,1970-01-01 00:00:02.999,1970-01-01 00:00:00.0",
       "ACME,2,1970-01-01 00:00:05.999,1970-01-01 00:00:03.0")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -408,7 +409,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List("6,7,8,33,33")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -464,7 +465,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List("1,2,3,4,5,6,7,8,8,7,6,5,4,3,2,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -503,7 +504,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List("19,13,null")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   /**
@@ -573,7 +574,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList("1,5,0,null,2,3,3.4,8", "9,4,0,null,3,4,3.2,12")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -629,7 +630,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList("29,7,5,8,6,8")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -661,7 +662,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List("1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
 
     // We do not assert the proctime in the result, cause it is currently
     // accessed from System.currentTimeMillis(), so there is no graceful way to assert the proctime
@@ -719,7 +720,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList("1,PREF:a,8,5", "7,PREF:a,6,9")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 }
 

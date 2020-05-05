@@ -25,9 +25,9 @@ import org.apache.flink.table.api.{EnvironmentSettings, ValidationException}
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
 
@@ -52,7 +52,7 @@ class CalcITCase extends AbstractTestBase {
         "1,1,Hi",
         "2,2,Hello",
         "3,2,Hello world")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -67,7 +67,7 @@ class CalcITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList("3")
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -79,7 +79,7 @@ class CalcITCase extends AbstractTestBase {
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = mutable.MutableList("(1,1),one", "(2,2),two", "(3,3),three")
+    val expected = mutable.MutableList("+I((1,1), one)", "+I((2,2), two)", "+I((3,3), three)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -93,7 +93,7 @@ class CalcITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList("1", "2", "3")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -112,7 +112,7 @@ class CalcITCase extends AbstractTestBase {
       "1,1", "2,2", "3,2", "4,3", "5,3", "6,3", "7,4",
       "8,4", "9,4", "10,4", "11,5", "12,5", "13,5", "14,5", "15,5",
       "16,6", "17,6", "18,6", "19,6", "20,6", "21,6")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -129,7 +129,7 @@ class CalcITCase extends AbstractTestBase {
         "1,1,Hi",
         "2,2,Hello",
         "3,2,Hello world")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
  @Test
@@ -143,7 +143,7 @@ class CalcITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList("3,2,Hello world")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -173,7 +173,7 @@ class CalcITCase extends AbstractTestBase {
         "1,1,Hi",
         "2,2,Hello",
         "3,2,Hello world")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -190,7 +190,7 @@ class CalcITCase extends AbstractTestBase {
     val expected = mutable.MutableList(
       "4,3,Hello world, how are you?", "6,3,Luke Skywalker",
       "8,4,Comment#2", "10,4,Comment#4", "12,5,Comment#6", "14,5,Comment#8")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -207,7 +207,7 @@ class CalcITCase extends AbstractTestBase {
       "7,4,Comment#1", "9,4,Comment#3",
       "11,5,Comment#5", "13,5,Comment#7", "15,5,Comment#9",
       "17,6,Comment#11", "19,6,Comment#13", "21,6,Comment#15")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -227,7 +227,7 @@ class CalcITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList("Hello")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -248,7 +248,7 @@ class CalcITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList("Hello", "Hello world")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -277,7 +277,7 @@ class CalcITCase extends AbstractTestBase {
       "default-John#19,Sunny-John#19,kevin2-John#19",
       "default-nosharp,Sunny-nosharp,kevin2-nosharp"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -302,7 +302,7 @@ class CalcITCase extends AbstractTestBase {
       ">>3",
       ">>4"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -322,7 +322,7 @@ class CalcITCase extends AbstractTestBase {
       ">>3",
       ">>4"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   object NonStaticObjectScalarFunction extends ScalarFunction {
@@ -348,7 +348,7 @@ class CalcITCase extends AbstractTestBase {
       ">>3",
       ">>4"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   class NonStaticClassScalarFunction extends ScalarFunction {
@@ -390,7 +390,7 @@ class CalcITCase extends AbstractTestBase {
       "{7=Comment#1}",
       "{8=Comment#2}",
       "{9=Comment#3}")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -430,7 +430,7 @@ class CalcITCase extends AbstractTestBase {
       "1,Kevin is a kid,1,str,last,3",
       "2,Sunny is a kid,1,str,last,4"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -450,7 +450,7 @@ class CalcITCase extends AbstractTestBase {
       "3",
       "4",
       "5")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Ignore("Will be open when FLINK-10834 has been fixed.")

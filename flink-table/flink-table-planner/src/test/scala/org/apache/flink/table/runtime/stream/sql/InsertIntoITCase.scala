@@ -26,8 +26,8 @@ import org.apache.flink.table.api.{EnvironmentSettings, Types}
 import org.apache.flink.table.runtime.stream.table.{RowCollector, TestRetractSink, TestUpsertSink}
 import org.apache.flink.table.runtime.utils.{StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.TestBaseUtils
-
 import org.junit.Assert._
 import org.junit.Test
 
@@ -71,7 +71,9 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
       "Comment#14,1970-01-01 00:00:00.006,6",
       "Comment#15,1970-01-01 00:00:00.006,6").mkString("\n")
 
-    TestBaseUtils.compareResultAsText(MemoryTableSourceSinkUtil.tableData.asJava, expected)
+    TestBaseUtils.compareResultAsText(
+      MemoryTableSourceSinkUtil.tableData.asJava,
+      normalizeRowData(expected))
   }
 
   @Test
@@ -105,7 +107,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
       "10,7,39",
       "14,1,3",
       "9,9,41").sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
 
   }
 
@@ -148,7 +150,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
       "1970-01-01 00:00:00.02,5,29",
       "1970-01-01 00:00:00.025,2,12")
       .sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
 
   }
 
@@ -190,7 +192,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
       "1,5,true",
       "7,1,true",
       "9,1,true").sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
 
   }
 
@@ -237,7 +239,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
       "5,1970-01-01 00:00:00.02,1",
       "6,1970-01-01 00:00:00.02,4",
       "6,1970-01-01 00:00:00.025,2").sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
   }
 
   @Test
@@ -284,7 +286,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
       "1970-01-01 00:00:00.015,1970-01-01 00:00:00.02,5,1",
       "1970-01-01 00:00:00.015,1970-01-01 00:00:00.02,6,4",
       "1970-01-01 00:00:00.02,1970-01-01 00:00:00.025,6,2").sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
   }
 
   @Test
@@ -329,7 +331,7 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
       "1970-01-01 00:00:00.02,1",
       "1970-01-01 00:00:00.02,4",
       "1970-01-01 00:00:00.025,2").sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
   }
 
   @Test
@@ -374,6 +376,6 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
       "5,1",
       "6,4",
       "6,2").sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
   }
 }

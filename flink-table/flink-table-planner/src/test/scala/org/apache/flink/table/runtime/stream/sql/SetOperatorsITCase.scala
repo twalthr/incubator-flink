@@ -23,8 +23,9 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
+import org.apache.flink.table.utils.RowStringUtils
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -74,7 +75,7 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
       "2,2,Hello", "3,3,Hello World"
     )
 
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -124,7 +125,7 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
       "1,1,Hello", "2,2,Hello"
     )
 
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -164,6 +165,6 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
       "3,3,Hello World"
     )
 
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 }

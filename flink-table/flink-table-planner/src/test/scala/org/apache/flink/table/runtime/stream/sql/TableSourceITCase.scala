@@ -23,9 +23,9 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{CommonTestData, StreamITCase}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.Test
 
@@ -54,7 +54,7 @@ class TableSourceITCase extends AbstractTestBase {
       "1,Mike,Smith,12.3",
       "2,Bob,Taylor,45.6",
       "3,Sam,Miller,7.89")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
 }

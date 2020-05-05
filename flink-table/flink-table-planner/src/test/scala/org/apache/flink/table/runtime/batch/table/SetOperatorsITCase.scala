@@ -23,6 +23,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -50,7 +51,7 @@ class SetOperatorsITCase(
 
     val results = unionDs.toDataSet[Row].collect()
     val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -65,7 +66,7 @@ class SetOperatorsITCase(
 
     val results = unionDs.toDataSet[Row].collect()
     val expected = "Hi\n" + "Hello\n" + "Hello world\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -83,7 +84,7 @@ class SetOperatorsITCase(
     val expected = "Hi\n" + "Hello\n" + "Hello world\n" +
       "Hi\n" + "Hello\n" + "Hello world\n" +
       "Hi\n" + "Hello\n" + "Hello world\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -99,7 +100,7 @@ class SetOperatorsITCase(
 
     val results = unionDs.toDataSet[Row].collect()
     val expected = "Hi\n" + "Hello\n" + "Hello world\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -118,7 +119,7 @@ class SetOperatorsITCase(
       "Hello\n" + "Hello world\n" +
       "Hello\n" + "Hello world\n" +
       "Hello\n" + "Hello world\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -134,7 +135,7 @@ class SetOperatorsITCase(
 
     val results = minusDs.toDataSet[Row].collect()
     val expected = "Hello\n" + "Hello world\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -150,7 +151,7 @@ class SetOperatorsITCase(
 
     val results = minusDs.toDataSet[Row].collect()
     val expected = "Hello\n" + "Hello world\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -171,7 +172,7 @@ class SetOperatorsITCase(
     val results = intersectDS.collect()
 
     val expected = "Hi\n" + "Hello\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -190,7 +191,7 @@ class SetOperatorsITCase(
 
     val expected = "1\n2\n2"
     val results = intersectDS.collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -205,7 +206,7 @@ class SetOperatorsITCase(
 
     val results = intersectDs.toDataSet[Row].collect()
     val expected = "Hi\n" + "Hello\n" + "Hello world\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -222,6 +223,6 @@ class SetOperatorsITCase(
 
     val results = intersectDs.toDataSet[Row].collect()
     val expected = "2,1,Hi\n" + "3,2,Hello\n" + "4,2,Hello world\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 }

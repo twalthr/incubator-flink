@@ -18,16 +18,17 @@
 package org.apache.flink.table.runtime.stream.table
 
 import java.lang.{Boolean => JBoolean}
+
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{EnvironmentSettings, Types, ValidationException}
 import org.apache.flink.table.expressions.utils.{Func18, Func20, RichFunc2}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, _}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
@@ -62,7 +63,7 @@ class CorrelateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList("Jack#22,Jack,22", "Anna#44,Anna,44")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -81,7 +82,7 @@ class CorrelateITCase extends AbstractTestBase {
     val expected = mutable.MutableList(
       "nosharp,null,null", "Jack#22,Jack,22",
       "John#19,John,19", "Anna#44,Anna,44")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   /**
@@ -102,7 +103,7 @@ class CorrelateITCase extends AbstractTestBase {
 
     val expected = "John#19,null,null\n" + "John#22,null,null\n" + "Anna44,null,null\n" +
       "nosharp,null,null"
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -120,7 +121,7 @@ class CorrelateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList("Jack#22,Jack,22", "John#19,John,19")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -140,7 +141,7 @@ class CorrelateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList("3,Hello", "3,world")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -170,7 +171,7 @@ class CorrelateITCase extends AbstractTestBase {
       "2,test",
       "3,Hello world",
       "3,test")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -201,7 +202,7 @@ class CorrelateITCase extends AbstractTestBase {
       "John#19,John,OneConf_John,TwoConf__key=key1_value=value1_John,19,19,19",
       "John#19,John,OneConf_John,TwoConf__key=key2_value=value2_John,19,19,19"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -230,7 +231,7 @@ class CorrelateITCase extends AbstractTestBase {
       "nosharp,1",
       "nosharp,2",
       "nosharp,nosharp")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -253,8 +254,8 @@ class CorrelateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "1,2,3,3",
-      "1,2,3,3")
+      "+I(+I(1, 2, 3), 3)",
+      "+I(+I(1, 2, 3), 3)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -280,7 +281,7 @@ class CorrelateITCase extends AbstractTestBase {
     )
 
     assertEquals(
-      expected.sorted,
+      normalizeRowData(expected).sorted,
       StreamITCase.testResults.sorted
     )
   }
@@ -329,7 +330,7 @@ class CorrelateITCase extends AbstractTestBase {
       "19,2",
       "Anna,4",
       "44,2")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   private def testData(

@@ -23,6 +23,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -55,7 +56,7 @@ class SetOperatorsITCase(
 
     val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -75,7 +76,7 @@ class SetOperatorsITCase(
 
     val expected = "Hi\n" + "Hello\n" + "Hello world\n"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -97,7 +98,7 @@ class SetOperatorsITCase(
 
     val expected = "Hi\n" + "Hallo\n"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -118,7 +119,7 @@ class SetOperatorsITCase(
 
     val expected = "18"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -134,7 +135,7 @@ class SetOperatorsITCase(
     val results = result.toDataSet[Row].collect()
 
     val expected = "1,1\n2,2\n3,3"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -154,7 +155,7 @@ class SetOperatorsITCase(
 
     val expected = "Hello\n" + "Hello world\n"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -178,7 +179,7 @@ class SetOperatorsITCase(
 
     val expected = "1\n1"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -200,7 +201,7 @@ class SetOperatorsITCase(
 
     val expected = "Hi\n"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -225,7 +226,7 @@ class SetOperatorsITCase(
 
     val expected = "Hi\n" + "Hello\n"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -271,7 +272,7 @@ class SetOperatorsITCase(
 
     val expected = "Hello\n" + "Hello world\n"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -288,7 +289,7 @@ class SetOperatorsITCase(
 
     val expected = Seq("1", "2", "2", "3", "3", "3").mkString("\n")
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -306,6 +307,6 @@ class SetOperatorsITCase(
     val expected = Seq("false", "false", "false", "false", "false", "false", "false",
       "false", "false", "true", "true", "true", "true", "true", "true").mkString("\n")
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 }

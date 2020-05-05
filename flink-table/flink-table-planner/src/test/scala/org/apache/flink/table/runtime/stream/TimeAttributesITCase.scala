@@ -35,13 +35,13 @@ import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TestTableSourceWithTime}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.{Before, Test}
-
 import java.lang.{Integer => JInt, Long => JLong}
 import java.math.BigDecimal
 import java.sql.Timestamp
+
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -95,7 +95,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.007",
       "1970-01-01 00:00:00.008",
       "1970-01-01 00:00:00.016")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -122,7 +122,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "7,1970-01-01 00:00:00.007",
       "8,1970-01-01 00:00:00.008",
       "16,1970-01-01 00:00:00.016")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -147,7 +147,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.007",
       "1970-01-01 00:00:00.008",
       "1970-01-01 00:00:00.016")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -169,7 +169,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.007,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0",
       "1970-01-01 00:00:00.008,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0",
       "1970-01-01 00:00:00.016,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -200,7 +200,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.007,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0",
       "1970-01-01 00:00:00.008,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0",
       "1970-01-01 00:00:00.016,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0")
-    assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+    assertEquals(normalizeRowData(expected).sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
 
   @Test
@@ -233,7 +233,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.007,7trueHello",
       "1970-01-01 00:00:00.008,8trueHello world",
       "1970-01-01 00:00:00.016,16trueHello world")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -259,7 +259,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.004,4",
       "1970-01-01 00:00:00.009,2",
       "1970-01-01 00:00:00.019,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -291,7 +291,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.008",
       "1970-01-01 00:00:00.016",
       "1970-01-01 00:00:00.016")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -315,7 +315,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "2",
       "2"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -343,7 +343,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.011,1970-01-01 00:00:00.012,1",
       "1970-01-01 00:00:00.019,1970-01-01 00:00:00.02,1"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -377,7 +377,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.011,1970-01-01 00:00:00.012",
       "1970-01-01 00:00:00.019,1970-01-01 00:00:00.02"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -411,7 +411,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.011,1970-01-01 00:00:00.012,1",
       "1970-01-01 00:00:00.019,1970-01-01 00:00:00.02,1"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -445,7 +445,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.011,1970-01-01 00:00:00.012,1",
       "1970-01-01 00:00:00.019,1970-01-01 00:00:00.02,1"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -527,7 +527,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.043,And me.,13",
       "1970-01-01 00:00:00.043,And me.,13",
       "1970-01-01 00:00:00.043,And me.,13")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -565,7 +565,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:03.0,3,C",
       "1970-01-01 00:00:05.0,5,E")
 
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -589,7 +589,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.008",
       "1970-01-01 00:00:00.017"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -634,7 +634,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "ACME,17,1970-01-01 00:00:02.999,1970-01-01 00:00:02.0,1970-01-01 00:00:03.0",
       "ACME,13,1970-01-01 00:00:03.999,1970-01-01 00:00:03.0,1970-01-01 00:00:04.0",
       "ACME,11,1970-01-01 00:00:04.999,1970-01-01 00:00:04.0,1970-01-01 00:00:05.0")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 }
 

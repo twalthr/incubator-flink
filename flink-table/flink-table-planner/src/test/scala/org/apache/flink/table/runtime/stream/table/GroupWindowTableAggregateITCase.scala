@@ -22,15 +22,15 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
-
 import java.math.BigDecimal
+
 import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.stream.table.GroupWindowITCase._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.table.utils.Top3
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
@@ -86,7 +86,7 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
     val expected = Seq("2,2,2", "2,3,3", "3,4,4", "3,5,5", "4,7,7", "4,8,8", "4,8,8", "4,9,9",
       "4,10,10", "5,11,11", "5,12,12", "5,12,12", "5,13,13", "5,14,14", "6,16,16", "6,17,17",
       "6,17,17", "6,18,18", "6,19,19", "6,19,19", "6,20,20", "6,21,21")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -126,7 +126,7 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = Seq("Hello,2,2", "Hello,4,4", "Hello,8,8", "Hello World,9,9", "Hello,16,16")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -151,7 +151,7 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = Seq("5,5", "6,6", "7,7", "12,12", "13,13", "14,14", "19,19", "20,20", "21,21")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -195,7 +195,7 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.01,1970-01-01 00:00:00.02,6,19,20",
       "1970-01-01 00:00:00.02,1970-01-01 00:00:00.03,6,21,22",
       "1970-01-01 00:00:00.02,1970-01-01 00:00:00.03,6,20,21")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -227,7 +227,7 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = Seq("1,1", "2,2", "2,2", "2,2", "3,3", "3,3", "3,3")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -280,7 +280,7 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
       "4,4,1970-01-01 00:00:00.028,1970-01-01 00:00:00.033,1970-01-01 00:00:00.032",
       "4,4,1970-01-01 00:00:00.03,1970-01-01 00:00:00.035,1970-01-01 00:00:00.034",
       "4,4,1970-01-01 00:00:00.032,1970-01-01 00:00:00.037,1970-01-01 00:00:00.036")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -326,7 +326,7 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
       "null,4,4,1970-01-01 00:00:00.025,1970-01-01 00:00:00.035",
       "null,4,4,1970-01-01 00:00:00.03,1970-01-01 00:00:00.04")
 
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -368,7 +368,7 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
       "Hello world,4,4,1970-01-01 00:00:00.016,1970-01-01 00:00:00.021",
       "null,4,4,1970-01-01 00:00:00.032,1970-01-01 00:00:00.037")
 
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -402,7 +402,7 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
       "Hello,5,5,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005",
       "Hi,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005",
       "null,4,4,1970-01-01 00:00:00.03,1970-01-01 00:00:00.035")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -434,7 +434,7 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
       "null,4,4,1970-01-01 00:00:00.03,1970-01-01 00:00:00.033",
       "Hallo,2,2,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003",
       "Hi,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -465,6 +465,6 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
       "Hallo,2,2,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003",
       "Hi,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003",
       "null,4,4,1970-01-01 00:00:00.03,1970-01-01 00:00:00.033")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 }

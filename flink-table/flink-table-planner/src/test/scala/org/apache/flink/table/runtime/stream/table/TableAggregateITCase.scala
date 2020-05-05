@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.runtime.stream.table
 
+import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{EnvironmentSettings, ValidationException}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.table.utils.{Top3, Top3WithEmitRetractValue, Top3WithMapView}
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit.{Before, Test}
 
@@ -74,7 +74,7 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
       "6,20,20",
       "6,19,19"
     ).sorted
-    assertEquals(expected, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected), StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -112,7 +112,7 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
       "6,20,20",
       "6,19,19"
     ).sorted
-    assertEquals(expected, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected), StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -138,7 +138,7 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
       "20,20",
       "21,21"
     ).sorted
-    assertEquals(expected, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected), StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -165,7 +165,7 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
       "65,65",
       "34,34"
     ).sorted
-    assertEquals(expected, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected), StreamITCase.retractedResults.sorted)
   }
 
   @Test

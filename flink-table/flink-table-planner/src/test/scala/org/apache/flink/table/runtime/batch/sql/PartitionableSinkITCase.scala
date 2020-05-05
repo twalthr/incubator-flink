@@ -38,9 +38,10 @@ import org.apache.flink.table.runtime.batch.sql.PartitionableSinkITCase._
 import org.apache.flink.table.sinks.{BatchTableSink, PartitionableTableSink, TableSink}
 import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
+import org.apache.flink.table.utils.RowStringUtils
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{Before, Rule, Test}
@@ -85,7 +86,7 @@ class PartitionableSinkITCase extends AbstractTestBase {
     tEnv.execute("testJob")
     // this sink should have been set up with static partitions
     assertEquals(testSink.getStaticPartitions.toMap, Map("a" -> "1"))
-    assertEquals(List("1,2,Hi",
+    val expected = List("1,2,Hi",
       "1,1,Hello world",
       "1,2,Hello",
       "1,1,Hello world, how are you?",
@@ -95,8 +96,8 @@ class PartitionableSinkITCase extends AbstractTestBase {
       "1,4,你好，陌生人",
       "1,4,你好，陌生人，我是",
       "1,4,你好，陌生人，我是中国人",
-      "1,4,你好，陌生人，我是中国人，你来自哪里？"),
-      RESULT.toList)
+      "1,4,你好，陌生人，我是中国人，你来自哪里？")
+    assertEquals(normalizeRowData(expected), RESULT.toList)
   }
 
   @Test

@@ -32,16 +32,16 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{EnvironmentSettings, TableException, Tumble, Types}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
+import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, RowStringUtils}
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-
 import org.junit.Assert._
 import org.junit.{Before, Test}
-
 import java.io.File
 import java.lang.{Boolean => JBool}
+
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -82,7 +82,9 @@ class TableSinkITCase extends AbstractTestBase {
       "Comment#14,1970-01-01 00:00:00.006,6",
       "Comment#15,1970-01-01 00:00:00.006,6").mkString("\n")
 
-    TestBaseUtils.compareResultAsText(MemoryTableSourceSinkUtil.tableData.asJava, expected)
+    TestBaseUtils.compareResultAsText(
+      MemoryTableSourceSinkUtil.tableData.asJava,
+      normalizeRowData(expected))
   }
 
   @Test
@@ -157,7 +159,7 @@ class TableSinkITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.02,5,29",
       "1970-01-01 00:00:00.025,2,12")
       .sorted
-    assertEquals(expected, result)
+    assertEquals(normalizeRowData(expected), result)
   }
 
   @Test
@@ -179,7 +181,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val result = RowCollector.getAndClearValues.map(_.f1.toString).sorted
     val expected = List("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt").sorted
-    assertEquals(expected, result)
+    assertEquals(normalizeRowData(expected), result)
   }
 
   @Test
@@ -211,7 +213,7 @@ class TableSinkITCase extends AbstractTestBase {
       "10,7,39",
       "14,1,3",
       "9,9,41").sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
 
   }
 
@@ -247,7 +249,7 @@ class TableSinkITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.02,5,29",
       "1970-01-01 00:00:00.025,2,12")
       .sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
 
   }
 
@@ -284,7 +286,7 @@ class TableSinkITCase extends AbstractTestBase {
       "1,5,true",
       "7,1,true",
       "9,1,true").sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
 
   }
 
@@ -325,7 +327,7 @@ class TableSinkITCase extends AbstractTestBase {
       "5,1970-01-01 00:00:00.02,1",
       "6,1970-01-01 00:00:00.02,4",
       "6,1970-01-01 00:00:00.025,2").sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
   }
 
   @Test
@@ -365,7 +367,7 @@ class TableSinkITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.015,1970-01-01 00:00:00.02,5,1",
       "1970-01-01 00:00:00.015,1970-01-01 00:00:00.02,6,4",
       "1970-01-01 00:00:00.02,1970-01-01 00:00:00.025,6,2").sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
   }
 
   @Test
@@ -404,7 +406,7 @@ class TableSinkITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.02,1",
       "1970-01-01 00:00:00.02,4",
       "1970-01-01 00:00:00.025,2").sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
   }
 
   @Test
@@ -443,7 +445,7 @@ class TableSinkITCase extends AbstractTestBase {
       "5,1",
       "6,4",
       "6,2").sorted
-    assertEquals(expected, retracted)
+    assertEquals(normalizeRowData(expected), retracted)
   }
 
   @Test
@@ -485,7 +487,7 @@ class TableSinkITCase extends AbstractTestBase {
       "6,1970-01-01 00:00:00.019,19",
       "6,1970-01-01 00:00:00.024,24")
 
-    assertEquals(expected, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected), StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -527,7 +529,7 @@ class TableSinkITCase extends AbstractTestBase {
       "6,1970-01-01 00:00:00.019,19",
       "6,1970-01-01 00:00:00.024,24")
 
-    assertEquals(expected, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected), StreamITCase.testResults.sorted)
   }
 
   @Test(expected = classOf[TableException])

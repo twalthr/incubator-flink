@@ -53,6 +53,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.utils.RowStringUtils.normalizeRowData;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -111,7 +112,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		String expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
 				"8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" + "15,5\n" +
 				"16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -135,7 +136,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 				"14,5,Comment#8\n" + "15,5,Comment#9\n" + "16,6,Comment#10\n" +
 				"17,6,Comment#11\n" + "18,6,Comment#12\n" + "19,6,Comment#13\n" +
 				"20,6,Comment#14\n" + "21,6,Comment#15\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test(expected = ValidationException.class)
@@ -176,7 +177,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		String expected = "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" +
 				"13,5\n" + "14,5\n" + "15,5\n" +
 				"16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test(expected = TableException.class)
@@ -208,7 +209,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 			"14,5,Comment#8\n" + "15,5,Comment#9\n" + "16,6,Comment#10\n" +
 			"17,6,Comment#11\n" + "18,6,Comment#12\n" + "19,6,Comment#13\n" +
 			"20,6,Comment#14\n" + "21,6,Comment#15\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -227,7 +228,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 			"Comment#8\n" + "Comment#9\n" + "Comment#10\n" +
 			"Comment#11\n" + "Comment#12\n" + "Comment#13\n" +
 			"Comment#14\n" + "Comment#15\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -302,7 +303,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 			"Sales,28,4000.0,Peter,[42]\n" +
 			"Engineering,56,10000.0,Anna,[]\n" +
 			"HR,42,6000.0,Lucy,[1, 2, 3]\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -330,7 +331,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 			"Left(Hello)\n" +
 			"Left(World)\n" +
 			"Right(42)\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -353,7 +354,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 			"Peter\n" +
 			"Anna\n" +
 			"Lucy\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -380,7 +381,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 			"Sales,28,4000.0,Peter\n" +
 			"Engineering,56,10000.0,Anna\n" +
 			"HR,42,6000.0,Lucy\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -467,7 +468,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 			"Peter,28,{},true,[]\n" +
 			"Anna,56,{test1=test1},true,[]\n" +
 			"Lucy,42,{abc=cde},true,[]\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test(expected = ValidationException.class)

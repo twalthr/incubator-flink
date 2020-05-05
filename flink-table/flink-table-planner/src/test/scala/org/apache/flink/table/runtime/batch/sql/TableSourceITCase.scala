@@ -22,6 +22,7 @@ import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -55,7 +56,7 @@ class TableSourceITCase(
       "6,Sally,Miller,6.78",
       "7,Alice,Smith,90.1",
       "8,Kelly,Williams,2.34").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -74,7 +75,7 @@ class TableSourceITCase(
       "1,Mike,Smith,12.3",
       "2,Bob,Taylor,null",
       "null,Leonard,null,null").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -92,7 +93,7 @@ class TableSourceITCase(
 
     val expected = "Bob,Taylor,Pearse Street,Dublin"
 
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
 }

@@ -114,7 +114,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Func19('f14),
       "Func19(f14)",
       "Func19(f14)",
-      "12,true,1,2,3"
+      "+I(12, true, +I(1, 2, 3))"
     )
   }
 

@@ -28,7 +28,8 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.utils.{NonMergableCount, Top10}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
+import org.apache.flink.table.utils.{NonMergableCount, RowStringUtils, Top10}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -57,7 +58,7 @@ class AggregationsITCase(
 
     val expected = "2,6,3"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -71,7 +72,7 @@ class AggregationsITCase(
 
     val results = t.toDataSet[Row].collect()
     val expected = "231,231,1,21,21,11"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -87,7 +88,7 @@ class AggregationsITCase(
 
     val expected = "1,1,1,1,1.5,1.5,2"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -103,7 +104,7 @@ class AggregationsITCase(
 
     val expected = "1,3,2,1,3"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -117,7 +118,7 @@ class AggregationsITCase(
 
     val expected = "5.5,7"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -131,7 +132,7 @@ class AggregationsITCase(
 
     val expected = "2,2"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -148,7 +149,7 @@ class AggregationsITCase(
 
     val expected = "1,3,2"
     val result = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -168,7 +169,7 @@ class AggregationsITCase(
 
     val expected = "231,231,1,1,21,21,11,11,21,21"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -205,7 +206,7 @@ class AggregationsITCase(
 
     val expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
     val results = distinct.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -218,7 +219,7 @@ class AggregationsITCase(
 
     val expected = "1\n" + "2\n" + "3\n"
     val results = distinct.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -237,7 +238,7 @@ class AggregationsITCase(
     val expected = "1,1,1,1,1,1\n" + "2,5,2,2,2,2\n" + "3,15,3,3,5,3\n" + "4,34,4,4,8,4\n" +
       "5,65,5,5,13,5\n" + "6,111,6,6,18,6\n"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -252,7 +253,7 @@ class AggregationsITCase(
 
     val expected = "1\n" + "5\n" + "15\n" + "34\n" + "65\n" + "111\n"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -269,7 +270,7 @@ class AggregationsITCase(
       .select('b)
     val expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -291,8 +292,8 @@ class AggregationsITCase(
     val results1 = t1.toDataSet[Row].collect()
     val results2 = t2.toDataSet[Row].collect()
 
-    TestBaseUtils.compareResultAsText(results1.asJava, expected1)
-    TestBaseUtils.compareResultAsText(results2.asJava, expected2)
+    TestBaseUtils.compareResultAsText(results1.asJava, normalizeRowData(expected1))
+    TestBaseUtils.compareResultAsText(results2.asJava, normalizeRowData(expected2))
 
   }
 
@@ -319,7 +320,7 @@ class AggregationsITCase(
 
     val expected = "10\n" + "8\n"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -338,7 +339,7 @@ class AggregationsITCase(
       "4,4\n" + "4,5\n" + "4,6\n" + "4,2\n" + "4,3\n" + "4,4\n" + "4,5\n" + "4,6\n"
     val results = t.toDataSet[Row].collect()
 
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -354,7 +355,7 @@ class AggregationsITCase(
 
     val expected = "4,1\n" + "4,5\n" + "4,15\n" + "4,34\n" + "4,65\n" + "4,111\n"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -370,7 +371,7 @@ class AggregationsITCase(
     val expected = "0,1,1,1\n" + "3,2,3,3\n" + "7,1,4,2\n" + "14,2,5,1\n" +
       "5,3,4,2\n" + "2,1,3,2\n" + "1,2,3,3\n" + "12,3,5,1"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -386,7 +387,7 @@ class AggregationsITCase(
 
     val expected = "2,5\n"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -415,7 +416,7 @@ class AggregationsITCase(
         "1,1,1," +
         "1,0.5,0.5,0.5"
     val results = res.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -430,12 +431,12 @@ class AggregationsITCase(
       .select('b, top10Fun('b.cast(Types.INT), 'a.cast(Types.FLOAT)))
 
     val expected =
-      "1,[(1,1.0), null, null, null, null, null, null, null, null, null]\n" +
-      "2,[(2,3.0), (2,2.0), null, null, null, null, null, null, null, null]\n" +
-      "3,[(3,6.0), (3,5.0), (3,4.0), null, null, null, null, null, null, null]\n" +
-      "4,[(4,10.0), (4,9.0), (4,8.0), (4,7.0), null, null, null, null, null, null]\n" +
-      "5,[(5,15.0), (5,14.0), (5,13.0), (5,12.0), (5,11.0), null, null, null, null, null]\n" +
-      "6,[(6,21.0), (6,20.0), (6,19.0), (6,18.0), (6,17.0), (6,16.0), null, null, null, null]"
+      "+I(1, [(1,1.0), null, null, null, null, null, null, null, null, null])\n" +
+      "+I(2, [(2,3.0), (2,2.0), null, null, null, null, null, null, null, null])\n" +
+      "+I(3, [(3,6.0), (3,5.0), (3,4.0), null, null, null, null, null, null, null])\n" +
+      "+I(4, [(4,10.0), (4,9.0), (4,8.0), (4,7.0), null, null, null, null, null, null])\n" +
+      "+I(5, [(5,15.0), (5,14.0), (5,13.0), (5,12.0), (5,11.0), null, null, null, null, null])\n" +
+      "+I(6, [(6,21.0), (6,20.0), (6,19.0), (6,18.0), (6,17.0), (6,16.0), null, null, null, null])"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -453,7 +454,7 @@ class AggregationsITCase(
       "1,{1=1}\n2,{2=1, 3=1}\n3,{4=1, 5=1, 6=1}\n4,{8=1, 9=1, 10=1, 7=1}\n" +
         "5,{11=1, 12=1, 13=1, 14=1, 15=1}\n6,{16=1, 17=1, 18=1, 19=1, 20=1, 21=1}"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 }
 

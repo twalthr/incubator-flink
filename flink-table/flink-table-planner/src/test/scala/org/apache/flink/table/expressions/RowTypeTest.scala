@@ -35,7 +35,7 @@ class RowTypeTest extends RowTypeTestBase {
       row(1, "foo", true),
       "row(1, 'foo', true)",
       "ROW(1, 'foo', true)",
-      "1,foo,true")
+      "+I(1, foo, true)")
 
     // special literal
     testAllApis(
@@ -49,16 +49,16 @@ class RowTypeTest extends RowTypeTestBase {
         "Map('foo', 'bar'), row(1, true))",
       "ROW(DATE '1985-04-11', CAST(0.1 AS DECIMAL), ARRAY[1, 2, 3], " +
         "MAP['foo', 'bar'], row(1, true))",
-      "1985-04-11,0.1,[1, 2, 3],{foo=bar},1,true") // string flatten
+      "+I(1985-04-11, 0.1, [1, 2, 3], {foo=bar}, +I(1, true))") // string flatten
 
     testAllApis(
       row(1 + 1, 2 * 3, nullOf(Types.STRING)),
       "row(1 + 1, 2 * 3, nullOf(STRING))",
       "ROW(1 + 1, 2 * 3, NULLIF(1,1))",
-      "2,6,null"
+      "+I(2, 6, null)"
     )
 
-    testSqlApi("(1, 'foo', true)", "1,foo,true")
+    testSqlApi("(1, 'foo', true)", "+I(1, foo, true)")
   }
 
   @Test
@@ -67,35 +67,35 @@ class RowTypeTest extends RowTypeTestBase {
       row('f0, 'f1),
       "row(f0, f1)",
       "(f0, f1)",
-      "null,1"
+      "+I(null, 1)"
     )
 
     testAllApis(
       'f2,
       "f2",
       "f2",
-      "2,foo,true"
+      "+I(2, foo, true)"
     )
 
     testAllApis(
       row('f2, 'f5),
       "row(f2, f5)",
       "(f2, f5)",
-      "2,foo,true,foo,null"
+      "+I(+I(2, foo, true), +I(foo, null))"
     )
 
     testAllApis(
       'f4,
       "f4",
       "f4",
-      "1984-03-12,0E-8,[1, 2, 3]"
+      "+I(1984-03-12, 0E-8, [1, 2, 3])"
     )
 
     testAllApis(
       row('f1, "foo", true),
       "row(f1, 'foo', true)",
       "(f1, 'foo',true)",
-      "1,foo,true"
+      "+I(1, foo, true)"
     )
   }
 

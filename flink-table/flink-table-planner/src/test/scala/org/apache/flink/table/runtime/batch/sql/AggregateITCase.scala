@@ -27,9 +27,9 @@ import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.Weighted
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.utils.NonMergableCount
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
-
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -56,7 +56,7 @@ class AggregateITCase(
 
     val expected = "231,1,21,21,11"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -74,7 +74,7 @@ class AggregateITCase(
 
     val expected = "231"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -92,7 +92,7 @@ class AggregateITCase(
 
     val expected = "231"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -113,7 +113,7 @@ class AggregateITCase(
 
     val expected = "1,1,1,1,1.5,1.5,2,Ciao,Ciao,Hello,Ciao,3.0"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -132,7 +132,7 @@ class AggregateITCase(
 
     val expected = "1,3,2,1,3"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -151,7 +151,7 @@ class AggregateITCase(
 
     val expected = "5.5,7"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -169,7 +169,7 @@ class AggregateITCase(
 
     val expected = "2,2"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
 
@@ -191,7 +191,7 @@ class AggregateITCase(
 
     val expected = "1,3,2"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -209,7 +209,7 @@ class AggregateITCase(
 
     val expected = "231,21"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -228,7 +228,7 @@ class AggregateITCase(
     val expected =
       "6,18,6\n5,13,5\n4,8,4\n3,5,3\n2,2,2\n1,1,1"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -267,7 +267,7 @@ class AggregateITCase(
         "6,Comment#14,20,0\n" +
         "6,Comment#15,21,0"
 
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -313,9 +313,9 @@ class AggregateITCase(
 
     assert(results.equals(expected),
       "Empty result is expected for grouped set, but actual: " + results)
-    TestBaseUtils.compareResultAsText(results2.asJava, expected2)
-    TestBaseUtils.compareResultAsText(results3.asJava, expected3)
-    TestBaseUtils.compareResultAsText(results4.asJava, expected4)
+    TestBaseUtils.compareResultAsText(results2.asJava, normalizeRowData(expected2))
+    TestBaseUtils.compareResultAsText(results3.asJava, normalizeRowData(expected3))
+    TestBaseUtils.compareResultAsText(results4.asJava, normalizeRowData(expected4))
   }
 
   @Test
@@ -346,7 +346,7 @@ class AggregateITCase(
       "6,33,2,6,16", "6,57,3,6,19", "6,21,1,6,21"
     ).mkString("\n")
 
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -375,7 +375,7 @@ class AggregateITCase(
       "6,{6=1}", "6,{6=2}", "6,{6=3}"
     ).mkString("\n")
 
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -403,7 +403,7 @@ class AggregateITCase(
       "2,2"
     ).mkString("\n")
 
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -438,7 +438,7 @@ class AggregateITCase(
       "6,2,1970-01-01 00:00:20.0,1970-01-01 00:00:25.0,1970-01-01 00:00:24.999"
     ).mkString("\n")
 
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -469,7 +469,7 @@ class AggregateITCase(
       "6,33,2,6,16", "6,70,4,6,17", "6,78,4,6,19", "6,41,2,6,20"
     ).mkString("\n")
 
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -511,7 +511,7 @@ class AggregateITCase(
       "6,2,1970-01-01 00:00:20.0,1970-01-01 00:00:30.0,1970-01-01 00:00:29.999"
     ).mkString("\n")
 
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -540,7 +540,7 @@ class AggregateITCase(
       "16,21,111,6,6,18"
     ).mkString("\n")
 
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -569,7 +569,7 @@ class AggregateITCase(
       "6,1970-01-01 00:00:16.0,1970-01-01 00:00:25.0,1970-01-01 00:00:24.999"
     ).mkString("\n")
 
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -606,6 +606,6 @@ class AggregateITCase(
       "null,0,1,1,2"
     ).mkString("\n")
 
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 }

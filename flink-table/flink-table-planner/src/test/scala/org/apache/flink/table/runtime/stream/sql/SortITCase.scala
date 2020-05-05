@@ -29,8 +29,8 @@ import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.stream.sql.SortITCase.StringRowSelectorSink
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit._
 
@@ -138,7 +138,7 @@ class SortITCase extends StreamingWithStateTestBase {
       "1,1,Hi,1970-01-01 00:00:00.001",
       "3,2,Hello world,1970-01-01 00:00:00.002",
       "2,2,Hello,1970-01-01 00:00:00.002")
-    assertEquals(expected, MemoryTableSourceSinkUtil.tableDataStrings)
+    assertEquals(normalizeRowData(expected), MemoryTableSourceSinkUtil.tableDataStrings)
   }
 }
 

@@ -33,15 +33,16 @@ import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.sources.CsvTableSource
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
-
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Rule, Test}
-
 import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
 import _root_.java.util
+
+import org.apache.flink.table.utils.RowStringUtils
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 
 import _root_.scala.collection.mutable
 import _root_.scala.io.Source
@@ -172,7 +173,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     deleteFile(sink1Path)
 
     streamEnv.execute("test2")
-    assertEquals(getExpectedLastValues.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(getExpectedLastValues).sorted, StreamITCase.testResults.sorted)
     // the table program is not executed again
     assertFileNotExist(sink1Path)
   }
@@ -203,7 +204,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     streamEnv.execute("test2")
     // the table program is not executed
     checkEmptyFile(sink1Path)
-    assertEquals(getExpectedLastValues.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(getExpectedLastValues).sorted, StreamITCase.testResults.sorted)
     StreamITCase.testResults.clear()
 
     streamTableEnv.execute("test1")
@@ -240,7 +241,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     streamEnv.execute("test2")
     // the table program is not executed
     checkEmptyFile(sink1Path)
-    assertEquals(getExpectedLastValues.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(getExpectedLastValues).sorted, StreamITCase.testResults.sorted)
     StreamITCase.testResults.clear()
 
     streamTableEnv.execute("test1")

@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.utils.RowStringUtils.normalizeRowData;
 
 /**
  * Integration tests for streaming SQL.
@@ -82,7 +83,7 @@ public class JavaSqlITCase extends AbstractTestBase {
 		expected.add("2,Hello");
 		expected.add("3,Hello world");
 
-		StreamITCase.compareWithList(expected);
+		StreamITCase.compareWithList(normalizeRowData(expected));
 	}
 
 	@Test
@@ -108,7 +109,7 @@ public class JavaSqlITCase extends AbstractTestBase {
 		expected.add("2,2,Hello");
 		expected.add("3,2,Hello world");
 
-		StreamITCase.compareWithList(expected);
+		StreamITCase.compareWithList(normalizeRowData(expected));
 	}
 
 	@Test
@@ -134,7 +135,7 @@ public class JavaSqlITCase extends AbstractTestBase {
 		expected.add("2,3,1");
 		expected.add("3,4,2");
 
-		StreamITCase.compareWithList(expected);
+		StreamITCase.compareWithList(normalizeRowData(expected));
 	}
 
 	@Test
@@ -168,6 +169,6 @@ public class JavaSqlITCase extends AbstractTestBase {
 		expected.add("2,2,Hallo Welt");
 		expected.add("2,3,Hallo Welt wie");
 
-		StreamITCase.compareWithList(expected);
+		StreamITCase.compareWithList(normalizeRowData(expected));
 	}
 }

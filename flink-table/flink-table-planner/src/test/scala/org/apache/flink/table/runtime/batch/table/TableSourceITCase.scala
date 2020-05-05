@@ -31,6 +31,7 @@ import org.apache.flink.table.api.{TableException, TableSchema, Tumble, Types}
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
 import org.apache.flink.table.sources.BatchTableSource
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
@@ -102,7 +103,7 @@ class TableSourceITCase(
       "Mary,40",
       "Bob,20",
       "Liz,40").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -126,7 +127,7 @@ class TableSourceITCase(
       "Smith,4,0.24",
       "Miller,6,13.56",
       "Williams,8,4.68").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -143,7 +144,7 @@ class TableSourceITCase(
 
     val expected = Seq(
       "5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -177,7 +178,7 @@ class TableSourceITCase(
       "Mary,1970-01-01 00:00:00.0,40",
       "Bob,1970-01-01 00:00:00.0,20",
       "Liz,1970-01-01 00:00:02.0,40").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -213,7 +214,7 @@ class TableSourceITCase(
       "Bob,20",
       "Mary,30",
       "Liz,40").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -249,7 +250,7 @@ class TableSourceITCase(
       "Mary,1970-01-01 00:00:00.0,40",
       "Bob,1970-01-01 00:00:00.0,20",
       "Liz,1970-01-01 00:00:02.0,40").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -314,7 +315,7 @@ class TableSourceITCase(
       .collect()
 
     val expected = Seq(24, 25).mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -341,7 +342,7 @@ class TableSourceITCase(
       "1970-01-01 00:00:00.0,3",
       "1970-01-01 00:00:02.0,1",
       "1970-01-01 00:00:04.0,1").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -364,7 +365,7 @@ class TableSourceITCase(
       .collect()
 
     val expected = Seq("Mary", "Peter", "Bob", "Liz").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -394,7 +395,7 @@ class TableSourceITCase(
       "1970-01-01 00:00:00.0,3",
       "1970-01-01 00:00:02.0,1",
       "1970-01-01 00:00:04.0,1").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -428,7 +429,7 @@ class TableSourceITCase(
       "Mary,1970-01-01 00:00:00.0,40",
       "Bob,1970-01-01 00:00:00.0,20",
       "Liz,1970-01-01 00:00:02.0,40").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -463,7 +464,7 @@ class TableSourceITCase(
       "Bob,20,2",
       "Mike,30,3",
       "Liz,40,4").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -498,7 +499,7 @@ class TableSourceITCase(
       "1970-01-01 00:00:00.002,Bob,2",
       "1970-01-01 00:00:00.002,Mike,3",
       "1970-01-01 00:00:02.001,Liz,4").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -534,7 +535,7 @@ class TableSourceITCase(
       "Bob,2",
       "Mike,3",
       "Liz,4").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -566,7 +567,7 @@ class TableSourceITCase(
       .collect()
 
     val expected = Seq("4").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -601,7 +602,7 @@ class TableSourceITCase(
       "1970-01-01 00:00:00.002",
       "1970-01-01 00:00:00.002",
       "1970-01-01 00:00:02.001").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -637,7 +638,7 @@ class TableSourceITCase(
       "Bob,1970-01-01 00:00:00.002,20",
       "Mike,1970-01-01 00:00:00.002,30",
       "Liz,1970-01-01 00:00:02.001,40").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -706,7 +707,7 @@ class TableSourceITCase(
       "1,Sarah,10000,true,1000",
       "2,Rob,20000,false,2000",
       "3,Mike,30000,true,3000").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -739,7 +740,7 @@ class TableSourceITCase(
       .collect()
 
     val expected = Seq(2, 3).mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -772,7 +773,7 @@ class TableSourceITCase(
       .collect()
 
     val expected = Seq(2, 3, 5).mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   private def makeRow(fields: Any*): Row = {

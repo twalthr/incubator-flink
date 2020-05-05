@@ -31,8 +31,8 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.MultiArgCount
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit._
 
@@ -99,7 +99,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "5,33,10",
       "5,46,10",
       "5,60,10")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -134,7 +134,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "5,77,2",
       "5,88,3",
       "5,99,4")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -157,7 +157,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val expected = List(
       "Hello World,1,7,2", "Hello World,2,15,4", "Hello World,3,35,6",
       "Hello,1,1,2", "Hello,2,3,4", "Hello,3,6,6", "Hello,4,10,8", "Hello,5,15,10", "Hello,6,21,12")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -180,7 +180,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val expected = List(
       "Hello World,1", "Hello World,2", "Hello World,3",
       "Hello,1", "Hello,2", "Hello,3", "Hello,4", "Hello,5", "Hello,6")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
 
   }
 
@@ -203,7 +203,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val expected = List(
       "Hello World,7,28", "Hello World,8,36", "Hello World,9,56",
       "Hello,1,1", "Hello,2,3", "Hello,3,6", "Hello,4,10", "Hello,5,15", "Hello,6,21")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -221,7 +221,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List("1", "2", "3", "4", "5", "6", "7", "8", "9")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -291,7 +291,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "Hello World,18,1,1,7",
       "Hello World,8,2,2,15",
       "Hello World,20,1,1,20")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -345,7 +345,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "Hello,6,2,3,15",
       "Hello World,7,1,1,7", "Hello World,7,2,2,14", "Hello World,7,3,3,21",
       "Hello World,7,3,3,21", "Hello World,8,3,3,22", "Hello World,20,3,3,35")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -411,7 +411,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "Hello World,7,4,25", "Hello World,17,3,21", "Hello World,77,3,21", "Hello World,18,1,7",
       "Hello World,8,2,15",
       "Hello World,20,1,20")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -463,7 +463,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "Hello World,8,3,21", "Hello World,8,3,23",
       "Hello World,9,3,25",
       "Hello World,20,3,37")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -525,7 +525,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "1,7,Hello world,3,29,8,3,7,1",
       "2,4,Hello world,1,15,5,3,5,1",
       "2,5,Hello world,1,15,5,3,5,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -589,7 +589,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "1,7,Hello world,5,41,8,5,9,1",
       "2,5,Hello world,1,8,3,2,5,1",
       "3,5,Hello world,1,8,3,2,5,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -644,7 +644,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "2,4,Hello world,44,13,3,7,1",
       "2,5,Hello world,44,13,3,7,1")
 
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -692,7 +692,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "4,9,Hello world,27,6,4,9,1",
       "5,8,Hello world,35,7,5,9,1",
       "6,8,Hello world,43,8,5,9,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   /** test sliding event-time unbounded window with partition by **/
@@ -764,7 +764,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "2,5,Hello world,8,3,2,5,1",
       "3,5,Hello world,8,3,2,5,1"
     )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -802,7 +802,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "5,4,1,{1=1, 3=1}",
       "5,6,1,{1=1, 2=1, 3=1}",
       "5,5,2,{2=1, 3=1}")
-    assertEquals(expected, StreamITCase.testResults)
+    assertEquals(normalizeRowData(expected), StreamITCase.testResults)
   }
 
   @Test
@@ -845,7 +845,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "5,3,4,1,2,2",
       "5,4,6,1,3,3",
       "5,5,6,1,3,3")
-    assertEquals(expected, StreamITCase.testResults)
+    assertEquals(normalizeRowData(expected), StreamITCase.testResults)
   }
 
   @Test
@@ -895,7 +895,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "null,1,0,0|1,0,0", "null,1,0,0|1,0,0", "null,2,0,0|1,0,0", "null,1,2,2|1,2,2",
       "Hello,1,1,1|1,1,1", "Hello,1,1,1|1,1,1", "Hello,2,1,1|1,1,1",
       "Hello World,1,2,2|1,2,2", "Hello World,2,2,2|1,2,2", "Hello World,2,2,2|1,2,2")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -937,7 +937,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "null,Hello World,8,5",
       "A,Hello World,9,6",
       "B,Hello World,10,7")
-    assertEquals(expected, StreamITCase.testResults)
+    assertEquals(normalizeRowData(expected), StreamITCase.testResults)
   }
 }
 

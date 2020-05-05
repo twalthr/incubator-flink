@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.stream.sql
 
 import java.util
+
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
@@ -27,8 +28,9 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{EnvironmentSettings, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
+import org.apache.flink.table.utils.RowStringUtils
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit._
 
@@ -190,7 +192,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     expected.add("A,RIGHT6,LEFT5")
     expected.add("A,RIGHT6,LEFT6")
     expected.add("B,RIGHT7,LEFT4")
-    StreamITCase.compareWithList(expected)
+    StreamITCase.compareWithList(normalizeRowData(expected))
   }
 
   /** test rowtime inner join with equi-times **/
@@ -237,7 +239,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val expected = new java.util.ArrayList[String]
     expected.add("A,R-5,5")
     expected.add("B,R-6,6")
-    StreamITCase.compareWithList(expected)
+    StreamITCase.compareWithList(normalizeRowData(expected))
   }
 
   /** test rowtime inner join with other conditions **/
@@ -300,7 +302,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     expected.add("1,LEFT1.1,RIGHT6")
     expected.add("2,LEFT4,RIGHT7")
     expected.add("1,LEFT4.9,RIGHT6")
-    StreamITCase.compareWithList(expected)
+    StreamITCase.compareWithList(normalizeRowData(expected))
   }
 
   /** test rowtime inner join with another time condition **/
@@ -355,7 +357,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     expected.add("1,LEFT5,RIGHT6")
     expected.add("1,LEFT5,RIGHT8")
     expected.add("1,LEFT6,RIGHT8")
-    StreamITCase.compareWithList(expected)
+    StreamITCase.compareWithList(normalizeRowData(expected))
   }
 
   /** test rowtime inner join with window aggregation **/
@@ -410,7 +412,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     expected.add("A,1970-01-01 00:00:12.0,2")
     expected.add("A,1970-01-01 00:00:16.0,1")
     expected.add("B,1970-01-01 00:00:08.0,1")
-    StreamITCase.compareWithList(expected)
+    StreamITCase.compareWithList(normalizeRowData(expected))
   }
 
   /** test rowtime inner join with window aggregation **/
@@ -464,7 +466,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     expected.add("A,1970-01-01 00:00:08.0,3")
     expected.add("A,1970-01-01 00:00:12.0,3")
     expected.add("B,1970-01-01 00:00:08.0,1")
-    StreamITCase.compareWithList(expected)
+    StreamITCase.compareWithList(normalizeRowData(expected))
   }
 
   // Tests for left outer join
@@ -570,7 +572,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     expected.add("B,null,L-5")
     expected.add("C,null,L-7")
     expected.add("A,null,L-20")
-    StreamITCase.compareWithList(expected)
+    StreamITCase.compareWithList(normalizeRowData(expected))
   }
 
   @Test
@@ -618,7 +620,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     expected.add("null,null,L-1")
     expected.add("null,null,L-4")
     expected.add("null,null,L-7")
-    StreamITCase.compareWithList(expected)
+    StreamITCase.compareWithList(normalizeRowData(expected))
   }
 
   // Tests for right outer join
@@ -720,7 +722,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     expected.add("A,R-20,null")
     expected.add("B,R-7,L-4")
     expected.add("D,R-8,null")
-    StreamITCase.compareWithList(expected)
+    StreamITCase.compareWithList(normalizeRowData(expected))
   }
 
   @Test
@@ -768,7 +770,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     expected.add("A,R-6,null")
     expected.add("B,R-7,null")
     expected.add("D,R-8,null")
-    StreamITCase.compareWithList(expected)
+    StreamITCase.compareWithList(normalizeRowData(expected))
   }
 
   // Tests for full outer join
@@ -873,7 +875,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     expected.add("null,null,L-5")
     expected.add("null,null,L-7")
     expected.add("null,null,L-20")
-    StreamITCase.compareWithList(expected)
+    StreamITCase.compareWithList(normalizeRowData(expected))
   }
 
   @Test
@@ -924,7 +926,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     expected.add("A,R-6,null")
     expected.add("B,R-7,null")
     expected.add("D,R-8,null")
-    StreamITCase.compareWithList(expected)
+    StreamITCase.compareWithList(normalizeRowData(expected))
   }
 
   /** test non-window inner join **/
@@ -979,7 +981,7 @@ class JoinITCase extends StreamingWithStateTestBase {
       "2,HeHe,Hi5",
       "null,HeHe,Hi9")
 
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -1001,7 +1003,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -1024,7 +1026,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected), StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -1047,7 +1049,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected), StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -1072,7 +1074,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -1098,7 +1100,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -1122,7 +1124,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected), StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -1149,7 +1151,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -1175,7 +1177,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -1201,7 +1203,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected), StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -1227,7 +1229,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 }
 

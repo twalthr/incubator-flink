@@ -27,6 +27,8 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.utils.RowStringUtils
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
@@ -56,7 +58,7 @@ class JoinITCase(
 
     val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -76,7 +78,7 @@ class JoinITCase(
 
     val expected = "Hi,Hallo\n"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -96,7 +98,7 @@ class JoinITCase(
 
     val expected = "Hello world, how are you?,Hallo Welt wie\n" + "I am fine.,Hallo Welt wie\n"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -117,7 +119,7 @@ class JoinITCase(
     val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
       "Hello world,ABC\n" + "I am fine.,HIJ\n" + "I am fine.,IJK\n"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -139,7 +141,7 @@ class JoinITCase(
     val expected = "1,Hi\n" + "2,Hello\n" + "1,Hello\n" +
       "2,Hello world\n" + "2,Hello world\n" + "3,Hello world\n"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -159,7 +161,7 @@ class JoinITCase(
 
     val expected = "6,6"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -179,7 +181,7 @@ class JoinITCase(
 
     val expected = "6,6"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -202,7 +204,7 @@ class JoinITCase(
       "null,IJK\n" + "null,JKL\n" + "null,KLM"
 
     val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -224,7 +226,7 @@ class JoinITCase(
       "null,CDE\n" + "null,DEF\n" + "null,EFG\n" + "null,FGH\n" + "null,GHI\n" + "null,HIJ\n" +
       "null,IJK\n" + "null,JKL\n" + "null,KLM"
     val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -246,7 +248,7 @@ class JoinITCase(
       "null,CDE\n" + "null,DEF\n" + "null,EFG\n" + "null,FGH\n" + "null,GHI\n" + "null,HIJ\n" +
       "null,IJK\n" + "null,JKL\n" + "null,KLM"
     val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -263,7 +265,7 @@ class JoinITCase(
       "3,2,2,Hello\n" +
       "3,3,2,Hello world"
     val result = tEnv.sqlQuery(sqlQuery2).collect()
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -280,7 +282,7 @@ class JoinITCase(
       "2,2,Hello,3\n" +
       "3,2,Hello world,3"
     val result = tEnv.sqlQuery(sqlQuery1).collect()
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    TestBaseUtils.compareResultAsText(result.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -320,7 +322,7 @@ class JoinITCase(
 
     val results = result.toDataSet[Row].collect()
 
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
 
@@ -345,7 +347,7 @@ class JoinITCase(
 
     val results = result.toDataSet[Row].collect()
 
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -369,7 +371,7 @@ class JoinITCase(
 
     val results = result.toDataSet[Row].collect()
 
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -392,7 +394,7 @@ class JoinITCase(
 
     val results = result.toDataSet[Row].collect()
 
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -417,7 +419,7 @@ class JoinITCase(
 
     val results = result.toDataSet[Row].collect()
 
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -442,7 +444,7 @@ class JoinITCase(
 
     val results = result.toDataSet[Row].collect()
 
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -467,7 +469,7 @@ class JoinITCase(
       "5,null,null", "5,null,null", "5,null,null", "5,null,null", "5,null,null").mkString("\n")
 
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -489,8 +491,8 @@ class JoinITCase(
     val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = List("1,Hi", "1,w", "2,Hello", "2,k", "3,Hello world", "3,x")
-    val results = result.toDataSet[Row].collect().toList
-    assertEquals(expected.toString(), results.sortWith(_.toString < _.toString).toString())
+    val results = result.toDataSet[Row].collect().map(_.toString)
+    assertEquals(normalizeRowData(expected), results.sorted)
   }
 
   @Test
@@ -539,8 +541,8 @@ class JoinITCase(
     val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = List("1,11,10", "1,11,11", "2,22,20", "3,33,30", "3,33,31")
-    val results = result.collect().toList
-    assertEquals(expected.toString(), results.sortWith(_.toString < _.toString).toString())
+    val results = result.collect().map(_.toString)
+    assertEquals(normalizeRowData(expected), results.sorted)
   }
 
   @Test
@@ -566,10 +568,10 @@ class JoinITCase(
     val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = List(
-      "1,[(12,45.6), (2,45.612)],12,45.6",
-      "1,[(12,45.6), (2,45.612)],2,45.612",
-      "2,[(13,41.6), (1,45.2136)],13,41.6").mkString(", ")
+      "+I(1, [(12,45.6), (2,45.612)], 12, 45.6)",
+      "+I(1, [(12,45.6), (2,45.612)], 2, 45.612)",
+      "+I(2, [(13,41.6), (1,45.2136)], 13, 41.6)")
     val results = result.toDataSet[Row].collect().map(_.toString)
-    assertEquals(expected, results.sorted.mkString(", "))
+    assertEquals(expected, results.sorted)
   }
 }

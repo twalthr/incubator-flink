@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.batch.table
 
 import java.io.File
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
@@ -27,8 +28,9 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.sinks.CsvTableSink
-import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
+import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, RowStringUtils}
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil.UnsafeMemoryOutputFormatTableSink
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -100,6 +102,6 @@ class TableSinkITCase(
       "Hi,1", "Hello,2", "Hello world,2", "Hello world, how are you?,3",
       "Comment#12,6", "Comment#13,6", "Comment#14,6", "Comment#15,6").mkString("\n")
 
-    TestBaseUtils.compareResultAsText(results, expected)
+    TestBaseUtils.compareResultAsText(results, normalizeRowData(expected))
   }
 }

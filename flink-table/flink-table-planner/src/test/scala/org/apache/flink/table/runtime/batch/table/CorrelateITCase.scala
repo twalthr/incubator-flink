@@ -28,6 +28,7 @@ import org.apache.flink.table.expressions.utils.{Func1, Func18, Func20, RichFunc
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.runtime.utils.{TableProgramsClusterTestBase, _}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
@@ -57,14 +58,14 @@ class CorrelateITCase(
     val results = result.collect()
     val expected = "Jack#22,Jack\n" + "Jack#22,22\n" + "John#19,John\n" + "John#19,19\n" +
       "Anna#44,Anna\n" + "Anna#44,44\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
 
     // with overloading
     val result2 = in.joinLateral(func1('c, "$") as 's).select('c, 's).toDataSet[Row]
     val results2 = result2.collect()
     val expected2 = "Jack#22,$Jack\n" + "Jack#22,$22\n" + "John#19,$John\n" +
       "John#19,$19\n" + "Anna#44,$Anna\n" + "Anna#44,$44\n"
-    TestBaseUtils.compareResultAsText(results2.asJava, expected2)
+    TestBaseUtils.compareResultAsText(results2.asJava, normalizeRowData(expected2))
   }
 
   @Test
@@ -78,7 +79,7 @@ class CorrelateITCase(
     val results = result.collect()
     val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
       "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n" + "nosharp,null,null"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -93,7 +94,7 @@ class CorrelateITCase(
     val results = result.collect()
     val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
       "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n" + "nosharp,null,null"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   /**
@@ -130,7 +131,7 @@ class CorrelateITCase(
 
     val results = result.collect()
     val expected = "Jack#22,Jack,22\n" + "Anna#44,Anna,44\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -148,7 +149,7 @@ class CorrelateITCase(
     val results = result.collect()
     val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
       "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -166,7 +167,7 @@ class CorrelateITCase(
     val results = result.collect()
     val expected = "Jack#22,Jack,true,22\n" + "John#19,John,false,19\n" +
       "Anna#44,Anna,true,44\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -184,7 +185,7 @@ class CorrelateITCase(
 
     val results = result.collect()
     val expected = "Jack#22,Jack,22\n" + "Anna#44,Anna,44\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -202,7 +203,7 @@ class CorrelateITCase(
     val results = result.collect()
     val expected = "Jack#22,ack\n" + "Jack#22,22\n" + "John#19,ohn\n" + "John#19,19\n" +
       "Anna#44,nna\n" + "Anna#44,44\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -220,7 +221,7 @@ class CorrelateITCase(
 
     val results = result.collect()
     val expected = "Jack#22,Jack,22"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -241,7 +242,7 @@ class CorrelateITCase(
 
     val results = result.collect()
     val expected = "1000\n" + "655906210000\n" + "7591\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -262,7 +263,7 @@ class CorrelateITCase(
       "2,2,2.0,Byte=2,Short=2,Float=2.0",
       "3,3,2.0,Byte=3,Short=3,Float=2.0",
       "4,4,3.0,Byte=4,Short=4,Float=3.0").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -280,7 +281,7 @@ class CorrelateITCase(
 
     val expected = "1,Jack\n" + "1,22\n" + "2,John\n" + "2,19\n" + "3,Anna\n" + "3,44"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -302,7 +303,7 @@ class CorrelateITCase(
 
     val expected = "1,Hi\n1,test\n2,Hello\n2,test\n3,Hello world\n3,test"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -328,7 +329,7 @@ class CorrelateITCase(
     val expected = "Anna#44,Anna,OneConf_Anna,TwoConf_Anna,44,44,44\n" +
       "Jack#22,Jack,OneConf_Jack,TwoConf_Jack,22,22,22\n" +
       "John#19,John,OneConf_John,TwoConf_John,19,19,19\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
   }
 
   @Test
@@ -356,7 +357,7 @@ class CorrelateITCase(
       "nosharp,2\n" +
       "nosharp,nosharp"
     val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    TestBaseUtils.compareResultAsText(results.asJava, normalizeRowData(expected))
 
     // Test for empty cases
     val result0 = testData(env)
@@ -390,7 +391,7 @@ class CorrelateITCase(
 
     TestBaseUtils.compareResultAsText(
       results.asJava,
-      expected.sorted.mkString("\n")
+      normalizeRowData(expected.mkString("\n"))
     )
   }
 

@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.stream.table
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
+
 import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
@@ -32,11 +33,11 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{EnvironmentSettings, TableException, TableSchema, Tumble, Types}
 import org.apache.flink.table.runtime.utils.{CommonTestData, StreamITCase}
 import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
@@ -100,7 +101,7 @@ class TableSourceITCase extends AbstractTestBase {
       "Miller,13.56",
       "Smith,180.2",
       "Williams,4.68")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -124,7 +125,7 @@ class TableSourceITCase extends AbstractTestBase {
       "Miller,13.56",
       "Smith,180.2",
       "Williams,4.68")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -143,7 +144,7 @@ class TableSourceITCase extends AbstractTestBase {
     env.execute()
 
     val expected = Seq("5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -180,7 +181,7 @@ class TableSourceITCase extends AbstractTestBase {
       "Mary,1970-01-01 00:00:00.0,40",
       "Bob,1970-01-01 00:00:00.0,20",
       "Liz,1970-01-01 00:00:02.0,40")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -219,7 +220,7 @@ class TableSourceITCase extends AbstractTestBase {
       "Bob,20",
       "Mary,30",
       "Liz,40")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -258,7 +259,7 @@ class TableSourceITCase extends AbstractTestBase {
       "Mary,1970-01-01 00:00:00.0,40",
       "Bob,1970-01-01 00:00:00.0,20",
       "Liz,1970-01-01 00:00:02.0,40")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -295,7 +296,7 @@ class TableSourceITCase extends AbstractTestBase {
       "Mary,1970-01-01 00:00:00.0,40",
       "Bob,1970-01-01 00:00:00.0,20",
       "Liz,1970-01-01 00:00:02.0,40")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -325,7 +326,7 @@ class TableSourceITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.0,3",
       "1970-01-01 00:00:02.0,1",
       "1970-01-01 00:00:04.0,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -361,7 +362,7 @@ class TableSourceITCase extends AbstractTestBase {
       "1970-01-01 00:00:01.0,2",
       "1970-01-01 00:00:02.0,1",
       "1970-01-01 00:00:04.0,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -387,7 +388,7 @@ class TableSourceITCase extends AbstractTestBase {
     env.execute()
 
     val expected = Seq("Mary", "Peter", "Bob", "Liz")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -420,7 +421,7 @@ class TableSourceITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.0,3",
       "1970-01-01 00:00:02.0,1",
       "1970-01-01 00:00:04.0,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -457,7 +458,7 @@ class TableSourceITCase extends AbstractTestBase {
       "Mary,1970-01-01 00:00:00.0,40",
       "Bob,1970-01-01 00:00:00.0,20",
       "Liz,1970-01-01 00:00:02.0,40")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -495,7 +496,7 @@ class TableSourceITCase extends AbstractTestBase {
       "Bob,20,2",
       "Mike,30,3",
       "Liz,40,4")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -533,7 +534,7 @@ class TableSourceITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.002,Bob,2",
       "1970-01-01 00:00:00.002,Mike,3",
       "1970-01-01 00:00:02.001,Liz,4")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -572,7 +573,7 @@ class TableSourceITCase extends AbstractTestBase {
       "Bob,2",
       "Mike,3",
       "Liz,4")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   def testProjectOnlyProctime(): Unit = {
@@ -606,7 +607,7 @@ class TableSourceITCase extends AbstractTestBase {
     env.execute()
 
     val expected = Seq("4")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   def testProjectOnlyRowtime(): Unit = {
@@ -643,7 +644,7 @@ class TableSourceITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.002",
       "1970-01-01 00:00:00.002",
       "1970-01-01 00:00:02.001")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -682,7 +683,7 @@ class TableSourceITCase extends AbstractTestBase {
       "Bob,1970-01-01 00:00:00.002,20",
       "Mike,1970-01-01 00:00:00.002,30",
       "Liz,1970-01-01 00:00:02.001,40")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -753,7 +754,7 @@ class TableSourceITCase extends AbstractTestBase {
       "1,Sarah,10000,true,1000",
       "2,Rob,20000,false,2000",
       "3,Mike,30000,true,3000")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -801,7 +802,7 @@ class TableSourceITCase extends AbstractTestBase {
       .addSink(new StreamITCase.StringSink[(Row, Long)])
     env.execute()
 
-    val expected = Seq("(1,A,1)", "(6,C,10)", "(6,D,20)")
+    val expected = Seq("(+I(1, A),1)", "(+I(6, C),10)", "(+I(6, D),20)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

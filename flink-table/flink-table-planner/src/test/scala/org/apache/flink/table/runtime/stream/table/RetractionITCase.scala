@@ -23,9 +23,9 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.table.utils.TableFunc0
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
@@ -76,7 +76,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq("1,2", "2,1", "6,1")
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   // keyed groupby + non-keyed groupby
@@ -95,7 +95,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq("10")
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   // non-keyed groupby + keyed groupby
@@ -113,7 +113,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq("10,1")
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 
   // test unique process, if the current output message of unbounded groupby equals the
@@ -155,8 +155,9 @@ class RetractionITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq(
-      "+1,1", "+2,1", "+3,1", "-3,1", "+6,1", "-1,1", "+1,2", "-1,2", "+1,3", "-6,1", "+6,2",
-      "-6,2", "+6,1", "+12,1", "-12,1", "+18,1", "+8,1")
+      "++I(1, 1)", "++I(2, 1)", "++I(3, 1)", "-+I(3, 1)", "++I(6, 1)", "-+I(1, 1)", "++I(1, 2)",
+      "-+I(1, 2)", "++I(1, 3)", "-+I(6, 1)", "++I(6, 2)", "-+I(6, 2)", "++I(6, 1)", "++I(12, 1)",
+      "-+I(12, 1)", "++I(18, 1)", "++I(8, 1)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -179,6 +180,6 @@ class RetractionITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq("1,2", "2,1", "6,1")
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.retractedResults.sorted)
   }
 }

@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.utils.RowStringUtils.normalizeRowData;
 
 /**
  * Integration tests for batch SQL.
@@ -71,7 +72,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 			"2,Hello,true,1944-02-24,12.6666666650000000\n" +
 			// Calcite converts to decimals and strings with equal length
 			"1,Test ,true,1944-02-24,12.4444444444444445\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -95,7 +96,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 			"14,Comment#8\n" + "15,Comment#9\n" + "16,Comment#10\n" +
 			"17,Comment#11\n" + "18,Comment#12\n" + "19,Comment#13\n" +
 			"20,Comment#14\n" + "21,Comment#15\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -112,7 +113,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
 		String expected = "2\n" + "3\n" + "4";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -129,7 +130,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
 		String expected = "231,1,21,21,11";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -149,7 +150,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
 		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 
 	@Test
@@ -174,6 +175,6 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
 		String expected = "bar\n" + "spam\n";
-		compareResultAsText(results, expected);
+		compareResultAsText(results, normalizeRowData(expected));
 	}
 }

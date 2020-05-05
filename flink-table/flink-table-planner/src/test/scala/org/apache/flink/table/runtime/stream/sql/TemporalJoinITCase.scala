@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.stream.sql
 
 import java.sql.Timestamp
+
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
@@ -27,8 +28,8 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api.EnvironmentSettings
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
+import org.apache.flink.table.utils.RowStringUtils.normalizeRowData
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit._
 
@@ -130,9 +131,7 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
     ratesHistoryData.+=(("Euro", 116L, new Timestamp(5L)))
     ratesHistoryData.+=(("Euro", 119L, new Timestamp(7L)))
 
-    var expectedOutput = new mutable.HashSet[String]()
-    expectedOutput += (2 * 114).toString
-    expectedOutput += (3 * 116).toString
+    val expectedOutput = List((2 * 114).toString, (3 * 116).toString)
 
     val orders = env
       .fromCollection(ordersData)
@@ -157,7 +156,7 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    assertEquals(expectedOutput, StreamITCase.testResults.toSet)
+    assertEquals(normalizeRowData(expectedOutput), StreamITCase.testResults)
   }
 
   @Test
@@ -236,7 +235,7 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
       s"2,${1 * 102 * 10.2}",
       s"3,${50 * 1 * 1.0}",
       s"4,${3 * 116 * 11.6}")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(normalizeRowData(expected).sorted, StreamITCase.testResults.sorted)
   }
 }
 
