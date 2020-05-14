@@ -8,9 +8,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.Row;
 
 import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Measurement;
-import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.runner.Runner;
@@ -18,20 +16,21 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.DATE;
+import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 
-@BenchmarkMode(Mode.Throughput)
 @Warmup(iterations = 3)
-@Measurement(iterations = 5, time = 5, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 5)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class RowAccessBenchmark {
 
@@ -39,7 +38,8 @@ public class RowAccessBenchmark {
 		FIELD("a", INT().notNull()),
 		FIELD("b", DOUBLE().notNull()),
 		FIELD("c", BOOLEAN().notNull()),
-		FIELD("d", DATE()));
+		FIELD("d", DATE()),
+		FIELD("e", DECIMAL(10, 5)));
 
 	private static int size = dataType.getChildren().size();
 
@@ -49,7 +49,7 @@ public class RowAccessBenchmark {
 
 	private static RowData produceNext(int i) {
 		final DataStructureConverter<Object, Object> converter = DataStructureConverters.getConverter(dataType);
-		final Row row = Row.of(i, 2.3 + i, i % 20 == 0, i % 4 == 0 ? null : LocalDate.ofEpochDay(i));
+		final Row row = Row.of(i, 2.3 + i, i % 20 == 0, i % 4 == 0 ? null : LocalDate.ofEpochDay(i), BigDecimal.valueOf(i + i));
 		converter.open(RowAccessBenchmark.class.getClassLoader());
 		return (RowData) converter.toInternal(row);
 	}
@@ -109,7 +109,7 @@ public class RowAccessBenchmark {
 	}
 
 	private static void swallow(Object[] o) {
-		swallow += o.length;
+		swallow += o[0].toString().length();
 	}
 
 	public static void main(String[] args) throws RunnerException {
