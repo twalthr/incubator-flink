@@ -162,65 +162,57 @@ object CodeGenUtils {
   // Float a = 1.0f;
   // Byte b = (byte)(float) a;
   def primitiveTypeTermForType(t: LogicalType): String = t.getTypeRoot match {
-    case INTEGER => "int"
-    case BIGINT => "long"
-    case SMALLINT => "short"
+    // ordered by type root definition
+    case BOOLEAN => "boolean"
     case TINYINT => "byte"
+    case SMALLINT => "short"
+    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => "int"
+    case BIGINT | INTERVAL_DAY_TIME => "long"
     case FLOAT => "float"
     case DOUBLE => "double"
-    case BOOLEAN => "boolean"
 
-    case DATE => "int"
-    case TIME_WITHOUT_TIME_ZONE => "int"
-    case INTERVAL_YEAR_MONTH => "int"
-    case INTERVAL_DAY_TIME => "long"
+    case DISTINCT_TYPE => primitiveTypeTermForType(t.asInstanceOf[DistinctType].getSourceType)
 
     case _ => boxedTypeTermForType(t)
   }
 
   def boxedTypeTermForType(t: LogicalType): String = t.getTypeRoot match {
-    case INTEGER => className[JInt]
-    case BIGINT => className[JLong]
-    case SMALLINT => className[JShort]
+    // ordered by type root definition
+    case CHAR | VARCHAR => BINARY_STRING
+    case BOOLEAN => className[JBoolean]
+    case BINARY | VARBINARY => "byte[]"
+    case DECIMAL => className[DecimalData]
     case TINYINT => className[JByte]
+    case SMALLINT => className[JShort]
+    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => className[JInt]
+    case BIGINT | INTERVAL_DAY_TIME => className[JLong]
     case FLOAT => className[JFloat]
     case DOUBLE => className[JDouble]
-    case BOOLEAN => className[JBoolean]
-
-    case DATE => className[JInt]
-    case TIME_WITHOUT_TIME_ZONE => className[JInt]
-    case INTERVAL_YEAR_MONTH => className[JInt]
-    case INTERVAL_DAY_TIME => className[JLong]
-
-    case VARCHAR | CHAR => BINARY_STRING
-    case VARBINARY | BINARY => "byte[]"
-
-    case DECIMAL => className[DecimalData]
+    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[TimestampData]
+    case TIMESTAMP_WITH_TIME_ZONE => throw new UnsupportedOperationException
     case ARRAY => className[ArrayData]
     case MULTISET | MAP => className[MapData]
-    case ROW => className[RowData]
+    case ROW | STRUCTURED_TYPE => className[RowData]
     case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[TimestampData]
-
+    case DISTINCT_TYPE => boxedTypeTermForType(t.asInstanceOf[DistinctType].getSourceType)
+    case NULL => className[JObject] // special case for untyped null literals
     case RAW => className[BinaryRawValueData[_]]
-
-    // special case for untyped null literals
-    case NULL => className[JObject]
+    case SYMBOL | UNRESOLVED => throw new IllegalArgumentException()
   }
 
   /**
     * Gets the default value for a primitive type, and null for generic types
     */
   def primitiveDefaultValue(t: LogicalType): String = t.getTypeRoot match {
-    case INTEGER | TINYINT | SMALLINT => "-1"
-    case BIGINT => "-1L"
+    // ordered by type root definition
+    case CHAR | VARCHAR => s"$BINARY_STRING.EMPTY_UTF8"
+    case BOOLEAN => "false"
+    case TINYINT | SMALLINT | INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => "-1"
+    case BIGINT | INTERVAL_DAY_TIME => "-1L"
     case FLOAT => "-1.0f"
     case DOUBLE => "-1.0d"
-    case BOOLEAN => "false"
-    case VARCHAR | CHAR => s"$BINARY_STRING.EMPTY_UTF8"
 
-    case DATE | TIME_WITHOUT_TIME_ZONE => "-1"
-    case INTERVAL_YEAR_MONTH => "-1"
-    case INTERVAL_DAY_TIME => "-1L"
+    case DISTINCT_TYPE => primitiveDefaultValue(t.asInstanceOf[DistinctType].getSourceType)
 
     case _ => "null"
   }

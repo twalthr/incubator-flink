@@ -667,6 +667,13 @@ object GenerateUtils {
         }
         GeneratedExpression(fieldTerm, nullTerm, inputCode, fieldType)
 
+      case DISTINCT_TYPE =>
+        generateFieldAccess(
+          ctx,
+          inputType.asInstanceOf[DistinctType].getSourceType,
+          inputTerm,
+          index)
+
       case _ =>
         val fieldTypeTerm = boxedTypeTermForType(inputType)
         val inputCode = s"($fieldTypeTerm) $inputTerm"
@@ -706,7 +713,7 @@ object GenerateUtils {
         """
       ctx.addReusableMember(funcCode)
       s"$compareFunc($leftTerm, $rightTerm)"
-    case ROW =>
+    case ROW | STRUCTURED_TYPE =>
       val rowType = t.asInstanceOf[RowType]
       val orders = (0 until rowType.getFieldCount).map(_ => true).toArray
       val comparisons = generateRowCompare(
