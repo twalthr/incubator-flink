@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.codegen.calls
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.functions.UserDefinedFunctionHelper.{SCALAR_EVAL, TABLE_EVAL}
 import org.apache.flink.table.functions.{FunctionKind, ScalarFunction, TableFunction, UserDefinedFunction}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{genToExternalIfNeeded, genToInternalIfNeeded, newName, typeTerm}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{genToExternalConverterAll, genToExternalIfNeeded, genToInternalConverter, genToInternalConverterAll, genToInternalIfNeeded, newName, typeTerm}
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NEVER_NULL
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
@@ -193,7 +193,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       outputType,
       externalResultTerm,
       // nullability is handled by the expression code generator if necessary
-      CodeGenUtils.genToInternal(ctx, outputDataType),
+      genToInternalConverter(ctx, outputDataType),
       collectorCode)
     val resultCollectorTerm = newName("resultConverterCollector")
     CollectorCodeGenerator.addToContext(ctx, resultCollectorTerm, resultCollector)
@@ -221,7 +221,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       s"($externalResultTypeTerm) (${typeTerm(externalResultClassBoxed)})"
     }
     val externalResultTerm = ctx.addReusableLocalVariable(externalResultTypeTerm, "externalResult")
-    val internalExpr = genToInternalIfNeeded(ctx, outputDataType, externalResultTerm)
+    val internalExpr = genToInternalConverterAll(ctx, outputDataType, externalResultTerm)
 
     // function call
     internalExpr.copy(code =
@@ -241,7 +241,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     operands
       .zip(argumentDataTypes)
       .map { case (operand, dataType) =>
-        operand.copy(resultTerm = genToExternalIfNeeded(ctx, dataType, operand))
+        operand.copy(resultTerm = genToExternalConverterAll(ctx, dataType, operand))
       }
   }
 

@@ -32,10 +32,10 @@ import org.apache.flink.table.runtime.util.collections._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.InstantiationUtil
-
 import org.apache.calcite.avatica.util.DateTimeUtils
-
 import java.util.TimeZone
+
+import org.apache.flink.table.data.conversion.DataStructureConverter
 
 import scala.collection.mutable
 
@@ -662,6 +662,33 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     reusableCloseStatements.add(closeFunction)
 
     fieldTerm
+  }
+
+  /**
+   * Adds a reusable [[DataStructureConverter]] to the member area of the generated class.
+   *
+   * @param converter converter to be added
+   * @param classLoaderTerm term to access the [[ClassLoader]] for user-defined classes
+   */
+  def addReusableConverter(
+      converter: DataStructureConverter[_, _],
+      classLoaderTerm: String = null)
+    : String = {
+
+    val converterTerm = addReusableObject(converter, "converter")
+
+    val openConverter = if (classLoaderTerm != null) {
+      s"""
+         |$converterTerm.open($classLoaderTerm);
+       """.stripMargin
+    } else {
+      s"""
+         |$converterTerm.open(getRuntimeContext().getUserCodeClassLoader());
+       """.stripMargin
+    }
+    reusableOpenStatements.add(openConverter)
+
+    converterTerm
   }
 
   /**

@@ -31,6 +31,8 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLog
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils
 import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.types.utils.DataTypeUtils
+import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 /**
@@ -63,7 +65,7 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
     val resultExternalType = UserDefinedFunctionUtils.getResultTypeOfScalarFunction(
       scalarFunction, operandTypes)
     val setResult = {
-      if (resultClass.isPrimitive && isInternalClass(resultExternalType)) {
+      if (resultClass.isPrimitive && isInternal(resultExternalType)) {
         s"$resultTerm = $evalResult;"
       } else {
         val javaTerm = newName("javaResult")
@@ -121,7 +123,7 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
       ctx: CodeGeneratorContext,
       t: DataType,
       term: String): String = {
-    if (isInternalClass(t)) {
+    if (isInternal(t)) {
       s"(${boxedTypeTermForType(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(t))}) $term"
     } else {
       genToInternal(ctx, t, term)
@@ -151,7 +153,7 @@ object ScalarFunctionCallGen {
     }
 
     parameterClasses.zipWithIndex.zip(operands).map { case ((paramClass, i), operandExpr) =>
-      if (paramClass.isPrimitive && isInternalClass(signatureTypes(i))) {
+      if (paramClass.isPrimitive && isInternal(signatureTypes(i))) {
         operandExpr
       } else {
         val boxedParamClass = ExtractionUtils.primitiveToWrapper(paramClass)

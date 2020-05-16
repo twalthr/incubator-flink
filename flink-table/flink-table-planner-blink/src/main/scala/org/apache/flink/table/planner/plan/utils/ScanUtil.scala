@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.data.{RowData, GenericRowData}
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{DEFAULT_INPUT1_TERM, GENERIC_ROW}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
@@ -33,10 +33,11 @@ import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.table.types.utils.DataTypeUtils
+import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 
 import scala.collection.JavaConversions._
 
@@ -57,7 +58,7 @@ object ScanUtil {
 
   private[flink] def needsConversion(dataType: DataType): Boolean =
     fromDataTypeToLogicalType(dataType) match {
-      case _: RowType => !CodeGenUtils.isInternalClass(dataType)
+      case _: RowType => !isInternal(dataType)
       case _ => true
     }
 

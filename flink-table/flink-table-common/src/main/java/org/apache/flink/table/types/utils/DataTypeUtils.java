@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -40,6 +41,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
@@ -54,6 +56,15 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFi
  */
 @Internal
 public final class DataTypeUtils {
+
+	/**
+	 * Checks whether a given data type is an internal data structure.
+	 */
+	public static boolean isInternal(DataType dataType) {
+		final Class<?> clazz = dataType.getConversionClass();
+		return RowData.class.isAssignableFrom(clazz) ||
+			clazz == LogicalTypeUtils.toInternalConversionClass(dataType.getLogicalType());
+	}
 
 	/**
 	 * Replaces the {@link LogicalType} of a {@link DataType}, i.e., it keeps the bridging class.

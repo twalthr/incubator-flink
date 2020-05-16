@@ -34,12 +34,13 @@ import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.sinks.{RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.types.DataType
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-
 import java.lang.reflect.Modifier
 import java.util
+
+import org.apache.flink.table.types.utils.DataTypeUtils
+import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 
 import scala.collection.JavaConversions._
 
@@ -129,7 +130,7 @@ class BatchExecLegacySink[T](
       // Sink's input must be BatchExecNode[RowData] now.
       case node: BatchExecNode[RowData] =>
         val plan = node.translateToPlan(planner).asInstanceOf[Transformation[T]]
-        if (CodeGenUtils.isInternalClass(resultDataType)) {
+        if (isInternal(resultDataType)) {
           plan
         } else {
           val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](

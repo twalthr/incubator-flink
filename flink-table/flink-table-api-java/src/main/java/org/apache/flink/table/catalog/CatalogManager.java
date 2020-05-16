@@ -61,9 +61,8 @@ public final class CatalogManager {
 	// A map between names and catalogs.
 	private Map<String, Catalog> catalogs;
 
-	// Those objects take precedence over corresponding permanent objects, thus they shadow
-	// objects coming from catalogs.
-	private Map<ObjectIdentifier, CatalogBaseTable> temporaryTables;
+	// Those tables take precedence over corresponding permanent tables, thus they shadow
+	// tables coming from catalogs.
 	private Map<ObjectIdentifier, CatalogBaseTable> temporaryTables;
 
 	// The name of the current catalog and database

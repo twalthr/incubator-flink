@@ -34,11 +34,12 @@ import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.typeutils.{RowDataTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.logical.TimestampType
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-
 import java.util
+
+import org.apache.flink.table.types.utils.DataTypeUtils
+import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 
 import scala.collection.JavaConversions._
 
@@ -185,7 +186,7 @@ class StreamExecLegacySink[T](
     }
 
     val resultDataType = sink.getConsumedDataType
-    if (CodeGenUtils.isInternalClass(resultDataType)) {
+    if (isInternal(resultDataType)) {
       parTransformation.asInstanceOf[Transformation[T]]
     } else {
       val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
