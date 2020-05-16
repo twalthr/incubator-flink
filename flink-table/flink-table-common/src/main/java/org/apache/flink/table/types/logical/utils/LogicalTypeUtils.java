@@ -90,6 +90,7 @@ public final class LogicalTypeUtils {
 			case MAP:
 				return MapData.class;
 			case ROW:
+			case STRUCTURED_TYPE:
 				return RowData.class;
 			case DISTINCT_TYPE:
 				return toInternalConversionClass(((DistinctType) type).getSourceType());

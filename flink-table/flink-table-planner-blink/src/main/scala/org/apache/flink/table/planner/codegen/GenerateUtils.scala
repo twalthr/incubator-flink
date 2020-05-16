@@ -38,6 +38,8 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount
 import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
 
 import scala.collection.mutable
@@ -688,16 +690,22 @@ object GenerateUtils {
       t: LogicalType,
       nullsIsLast: Boolean,
       leftTerm: String,
-      rightTerm: String): String = t.getTypeRoot match {
-    case BOOLEAN => s"($leftTerm == $rightTerm ? 0 : ($leftTerm ? 1 : -1))"
-    case DATE | TIME_WITHOUT_TIME_ZONE =>
-      s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
-    case _ if PlannerTypeUtils.isPrimitive(t) =>
-      s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
-    case VARBINARY | BINARY =>
+      rightTerm: String)
+    : String = t.getTypeRoot match {
+    // ordered by type root definition
+    case CHAR | VARCHAR | DECIMAL | TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+      s"$leftTerm.compareTo($rightTerm)"
+    case BOOLEAN =>
+      s"($leftTerm == $rightTerm ? 0 : ($leftTerm ? 1 : -1))"
+    case BINARY | VARBINARY =>
       val sortUtil = classOf[org.apache.flink.table.runtime.operators.sort.SortUtil]
         .getCanonicalName
       s"$sortUtil.compareBinary($leftTerm, $rightTerm)"
+    case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DATE | TIME_WITHOUT_TIME_ZONE |
+         INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME =>
+      s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
+    case TIMESTAMP_WITH_TIME_ZONE | MULTISET | MAP =>
+      throw new UnsupportedOperationException() // TODO support MULTISET and MAP?
     case ARRAY =>
       val at = t.asInstanceOf[ArrayType]
       val compareFunc = newName("compareArray")
@@ -714,12 +722,12 @@ object GenerateUtils {
       ctx.addReusableMember(funcCode)
       s"$compareFunc($leftTerm, $rightTerm)"
     case ROW | STRUCTURED_TYPE =>
-      val rowType = t.asInstanceOf[RowType]
-      val orders = (0 until rowType.getFieldCount).map(_ => true).toArray
+      val fieldCount = getFieldCount(t)
+      val orders = (0 until fieldCount).map(_ => true).toArray
       val comparisons = generateRowCompare(
         ctx,
-        (0 until rowType.getFieldCount).toArray,
-        rowType.getChildren.toArray(Array[LogicalType]()),
+        (0 until fieldCount).toArray,
+        t.getChildren.toArray(Array[LogicalType]()),
         orders,
         SortUtil.getNullDefaultOrders(orders),
         "a",
@@ -734,10 +742,21 @@ object GenerateUtils {
         """
       ctx.addReusableMember(funcCode)
       s"$compareFunc($leftTerm, $rightTerm)"
+    case DISTINCT_TYPE =>
+      generateCompare(
+        ctx,
+        t.asInstanceOf[DistinctType].getSourceType,
+        nullsIsLast,
+        leftTerm,
+        rightTerm)
     case RAW =>
-      val rawType = t.asInstanceOf[TypeInformationRawType[_]]
-      val ser = ctx.addReusableObject(
-        rawType.getTypeInformation.createSerializer(new ExecutionConfig), "serializer")
+      t match {
+        case rt: RawType[_] =>
+          rt.getTypeSerializer
+        case ti: TypeInformationRawType[_] =>
+          ti.getTypeInformation.createSerializer(new ExecutionConfig)
+      }
+      val ser = ctx.addReusableObject(serializer, "serializer")
       val comp = ctx.addReusableObject(
         rawType.getTypeInformation.asInstanceOf[AtomicTypeInfo[_]]
             .createComparator(true, new ExecutionConfig),
@@ -745,7 +764,7 @@ object GenerateUtils {
       s"""
          |$comp.compare($leftTerm.toObject($ser), $rightTerm.toObject($ser))
        """.stripMargin
-    case other => s"$leftTerm.compareTo($rightTerm)"
+    case other =>
   }
 
   /**

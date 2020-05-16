@@ -678,7 +678,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 
       case None =>
         val term = newName("typeSerializer")
-        val ser = InternalSerializers.create(t, new ExecutionConfig)
+        val ser = InternalSerializers.create(t)
         addReusableObjectInternal(ser, term, ser.getClass.getCanonicalName)
         reusableTypeSerializers(t) = term
         term

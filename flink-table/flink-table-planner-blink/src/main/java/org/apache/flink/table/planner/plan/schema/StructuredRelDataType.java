@@ -1,7 +1,3 @@
-<<<<<<< Updated upstream
-package org.apache.flink.table.planner.plan.schema;
-
-=======
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -23,15 +19,11 @@ package org.apache.flink.table.planner.plan.schema;
 package org.apache.flink.table.planner.plan.schema;
 
 import org.apache.flink.annotation.Internal;
->>>>>>> Stashed changes
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 
-<<<<<<< Updated upstream
-=======
 import org.apache.calcite.rel.type.RelDataType;
->>>>>>> Stashed changes
 import org.apache.calcite.rel.type.RelDataTypeComparability;
 import org.apache.calcite.rel.type.RelDataTypeFamily;
 import org.apache.calcite.rel.type.RelDataTypeField;
