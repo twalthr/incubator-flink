@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
 
 /**
@@ -61,7 +62,7 @@ public final class DataTypeUtils {
 	 * Checks whether a given data type is an internal data structure.
 	 */
 	public static boolean isInternal(DataType dataType) {
-		final Class<?> clazz = dataType.getConversionClass();
+		final Class<?> clazz = primitiveToWrapper(dataType.getConversionClass());
 		return RowData.class.isAssignableFrom(clazz) ||
 			clazz == LogicalTypeUtils.toInternalConversionClass(dataType.getLogicalType());
 	}
