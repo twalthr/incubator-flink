@@ -34,14 +34,13 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.CurrentTimePointCallGen
 import org.apache.flink.table.planner.plan.utils.SortUtil
-import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount
 import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 /**
@@ -211,39 +210,47 @@ object GenerateUtils {
   /**
     * Generates a record declaration statement. The record can be any type of RowData or
     * other types.
+ *
     * @param t  the record type
     * @param clazz  the specified class of the type (only used when RowType)
     * @param recordTerm the record term to be declared
     * @param recordWriterTerm the record writer term (only used when BinaryRowData type)
     * @return the record declaration statement
-    */
+   */
+  @tailrec
   def generateRecordStatement(
       t: LogicalType,
       clazz: Class[_],
       recordTerm: String,
-      recordWriterTerm: Option[String] = None): String = {
-    t match {
-      case rt: RowType if clazz == classOf[BinaryRowData] =>
-        val writerTerm = recordWriterTerm.getOrElse(
-          throw new CodeGenException("No writer is specified when writing BinaryRowData record.")
-        )
-        val binaryRowWriter = className[BinaryRowWriter]
-        val typeTerm = clazz.getCanonicalName
-        s"""
-           |final $typeTerm $recordTerm = new $typeTerm(${rt.getFieldCount});
-           |final $binaryRowWriter $writerTerm = new $binaryRowWriter($recordTerm);
-           |""".stripMargin.trim
-      case rt: RowType if clazz == classOf[GenericRowData] ||
-          clazz == classOf[BoxedWrapperRowData] =>
-        val typeTerm = clazz.getCanonicalName
-        s"final $typeTerm $recordTerm = new $typeTerm(${rt.getFieldCount});"
-      case _: RowType if clazz == classOf[JoinedRowData] =>
-        val typeTerm = clazz.getCanonicalName
-        s"final $typeTerm $recordTerm = new $typeTerm();"
-      case _ =>
-        val typeTerm = boxedTypeTermForType(t)
-        s"final $typeTerm $recordTerm = new $typeTerm();"
-    }
+      recordWriterTerm: Option[String] = None)
+    : String = t.getTypeRoot match {
+    // ordered by type root definition
+    case ROW | STRUCTURED_TYPE if clazz == classOf[BinaryRowData] =>
+      val writerTerm = recordWriterTerm.getOrElse(
+        throw new CodeGenException("No writer is specified when writing BinaryRowData record.")
+      )
+      val binaryRowWriter = className[BinaryRowWriter]
+      val typeTerm = clazz.getCanonicalName
+      s"""
+         |final $typeTerm $recordTerm = new $typeTerm(${getFieldCount(t)});
+         |final $binaryRowWriter $writerTerm = new $binaryRowWriter($recordTerm);
+         |""".stripMargin.trim
+    case ROW | STRUCTURED_TYPE if clazz == classOf[GenericRowData] ||
+        clazz == classOf[BoxedWrapperRowData] =>
+      val typeTerm = clazz.getCanonicalName
+      s"final $typeTerm $recordTerm = new $typeTerm(${getFieldCount(t)});"
+    case ROW | STRUCTURED_TYPE if clazz == classOf[JoinedRowData] =>
+      val typeTerm = clazz.getCanonicalName
+      s"final $typeTerm $recordTerm = new $typeTerm();"
+    case DISTINCT_TYPE =>
+      generateRecordStatement(
+        t.asInstanceOf[DistinctType].getSourceType,
+        clazz,
+        recordTerm,
+        recordWriterTerm)
+    case _ =>
+      val typeTerm = boxedTypeTermForType(t)
+      s"final $typeTerm $recordTerm = new $typeTerm();"
   }
 
   def generateNullLiteral(
@@ -275,6 +282,7 @@ object GenerateUtils {
       literalValue = Some(literalValue))
   }
 
+  @tailrec
   def generateLiteral(
       ctx: CodeGeneratorContext,
       literalType: LogicalType,
@@ -284,9 +292,40 @@ object GenerateUtils {
     }
     // non-null values
     literalType.getTypeRoot match {
+      // ordered by type root definition
+      case CHAR | VARCHAR =>
+        val escapedValue = StringEscapeUtils.ESCAPE_JAVA.translate(literalValue.toString)
+        val field = ctx.addReusableStringConstants(escapedValue)
+        generateNonNullLiteral(literalType, field, StringData.fromString(escapedValue))
 
       case BOOLEAN =>
         generateNonNullLiteral(literalType, literalValue.toString, literalValue)
+
+      case BINARY | VARBINARY =>
+        val bytesVal = literalValue.asInstanceOf[ByteString].getBytes
+        val fieldTerm = ctx.addReusableObject(
+          bytesVal, "binary", bytesVal.getClass.getCanonicalName)
+        generateNonNullLiteral(literalType, fieldTerm, bytesVal)
+
+      case DECIMAL =>
+        val dt = literalType.asInstanceOf[DecimalType]
+        val precision = dt.getPrecision
+        val scale = dt.getScale
+        val fieldTerm = newName("decimal")
+        val decimalClass = className[DecimalData]
+        val fieldDecimal =
+          s"""
+             |$decimalClass $fieldTerm =
+             |    $DECIMAL_UTIL.castFrom("${literalValue.toString}", $precision, $scale);
+             |""".stripMargin
+        ctx.addReusableMember(fieldDecimal)
+        val value = DecimalData.fromBigDecimal(
+          literalValue.asInstanceOf[JBigDecimal], precision, scale)
+        if (value == null) {
+          generateNullLiteral(literalType, ctx.nullCheck)
+        } else {
+          generateNonNullLiteral(literalType, fieldTerm, value)
+        }
 
       case TINYINT =>
         val decimal = BigDecimal(literalValue.asInstanceOf[JBigDecimal])
@@ -337,36 +376,6 @@ object GenerateUtils {
           case _ => generateNonNullLiteral(
             literalType, doubleValue.toString + "d", doubleValue)
         }
-      case DECIMAL =>
-        val dt = literalType.asInstanceOf[DecimalType]
-        val precision = dt.getPrecision
-        val scale = dt.getScale
-        val fieldTerm = newName("decimal")
-        val decimalClass = className[DecimalData]
-        val fieldDecimal =
-          s"""
-             |$decimalClass $fieldTerm =
-             |    $DECIMAL_UTIL.castFrom("${literalValue.toString}", $precision, $scale);
-             |""".stripMargin
-        ctx.addReusableMember(fieldDecimal)
-        val value = DecimalData.fromBigDecimal(
-          literalValue.asInstanceOf[JBigDecimal], precision, scale)
-        if (value == null) {
-          generateNullLiteral(literalType, ctx.nullCheck)
-        } else {
-          generateNonNullLiteral(literalType, fieldTerm, value)
-        }
-
-      case VARCHAR | CHAR =>
-        val escapedValue = StringEscapeUtils.ESCAPE_JAVA.translate(literalValue.toString)
-        val field = ctx.addReusableStringConstants(escapedValue)
-        generateNonNullLiteral(literalType, field, StringData.fromString(escapedValue))
-
-      case VARBINARY | BINARY =>
-        val bytesVal = literalValue.asInstanceOf[ByteString].getBytes
-        val fieldTerm = ctx.addReusableObject(
-          bytesVal, "binary", bytesVal.getClass.getCanonicalName)
-        generateNonNullLiteral(literalType, fieldTerm, bytesVal)
 
       case DATE =>
         generateNonNullLiteral(literalType, literalValue.toString, literalValue)
@@ -385,6 +394,9 @@ object GenerateUtils {
            """.stripMargin
         ctx.addReusableMember(fieldTimestamp)
         generateNonNullLiteral(literalType, fieldTerm, ts)
+
+      case TIMESTAMP_WITH_TIME_ZONE =>
+        throw new UnsupportedOperationException()
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val fieldTerm = newName("timestampWithLocalZone")
@@ -422,13 +434,19 @@ object GenerateUtils {
             s"Decimal '$decimal' can not be converted to interval of milliseconds.")
         }
 
+      case DISTINCT_TYPE =>
+        generateLiteral(ctx, literalType.asInstanceOf[DistinctType].getSourceType, literalValue)
+
       // Symbol type for special flags e.g. TRIM's BOTH, LEADING, TRAILING
       case RAW if literalType.asInstanceOf[TypeInformationRawType[_]]
           .getTypeInformation.getTypeClass.isAssignableFrom(classOf[Enum[_]]) =>
         generateSymbol(literalValue.asInstanceOf[Enum[_]])
 
-      case t@_ =>
-        throw new CodeGenException(s"Type not supported: $t")
+      case SYMBOL =>
+        throw new UnsupportedOperationException() // TODO support symbol?
+
+      case ARRAY | MULTISET | MAP | ROW | STRUCTURED_TYPE | NULL | UNRESOLVED =>
+        throw new CodeGenException(s"Type not supported: $literalType")
     }
   }
 
@@ -548,10 +566,15 @@ object GenerateUtils {
     index: Int,
     deepCopy: Boolean = false): GeneratedExpression = {
 
-    val fieldType = inputType match {
-      case ct: RowType => ct.getTypeAt(index)
-      case _ => inputType
+    @tailrec
+    def getFieldType(t: LogicalType, pos: Int): LogicalType = t.getTypeRoot match {
+      // ordered by type root definition
+      case ROW | STRUCTURED_TYPE => t.getChildren.get(pos)
+      case DISTINCT_TYPE => getFieldType(t.asInstanceOf[DistinctType].getSourceType, pos)
+      case _ => t
     }
+
+    val fieldType = getFieldType(inputType, index)
     val resultTypeTerm = primitiveTypeTermForType(fieldType)
     val defaultValue = primitiveDefaultValue(fieldType)
     val Seq(resultTerm, nullTerm) = ctx.addReusableLocalVariables(
@@ -638,14 +661,16 @@ object GenerateUtils {
     }
   }
 
+  @tailrec
   def generateFieldAccess(
       ctx: CodeGeneratorContext,
       inputType: LogicalType,
       inputTerm: String,
-      index: Int): GeneratedExpression =
-    inputType match {
-      case ct: RowType =>
-        val fieldType = ct.getTypeAt(index)
+      index: Int)
+    : GeneratedExpression = inputType.getTypeRoot match {
+      // ordered by type root definition
+      case ROW | STRUCTURED_TYPE =>
+        val fieldType = inputType.getChildren.get(index)
         val resultTypeTerm = primitiveTypeTermForType(fieldType)
         val defaultValue = primitiveDefaultValue(fieldType)
         val readCode = rowFieldReadAccess(ctx, index.toString, inputTerm, fieldType)
@@ -683,8 +708,9 @@ object GenerateUtils {
     }
 
   /**
-    * Generates code for comparing two field.
+    * Generates code for comparing two fields.
     */
+  @tailrec
   def generateCompare(
       ctx: CodeGeneratorContext,
       t: LogicalType,
@@ -751,20 +777,29 @@ object GenerateUtils {
         rightTerm)
     case RAW =>
       t match {
-        case rt: RawType[_] =>
-          rt.getTypeSerializer
-        case ti: TypeInformationRawType[_] =>
-          ti.getTypeInformation.createSerializer(new ExecutionConfig)
+        case rawType: RawType[_] =>
+          val clazz = rawType.getOriginatingClass
+          if (!classOf[Comparable[_]].isAssignableFrom(clazz)) {
+            throw new CodeGenException(
+              s"Raw type class '$clazz' must implement ${className[Comparable[_]]} to be used " +
+                s"in a comparision of two '${rawType.asSummaryString()}' types.")
+          }
+          val serializer = rawType.getTypeSerializer
+          val serializerTerm = ctx.addReusableObject(serializer, "serializer")
+          s"((${className[Comparable[_]]}) $leftTerm.toObject($serializerTerm))" +
+            s".compareTo($rightTerm.toObject($serializerTerm)))"
+
+        case rawType: TypeInformationRawType[_] =>
+          val serializer = rawType.getTypeInformation.createSerializer(new ExecutionConfig)
+          val ser = ctx.addReusableObject(serializer, "serializer")
+          val comp = ctx.addReusableObject(
+            rawType.getTypeInformation.asInstanceOf[AtomicTypeInfo[_]]
+              .createComparator(true, new ExecutionConfig),
+          "comparator")
+          s"$comp.compare($leftTerm.toObject($ser), $rightTerm.toObject($ser))"
       }
-      val ser = ctx.addReusableObject(serializer, "serializer")
-      val comp = ctx.addReusableObject(
-        rawType.getTypeInformation.asInstanceOf[AtomicTypeInfo[_]]
-            .createComparator(true, new ExecutionConfig),
-        "comparator")
-      s"""
-         |$comp.compare($leftTerm.toObject($ser), $rightTerm.toObject($ser))
-       """.stripMargin
-    case other =>
+    case NULL | SYMBOL | UNRESOLVED =>
+      throw new IllegalArgumentException()
   }
 
   /**

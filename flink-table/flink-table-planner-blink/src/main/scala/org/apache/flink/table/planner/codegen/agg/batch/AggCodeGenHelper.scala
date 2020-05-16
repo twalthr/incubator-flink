@@ -39,11 +39,12 @@ import org.apache.flink.table.runtime.types.InternalSerializers
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.types.logical.{LogicalType, RowType}
-
+import org.apache.flink.table.types.logical.{DistinctType, LogicalType, RowType}
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
+
+import scala.annotation.tailrec
 
 /**
   * Batch aggregate code generate helper.
@@ -360,16 +361,21 @@ object AggCodeGenHelper {
 
     aggBufferExprs.zip(initAggBufferExprs).map {
       case (aggBufVar, initExpr) =>
-        val resultCode = aggBufVar.resultType.getTypeRoot match {
-          case VARCHAR | CHAR | ROW | ARRAY | MULTISET | MAP =>
-            val serializer = InternalSerializers.create(
-              aggBufVar.resultType, new ExecutionConfig)
+
+        @tailrec
+        def getResultCode(t: LogicalType): String = t.getTypeRoot match {
+          case CHAR | VARCHAR | ARRAY | MULTISET | MAP | ROW | STRUCTURED_TYPE =>
+            val serializer = InternalSerializers.create(t)
             val term = ctx.addReusableObject(
               serializer, "serializer", serializer.getClass.getCanonicalName)
-            val typeTerm = boxedTypeTermForType(aggBufVar.resultType)
+            val typeTerm = boxedTypeTermForType(t)
             s"($typeTerm) $term.copy(${initExpr.resultTerm})"
+          case DISTINCT_TYPE =>
+            getResultCode(t.asInstanceOf[DistinctType].getSourceType)
           case _ => initExpr.resultTerm
         }
+
+        val resultCode = getResultCode(aggBufVar.resultType)
         s"""
            |${initExpr.code}
            |${aggBufVar.nullTerm} = ${initExpr.nullTerm};
