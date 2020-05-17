@@ -33,8 +33,6 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.ObjectSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -101,11 +99,7 @@ public final class StructuredRelDataType extends ObjectSqlType {
 			}
 			// in case of inline structured type we are using a temporary identifier
 			else {
-				sb.append("$");
-				sb.append(
-					structuredType.getImplementationClass()
-						.orElseThrow(IllegalStateException::new)
-						.getName());
+				sb.append(structuredType.asSummaryString());
 				if (structuredType.isNullable()) {
 					sb.append(" NOT NULL");
 				}
@@ -122,10 +116,10 @@ public final class StructuredRelDataType extends ObjectSqlType {
 		digest = sb.toString();
 	}
 
-	private static @Nullable SqlIdentifier createSqlIdentifier(StructuredType structuredType) {
+	private static SqlIdentifier createSqlIdentifier(StructuredType structuredType) {
 		return structuredType.getObjectIdentifier()
 			.map(i -> new SqlIdentifier(i.toList(), SqlParserPos.ZERO))
-			.orElse(null);
+			.orElseGet(() -> new SqlIdentifier(structuredType.asSummaryString(), SqlParserPos.ZERO));
 	}
 
 	private static RelDataTypeComparability createRelDataTypeComparability(StructuredType structuredType) {
