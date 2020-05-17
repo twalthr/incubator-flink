@@ -328,20 +328,6 @@ public final class StructuredType extends UserDefinedType {
 		return Optional.ofNullable(implementationClass);
 	}
 
-	/**
-	 * Converts this structured type into a {@link RowType}.
-	 *
-	 * <p>The returned type preserves attribute names, types, and their description. However, it does
-	 * not retain structured type specific information such as object identifier or implementation class.
-	 */
-	RowType toRowType() {
-		return new RowType(
-			isNullable(),
-			attributes.stream()
-				.map(a -> new RowType.RowField(a.name, a.type, a.description))
-				.collect(Collectors.toList()));
-	}
-
 	@Override
 	public LogicalType copy(boolean isNullable) {
 		return new StructuredType(

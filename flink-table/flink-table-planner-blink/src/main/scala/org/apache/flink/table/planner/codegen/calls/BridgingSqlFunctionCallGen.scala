@@ -33,13 +33,15 @@ import org.apache.flink.table.types.extraction.ExtractionUtils.{createMethodSign
 import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isCompositeType}
-import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
+import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType, StructuredType}
 import org.apache.flink.util.Preconditions
 import org.apache.calcite.rex.{RexCall, RexCallBinding}
 import java.lang.reflect.Method
 import java.util.Collections
 
 import org.apache.flink.table.types.extraction.ExtractionUtils
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toRowType
 
 /**
  * Generates a call to a user-defined [[ScalarFunction]] or [[TableFunction]].
@@ -110,15 +112,15 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
 
     if (function.getDefinition.getKind == FunctionKind.TABLE) {
       Preconditions.checkState(
-        hasRoot(returnType, LogicalTypeRoot.ROW),
-        "Logical output type of function call should be a ROW type.",
+        isCompositeType(returnType),
+        "Logical output type of function call should be a composite type.",
         Seq(): _*)
       generateTableFunctionCall(
         ctx,
         functionTerm,
         externalOperands,
         outputDataType,
-        returnType.asInstanceOf[RowType])
+        returnType)
     } else {
       generateScalarFunctionCall(ctx, functionTerm, externalOperands, outputDataType)
     }
@@ -129,7 +131,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       functionTerm: String,
       externalOperands: Seq[GeneratedExpression],
       functionOutputDataType: DataType,
-      outputType: RowType)
+      outputType: LogicalType)
     : GeneratedExpression = {
     val resultCollectorTerm = generateResultCollector(ctx, functionOutputDataType, outputType)
 
@@ -160,7 +162,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
   def generateResultCollector(
       ctx: CodeGeneratorContext,
       outputDataType: DataType,
-      returnType: RowType)
+      returnType: LogicalType)
     : String = {
     val outputType = outputDataType.getLogicalType
 
@@ -172,7 +174,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       val resultGenerator = new ExprCodeGenerator(collectorCtx, outputType.isNullable)
         .bindInput(outputType, externalResultTerm)
       val wrappedResult = resultGenerator.generateConverterResultExpression(
-        returnType,
+        returnType.asInstanceOf[RowType],
         classOf[GenericRowData])
       s"""
        |${wrappedResult.code}

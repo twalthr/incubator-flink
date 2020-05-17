@@ -776,6 +776,33 @@ public class FunctionITCase extends StreamingTestBase {
 	}
 
 	@Test
+	public void testStructuredTableFunction() {
+		final List<Row> sourceData = Arrays.asList(
+			Row.of("Bob", 42),
+			Row.of("Alice", 12),
+			Row.of(null, 0)
+		);
+
+		final List<Row> sinkData = Arrays.asList(
+			Row.of("Bob", 42),
+			Row.of("Alice", 12),
+			Row.of(null, 0)
+		);
+
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(sourceData);
+
+		tEnv().executeSql("CREATE TABLE SourceTable(s STRING, i INT NOT NULL) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s STRING, i INT NOT NULL) WITH ('connector' = 'COLLECTION')");
+
+		tEnv().createTemporarySystemFunction("StructuredTableFunction", StructuredTableFunction.class);
+		execInsertSqlAndWaitResult("INSERT INTO SinkTable SELECT t.name, t.age FROM SourceTable, LATERAL TABLE(StructuredTableFunction(s, i)) t");
+
+		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+	}
+
+
+	@Test
 	public void testDynamicTableFunction() throws Exception {
 		final Row[] sinkData = new Row[]{
 			Row.of("Test is a string"),
@@ -1053,6 +1080,15 @@ public class FunctionITCase extends StreamingTestBase {
 				return "<<null>>";
 			}
 			return user.name + " " + user.age;
+		}
+	}
+
+	public static class StructuredTableFunction extends TableFunction<StructuredUser> {
+		public void eval(String name, int age) {
+			if (name == null) {
+				collect(null);
+			}
+			collect(new StructuredUser(name, age));
 		}
 	}
 

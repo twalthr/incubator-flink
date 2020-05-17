@@ -29,8 +29,13 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+
+import java.util.stream.Collectors;
 
 /**
  * Utilities for handling {@link LogicalType}s.
@@ -99,6 +104,29 @@ public final class LogicalTypeUtils {
 			case NULL:
 			case SYMBOL:
 			case UNRESOLVED:
+			default:
+				throw new IllegalArgumentException();
+		}
+	}
+
+	/**
+	 * Converts the given composite type to a {@link RowType}.
+	 *
+	 * @see LogicalTypeChecks#isCompositeType(LogicalType)
+	 */
+	public static RowType toRowType(LogicalType type) {
+		switch (type.getTypeRoot()) {
+			case ROW:
+				return (RowType) type;
+			case STRUCTURED_TYPE:
+				final StructuredType structuredType = (StructuredType) type;
+				return new RowType(
+					structuredType.isNullable(),
+					structuredType.getAttributes().stream()
+						.map(a -> new RowField(a.getName(), a.getType(), a.getDescription().orElse(null)))
+						.collect(Collectors.toList()));
+			case DISTINCT_TYPE:
+				return toRowType(((DistinctType) type).getSourceType());
 			default:
 				throw new IllegalArgumentException();
 		}
