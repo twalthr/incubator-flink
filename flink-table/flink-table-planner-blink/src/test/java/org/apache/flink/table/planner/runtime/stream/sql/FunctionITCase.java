@@ -801,7 +801,6 @@ public class FunctionITCase extends StreamingTestBase {
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
 
-
 	@Test
 	public void testDynamicTableFunction() throws Exception {
 		final Row[] sinkData = new Row[]{
