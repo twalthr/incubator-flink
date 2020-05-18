@@ -1072,7 +1072,7 @@ public class FunctionITCase extends StreamingTestBase {
 			if (name == null) {
 				return null;
 			}
-			return new StructuredUser(name, age, null);
+			return new StructuredUser(name, age);
 		}
 
 		public String eval(StructuredUser user) {
@@ -1088,24 +1088,22 @@ public class FunctionITCase extends StreamingTestBase {
 			if (name == null) {
 				collect(null);
 			}
-			collect(new StructuredUser(name, age, null));
+			collect(new StructuredUser(name, age));
 		}
 	}
 
 	public static class StructuredUser {
 		public final String name;
 		public final int age;
-		public final StructuredUser nested;
 
-		public StructuredUser(String name, int age, StructuredUser nested) {
+		public StructuredUser(String name, int age) {
 			this.name = name;
 			this.age = age;
-			this.nested = nested;
 		}
 
 		@Override
 		public String toString() {
-			return name + " " + age + " " + nested;
+			return name + " " + age;
 		}
 	}
 }
