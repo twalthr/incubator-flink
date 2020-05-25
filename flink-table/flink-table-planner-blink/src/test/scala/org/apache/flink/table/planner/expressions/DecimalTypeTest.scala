@@ -18,29 +18,14 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
-import org.apache.flink.table.types.logical.DecimalType
+import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
-
 import org.junit.{Ignore, Test}
 
 class DecimalTypeTest extends ExpressionTestBase {
-
-  private def DECIMAL = (p: Int, s: Int) => new DecimalType(p, s)
-
-  private def BOOL = DataTypes.BOOLEAN.getLogicalType
-
-  private def INT = DataTypes.INT.getLogicalType
-
-  private def LONG = DataTypes.BIGINT.getLogicalType
-
-  private def DOUBLE = DataTypes.DOUBLE.getLogicalType
-
-  private def STRING = DataTypes.STRING.getLogicalType
 
   @Test
   def testDecimalLiterals(): Unit = {
@@ -83,48 +68,40 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       Double.MaxValue,
       Double.MaxValue.toString,
-      Double.MaxValue.toString,
       Double.MaxValue.toString)
 
     testAllApis(
       Double.MinValue,
       Double.MinValue.toString,
-      Double.MinValue.toString,
       Double.MinValue.toString)
 
     testAllApis(
       Double.MinValue.cast(DataTypes.FLOAT),
-      s"${Double.MinValue}.cast(FLOAT)",
       s"CAST(${Double.MinValue} AS FLOAT)",
       Float.NegativeInfinity.toString)
 
     testAllApis(
       Byte.MinValue.cast(DataTypes.TINYINT),
-      s"(${Byte.MinValue}).cast(BYTE)",
       s"CAST(${Byte.MinValue} AS TINYINT)",
       Byte.MinValue.toString)
 
     testAllApis(
       Byte.MinValue.cast(DataTypes.TINYINT) - 1.cast(DataTypes.TINYINT),
-      s"(${Byte.MinValue}).cast(BYTE) - (1).cast(BYTE)",
       s"CAST(${Byte.MinValue} AS TINYINT) - CAST(1 AS TINYINT)",
       Byte.MaxValue.toString)
 
     testAllApis(
       Short.MinValue.cast(DataTypes.SMALLINT),
-      s"(${Short.MinValue}).cast(SHORT)",
       s"CAST(${Short.MinValue} AS SMALLINT)",
       Short.MinValue.toString)
 
     testAllApis(
       Int.MinValue.cast(DataTypes.INT) - 1,
-      s"(${Int.MinValue}).cast(INT) - 1",
       s"CAST(${Int.MinValue} AS INT) - 1",
       Int.MaxValue.toString)
 
     testAllApis(
       Long.MinValue.cast(DataTypes.BIGINT()),
-      s"(${Long.MinValue}L).cast(LONG)",
       s"CAST(${Long.MinValue} AS BIGINT)",
       Long.MinValue.toString)
   }
@@ -132,7 +109,7 @@ class DecimalTypeTest extends ExpressionTestBase {
   @Ignore
   @Test
   def testDefaultDecimalCasting(): Unit = {
-//    // from String
+    // from String
     testTableApi(
       "123456789123456789123456789".cast(DataTypes.DECIMAL(38, 0)),
       "'123456789123456789123456789'.cast(DECIMAL)",
@@ -156,38 +133,23 @@ class DecimalTypeTest extends ExpressionTestBase {
     // to double
     testAllApis(
       'f0.cast(DataTypes.DOUBLE),
-      "f0.cast(DOUBLE)",
       "CAST(f0 AS DOUBLE)",
       "1.2345678912345679E8")
 
     // to int
     testAllApis(
       'f4.cast(DataTypes.INT),
-      "f4.cast(INT)",
       "CAST(f4 AS INT)",
       "123456789")
 
     // to long
     testAllApis(
       'f4.cast(DataTypes.BIGINT()),
-      "f4.cast(LONG)",
       "CAST(f4 AS BIGINT)",
       "123456789")
 
-    // to boolean (not SQL compliant)
-    testTableApi(
-      'f1.cast(DataTypes.BOOLEAN),
-      "f1.cast(BOOLEAN)",
-      "true")
-
-    testTableApi(
-      'f5.cast(DataTypes.BOOLEAN),
-      "f5.cast(BOOLEAN)",
-      "false")
-
     testTableApi(
       BigDecimal("123456789.123456789123456789").cast(DataTypes.DOUBLE),
-      "(123456789.123456789123456789p).cast(DOUBLE)",
       "1.2345678912345679E8")
 
     // testing padding behaviour
@@ -1236,8 +1198,6 @@ class DecimalTypeTest extends ExpressionTestBase {
     testData.setField(3, 4.2)
     testData.setField(4, BigDecimal("123456789").bigDecimal)
     testData.setField(5, BigDecimal("0.000").bigDecimal)
-
-    //convert ITCase to unit Test
     testData.setField(6, BigDecimal("123").bigDecimal)
     testData.setField(7, BigDecimal("123.45").bigDecimal)
     testData.setField(8, BigDecimal("100.004").bigDecimal)
@@ -1299,93 +1259,86 @@ class DecimalTypeTest extends ExpressionTestBase {
     testData.setField(64, BigDecimal("1").bigDecimal)
     testData.setField(65, 1)
     testData.setField(66, 1.0)
-
     testData.setField(67, BigDecimal("1").bigDecimal)
     testData.setField(68, BigDecimal("99").bigDecimal)
     testData.setField(69, 99)
     testData.setField(70, 99.0)
-
-
-
     testData
   }
 
-  override def typeInfo: RowTypeInfo = {
-    new RowTypeInfo(
-      /* 0 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 18)),
-      /* 1 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 0)),
-      /* 2 */ Types.INT(),
-      /* 3 */ Types.DOUBLE(),
-      /* 4 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 0)),
-      /* 5 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 3)),
-
-      //convert ITCase to unit Test
-      /* 6 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 0)),
-      /* 7 */ fromLogicalTypeToTypeInfo(DECIMAL(7, 2)),
-      /* 8 */ fromLogicalTypeToTypeInfo(DECIMAL(7, 2)),
-      /* 9 */ fromLogicalTypeToTypeInfo(DECIMAL(7, 2)),
-      /* 10 */ fromLogicalTypeToTypeInfo(DECIMAL(5, 2)),
-      /* 11 */ fromLogicalTypeToTypeInfo(DECIMAL(2, 0)),
-      /* 12 */ fromLogicalTypeToTypeInfo(DECIMAL(4, 2)),
-      /* 13 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 14 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 4)),
-      /* 15 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 10)),
-      /* 16 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 28)),
-      /* 17 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 10)),
-      /* 18 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 28)),
-      /* 19 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 0)),
-      /* 20 */ fromLogicalTypeToTypeInfo(DECIMAL(5, 2)),
-      /* 21 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 4)),
-      /* 22 */ Types.INT(),
-      /* 23 */ Types.DOUBLE(),
-      /* 24 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 6)),
-      /* 25 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 10)),
-      /* 26 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 20)),
-      /* 27 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 10)),
-      /* 28 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 10)),
-      /* 29 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 0)),
-      /* 30 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 20)),
-      /* 31 */ fromLogicalTypeToTypeInfo(DECIMAL(20, 2)),
-      /* 32 */ fromLogicalTypeToTypeInfo(DECIMAL(2, 1)),
-      /* 33 */ fromLogicalTypeToTypeInfo(DECIMAL(4, 3)),
-      /* 34 */ fromLogicalTypeToTypeInfo(DECIMAL(20, 10)),
-      /* 35 */ fromLogicalTypeToTypeInfo(DECIMAL(20, 16)),
-      /* 36 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 37 */ Types.INT(),
-      /* 38 */ Types.DOUBLE(),
-      /* 39 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 0)),
-      /* 40 */ fromLogicalTypeToTypeInfo(DECIMAL(30, 20)),
-      /* 41 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 42 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 4)),
-      /* 43 */ Types.INT(),
-      /* 44 */ fromLogicalTypeToTypeInfo(DECIMAL(1, 0)),
-      /* 45 */ fromLogicalTypeToTypeInfo(DECIMAL(1, 0)),
-      /* 46 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 4)),
-      /* 47 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 48 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 49 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 50 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 3)),
-      /* 51 */ fromLogicalTypeToTypeInfo(DECIMAL(4, 2)),
-      /* 52 */ fromLogicalTypeToTypeInfo(DECIMAL(38, 0)),
-      /* 53 */ fromLogicalTypeToTypeInfo(DECIMAL(8, 4)),
-      /* 54 */ fromLogicalTypeToTypeInfo(DECIMAL(10, 2)),
-      /* 55 */ Types.STRING(),
-      /* 56 */ fromLogicalTypeToTypeInfo(DECIMAL(8, 2)),
-      /* 57 */ Types.DOUBLE(),
-      /* 58 */ Types.STRING(),
-      /* 59 */ Types.STRING(),
-      /* 60 */ fromLogicalTypeToTypeInfo(DECIMAL(4, 2)),
-      /* 61 */ Types.STRING(),
-      /* 62 */ Types.INT(),
-      /* 63 */ fromLogicalTypeToTypeInfo(DECIMAL(8, 2)),
-      /* 64 */ fromLogicalTypeToTypeInfo(DECIMAL(8, 4)),
-      /* 65 */ Types.INT(),
-      /* 66 */ Types.DOUBLE(),
-
-      /* 67 */ fromLogicalTypeToTypeInfo(DECIMAL(1, 0)),
-      /* 68 */ fromLogicalTypeToTypeInfo(DECIMAL(2, 0)),
-      /* 69 */ Types.INT(),
-      /* 70 */ Types.DOUBLE()
+  override def dataType: DataType = DataTypes.ROW(
+      /* 0 */ DataTypes.FIELD("f0", DataTypes.DECIMAL(30, 18)),
+      /* 1 */ DataTypes.FIELD("f1", DataTypes.DECIMAL(30, 0)),
+      /* 2 */ DataTypes.FIELD("f2", DataTypes.INT()),
+      /* 3 */ DataTypes.FIELD("f3", DataTypes.DOUBLE()),
+      /* 4 */ DataTypes.FIELD("f4", DataTypes.DECIMAL(10, 0)),
+      /* 5 */ DataTypes.FIELD("f5", DataTypes.DECIMAL(10, 3)),
+      /* 6 */ DataTypes.FIELD("f6", DataTypes.DECIMAL(10, 0)),
+      /* 7 */ DataTypes.FIELD("f7", DataTypes.DECIMAL(7, 2)),
+      /* 8 */ DataTypes.FIELD("f8", DataTypes.DECIMAL(7, 2)),
+      /* 9 */ DataTypes.FIELD("f9", DataTypes.DECIMAL(7, 2)),
+      /* 10 */ DataTypes.FIELD("f10", DataTypes.DECIMAL(5, 2)),
+      /* 11 */ DataTypes.FIELD("f11", DataTypes.DECIMAL(2, 0)),
+      /* 12 */ DataTypes.FIELD("f12", DataTypes.DECIMAL(4, 2)),
+      /* 13 */ DataTypes.FIELD("f13", DataTypes.DECIMAL(10, 2)),
+      /* 14 */ DataTypes.FIELD("f14", DataTypes.DECIMAL(10, 4)),
+      /* 15 */ DataTypes.FIELD("f15", DataTypes.DECIMAL(38, 10)),
+      /* 16 */ DataTypes.FIELD("f16", DataTypes.DECIMAL(38, 28)),
+      /* 17 */ DataTypes.FIELD("f17", DataTypes.DECIMAL(38, 10)),
+      /* 18 */ DataTypes.FIELD("f18", DataTypes.DECIMAL(38, 28)),
+      /* 19 */ DataTypes.FIELD("f19", DataTypes.DECIMAL(38, 0)),
+      /* 20 */ DataTypes.FIELD("f20", DataTypes.DECIMAL(5, 2)),
+      /* 21 */ DataTypes.FIELD("f21", DataTypes.DECIMAL(10, 4)),
+      /* 22 */ DataTypes.FIELD("f22", DataTypes.INT()),
+      /* 23 */ DataTypes.FIELD("f23", DataTypes.DOUBLE()),
+      /* 24 */ DataTypes.FIELD("f24", DataTypes.DECIMAL(30, 6)),
+      /* 25 */ DataTypes.FIELD("f25", DataTypes.DECIMAL(30, 10)),
+      /* 26 */ DataTypes.FIELD("f26", DataTypes.DECIMAL(30, 20)),
+      /* 27 */ DataTypes.FIELD("f27", DataTypes.DECIMAL(38, 10)),
+      /* 28 */ DataTypes.FIELD("f28", DataTypes.DECIMAL(38, 10)),
+      /* 29 */ DataTypes.FIELD("f29", DataTypes.DECIMAL(38, 0)),
+      /* 30 */ DataTypes.FIELD("f30", DataTypes.DECIMAL(30, 20)),
+      /* 31 */ DataTypes.FIELD("f31", DataTypes.DECIMAL(20, 2)),
+      /* 32 */ DataTypes.FIELD("f32", DataTypes.DECIMAL(2, 1)),
+      /* 33 */ DataTypes.FIELD("f33", DataTypes.DECIMAL(4, 3)),
+      /* 34 */ DataTypes.FIELD("f34", DataTypes.DECIMAL(20, 10)),
+      /* 35 */ DataTypes.FIELD("f35", DataTypes.DECIMAL(20, 16)),
+      /* 36 */ DataTypes.FIELD("f36", DataTypes.DECIMAL(10, 2)),
+      /* 37 */ DataTypes.FIELD("f37", DataTypes.INT()),
+      /* 38 */ DataTypes.FIELD("f38", DataTypes.DOUBLE()),
+      /* 39 */ DataTypes.FIELD("f39", DataTypes.DECIMAL(30, 0)),
+      /* 40 */ DataTypes.FIELD("f40", DataTypes.DECIMAL(30, 20)),
+      /* 41 */ DataTypes.FIELD("f41", DataTypes.DECIMAL(10, 2)),
+      /* 42 */ DataTypes.FIELD("f42", DataTypes.DECIMAL(10, 4)),
+      /* 43 */ DataTypes.FIELD("f43", DataTypes.INT()),
+      /* 44 */ DataTypes.FIELD("f44", DataTypes.DECIMAL(1, 0)),
+      /* 45 */ DataTypes.FIELD("f45", DataTypes.DECIMAL(1, 0)),
+      /* 46 */ DataTypes.FIELD("f46", DataTypes.DECIMAL(10, 4)),
+      /* 47 */ DataTypes.FIELD("f47", DataTypes.DECIMAL(10, 2)),
+      /* 48 */ DataTypes.FIELD("f48", DataTypes.DECIMAL(10, 2)),
+      /* 49 */ DataTypes.FIELD("f49", DataTypes.DECIMAL(10, 2)),
+      /* 50 */ DataTypes.FIELD("f50", DataTypes.DECIMAL(10, 3)),
+      /* 51 */ DataTypes.FIELD("f51", DataTypes.DECIMAL(4, 2)),
+      /* 52 */ DataTypes.FIELD("f52", DataTypes.DECIMAL(38, 0)),
+      /* 53 */ DataTypes.FIELD("f53", DataTypes.DECIMAL(8, 4)),
+      /* 54 */ DataTypes.FIELD("f54", DataTypes.DECIMAL(10, 2)),
+      /* 55 */ DataTypes.FIELD("f55", DataTypes.STRING()),
+      /* 56 */ DataTypes.FIELD("f56", DataTypes.DECIMAL(8, 2)),
+      /* 57 */ DataTypes.FIELD("f57", DataTypes.DOUBLE()),
+      /* 58 */ DataTypes.FIELD("f58", DataTypes.STRING()),
+      /* 59 */ DataTypes.FIELD("f59", DataTypes.STRING()),
+      /* 60 */ DataTypes.FIELD("f60", DataTypes.DECIMAL(4, 2)),
+      /* 61 */ DataTypes.FIELD("f61", DataTypes.STRING()),
+      /* 62 */ DataTypes.FIELD("f62", DataTypes.INT()),
+      /* 63 */ DataTypes.FIELD("f63", DataTypes.DECIMAL(8, 2)),
+      /* 64 */ DataTypes.FIELD("f64", DataTypes.DECIMAL(8, 4)),
+      /* 65 */ DataTypes.FIELD("f65", DataTypes.INT()),
+      /* 66 */ DataTypes.FIELD("f66", DataTypes.DOUBLE()),
+      /* 67 */ DataTypes.FIELD("f67", DataTypes.DECIMAL(1, 0)),
+      /* 68 */ DataTypes.FIELD("f68", DataTypes.DECIMAL(2, 0)),
+      /* 69 */ DataTypes.FIELD("f69", DataTypes.INT()),
+      /* 70 */ DataTypes.FIELD("f70", DataTypes.DOUBLE())
     )
-  }
+
+  override def hasLegacy: Boolean = false
 }

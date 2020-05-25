@@ -23,21 +23,6 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.UnresolvedException
 import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
-/**
-  * Flattening of composite types. All flattenings are resolved into
-  * `GetCompositeField` expressions.
-  */
-case class Flattening(child: PlannerExpression) extends UnaryExpression {
-
-  override def toString = s"$child.flatten()"
-
-  override private[flink] def resultType: TypeInformation[_] =
-    throw new UnresolvedException(s"Invalcall to on ${this.getClass}.")
-
-  override private[flink] def validateInput(): ValidationResult =
-    ValidationFailure(s"Unresolved flattening of $child")
-}
-
 case class GetCompositeField(child: PlannerExpression, key: Any) extends UnaryExpression {
 
   private var fieldIndex: Option[Int] = None

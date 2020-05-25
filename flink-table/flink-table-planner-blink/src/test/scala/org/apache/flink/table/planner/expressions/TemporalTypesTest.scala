@@ -209,68 +209,28 @@ class TemporalTypesTest extends ExpressionTestBase {
   def testTimePointCasting(): Unit = {
     testAllApis(
       'f0.cast(DataTypes.TIMESTAMP(3)),
-      "f0.cast(SQL_TIMESTAMP)",
       "CAST(f0 AS TIMESTAMP(3))",
       "1990-10-14 00:00:00.000")
 
     testAllApis(
       'f1.cast(DataTypes.TIMESTAMP(3)),
-      "f1.cast(SQL_TIMESTAMP)",
       "CAST(f1 AS TIMESTAMP(3))",
       "1970-01-01 10:20:45.000")
 
     testAllApis(
       'f2.cast(DataTypes.DATE),
-      "f2.cast(SQL_DATE)",
       "CAST(f2 AS DATE)",
       "1990-10-14")
 
     testAllApis(
       'f2.cast(DataTypes.TIME),
-      "f2.cast(SQL_TIME)",
       "CAST(f2 AS TIME)",
       "10:20:45")
 
     testAllApis(
       'f2.cast(DataTypes.TIME),
-      "f2.cast(SQL_TIME)",
       "CAST(f2 AS TIME)",
       "10:20:45")
-
-    testTableApi(
-      'f7.cast(DataTypes.DATE),
-      "f7.cast(SQL_DATE)",
-      "2002-11-09")
-
-    testTableApi(
-      'f7.cast(DataTypes.DATE).cast(DataTypes.INT),
-      "f7.cast(SQL_DATE).cast(INT)",
-      "12000")
-
-    testTableApi(
-      'f7.cast(DataTypes.TIME),
-      "f7.cast(SQL_TIME)",
-      "00:00:12")
-
-    testTableApi(
-      'f7.cast(DataTypes.TIME).cast(DataTypes.INT),
-      "f7.cast(SQL_TIME).cast(INT)",
-      "12000")
-
-    testTableApi(
-      'f15.cast(DataTypes.TIMESTAMP(3)),
-      "f15.cast(SQL_TIMESTAMP)",
-      "2016-06-27 07:23:33.000")
-
-    testTableApi(
-      'f15.toTimestamp,
-      "f15.toTimestamp",
-      "2016-06-27 07:23:33.000")
-
-    testTableApi(
-      'f8.cast(DataTypes.TIMESTAMP(3)).cast(DataTypes.BIGINT()),
-      "f8.cast(SQL_TIMESTAMP).cast(LONG)",
-      "1467012213000")
 
     testSqlApi(
       "CAST(CAST('123' as DECIMAL(5, 2)) AS TIMESTAMP)",
@@ -593,20 +553,6 @@ class TemporalTypesTest extends ExpressionTestBase {
       "-10.years + f2",
       "INTERVAL '-10' YEAR + f2",
       "1980-10-14 10:20:45.123")
-
-    // casting
-
-    testAllApis(
-      -'f9.cast(DataTypes.INTERVAL(DataTypes.MONTH)),
-      "-f9.cast(INTERVAL_MONTHS)",
-      "-CAST(f9 AS INTERVAL YEAR)",
-      "-2-00")
-
-    testAllApis(
-      -'f10.cast(DataTypes.INTERVAL(DataTypes.MINUTE())),
-      "-f10.cast(INTERVAL_MILLIS)",
-      "-CAST(f10 AS INTERVAL SECOND)",
-      "-0 00:00:12.000")
 
     // addition/subtraction of interval millis and interval months
 

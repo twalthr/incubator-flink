@@ -42,13 +42,13 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       definition, call.getChildren.asScala,
       () =>
         definition match {
-          case ROW | ARRAY | MAP => ApiResolvedCallExpression(call)
+          case ROW | ARRAY | MAP => ApiResolvedCallExpression(call.getOutputDataType)
           case _ =>
             if (definition.getKind == FunctionKind.AGGREGATE ||
               definition.getKind == FunctionKind.TABLE_AGGREGATE) {
               ApiResolvedAggregateCallExpression(call)
             } else {
-              ApiResolvedCallExpression(call)
+              ApiResolvedCallExpression(call.getOutputDataType)
             }
         })
   }
@@ -148,10 +148,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
               children.head.accept(this),
               fromDataTypeToLegacyInfo(
                 children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType))
-
-          case FLATTEN =>
-            assert(args.size == 1)
-            Flattening(args.head)
 
           case GET =>
             assert(args.size == 2)
@@ -803,7 +799,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   }
 
   override def visit(typeLiteral: TypeLiteralExpression): PlannerExpression = {
-    throw new TableException("Unsupported type literal expression: " + typeLiteral)
+    ApiResolvedCallExpression(typeLiteral.getOutputDataType)
   }
 
   override def visit(tableRef: TableReferenceExpression): PlannerExpression = {

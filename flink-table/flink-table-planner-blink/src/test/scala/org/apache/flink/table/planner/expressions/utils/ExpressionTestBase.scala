@@ -37,21 +37,21 @@ import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{RowType, VarCharType}
-import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.table.types.utils.{DataTypeUtils, TypeConversions}
 import org.apache.flink.types.Row
-
 import org.apache.calcite.plan.hep.{HepPlanner, HepProgramBuilder}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.logical.{LogicalCalc, LogicalTableScan}
+import org.apache.calcite.rel.logical.{LogicalCalc, LogicalTableScan, LogicalValues}
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
-
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{After, Before, Rule}
-
 import java.util.Collections
+
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
+import org.apache.flink.table.types.inference.TypeTransformations
 
 import scala.collection.mutable
 
@@ -86,8 +86,13 @@ abstract class ExpressionTestBase {
 
   @Before
   def prepare(): Unit = {
-    val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
-    tEnv.createTemporaryView(tableName, ds)
+    if (hasLegacy) {
+      val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
+      tEnv.createTemporaryView(tableName, ds)
+    } else {
+      tEnv.createTemporaryView(tableName, tEnv.fromValues(dataType))
+    }
+
     functions.foreach(f => tEnv.registerFunction(f._1, f._2))
 
     // prepare RelBuilder
@@ -100,7 +105,11 @@ abstract class ExpressionTestBase {
   @After
   def evaluateExprs(): Unit = {
     val ctx = CodeGeneratorContext(config)
-    val inputType = fromTypeInfoToLogicalType(typeInfo)
+    val inputType = if (hasLegacy) {
+      fromTypeInfoToLogicalType(typeInfo)
+    } else {
+      dataType.getLogicalType
+    }
     val exprGenerator = new ExprCodeGenerator(ctx, nullableInput = false).bindInput(inputType)
 
     // cast expressions to String
@@ -194,7 +203,8 @@ abstract class ExpressionTestBase {
     val optimized = hep.findBestExp()
 
     // throw exception if plan contains more than a calc
-    if (!optimized.getInput(0).isInstanceOf[LogicalTableScan]) {
+    if (!optimized.getInput(0).isInstanceOf[LogicalTableScan] &&
+        !optimized.getInput(0).isInstanceOf[LogicalValues]) {
       fail("Expression is converted into more than a Calc operation. Use a different test method.")
     }
 
@@ -215,6 +225,14 @@ abstract class ExpressionTestBase {
       expected: String): Unit = {
     addTableApiTestExpr(expr, expected)
     addTableApiTestExpr(exprString, expected)
+    addSqlTestExpr(sqlExpr, expected)
+  }
+
+  def testAllApis(
+      expr: Expression,
+      sqlExpr: String,
+      expected: String): Unit = {
+    addTableApiTestExpr(expr, expected)
     addSqlTestExpr(sqlExpr, expected)
   }
 
@@ -252,8 +270,10 @@ abstract class ExpressionTestBase {
 
   def testData: Row
 
-  def typeInfo: RowTypeInfo
+  def typeInfo: RowTypeInfo = fromDataTypeToTypeInfo(dataType).asInstanceOf[RowTypeInfo]
 
   def dataType: DataType = TypeConversions.fromLegacyInfoToDataType(typeInfo)
+
+  def hasLegacy: Boolean = true
 
 }
