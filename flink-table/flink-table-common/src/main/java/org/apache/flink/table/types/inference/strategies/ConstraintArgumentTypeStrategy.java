@@ -47,7 +47,6 @@ public final class ConstraintArgumentTypeStrategy implements ArgumentTypeStrateg
 		this.evaluator = evaluator;
 	}
 
-
 	@Override
 	public Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure) {
 		final List<DataType> actualDataTypes = callContext.getArgumentDataTypes();
