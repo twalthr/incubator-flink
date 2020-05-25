@@ -36,8 +36,10 @@ import java.util.Set;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 
 /**
@@ -892,7 +894,7 @@ public final class BuiltInFunctionDefinitions {
 			.kind(OTHER)
 			.inputTypeStrategy(
 				varyingSequence(
-					InputTypeStrategies.ANY,
+					or(OUTPUT_IF_NULL, InputTypeStrategies.ANY),
 					and(InputTypeStrategies.LITERAL, logical(LogicalTypeFamily.CHARACTER_STRING)),
 					and(InputTypeStrategies.LITERAL, logical(LogicalTypeFamily.CHARACTER_STRING))))
 			.outputTypeStrategy(TypeStrategies.argument(0))
