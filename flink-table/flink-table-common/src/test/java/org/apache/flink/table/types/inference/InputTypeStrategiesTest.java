@@ -52,6 +52,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL
 import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.WILDCARD;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.constraint;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.explicitSequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
@@ -547,7 +548,32 @@ public class InputTypeStrategiesTest {
 					DataTypes.VARCHAR(1),
 					DataTypes.TINYINT(),
 					DataTypes.DOUBLE(),
-					DataTypes.DOUBLE().notNull())
+					DataTypes.DOUBLE().notNull()),
+
+			TestSpec
+				.forStrategy(
+					"Constraint argument type strategy",
+					sequence(
+						and(
+							explicit(DataTypes.BOOLEAN()),
+							constraint(
+								"%s must be nullable.",
+								args -> args.get(0).getLogicalType().isNullable()))))
+				.calledWithArgumentTypes(DataTypes.BOOLEAN())
+				.expectSignature("f([BOOLEAN & <CONSTRAINT>])")
+				.expectArgumentTypes(DataTypes.BOOLEAN()),
+
+			TestSpec
+				.forStrategy(
+					"Constraint argument type strategy invalid",
+					sequence(
+						and(
+							explicit(DataTypes.BOOLEAN().notNull()),
+							constraint(
+								"My constraint says %s must be nullable.",
+								args -> args.get(0).getLogicalType().isNullable()))))
+				.calledWithArgumentTypes(DataTypes.BOOLEAN().notNull())
+				.expectErrorMessage("My constraint says BOOLEAN NOT NULL must be nullable.")
 		);
 	}
 
