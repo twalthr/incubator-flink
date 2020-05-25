@@ -38,9 +38,12 @@ import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.constraint;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast;
 
 /**
  * Dictionary of function definitions for all built-in functions.
@@ -880,7 +883,16 @@ public final class BuiltInFunctionDefinitions {
 		new BuiltInFunctionDefinition.Builder()
 			.name("cast")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				sequence(
+					InputTypeStrategies.ANY,
+					constraint(
+						"Unsupported cast from '%s' to '%s'.",
+						dataTypes ->
+							supportsExplicitCast(
+								dataTypes.get(0).getLogicalType(),
+								dataTypes.get(1).getLogicalType()))))
+			.outputTypeStrategy(TypeStrategies.argument(1))
 			.build();
 	public static final BuiltInFunctionDefinition REINTERPRET_CAST =
 		new BuiltInFunctionDefinition.Builder()

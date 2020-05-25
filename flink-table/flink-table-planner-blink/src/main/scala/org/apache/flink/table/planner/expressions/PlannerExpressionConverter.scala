@@ -69,12 +69,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
     // special case: requires individual handling of child expressions
     func match {
-      case CAST =>
-        assert(children.size == 2)
-        return Cast(
-          children.head.accept(this),
-          fromDataTypeToTypeInfo(
-            children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType))
 
       case REINTERPRET_CAST =>
         assert(children.size == 3)

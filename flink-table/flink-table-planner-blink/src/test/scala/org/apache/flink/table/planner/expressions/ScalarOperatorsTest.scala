@@ -18,11 +18,18 @@
 
 package org.apache.flink.table.planner.expressions
 
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.planner.expressions.utils.ScalarOperatorsTestBase
-
 import org.junit.Test
 
 class ScalarOperatorsTest extends ScalarOperatorsTestBase {
+
+  @Test
+  def testCasting(): Unit = {
+    testTableApi($("f5").cast(DataTypes.TINYINT()), "1")
+    testTableApi($("f5").cast(DataTypes.DECIMAL(6, 5)), "1.00000")
+  }
 
   @Test
   def testIn(): Unit = {
