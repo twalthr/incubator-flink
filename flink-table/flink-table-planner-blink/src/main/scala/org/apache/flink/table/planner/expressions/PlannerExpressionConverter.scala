@@ -148,6 +148,12 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
       case fd: FunctionDefinition =>
         fd match {
+          case CAST =>
+            assert(children.size == 2)
+            return Cast(
+              children.head.accept(this),
+              fromDataTypeToLegacyInfo(
+                children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType))
 
           case FLATTEN =>
             assert(args.size == 1)
