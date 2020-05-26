@@ -21,19 +21,12 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.ArgumentCount;
-import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
-import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
-import org.apache.flink.table.types.logical.LegacyTypeInformationType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Definition of a built-in function. It enables unique identification across different
@@ -126,7 +119,7 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 		}
 
 		public Builder inputTypeStrategy(InputTypeStrategy inputTypeStrategy) {
-			this.typeInferenceBuilder.inputTypeStrategy(new LegacyPassingInputTypeStrategy(inputTypeStrategy));
+			this.typeInferenceBuilder.inputTypeStrategy(inputTypeStrategy);
 			return this;
 		}
 
@@ -143,56 +136,5 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 		public BuiltInFunctionDefinition build() {
 			return new BuiltInFunctionDefinition(name, kind, typeInferenceBuilder.build());
 		}
-	}
-
-	public static class LegacyPassingInputTypeStrategy implements InputTypeStrategy {
-
-		private final InputTypeStrategy originalStrategy;
-
-		public LegacyPassingInputTypeStrategy(InputTypeStrategy originalStrategy) {
-			this.originalStrategy = originalStrategy;
-		}
-
-		@Override
-		public ArgumentCount getArgumentCount() {
-			return originalStrategy.getArgumentCount();
-		}
-
-		@Override
-		public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
-			if (callContext.getArgumentDataTypes().stream().anyMatch(dt -> hasLegacy(dt.getLogicalType()))) {
-				return Optional.of(callContext.getArgumentDataTypes());
-			}
-			return originalStrategy.inferInputTypes(callContext, throwOnFailure);
-		}
-
-		@Override
-		public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-			return originalStrategy.getExpectedSignatures(definition);
-		}
-	}
-
-	public static class LegacyPassingTypeStrategy implements TypeStrategy {
-
-		private final TypeStrategy originalStrategy;
-
-		public LegacyPassingTypeStrategy(TypeStrategy originalStrategy) {
-			this.originalStrategy = originalStrategy;
-		}
-
-		@Override
-		public Optional<DataType> inferType(CallContext callContext) {
-			if (callContext.getArgumentDataTypes().stream().anyMatch(dt -> hasLegacy(dt.getLogicalType()))) {
-				return Optional.of(callContext.getArgumentDataTypes());
-			}
-			return Optional.empty();
-		}
-	}
-
-	private static boolean hasLegacy(LogicalType t) {
-		if (t instanceof LegacyTypeInformationType) {
-			return true;
-		}
-		return t.getChildren().stream().anyMatch(BuiltInFunctionDefinition::hasLegacy);
 	}
 }

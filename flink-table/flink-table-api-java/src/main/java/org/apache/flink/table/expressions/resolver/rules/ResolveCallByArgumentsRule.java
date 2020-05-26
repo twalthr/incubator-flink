@@ -130,6 +130,10 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 				return executeFlatten(resolvedArgs);
 			}
 
+			if (resolvedArgs.stream().anyMatch(arg -> hasLegacy(arg.getOutputDataType().getLogicalType()))) {
+				return Collections.singletonList(runLegacyTypeInference(unresolvedCall, resolvedArgs));
+			}
+
 			return Collections.singletonList(
 				typeInference
 					.map(newInference -> runTypeInference(name, unresolvedCall, newInference, resolvedArgs, surroundingInfo))
@@ -308,6 +312,13 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 			}
 			return definition;
 		}
+	}
+
+	private static boolean hasLegacy(LogicalType t) {
+		if (t instanceof LegacyTypeInformationType) {
+			return true;
+		}
+		return t.getChildren().stream().anyMatch(ResolveCallByArgumentsRule::hasLegacy);
 	}
 
 	// --------------------------------------------------------------------------------------------
