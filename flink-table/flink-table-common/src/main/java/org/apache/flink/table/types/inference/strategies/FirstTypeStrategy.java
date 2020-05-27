@@ -32,11 +32,11 @@ import java.util.Optional;
  * Type strategy that returns the first type that could be inferred.
  */
 @Internal
-public final class OrTypeStrategy implements TypeStrategy {
+public final class FirstTypeStrategy implements TypeStrategy {
 
 	private final List<? extends TypeStrategy> typeStrategies;
 
-	public OrTypeStrategy(List<? extends TypeStrategy> typeStrategies) {
+	public FirstTypeStrategy(List<? extends TypeStrategy> typeStrategies) {
 		Preconditions.checkArgument(typeStrategies.size() > 0);
 		this.typeStrategies = typeStrategies;
 	}
@@ -60,7 +60,7 @@ public final class OrTypeStrategy implements TypeStrategy {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		OrTypeStrategy that = (OrTypeStrategy) o;
+		FirstTypeStrategy that = (FirstTypeStrategy) o;
 		return typeStrategies.equals(that.typeStrategies);
 	}
 
