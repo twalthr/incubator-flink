@@ -112,6 +112,13 @@ public class TypeStrategiesTest {
 				.inputTypes()
 				.expectErrorMessage("Could not infer an output type for the given arguments. Untyped NULL received."),
 
+			TestSpec
+				.forStrategy(
+					"OR type strategy",
+					TypeStrategies.or((callContext) -> Optional.empty(), TypeStrategies.explicit(DataTypes.INT())))
+				.inputTypes()
+				.expectDataType(DataTypes.INT()),
+
 			TestSpec.forStrategy(
 				"Infer a row type",
 				TypeStrategies.ROW)
