@@ -131,7 +131,13 @@ public class TypeStrategiesTest {
 				"Infer a map type",
 				TypeStrategies.MAP)
 				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING().notNull())
-				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()).notNull())
+				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()).notNull()),
+
+			TestSpec.forStrategy(
+				"Find a common type",
+				TypeStrategies.COMMON)
+				.inputTypes(DataTypes.INT(), DataTypes.TINYINT().notNull(), DataTypes.DECIMAL(20, 10))
+				.expectDataType(DataTypes.DECIMAL(20, 10))
 		);
 	}
 
