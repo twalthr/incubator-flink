@@ -44,4 +44,14 @@ public final class CommonTypeStrategy implements TypeStrategy {
 		return LogicalTypeGeneralization.findCommonType(actualTypes)
 			.map(TypeConversions::fromLogicalToDataType);
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		return this == o || o instanceof CommonTypeStrategy;
+	}
+
+	@Override
+	public int hashCode() {
+		return CommonTypeStrategy.class.hashCode();
+	}
 }
