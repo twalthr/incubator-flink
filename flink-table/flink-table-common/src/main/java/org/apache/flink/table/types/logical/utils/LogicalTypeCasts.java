@@ -21,6 +21,7 @@ package org.apache.flink.table.types.logical.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DistinctType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -278,6 +279,10 @@ public final class LogicalTypeCasts {
 			LogicalType sourceType,
 			LogicalType targetType,
 			boolean allowExplicit) {
+		// TODO remove after FLIP-51
+		if (sourceType instanceof LegacyTypeInformationType) {
+			return true;
+		}
 		if (sourceType.isNullable() && !targetType.isNullable()) {
 			return false;
 		}
