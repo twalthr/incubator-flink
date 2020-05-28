@@ -44,6 +44,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 import static org.apache.flink.table.types.inference.TypeStrategies.COMMON;
+import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_PRODUCT;
 import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_QUOTIENT;
 import static org.apache.flink.table.types.inference.TypeStrategies.first;
 import static org.apache.flink.table.types.inference.TypeStrategies.matchFamily;
@@ -430,7 +431,17 @@ public final class BuiltInFunctionDefinitions {
 		new BuiltInFunctionDefinition.Builder()
 			.name("times")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				or(
+					sequence(logical(LogicalTypeFamily.NUMERIC), logical(LogicalTypeFamily.NUMERIC)),
+					sequence(logical(LogicalTypeFamily.INTERVAL), logical(LogicalTypeFamily.NUMERIC)),
+					sequence(logical(LogicalTypeFamily.NUMERIC), logical(LogicalTypeFamily.INTERVAL))))
+			.outputTypeStrategy(
+				nullable(
+					first(
+						DECIMAL_PRODUCT,
+						matchFamily(0, LogicalTypeFamily.INTERVAL),
+						COMMON)))
 			.build();
 	public static final BuiltInFunctionDefinition ABS =
 		new BuiltInFunctionDefinition.Builder()

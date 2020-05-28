@@ -206,6 +206,15 @@ public final class LogicalTypeMerging {
 		return new DecimalType(false, precision, scale);
 	}
 
+	public static DecimalType findMultiplicationDecimalType(int precision1, int scale1, int precision2, int scale2) {
+		// adopted from Calcite
+		int scale = scale1 + scale2;
+		scale = Math.min(scale, DecimalType.MAX_PRECISION);
+		int precision = precision1 + precision2;
+		precision = Math.min(precision, DecimalType.MAX_PRECISION);
+		return new DecimalType(false, precision, scale);
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private static @Nullable LogicalType findCommonCastableType(List<LogicalType> normalizedTypes) {

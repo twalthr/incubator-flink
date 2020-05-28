@@ -178,6 +178,30 @@ public final class TypeStrategies {
 		return Optional.of(fromLogicalToDataType(decimalType));
 	};
 
+	/**
+	 * Type strategy that returns the product of a exact numeric multiplication that includes at least
+	 * one decimal.
+	 */
+	public static final TypeStrategy DECIMAL_PRODUCT = callContext -> {
+		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		final LogicalType numerator = argumentDataTypes.get(0).getLogicalType();
+		final LogicalType denominator = argumentDataTypes.get(1).getLogicalType();
+		// one decimal must be present
+		if (!hasRoot(numerator, LogicalTypeRoot.DECIMAL) && !hasRoot(denominator, LogicalTypeRoot.DECIMAL)) {
+			return Optional.empty();
+		}
+		// both must be exact numeric
+		if (!hasFamily(numerator, LogicalTypeFamily.EXACT_NUMERIC) || !hasFamily(denominator, LogicalTypeFamily.EXACT_NUMERIC)) {
+			return Optional.empty();
+		}
+		final DecimalType decimalType = LogicalTypeMerging.findMultiplicationDecimalType(
+			getPrecision(numerator),
+			getScale(numerator),
+			getPrecision(denominator),
+			getScale(denominator));
+		return Optional.of(fromLogicalToDataType(decimalType));
+	};
+
 	// --------------------------------------------------------------------------------------------
 
 	private TypeStrategies() {
