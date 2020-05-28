@@ -87,7 +87,6 @@ class FlinkTypeFactoryTest {
   }
 
   @Test def testDecimalInferType(): Unit = {
-    Assert.assertEquals(new DecimalType(20, 13), FlinkTypeSystem.inferDivisionType(5, 2, 10, 4))
     Assert.assertEquals(new DecimalType(7, 0), FlinkTypeSystem.inferIntDivType(5, 2, 4))
     Assert.assertEquals(new DecimalType(38, 5), FlinkTypeSystem.inferAggSumType(5))
     Assert.assertEquals(new DecimalType(38, 6), FlinkTypeSystem.inferAggAvgType(5))

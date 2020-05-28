@@ -27,7 +27,7 @@ import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.Collections;
@@ -56,7 +56,7 @@ public class ArrayInputTypeStrategy implements InputTypeStrategy {
 			return Optional.empty();
 		}
 
-		Optional<LogicalType> commonType = LogicalTypeGeneralization.findCommonType(
+		Optional<LogicalType> commonType = LogicalTypeMerging.findCommonType(
 			argumentDataTypes
 				.stream()
 				.map(DataType::getLogicalType)

@@ -23,7 +23,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.List;
@@ -41,7 +41,7 @@ public final class CommonTypeStrategy implements TypeStrategy {
 		final List<LogicalType> actualTypes = callContext.getArgumentDataTypes().stream()
 			.map(DataType::getLogicalType)
 			.collect(Collectors.toList());
-		return LogicalTypeGeneralization.findCommonType(actualTypes)
+		return LogicalTypeMerging.findCommonType(actualTypes)
 			.map(TypeConversions::fromLogicalToDataType);
 	}
 

@@ -17,18 +17,16 @@
  */
 package org.apache.flink.table.planner.expressions
 
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.sql.`type`.SqlTypeUtil
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.`type`.FlinkReturnTypes
 import org.apache.flink.table.planner.typeutils.TypeCoercion
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.{fromLogicalTypeToTypeInfo, fromTypeInfoToLogicalType}
 import org.apache.flink.table.runtime.typeutils.{BigDecimalTypeInfo, DecimalDataTypeInfo}
 import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
-
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.sql.`type`.SqlTypeUtil
 
 import scala.collection.JavaConverters._
 
@@ -103,22 +101,6 @@ object ReturnTypeInference {
       leftType: RelDataType,
       rightType: RelDataType) => typeFactory.createDecimalProduct(leftType, rightType)
     inferDivOrMul(mul, decimalTypeInference)
-  }
-
-  /**
-    * Infer resultType of [[Div]] expression.
-    * The decimal type inference keeps consistent with
-    * [[FlinkReturnTypes.FLINK_QUOTIENT_NULLABLE]] which
-    * is the return type of [[FlinkSqlOperatorTable.DIVIDE]].
-    *
-    * @param div div Expression
-    * @return result type
-    */
-  def inferDiv(div: Div): TypeInformation[_] = {
-    val decimalTypeInference = (
-      leftType: RelDataType,
-      rightType: RelDataType) => typeFactory.createDecimalQuotient(leftType, rightType)
-    inferDivOrMul(div, decimalTypeInference)
   }
 
   private def inferDivOrMul(

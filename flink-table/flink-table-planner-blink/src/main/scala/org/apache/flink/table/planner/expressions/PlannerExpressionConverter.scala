@@ -419,10 +419,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 2)
             Minus(args.head, args.last)
 
-          case DIVIDE =>
-            assert(args.size == 2)
-            Div(args.head, args.last)
-
           case TIMES =>
             assert(args.size == 2)
             Mul(args.head, args.last)

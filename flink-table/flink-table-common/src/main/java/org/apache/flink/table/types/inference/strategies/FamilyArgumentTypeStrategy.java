@@ -63,10 +63,7 @@ public final class FamilyArgumentTypeStrategy implements ArgumentTypeStrategy {
 	}
 
 	public FamilyArgumentTypeStrategy(LogicalTypeFamily expectedFamily, @Nullable Boolean expectedNullability) {
-		Preconditions.checkArgument(
-			familyToRoot.containsKey(expectedFamily),
-			"Unsupported family for argument type strategy.");
-		this.expectedFamily = expectedFamily;
+		this.expectedFamily = Preconditions.checkNotNull(expectedFamily);
 		this.expectedNullability = expectedNullability;
 	}
 
@@ -92,12 +89,17 @@ public final class FamilyArgumentTypeStrategy implements ArgumentTypeStrategy {
 
 		// find a type for the family
 		final LogicalTypeRoot expectedRoot = familyToRoot.get(expectedFamily);
-		final Optional<DataType> inferredDataType = findDataType(
-			callContext,
-			false,
-			actualDataType,
-			expectedRoot,
-			expectedNullability);
+		final Optional<DataType> inferredDataType;
+		if (expectedRoot == null) {
+			inferredDataType = Optional.empty();
+		} else {
+			inferredDataType = findDataType(
+				callContext,
+				false,
+				actualDataType,
+				expectedRoot,
+				expectedNullability);
+		}
 		if (!inferredDataType.isPresent() && throwOnFailure) {
 			throw callContext.newValidationError(
 					"Unsupported argument type. Expected type of family '%s' but actual type was '%s'.",

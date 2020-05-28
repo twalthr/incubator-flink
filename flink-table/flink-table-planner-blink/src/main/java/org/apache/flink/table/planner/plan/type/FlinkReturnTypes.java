@@ -31,7 +31,6 @@ import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
-import org.apache.calcite.sql.type.SqlTypeUtil;
 
 import java.math.BigDecimal;
 
@@ -100,37 +99,6 @@ public class FlinkReturnTypes {
 			}
 			return opBinding.getTypeFactory().createTypeWithNullability(newType, true);
 		}
-	};
-
-	public static final SqlReturnTypeInference FLINK_QUOTIENT_NULLABLE = opBinding -> {
-		RelDataType type1 = opBinding.getOperandType(0);
-		RelDataType type2 = opBinding.getOperandType(1);
-		if (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2)) {
-			return ReturnTypes.QUOTIENT_NULLABLE.inferReturnType(opBinding);
-		} else {
-			RelDataType doubleType = opBinding.getTypeFactory().createSqlType(SqlTypeName.DOUBLE);
-			if (type1.isNullable() || type2.isNullable()) {
-				return opBinding.getTypeFactory().createTypeWithNullability(doubleType, true);
-			} else {
-				return doubleType;
-			}
-		}
-	};
-
-	public static final SqlReturnTypeInference FLINK_DIV_NULLABLE = opBinding -> {
-		RelDataType type1 = opBinding.getOperandType(0);
-		RelDataType type2 = opBinding.getOperandType(1);
-		RelDataType returnType;
-		if (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2)) {
-			DecimalType dt = FlinkTypeSystem.inferIntDivType(
-					type1.getPrecision(), type1.getScale(), type2.getScale());
-			returnType = opBinding.getTypeFactory().createSqlType(
-				SqlTypeName.DECIMAL, dt.getPrecision(), dt.getScale());
-		} else { // both are primitive
-			returnType = type1;
-		}
-		return opBinding.getTypeFactory().createTypeWithNullability(returnType,
-			type1.isNullable() || type2.isNullable());
 	};
 
 	/**

@@ -20,19 +20,33 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.CommonTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.MappingTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FirstTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.MappingTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.MatchFamilyTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.UseArgumentTypeStrategy;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /**
  * Strategies for inferring an output or accumulator data type of a function call.
@@ -71,11 +85,33 @@ public final class TypeStrategies {
 	}
 
 	/**
+	 * Type strategy that returns the given argument if it is of the same logical type family.
+	 */
+	public static TypeStrategy matchFamily(int argumentPos, LogicalTypeFamily family) {
+		return new MatchFamilyTypeStrategy(argumentPos, family);
+	}
+
+	/**
 	 * Type strategy that maps an {@link InputTypeStrategy} to a {@link TypeStrategy} if the input strategy
 	 * infers identical types.
 	 */
 	public static TypeStrategy mapping(Map<InputTypeStrategy, TypeStrategy> mappings) {
 		return new MappingTypeStrategy(mappings);
+	}
+
+	/**
+	 * Type strategy that returns a nullable type if any of the call's arguments are nullable.
+	 */
+	public static TypeStrategy nullable(TypeStrategy strategy) {
+		Preconditions.checkNotNull(strategy);
+		return callContext -> {
+			final List<DataType> arguments = callContext.getArgumentDataTypes();
+			final Optional<DataType> inferredDataType = strategy.inferType(callContext);
+			if (arguments.stream().map(DataType::getLogicalType).anyMatch(LogicalType::isNullable)) {
+				return inferredDataType.map(AbstractDataType::nullable);
+			}
+			return inferredDataType;
+		};
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -116,6 +152,30 @@ public final class TypeStrategies {
 			return Optional.empty();
 		}
 		return Optional.of(DataTypes.ARRAY(argumentDataTypes.get(0)).notNull());
+	};
+
+	/**
+	 * Type strategy that returns the quotient of a exact numeric division that includes at least
+	 * one decimal.
+	 */
+	public static final TypeStrategy DECIMAL_QUOTIENT = callContext -> {
+		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		final LogicalType numerator = argumentDataTypes.get(0).getLogicalType();
+		final LogicalType denominator = argumentDataTypes.get(1).getLogicalType();
+		// one decimal must be present
+		if (!hasRoot(numerator, LogicalTypeRoot.DECIMAL) && !hasRoot(denominator, LogicalTypeRoot.DECIMAL)) {
+			return Optional.empty();
+		}
+		// both must be exact numeric
+		if (!hasFamily(numerator, LogicalTypeFamily.EXACT_NUMERIC) || !hasFamily(denominator, LogicalTypeFamily.EXACT_NUMERIC)) {
+			return Optional.empty();
+		}
+		final DecimalType decimalType = LogicalTypeMerging.findDivisionDecimalType(
+			getPrecision(numerator),
+			getScale(numerator),
+			getPrecision(denominator),
+			getScale(denominator));
+		return Optional.of(fromLogicalToDataType(decimalType));
 	};
 
 	// --------------------------------------------------------------------------------------------

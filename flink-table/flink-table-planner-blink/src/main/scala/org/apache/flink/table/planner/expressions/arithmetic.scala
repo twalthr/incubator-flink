@@ -121,17 +121,6 @@ case class Minus(left: PlannerExpression, right: PlannerExpression) extends Bina
   }
 }
 
-case class Div(left: PlannerExpression, right: PlannerExpression) extends BinaryArithmetic {
-  override def toString = s"($left / $right)"
-
-  private[flink] val sqlOperator = FlinkSqlOperatorTable.DIVIDE
-
-  override private[flink] def resultType: TypeInformation[_] = {
-    ReturnTypeInference.inferDiv(this)
-  }
-
-}
-
 case class Mul(left: PlannerExpression, right: PlannerExpression) extends BinaryArithmetic {
   override def toString = s"($left * $right)"
 

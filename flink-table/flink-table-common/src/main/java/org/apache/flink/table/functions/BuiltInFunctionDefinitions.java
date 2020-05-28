@@ -43,6 +43,11 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.logical
 import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
+import static org.apache.flink.table.types.inference.TypeStrategies.COMMON;
+import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_QUOTIENT;
+import static org.apache.flink.table.types.inference.TypeStrategies.first;
+import static org.apache.flink.table.types.inference.TypeStrategies.matchFamily;
+import static org.apache.flink.table.types.inference.TypeStrategies.nullable;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast;
 
 /**
@@ -410,7 +415,16 @@ public final class BuiltInFunctionDefinitions {
 		new BuiltInFunctionDefinition.Builder()
 			.name("divide")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				or(
+					sequence(logical(LogicalTypeFamily.NUMERIC), logical(LogicalTypeFamily.NUMERIC)),
+					sequence(logical(LogicalTypeFamily.INTERVAL), logical(LogicalTypeFamily.NUMERIC))))
+			.outputTypeStrategy(
+				nullable(
+					first(
+						DECIMAL_QUOTIENT,
+						matchFamily(0, LogicalTypeFamily.INTERVAL),
+						COMMON)))
 			.build();
 	public static final BuiltInFunctionDefinition TIMES =
 		new BuiltInFunctionDefinition.Builder()

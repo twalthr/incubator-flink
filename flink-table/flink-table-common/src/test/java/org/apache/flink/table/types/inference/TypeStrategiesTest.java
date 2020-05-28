@@ -24,6 +24,7 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -119,32 +120,56 @@ public class TypeStrategiesTest {
 				.inputTypes()
 				.expectDataType(DataTypes.INT()),
 
+			TestSpec
+				.forStrategy(
+					"Match root type strategy",
+					TypeStrategies.matchFamily(0, LogicalTypeFamily.NUMERIC))
+				.inputTypes(DataTypes.INT())
+				.expectDataType(DataTypes.INT()),
+
+			TestSpec
+				.forStrategy(
+					"Invalid match root type strategy",
+					TypeStrategies.matchFamily(0, LogicalTypeFamily.NUMERIC))
+				.inputTypes(DataTypes.BOOLEAN())
+				.expectErrorMessage("Could not infer an output type for the given arguments."),
+
 			TestSpec.forStrategy(
-				"Infer a row type",
-				TypeStrategies.ROW)
+					"Infer a row type",
+					TypeStrategies.ROW)
 				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING())
 				.expectDataType(DataTypes.ROW(
 					DataTypes.FIELD("f0", DataTypes.BIGINT()),
 					DataTypes.FIELD("f1", DataTypes.STRING())).notNull()
 				),
 
-			TestSpec.forStrategy(
-				"Infer an array type",
-				TypeStrategies.ARRAY)
+			TestSpec
+				.forStrategy(
+					"Infer an array type",
+					TypeStrategies.ARRAY)
 				.inputTypes(DataTypes.BIGINT(), DataTypes.BIGINT())
 				.expectDataType(DataTypes.ARRAY(DataTypes.BIGINT()).notNull()),
 
-			TestSpec.forStrategy(
-				"Infer a map type",
-				TypeStrategies.MAP)
+			TestSpec
+				.forStrategy(
+					"Infer a map type",
+					TypeStrategies.MAP)
 				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING().notNull())
 				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()).notNull()),
 
-			TestSpec.forStrategy(
-				"Find a common type",
-				TypeStrategies.COMMON)
+			TestSpec
+				.forStrategy(
+					"Find a common type",
+					TypeStrategies.COMMON)
 				.inputTypes(DataTypes.INT(), DataTypes.TINYINT().notNull(), DataTypes.DECIMAL(20, 10))
-				.expectDataType(DataTypes.DECIMAL(20, 10))
+				.expectDataType(DataTypes.DECIMAL(20, 10)),
+
+			TestSpec
+				.forStrategy(
+					"Find a decimal quotient",
+					TypeStrategies.DECIMAL_QUOTIENT)
+				.inputTypes(DataTypes.INT(), DataTypes.DECIMAL(10, 0))
+				.expectDataType(DataTypes.DECIMAL(21, 11).notNull())
 		);
 	}
 
