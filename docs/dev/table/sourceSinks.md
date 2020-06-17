@@ -22,6 +22,245 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+_Dynamic tables_ are the core concept of Flink's Table & SQL API for processing both bounded and unbounded
+data in a unified fashion.
+
+Because dynamic tables are only a logical concept, Flink does not own the data itself. Instead, the content
+of a dynamic table is stored in external systems (such as databases, key-value stores, message queues) or files.
+
+_Dynamic sources_ and _dynamic sinks_ can be used to read and write data from and to an external system. In
+the documentation, sources and sinks are often summarized under the term _connector_.
+
+Flink provides pre-defined connectors for Kafka, Hive, and different file systems. See the [connector section]({% link dev/table/connectors/index.md %})
+for more information about built-in table sources and sinks.
+
+This page focuses on how to develop a custom, user-defined connector.
+
+* This will be replaced by the TOC
+{:toc}
+
+Overview
+--------
+
+In many cases, implementers need to create a new connector from scratch but would like to slightly
+modify existing connectors or hook into the existing stack.
+
+This section explains the general architecture of table connectors from pure declaration in the API to
+runtime code that will be executed in the cluster.
+
+<div style="text-align: center">
+  <img width="90%" src="{{ site.baseurl }}/fig/table_connectors.svg" alt="Translation of table connectors" />
+</div>
+
+The filled arrows show how objects are transformed to other objects from one stage to the next stage during
+the translation process.
+
+### Metadata
+
+Both Table API and SQL are declarative APIs. This includes the declaration of tables. Thus, executing
+a `CREATE TABLE` statement results in updated metadata in the target catalog.
+
+For most catalog implementations, physical data in the external system is not modified for such an
+operation. Connector-specific dependencies must not be present in the classpath yet. The options declared
+in the `WITH` clause are neither validated nor otherwise interpreted.
+
+The metadata for dynamic tables (created via DDL or provided by the catalog) is represented as instances
+of `CatalogTable`. A table name will be resolved into a `CatalogTable` internally when necessary.
+
+### Planning
+
+When it comes to planning and optimization of the table program, a `CatalogTable` needs to be resolved
+into a `DynamicTableSource` (for reading in a `SELECT` queries) and `DynamicTableSink` (for writing in
+a `INSERT INTO` statements).
+
+`DynamicTableSourceFactory` and `DynamicTableSinkFactory` provide connector-specific logic for translating
+the metadata of a `CatalogTable` into instances of `DynamicTableSource` and `DynamicTableSink`. In most
+of the cases, the factories' purpose is to validate options (such as `'port' = '5022'` in the example),
+configure encoding/decoding formats (if required), and create a parameterized instance of the table
+connector.
+
+By default, instances of `DynamicTableSourceFactory` and `DynamicTableSinkFactory` are discovered using
+Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html). The
+`connector` option (such as `'connector' = 'custom'` in the example) must correspond to a valid factory
+identifier.
+
+Although it might not be apparent in the class naming, `DynamicTableSource` and `DynamicTableSink`
+can also be seen as stateful factories that eventually produce concrete runtime implementation for reading/writing
+the actual data.
+
+The planner uses the source and sink instances to perform connector-specific bidirectional comunication
+until an optimal logical plan could be found. Depending on the optionally declared ability interfaces (e.g.
+`SupportsProjectionPushDown` or `SupportsOverwrite`), the planner might apply changes to an instance and
+thus mutate the produced runtime implementation.
+
+### Runtime
+
+Once the logical planning is complete, the planner will obtain the _runtime implementation_ from the table
+connector. Runtime logic is implemented in Flink's core connector interfaces such as `InputFormat` or `SourceFunction`.
+
+Flink offers different core interfaces that are currently being unified. Therefore, the different runtime
+interfaces are grouped by another level of abstraction as subclasses of `ScanRuntimeProvider`, `LookupRuntimeProvider`,
+and `SinkRuntimeProvider`.
+
+For example, both `OutputFormatProvider` (providing `org.apache.flink.api.common.io.OutputFormat`) and `SinkFunctionProvider` (providing `org.apache.flink.streaming.api.functions.sink.SinkFunction`) are concrete instances of `SinkRuntimeProvider`.
+
+Extension Points
+----------------
+
+This section explains the available interfaces for extending Flink's table connectors.
+
+Dynamic Table Factories
+-----------------------
+
+Dynamic table factories configuring a dynamic table connector for an external storage system from catalog
+and session information.
+
+`org.apache.flink.table.factories.DynamicTableSourceFactory` can be implemented to construct a `DynamicTableSource`.
+
+`org.apache.flink.table.factories.DynamicTableSinkFactory` can be implemented to construct a `DynamicTableSink`.
+
+By default, the factory is discovered using the value of the `connector` option as the factory identifier
+and Java's Service Provider Interface.
+
+In JAR files, references to new implementations can be added to the service file:
+
+`META_INF/services/org.apache.flink.table.factories.Factory`
+
+The framework will check for a single matching factory that is uniquely identified by factory identifier
+and requested base class (e.g. `DynamicTableSourceFactory`).
+
+The factory discovery process can be bypassed by the catalog implementation if necessary. For this, a
+catalog needs to return an instance that implements the requested base class in `org.apache.flink.table.catalog.Catalog#getFactory`.
+
+Dynamic Table Source
+--------------------
+
+By definition, a dynamic table can change over time.
+
+When reading a dynamic table, the content can either be considered as:
+- A changelog (finite or infinite) for which all changes are consumed continuously until the changelog
+  is exhausted. Represented in the `ScanTableSource` interface.
+- A continuously changing or very large external table whose content is usually never read entirely
+  but queried for individual values when necessary. Represented in the `LookupTableSource` interface.
+
+Both interfaces can be implemented at the same time. The planner decides about their usage depending
+on the specified query.
+
+### `ScanTableSource`
+
+A `ScanTableSource` Source of a dynamic table from an external storage system.scans all rows from an external storage system during runtime.
+
+The scanned rows don't have to contain only insertions but can also contain updates and deletions. Thus,
+the table source can be used to read a (finite or infinite) changelog. The returned _changelog mode_ indicates
+the set of changes that the planner can expect during runtime.
+
+For regular batch scenarios, the source can emit a bounded stream of insert-only rows.
+
+For regular streaming scenarios, the source can emit an unbounded stream of insert-only rows.
+
+For change data capture (CDC) scenarios, the source can emit bounded or unbounded streams with insert,
+update, and delete rows.
+
+A table source can implement further abilitiy interfaces such as `SupportsProjectionPushDown` that might
+mutate an instance during planning. All abilities are listed in the `org.apache.flink.table.connector.source.abilities`
+package and in the documentation of `org.apache.flink.table.connector.source.ScanTableSource`.
+
+The runtime implementation of a `ScanTableSource` must produce internal data structures. Thus, records
+must be emitted as `org.apache.flink.table.data.RowData`. The framework provides runtime converters such
+that a source can still work on common data structures and perform a conversion at the end.
+
+### `LookupTableSource`
+
+A `LookupTableSource` looks up rows of an external storage system by one or more keys during runtime.
+
+Compared to `ScanTableSource`, the source must not read the entire table and can lazily fetch individual
+values from a (possibly continuously changing) external table when necessary.
+
+Compared to `ScanTableSource`, a `LookupTableSource` does only support emitting insert-only changes currently.
+
+Further abilities are not supported. See the documentation of `org.apache.flink.table.connector.source.LookupTableSource`
+for more information.
+
+The runtime implementation of a `LookupTableSource` is a `TableFunction` or `AsyncTableFunction`. The function
+will be called with values for the given lookup keys during runtime.
+
+Dynamic Table Sink
+------------------
+
+By definition, a dynamic table can change over time.
+
+When writing a dynamic table, the content can either be considered as a changelog (finite or infinite)
+for which all changes are written out continuously until the changelog is exhausted. The returned _changelog mode_
+indicates the set of changes that the sink accepts during runtime.
+
+For regular batch scenarios, the sink can solely accept insert-only rows and write out bounded streams.
+
+For regular streaming scenarios, the sink can solely accept insert-only rows and can write out unbounded streams.
+
+For change data capture (CDC) scenarios, the sink can write out bounded or unbounded streams with insert,
+update, and delete rows.
+
+A table sink can implement further abilitiy interfaces such as `SupportsOverwrite` that might mutate an
+instance during planning. All abilities are listed in the `org.apache.flink.table.connector.sink.abilities`
+package and in the documentation of `org.apache.flink.table.connector.sink.DynamicTableSink`.
+
+The runtime implementation of a `DynamicTableSink` must consume internal data structures. Thus, records
+must be accepted as `org.apache.flink.table.data.RowData`. The framework provides runtime converters such
+that a sink can still work on common data structures and perform a conversion at the beginning.
+
+Encoding / Decoding Formats
+---------------------------
+
+Some table connectors accept different formats that encode and decode keys and/or values.
+
+Formats work similar to the pattern `DynamicTableSourceFactory -> DynamicTableSource -> ScanRuntimeProvider`,
+where the factory is responsible for translating options and the source is responsible for creating runtime logic.
+
+Because formats might be located in different modules, they are discovered using Java's Service Provider
+Interface similar to [table factories](#dynamic-table-factories). In order to discover a format factory,
+the dynamic table factory searches for a factory that corresponds to a factory identifier and connector-specific
+base class.
+
+For example, the Kafka table source requires a `DeserializationSchema` as runtime interface for a decoding
+format. Therefore, the Kafka table source factory uses the value of the `value.format` option to discover
+a `DeserializationFormatFactory`.
+
+The following format factories are currently supported:
+
+```
+org.apache.flink.table.factories.DeserializationFormatFactory
+org.apache.flink.table.factories.SerializationFormatFactory
+```
+
+The format factory translates the options into an `EncodingFormat` or a `DecodingFormat`. Those interfaces are
+another kind of factory that produces specialized format runtime logic for the given data type.
+
+For example, for a Kafka table source factory, the `DeserializationFormatFactory` would return a `EncodingFormat<DeserializationSchema>`
+that can be passed into the Kafka table source.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 A `TableSource` provides access to data which is stored in external systems (database, key-value store, message queue) or files. After a [TableSource is registered in a TableEnvironment](common.html#register-a-tablesource) it can be accessed by [Table API](tableApi.html) or [SQL]({{ site.baseurl }}/dev/table/sql/queries.html) queries.
 
 A `TableSink` [emits a Table](common.html#emit-a-table) to an external storage system, such as a database, key-value store, message queue, or file system (in different encodings, e.g., CSV, Parquet, or ORC).
@@ -30,8 +269,7 @@ A `TableFactory` allows for separating the declaration of a connection to an ext
 
 Have a look at the [common concepts and API](common.html) page for details how to [register a TableSource](common.html#register-a-tablesource) and how to [emit a Table through a TableSink](common.html#emit-a-table). See the [built-in sources, sinks, and formats](connect.html) page for examples how to use factories.
 
-* This will be replaced by the TOC
-{:toc}
+
 
 Define a TableSource
 --------------------
