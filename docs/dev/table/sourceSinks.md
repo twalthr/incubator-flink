@@ -109,8 +109,7 @@ Extension Points
 
 This section explains the available interfaces for extending Flink's table connectors.
 
-Dynamic Table Factories
------------------------
+### Dynamic Table Factories
 
 Dynamic table factories configuring a dynamic table connector for an external storage system from catalog
 and session information.
@@ -132,8 +131,7 @@ and requested base class (e.g. `DynamicTableSourceFactory`).
 The factory discovery process can be bypassed by the catalog implementation if necessary. For this, a
 catalog needs to return an instance that implements the requested base class in `org.apache.flink.table.catalog.Catalog#getFactory`.
 
-Dynamic Table Source
---------------------
+### Dynamic Table Source
 
 By definition, a dynamic table can change over time.
 
@@ -146,7 +144,7 @@ When reading a dynamic table, the content can either be considered as:
 Both interfaces can be implemented at the same time. The planner decides about their usage depending
 on the specified query.
 
-### `ScanTableSource`
+#### Scan Table Source
 
 A `ScanTableSource` Source of a dynamic table from an external storage system.scans all rows from an external storage system during runtime.
 
@@ -169,7 +167,7 @@ The runtime implementation of a `ScanTableSource` must produce internal data str
 must be emitted as `org.apache.flink.table.data.RowData`. The framework provides runtime converters such
 that a source can still work on common data structures and perform a conversion at the end.
 
-### `LookupTableSource`
+#### Lookup Table Source
 
 A `LookupTableSource` looks up rows of an external storage system by one or more keys during runtime.
 
@@ -184,8 +182,7 @@ for more information.
 The runtime implementation of a `LookupTableSource` is a `TableFunction` or `AsyncTableFunction`. The function
 will be called with values for the given lookup keys during runtime.
 
-Dynamic Table Sink
-------------------
+### Dynamic Table Sink
 
 By definition, a dynamic table can change over time.
 
@@ -208,8 +205,7 @@ The runtime implementation of a `DynamicTableSink` must consume internal data st
 must be accepted as `org.apache.flink.table.data.RowData`. The framework provides runtime converters such
 that a sink can still work on common data structures and perform a conversion at the beginning.
 
-Encoding / Decoding Formats
----------------------------
+### Encoding / Decoding Formats
 
 Some table connectors accept different formats that encode and decode keys and/or values.
 
@@ -233,10 +229,32 @@ org.apache.flink.table.factories.SerializationFormatFactory
 ```
 
 The format factory translates the options into an `EncodingFormat` or a `DecodingFormat`. Those interfaces are
-another kind of factory that produces specialized format runtime logic for the given data type.
+another kind of factory that produce specialized format runtime logic for the given data type.
 
-For example, for a Kafka table source factory, the `DeserializationFormatFactory` would return a `EncodingFormat<DeserializationSchema>`
+For example, for a Kafka table source factory, the `DeserializationFormatFactory` would return an `EncodingFormat<DeserializationSchema>`
 that can be passed into the Kafka table source.
+
+Examples
+--------
+
+This section sketches how to implement a custom table source with a custom encoding format.
+
+We will use most of the interfaces metioned above to enable the following DDL:
+
+```
+CREATE TABLE UserScores (name STRING, score INT)
+WITH (
+  'connector' = 'socket',
+  'hostname' = 'localhost',
+  'port' = '12444',
+  'record-delimiter' = '\n',
+  'format' = 'changelog-csv',
+  'changelog-csv.column-delimiter' = '|'
+);
+```
+
+
+
 
 
 
