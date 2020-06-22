@@ -30,7 +30,6 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggre
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashWindowAggregate, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecSortWindowAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeIntervalType
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType}
 
 import org.apache.calcite.plan.RelOptRule._
@@ -102,7 +101,6 @@ class BatchExecWindowAggregateRule
     val (_, aggBufferTypes, aggregates) = AggregateUtil.transformToBatchAggregateFunctions(
       aggCallsWithoutAuxGroupCalls, input.getRowType)
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggregates)
-    val internalAggBufferTypes = aggBufferTypes.map(_.map(fromDataTypeToLogicalType))
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
 
     window match {
@@ -115,7 +113,7 @@ class BatchExecWindowAggregateRule
           window.asInstanceOf[TumblingGroupWindow],
           auxGroupSet,
           aggCallToAggFunction,
-          internalAggBufferTypes,
+          aggBufferTypes,
           useHashWindowAgg(agg),
           enableAssignPane = false,
           supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, sizeInLong))
@@ -131,7 +129,7 @@ class BatchExecWindowAggregateRule
           window.asInstanceOf[SlidingGroupWindow],
           auxGroupSet,
           aggCallToAggFunction,
-          internalAggBufferTypes,
+          aggBufferTypes,
           useHashWindowAgg(agg),
           useAssignPane(aggregates, sizeInLong, slideInLong),
           supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, slideInLong))

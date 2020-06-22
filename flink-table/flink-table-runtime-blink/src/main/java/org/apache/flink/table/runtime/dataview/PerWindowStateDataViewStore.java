@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.dataview;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -30,16 +31,18 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
-import org.apache.flink.table.dataview.ListViewTypeInfo;
-import org.apache.flink.table.dataview.MapViewTypeInfo;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
 
 /**
- * An implementation of StateDataViewStore for window aggregates which forward the state
+ * An implementation of {@link StateDataViewStore} for window aggregates which forward the state
  * registration to underlying {@link KeyedStateBackend}. The created state by this store
- * has the ability to switch window namespace.
+ * has the ability to switch window namespaces.
  */
-public class PerWindowStateDataViewStore implements StateDataViewStore {
+@Internal
+public final class PerWindowStateDataViewStore implements StateDataViewStore {
+
 	private static final String NULL_STATE_POSTFIX = "_null_state";
+
 	private final KeyedStateBackend<?> keyedStateBackend;
 	private final TypeSerializer<?> windowSerializer;
 	private final RuntimeContext ctx;
@@ -54,40 +57,67 @@ public class PerWindowStateDataViewStore implements StateDataViewStore {
 	}
 
 	@Override
-	public <N, UK, UV> StateMapView<N, UK, UV> getStateMapView(String stateName, MapViewTypeInfo<UK, UV> mapViewTypeInfo) throws Exception {
-		MapStateDescriptor<UK, UV> mapStateDescriptor = new MapStateDescriptor<>(
+	public <N, IK, IV, EK, EV> StateMapView<N, EK, EV> getStateMapView(
+			String stateName,
+			boolean hasNullableKeys,
+			DataStructureConverter<IK, EK> keyConverter,
+			TypeSerializer<IK> keySerializer,
+			DataStructureConverter<IV, EV> valueConverter,
+			TypeSerializer<IV> valueSerializer) throws Exception {
+
+		final MapStateDescriptor<IK, IV> mapStateDescriptor = new MapStateDescriptor<>(
 			stateName,
-			mapViewTypeInfo.getKeyType(),
-			mapViewTypeInfo.getValueType());
+			keySerializer,
+			valueSerializer);
 
-		MapState<UK, UV> mapState = keyedStateBackend.getOrCreateKeyedState(windowSerializer, mapStateDescriptor);
+		final MapState<IK, IV> mapState = keyedStateBackend.getOrCreateKeyedState(
+			windowSerializer,
+			mapStateDescriptor);
+
 		// explict cast to internal state
-		InternalMapState<?, N, UK, UV> internalMapState = (InternalMapState<?, N, UK, UV>) mapState;
+		final InternalMapState<?, N, IK, IV> internalMapState = (InternalMapState<?, N, IK, IV>) mapState;
 
-		if (mapViewTypeInfo.isNullAware()) {
-			ValueStateDescriptor<UV> nullStateDescriptor = new ValueStateDescriptor<>(
+		if (hasNullableKeys) {
+			final ValueStateDescriptor<IV> nullStateDescriptor = new ValueStateDescriptor<>(
 				stateName + NULL_STATE_POSTFIX,
-				mapViewTypeInfo.getValueType());
-			ValueState<UV> nullState = keyedStateBackend.getOrCreateKeyedState(windowSerializer, nullStateDescriptor);
+				valueSerializer);
+
+			final ValueState<IV> nullState = keyedStateBackend.getOrCreateKeyedState(windowSerializer, nullStateDescriptor);
+
 			// explict cast to internal state
-			InternalValueState<?, N, UV> internalNullState = (InternalValueState<?, N, UV>) nullState;
-			return new StateMapView.NamespacedStateMapViewWithKeysNullable<>(internalMapState, internalNullState);
+			final InternalValueState<?, N, IV> internalNullState = (InternalValueState<?, N, IV>) nullState;
+
+			return new StateMapView.NamespacedStateMapViewWithKeysNullable<>(
+				internalMapState,
+				internalNullState,
+				keyConverter,
+				valueConverter);
 		} else {
-			return new StateMapView.NamespacedStateMapViewWithKeysNotNull<>(internalMapState);
+			return new StateMapView.NamespacedStateMapViewWithKeysNotNull<>(
+				internalMapState,
+				keyConverter,
+				valueConverter);
 		}
 	}
 
 	@Override
-	public <N, V> StateListView<N, V> getStateListView(String stateName, ListViewTypeInfo<V> listViewTypeInfo) throws Exception {
-		ListStateDescriptor<V> listStateDesc = new ListStateDescriptor<>(
+	public <N, IT, ET> StateListView<N, ET> getStateListView(
+			String stateName,
+			DataStructureConverter<IT, ET> elementConverter,
+			TypeSerializer<IT> elementSerializer) throws Exception {
+
+		final ListStateDescriptor<IT> listStateDescriptor = new ListStateDescriptor<>(
 			stateName,
-			listViewTypeInfo.getElementType());
+			elementSerializer);
 
-		ListState<V> listState = keyedStateBackend.getOrCreateKeyedState(windowSerializer, listStateDesc);
+		final ListState<IT> listState = keyedStateBackend.getOrCreateKeyedState(
+			windowSerializer,
+			listStateDescriptor);
+
 		// explict cast to internal state
-		InternalListState<?, N, V> internalListState = (InternalListState<?, N, V>) listState;
+		final InternalListState<?, N, IT> internalListState = (InternalListState<?, N, IT>) listState;
 
-		return new StateListView.NamespacedStateListView<>(internalListState);
+		return new StateListView.NamespacedStateListView<>(internalListState, elementConverter);
 	}
 
 	@Override

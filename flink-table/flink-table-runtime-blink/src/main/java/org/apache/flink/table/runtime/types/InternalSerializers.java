@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
+import org.apache.flink.table.dataview.NullSerializer;
 import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
 import org.apache.flink.table.runtime.typeutils.DecimalDataSerializer;
 import org.apache.flink.table.runtime.typeutils.MapDataSerializer;
@@ -61,7 +62,11 @@ public class InternalSerializers {
 
 	/**
 	 * Creates a {@link TypeSerializer} for internal data structures of the given {@link LogicalType}.
+	 *
+	 * @deprecated Use {@link #create(LogicalType)} instead. The new type system needs no access to
+	 * execution config anymore because all type serializers will be resolved before.
 	 */
+	@Deprecated
 	public static TypeSerializer create(LogicalType type, ExecutionConfig config) {
 		// ordered by type root definition
 		switch (type.getTypeRoot()) {
@@ -108,6 +113,8 @@ public class InternalSerializers {
 				return new RowDataSerializer(config, type.getChildren().toArray(new LogicalType[0]));
 			case DISTINCT_TYPE:
 				return create(((DistinctType) type).getSourceType(), config);
+			case NULL:
+				return new RawValueDataSerializer<>(NullSerializer.INSTANCE);
 			case RAW:
 				if (type instanceof RawType) {
 					final RawType<?> rawType = (RawType<?>) type;
@@ -115,7 +122,6 @@ public class InternalSerializers {
 				}
 				return new RawValueDataSerializer<>(
 					((TypeInformationRawType<?>) type).getTypeInformation().createSerializer(config));
-			case NULL:
 			case SYMBOL:
 			case UNRESOLVED:
 			default:

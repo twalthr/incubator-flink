@@ -32,6 +32,7 @@ import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 import scala.collection.JavaConverters._
 
@@ -42,7 +43,9 @@ import scala.collection.JavaConverters._
   * @param displayName    name to be displayed in operator name
   * @param scalarFunction scalar function to be called
   * @param typeFactory    type factory for converting Flink's between Calcite's types
+  * @deprecated Replaced by [[BridgingSqlFunction]].
   */
+@deprecated
 class ScalarSqlFunction(
     identifier: FunctionIdentifier,
     displayName: String,

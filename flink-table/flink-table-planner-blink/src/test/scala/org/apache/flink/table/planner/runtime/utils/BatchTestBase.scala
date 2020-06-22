@@ -30,7 +30,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -40,16 +40,13 @@ import org.apache.flink.table.planner.utils.{RowDataTestUtil, TableTestUtil, Tes
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.types.Row
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
-
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
 import org.junit.Assert._
 import org.junit.{After, Assert, Before}
-
 import _root_.java.lang.{Iterable => JIterable}
 import _root_.java.util.regex.Pattern
 
@@ -403,6 +400,10 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
     testingTableEnv.registerFunction(name, tf)
+  }
+
+  def registerTemporarySystemFunction(name: String, clazz: Class[_ <: UserDefinedFunction]): Unit = {
+    testingTableEnv.createTemporarySystemFunction(name, clazz)
   }
 
   def registerRange(name: String, end: Long): Unit = {

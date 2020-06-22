@@ -28,10 +28,8 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import org.apache.flink.types.Row
-
 import com.google.common.base.Charsets
 import com.google.common.io.Files
-
 import java.io.File
 import java.lang.{Iterable => JIterable}
 import java.sql.{Date, Timestamp}
@@ -39,6 +37,9 @@ import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util
 import java.util.TimeZone
 import java.util.concurrent.atomic.AtomicInteger
+
+import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
+import org.apache.flink.table.planner.{JInt, JLong}
 
 import scala.annotation.varargs
 
@@ -139,13 +140,13 @@ object UserDefinedFunctionTestUtils {
     override def getValue(acc: Tuple1[Long]): Long = acc.f0
   }
 
-  class CountNullNonNull extends AggregateFunction[String, Tuple2[Long, Long]] {
+  class CountNullNonNull extends AggregateFunction[String, Tuple2[JLong, JLong]] {
 
-    override def createAccumulator(): Tuple2[Long, Long] = Tuple2.of(0L, 0L)
+    override def createAccumulator(): Tuple2[JLong, JLong] = Tuple2.of(0L, 0L)
 
-    override def getValue(acc: Tuple2[Long, Long]): String = s"${acc.f0}|${acc.f1}"
+    override def getValue(acc: Tuple2[JLong, JLong]): String = s"${acc.f0}|${acc.f1}"
 
-    def accumulate(acc: Tuple2[Long, Long], v: String): Unit = {
+    def accumulate(acc: Tuple2[JLong, JLong], v: String): Unit = {
       if (v == null) {
         acc.f1 += 1
       } else {
@@ -153,7 +154,7 @@ object UserDefinedFunctionTestUtils {
       }
     }
 
-    def retract(acc: Tuple2[Long, Long], v: String): Unit = {
+    def retract(acc: Tuple2[JLong, JLong], v: String): Unit = {
       if (v == null) {
         acc.f1 -= 1
       } else {
@@ -297,11 +298,11 @@ object UserDefinedFunctionTestUtils {
 
   @SerialVersionUID(1L)
   object ToCompositeObj extends ScalarFunction {
-    def eval(id: Int, name: String, age: Int): CompositeObj = {
+    def eval(id: JInt, name: String, age: JInt): CompositeObj = {
       CompositeObj(id, name, age, "0.0")
     }
 
-    def eval(id: Int, name: String, age: Int, point: String): CompositeObj = {
+    def eval(id: JInt, name: String, age: JInt, point: String): CompositeObj = {
       CompositeObj(id, name, age, point)
     }
   }
@@ -411,7 +412,7 @@ object UserDefinedFunctionTestUtils {
     override def toString = s"MyPojo($f1, $f2)"
   }
 
-  case class CompositeObj(id: Int, name: String, age: Int, point: String)
+  case class CompositeObj(id: JInt, name: String, age: JInt, point: String)
 
   // ------------------------------------------------------------------------------------
   // Utils
@@ -453,22 +454,17 @@ object UserDefinedFunctionTestUtils {
 
 class RandomClass(var i: Int)
 
+@FunctionHint(accumulator = new DataTypeHint(value = "RAW", bridgedTo = classOf[RandomClass]))
 class GenericAggregateFunction extends AggregateFunction[java.lang.Integer, RandomClass] {
   override def getValue(accumulator: RandomClass): java.lang.Integer = accumulator.i
 
   override def createAccumulator(): RandomClass = new RandomClass(0)
 
-  override def getResultType: TypeInformation[java.lang.Integer] =
-    new GenericTypeInfo[Integer](classOf[Integer])
-
-  override def getAccumulatorType: TypeInformation[RandomClass] = new GenericTypeInfo[RandomClass](
-    classOf[RandomClass])
-
-  def accumulate(acc: RandomClass, value: Int): Unit = {
+  def accumulate(acc: RandomClass, value: JInt): Unit = {
     acc.i = value
   }
 
-  def retract(acc: RandomClass, value: Int): Unit = {
+  def retract(acc: RandomClass, value: JInt): Unit = {
     acc.i = value
   }
 

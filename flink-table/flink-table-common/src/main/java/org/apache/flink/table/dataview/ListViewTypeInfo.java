@@ -30,6 +30,7 @@ import org.apache.flink.table.api.dataview.ListView;
  *
  * @param <T> element type
  */
+@Deprecated
 @Internal
 public class ListViewTypeInfo<T> extends TypeInformation<ListView<T>> {
 

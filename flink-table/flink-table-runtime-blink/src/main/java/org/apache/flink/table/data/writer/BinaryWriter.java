@@ -156,6 +156,7 @@ public interface BinaryWriter {
 			case STRUCTURED_TYPE:
 				writer.writeRow(pos, (RowData) o, (RowDataSerializer) serializer);
 				break;
+			case NULL:
 			case RAW:
 				writer.writeRawValue(pos, (RawValueData<?>) o, (RawValueDataSerializer<?>) serializer);
 				break;

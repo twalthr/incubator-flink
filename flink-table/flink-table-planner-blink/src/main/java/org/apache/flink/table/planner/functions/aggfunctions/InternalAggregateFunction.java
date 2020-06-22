@@ -16,33 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.dataview
+package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.dataview.{ListViewTypeInfo, MapViewTypeInfo}
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.types.DataType;
 
-/**
-  * Data view specification.
-  */
-trait DataViewSpec {
-  def stateId: String
+public abstract class InternalAggregateFunction<T, ACC> extends AggregateFunction<T, ACC> {
 
-  def fieldIndex: Int
+	public abstract DataType[] getInputDataTypes();
 
-  def dataViewTypeInfo: TypeInformation[_]
-}
+	public abstract DataType getAccumulatorDataType();
 
-case class ListViewSpec[T](
-    stateId: String,
-    fieldIndex: Int,
-    dataViewTypeInfo: ListViewTypeInfo[T])
-  extends DataViewSpec {
-}
-
-
-case class MapViewSpec[K, V](
-    stateId: String,
-    fieldIndex: Int,
-    dataViewTypeInfo: MapViewTypeInfo[K, V])
-  extends DataViewSpec {
+	public abstract DataType getOutputDataType();
 }

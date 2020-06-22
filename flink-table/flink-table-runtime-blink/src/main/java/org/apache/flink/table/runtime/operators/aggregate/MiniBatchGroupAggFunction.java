@@ -31,7 +31,6 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.bundle.MapBundleFunction;
 import org.apache.flink.table.runtime.types.InternalSerializers;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
@@ -129,6 +128,7 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<RowData, List<R
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void open(ExecutionContext ctx) throws Exception {
 		super.open(ctx);
 		// instantiate function
@@ -137,13 +137,11 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<RowData, List<R
 		// instantiate equaliser
 		equaliser = genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
 
-		RowDataTypeInfo accTypeInfo = new RowDataTypeInfo(accTypes);
-		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
+		TypeSerializer<RowData> wrappedAccTypes = (TypeSerializer<RowData>) InternalSerializers.create(RowType.of(accTypes));
+		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", wrappedAccTypes);
 		accState = ctx.getRuntimeContext().getState(accDesc);
 
-		//noinspection unchecked
-		inputRowSerializer = (TypeSerializer) InternalSerializers.create(
-				inputType, ctx.getRuntimeContext().getExecutionConfig());
+		inputRowSerializer = (TypeSerializer<RowData>) InternalSerializers.create(inputType);
 
 		resultRow = new JoinedRowData();
 	}

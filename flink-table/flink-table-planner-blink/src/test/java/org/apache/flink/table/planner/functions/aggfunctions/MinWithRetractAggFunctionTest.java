@@ -36,16 +36,14 @@ import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFu
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.StringMinWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.TimeMinWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.TimestampMinWithRetractAggFunction;
-import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
 
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 
 import java.lang.reflect.Method;
-import java.sql.Date;
-import java.sql.Time;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * Test case for built-in Min with retraction aggregate function.
@@ -318,7 +316,7 @@ public final class MinWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<DecimalData, MinWithRetractAccumulator<DecimalData>> getAggregator() {
-			return new DecimalMinWithRetractAggFunction(DecimalDataTypeInfo.of(precision, scale));
+			return new DecimalMinWithRetractAggFunction(precision, scale);
 		}
 	}
 
@@ -467,17 +465,17 @@ public final class MinWithRetractAggFunctionTest {
 	/**
 	 * Test for DateMinWithRetractAggFunction.
 	 */
-	public static final class DateMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTestBase<Date> {
+	public static final class DateMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTestBase<Integer> {
 
 		@Override
-		protected List<List<Date>> getInputValueSets() {
+		protected List<List<Integer>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							new Date(0),
-							new Date(1000),
-							new Date(100),
+							0,
+							1000,
+							100,
 							null,
-							new Date(10)
+							10
 					),
 					Arrays.asList(
 							null,
@@ -488,22 +486,22 @@ public final class MinWithRetractAggFunctionTest {
 					),
 					Arrays.asList(
 							null,
-							new Date(1)
+							1
 					)
 			);
 		}
 
 		@Override
-		protected List<Date> getExpectedResults() {
+		protected List<Integer> getExpectedResults() {
 			return Arrays.asList(
-					new Date(0),
+					0,
 					null,
-					new Date(1)
+					1
 			);
 		}
 
 		@Override
-		protected AggregateFunction<Date, MinWithRetractAccumulator<Date>> getAggregator() {
+		protected AggregateFunction<Integer, MinWithRetractAccumulator<Integer>> getAggregator() {
 			return new DateMinWithRetractAggFunction();
 		}
 	}
@@ -511,17 +509,17 @@ public final class MinWithRetractAggFunctionTest {
 	/**
 	 * Test for TimeMinWithRetractAggFunction.
 	 */
-	public static final class TimeMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTestBase<Time> {
+	public static final class TimeMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTestBase<Integer> {
 
 		@Override
-		protected List<List<Time>> getInputValueSets() {
+		protected List<List<Integer>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							new Time(0),
-							new Time(1000),
-							new Time(100),
+							0,
+							1000,
+							100,
 							null,
-							new Time(10)
+							10
 					),
 					Arrays.asList(
 							null,
@@ -532,22 +530,22 @@ public final class MinWithRetractAggFunctionTest {
 					),
 					Arrays.asList(
 							null,
-							new Time(1)
+							1
 					)
 			);
 		}
 
 		@Override
-		protected List<Time> getExpectedResults() {
+		protected List<Integer> getExpectedResults() {
 			return Arrays.asList(
-					new Time(0),
+					0,
 					null,
-					new Time(1)
+					1
 			);
 		}
 
 		@Override
-		protected AggregateFunction<Time, MinWithRetractAccumulator<Time>> getAggregator() {
+		protected AggregateFunction<Integer, MinWithRetractAccumulator<Integer>> getAggregator() {
 			return new TimeMinWithRetractAggFunction();
 		}
 	}
@@ -572,8 +570,11 @@ public final class MinWithRetractAggFunctionTest {
 		}
 
 		@Override
-		protected Method getRetractFunc() throws NoSuchMethodException {
-			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class);
+		protected Method getRetractFunc() {
+			return Stream.of(getAggregator().getClass().getMethods())
+				.filter(m -> m.getName().equals("retract"))
+				.findFirst()
+				.orElseThrow(AssertionError::new);
 		}
 	}
 

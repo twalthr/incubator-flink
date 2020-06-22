@@ -89,10 +89,10 @@ object TableSinkUtils {
     } else {
       // format query and sink schema strings
       val srcSchema = queryLogicalType.getFields
-        .map(f => s"${f.getName}: ${f.getType.asSerializableString()}")
+        .map(f => s"${f.getName}: ${f.getType.asSummaryString()}")
         .mkString("[", ", ", "]")
       val sinkSchema = sinkLogicalType.getFields
-        .map(f => s"${f.getName}: ${f.getType.asSerializableString()}")
+        .map(f => s"${f.getName}: ${f.getType.asSummaryString()}")
         .mkString("[", ", ", "]")
 
       val sinkDesc: String = sinkIdentifier.getOrElse("")
@@ -234,12 +234,17 @@ object TableSinkUtils {
       queryLogicalType,
       withChangeFlag)
     if (LogicalTypeChecks.isCompositeType(requestedOutputType.getLogicalType)) {
-      // if the requested output type is POJO, then we should ignore the POJO fields order,
-      // and infer the sink schema via field names, see expandPojoTypeToSchema().
-      fromDataTypeToTypeInfo(requestedOutputType) match {
-        case pj: PojoTypeInfo[_] => expandPojoTypeToSchema(pj, queryLogicalType)
-        case _ => DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType)
+      try {
+        // if the requested output type is POJO, then we should ignore the POJO fields order,
+        // and infer the sink schema via field names, see expandPojoTypeToSchema().
+        fromDataTypeToTypeInfo(requestedOutputType) match {
+          case pj: PojoTypeInfo[_] => expandPojoTypeToSchema(pj, queryLogicalType)
+          case _ => DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType)
+        }
+      } catch {
+        case _: TableException => DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType)
       }
+
     } else {
       // atomic type
       TableSchema.builder().field("f0", requestedOutputType).build()

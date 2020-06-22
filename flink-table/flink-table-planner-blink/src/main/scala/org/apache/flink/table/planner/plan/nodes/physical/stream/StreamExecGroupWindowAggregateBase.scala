@@ -25,7 +25,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
+import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -33,7 +33,6 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil._
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.generated.{GeneratedClass, GeneratedNamespaceAggsHandleFunction, GeneratedNamespaceTableAggsHandleFunction, GeneratedRecordEqualiser}
 import org.apache.flink.table.runtime.operators.window.{CountWindow, TimeWindow, WindowOperator, WindowOperatorBuilder}
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.logical.LogicalType
 
@@ -161,13 +160,13 @@ abstract class StreamExecGroupWindowAggregateBase(
       inputRowTypeInfo.getLogicalTypes,
       needRetraction)
 
-    val aggResultTypes = aggInfoList.getActualValueTypes.map(fromDataTypeToLogicalType)
+    val aggResultTypes = aggInfoList.getActualValueTypes.map(_.getLogicalType)
     val windowPropertyTypes = namedProperties.map(_.property.resultType).toArray
     val generator = new EqualiserCodeGenerator(aggResultTypes ++ windowPropertyTypes)
     val equaliser = generator.generateRecordEqualiser("WindowValueEqualiser")
 
-    val aggValueTypes = aggInfoList.getActualValueTypes.map(fromDataTypeToLogicalType)
-    val accTypes = aggInfoList.getAccTypes.map(fromDataTypeToLogicalType)
+    val aggValueTypes = aggInfoList.getActualValueTypes.map(_.getLogicalType)
+    val accTypes = aggInfoList.getAccTypes
     val operator = createWindowOperator(
       config,
       aggCodeGenerator,
@@ -219,7 +218,7 @@ abstract class StreamExecGroupWindowAggregateBase(
     }
 
     val generator = new AggsHandlerCodeGenerator(
-      CodeGeneratorContext(config),
+      config,
       relBuilder,
       fieldTypeInfos,
       copyInputField = false)

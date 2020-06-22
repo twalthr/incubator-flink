@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.dataview;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -83,6 +84,15 @@ public class ListView<T> implements DataView {
 	public transient TypeInformation<?> elementType;
 	public final List<T> list;
 
+	public ListView() {
+		this(null, new ArrayList<>());
+	}
+
+	@Internal
+	public ListView(List<T> list) {
+		this(null, list);
+	}
+
 	public ListView(TypeInformation<?> elementType, List<T> list) {
 		this.elementType = elementType;
 		this.list = list;
@@ -97,12 +107,6 @@ public class ListView<T> implements DataView {
 		this(elementType, new ArrayList<>());
 	}
 
-	/**
-	 * Creates a list view.
-	 */
-	public ListView() {
-		this(null);
-	}
 
 	/**
 	 * Returns an iterable of the list view.

@@ -31,12 +31,14 @@ import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LegacyTypeInformationType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
-
 import java.util
+
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec, MapViewSpec}
 
 import scala.collection.mutable
 
-object DataViewUtils {
+@deprecated
+object LegacyDataViewUtils {
 
   /**
     * Use NullSerializer for StateView fields from accumulator type information.
@@ -121,7 +123,7 @@ object DataViewUtils {
   }
 
   /** Recursively checks if composite type includes a data view type. */
-  def includesDataView(ct: CompositeType[_]): Boolean = {
+  private def includesDataView(ct: CompositeType[_]): Boolean = {
     (0 until ct.getArity).exists(i =>
       ct.getTypeAt(i) match {
         case nestedCT: CompositeType[_] => includesDataView(nestedCT)
@@ -135,7 +137,7 @@ object DataViewUtils {
   }
 
   /** Analyse dataview element types and decorate the dataview typeinfos */
-  def decorateDataViewTypeInfo(
+  private def decorateDataViewTypeInfo(
       info: TypeInformation[_],
       instance: AnyRef,
       isStateBackedDataViews: Boolean,
@@ -172,10 +174,10 @@ object DataViewUtils {
           newTypeInfo.setNullSerializer(true)
 
           // create map view specs with unique id (used as state name)
-          spec = Some(MapViewSpec(
+          spec = Some(new MapViewSpec(
             "agg" + aggIndex + "$" + fieldName,
             fieldIndex, // dataview field index in pojo
-            newTypeInfo))
+            fromLegacyInfoToDataType(newTypeInfo)))
         }
         newTypeInfo
 
@@ -200,10 +202,10 @@ object DataViewUtils {
           newTypeInfo.setNullSerializer(true)
 
           // create list view specs with unique is (used as state name)
-          spec = Some(ListViewSpec(
+          spec = Some(new ListViewSpec(
             "agg" + aggIndex + "$" + fieldName,
             fieldIndex, // dataview field index in pojo
-            newTypeInfo))
+            fromLegacyInfoToDataType(newTypeInfo)))
         }
         newTypeInfo
 

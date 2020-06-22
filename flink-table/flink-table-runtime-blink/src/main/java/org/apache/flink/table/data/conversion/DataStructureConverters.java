@@ -134,6 +134,14 @@ public final class DataStructureConverters {
 		return (DataStructureConverter<Object, Object>) getConverterInternal(dataType);
 	}
 
+	/**
+	 * Returns an identity converter assuming that internal data structures are being used.
+	 */
+	@SuppressWarnings("unchecked")
+	public static DataStructureConverter<Object, Object> getIdentityConverter() {
+		return (DataStructureConverter<Object, Object>) IdentityConverter.INSTANCE;
+	}
+
 	private static DataStructureConverter<?, ?> getConverterInternal(DataType dataType) {
 		final LogicalType logicalType = dataType.getLogicalType();
 		final DataStructureConverterFactory factory = converters.get(
@@ -155,6 +163,8 @@ public final class DataStructureConverters {
 				return getConverterInternal(dataType.getChildren().get(0));
 			case STRUCTURED_TYPE:
 				return StructuredObjectConverter.create(dataType);
+			case NULL:
+				return NullConverter.INSTANCE;
 			case RAW:
 				return RawObjectConverter.create(dataType);
 			default:
@@ -174,7 +184,7 @@ public final class DataStructureConverters {
 	}
 
 	private static DataStructureConverterFactory identity() {
-		return constructor(IdentityConverter::new);
+		return dataType -> IdentityConverter.INSTANCE;
 	}
 
 	private static DataStructureConverterFactory constructor(Supplier<DataStructureConverter<?, ?>> supplier) {

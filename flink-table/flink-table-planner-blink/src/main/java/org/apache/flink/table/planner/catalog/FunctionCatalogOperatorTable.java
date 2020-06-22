@@ -214,6 +214,9 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 		} else if (definition.getKind() == FunctionKind.TABLE &&
 				(category == SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION || category == SqlFunctionCategory.SYSTEM)) {
 			return true;
+		} else if (definition.getKind() == FunctionKind.AGGREGATE &&
+				(category == SqlFunctionCategory.USER_DEFINED_FUNCTION || category == SqlFunctionCategory.SYSTEM)) {
+			return true;
 		}
 
 		// aggregate function are not supported, because the code generator is not ready yet

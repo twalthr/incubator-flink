@@ -18,20 +18,16 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.MapTypeInfo;
-import org.apache.flink.api.java.typeutils.PojoField;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.MapView;
-import org.apache.flink.table.dataview.MapViewTypeInfo;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.util.WrappingRuntimeException;
+import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.TypeTransformations;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.utils.TypeConversions;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -40,14 +36,16 @@ import java.util.Objects;
  * @param <T> type of collect element.
  */
 public class CollectAggFunction<T>
-	extends AggregateFunction<Map<T, Integer>, CollectAggFunction.CollectAccumulator<T>> {
+	extends InternalAggregateFunction<Map<T, Integer>, CollectAggFunction.CollectAccumulator<T>> {
 
 	private static final long serialVersionUID = -5860934997657147836L;
 
-	private final TypeInformation<T> elementType;
+	private final DataType elementDataType;
 
-	public CollectAggFunction(TypeInformation<T> elementType) {
-		this.elementType = elementType;
+	public CollectAggFunction(LogicalType elementType) {
+		this.elementDataType = DataTypeUtils.transform(
+			TypeConversions.fromLogicalToDataType(elementType),
+			TypeTransformations.TO_INTERNAL_CLASS);
 	}
 
 	/** The initial accumulator for Collect aggregate function. */
@@ -67,9 +65,26 @@ public class CollectAggFunction<T>
 		}
 	}
 
+	@Override
+	public DataType[] getInputDataTypes() {
+		return new DataType[]{elementDataType};
+	}
+
+	@Override
+	public DataType getAccumulatorDataType() {
+		return DataTypeUtils.newStructuredDataType(
+			CollectAccumulator.class,
+			DataTypes.FIELD("map", DataViewUtils.newMapView(elementDataType, DataTypes.INT())));
+	}
+
+	@Override
+	public DataType getOutputDataType() {
+		return DataTypes.MAP(elementDataType, DataTypes.INT());
+	}
+
 	public CollectAccumulator<T> createAccumulator() {
 		CollectAccumulator<T> acc = new CollectAccumulator<>();
-		acc.map = new MapView<>(elementType, Types.INT);
+		acc.map = new MapView<>();
 		return acc;
 	}
 
@@ -128,26 +143,6 @@ public class CollectAggFunction<T>
 			return result;
 		} catch (Exception e) {
 			throw new RuntimeException(e);
-		}
-	}
-
-	@Override
-	public TypeInformation<Map<T, Integer>> getResultType() {
-		return new MapTypeInfo<>(elementType, Types.INT);
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public TypeInformation<CollectAccumulator<T>> getAccumulatorType() {
-		try {
-			Class<CollectAccumulator<T>> clazz = (Class<CollectAccumulator<T>>) (Class) CollectAccumulator.class;
-			List<PojoField> pojoFields = new ArrayList<>();
-			pojoFields.add(new PojoField(
-				clazz.getDeclaredField("map"),
-				new MapViewTypeInfo<>(elementType, BasicTypeInfo.INT_TYPE_INFO)));
-			return new PojoTypeInfo<>(clazz, pojoFields);
-		} catch (NoSuchFieldException e) {
-			throw new WrappingRuntimeException(e);
 		}
 	}
 }

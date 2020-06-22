@@ -41,6 +41,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.utils.RawValueDataAsserter.equivalent;
 import static org.junit.Assert.assertEquals;
@@ -63,7 +64,10 @@ public abstract class AggFunctionTestBase<T, ACC> {
 	protected abstract Class<?> getAccClass();
 
 	protected Method getAccumulateFunc() throws NoSuchMethodException {
-		return getAggregator().getClass().getMethod("accumulate", getAccClass(), Object.class);
+		return Stream.of(getAggregator().getClass().getMethods())
+			.filter(m -> m.getName().equals("accumulate"))
+			.findFirst()
+			.orElseThrow(AssertionError::new);
 	}
 
 	protected Method getRetractFunc() throws NoSuchMethodException {

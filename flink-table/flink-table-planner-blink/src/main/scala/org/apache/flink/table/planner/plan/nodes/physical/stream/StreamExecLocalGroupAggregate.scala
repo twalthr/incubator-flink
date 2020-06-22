@@ -110,7 +110,7 @@ class StreamExecLocalGroupAggregate(
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
 
     val generator = new AggsHandlerCodeGenerator(
-      CodeGeneratorContext(planner.getTableConfig),
+      planner.getTableConfig,
       planner.getRelBuilder,
       inRowType.getChildren,
       // the local aggregate result will be buffered, so need copy

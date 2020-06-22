@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.codegen
 import java.lang.reflect.Method
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.Predicate
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.core.memory.MemorySegment
@@ -41,6 +42,7 @@ import org.apache.flink.table.runtime.util.MurmurHashUtil
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale, hasRoot}
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.table.types.utils.DataTypeUtils
@@ -470,9 +472,9 @@ object CodeGenUtils {
         s"$rowTerm.getRow($indexTerm, ${getFieldCount(t)})"
       case DISTINCT_TYPE =>
         rowFieldReadAccess(ctx, indexTerm, rowTerm, t.asInstanceOf[DistinctType].getSourceType)
-      case RAW =>
+      case NULL | RAW =>
         s"(($BINARY_RAW_VALUE) $rowTerm.getRawValue($indexTerm))"
-      case NULL | SYMBOL | UNRESOLVED =>
+      case SYMBOL | UNRESOLVED =>
         throw new IllegalArgumentException("Illegal type: " + t)
     }
 
@@ -789,6 +791,12 @@ object CodeGenUtils {
       ctx: CodeGeneratorContext,
       sourceDataType: DataType)
     : String => String = {
+
+//    // legacy handling
+//    if (LogicalTypeChecks.hasLegacyTypes(sourceDataType.getLogicalType)) {
+//      return genToInternal(ctx, sourceDataType)
+//    }
+
     if (isInternal(sourceDataType)) {
       externalTerm => s"$externalTerm"
     } else {
@@ -841,6 +849,12 @@ object CodeGenUtils {
       targetDataType: DataType,
       internalTerm: String)
     : String = {
+
+//    // legacy handling
+//    if (LogicalTypeChecks.hasLegacyTypes(targetDataType.getLogicalType)) {
+//      return genToExternal(ctx, targetDataType, internalTerm)
+//    }
+
     if (isInternal(targetDataType)) {
       s"$internalTerm"
     } else {

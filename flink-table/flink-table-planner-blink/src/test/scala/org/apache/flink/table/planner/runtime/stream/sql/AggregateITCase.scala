@@ -384,7 +384,7 @@ class AggregateITCase(
 
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T", t)
-    tEnv.registerFunction("CntNullNonNull", new CountNullNonNull)
+    tEnv.createTemporaryFunction("CntNullNonNull", classOf[CountNullNonNull])
     val t1 = tEnv.sqlQuery(
       "SELECT b, count(*), CntNullNonNull(DISTINCT c)  FROM T GROUP BY b")
 
@@ -829,7 +829,7 @@ class AggregateITCase(
 
     val t = failingDataSource(data).toTable(tEnv, 'id, 's, 's1, 's2)
     tEnv.registerTable("MyTable", t)
-    tEnv.registerFunction("func", new VarArgsAggFunction)
+    tEnv.createTemporarySystemFunction("func", new VarArgsAggFunction)
 
     val sql = "SELECT func(s, s1, s2) FROM MyTable"
     val sink = new TestingRetractSink
@@ -849,7 +849,7 @@ class AggregateITCase(
 
     val t = failingDataSource(data).toTable(tEnv, 'id, 's, 's1, 's2)
     tEnv.registerTable("MyTable", t)
-    tEnv.registerFunction("func", new VarArgsAggFunction)
+    tEnv.createTemporarySystemFunction("func", new VarArgsAggFunction)
 
     val sink = new TestingRetractSink
     tEnv
@@ -1009,7 +1009,7 @@ class AggregateITCase(
     tEnv.registerTable("v1", view1)
 
     val toCompositeObj = ToCompositeObj
-    tEnv.registerFunction("toCompObj", toCompositeObj)
+    tEnv.createTemporarySystemFunction("toCompObj", toCompositeObj)
 
     val sql1 =
       s"""
@@ -1110,7 +1110,7 @@ class AggregateITCase(
 
   @Test
   def testLongVarargsAgg(): Unit = {
-    tEnv.registerFunction("var_sum", new VarSumAggFunction)
+    tEnv.createTemporarySystemFunction("var_sum", new VarSumAggFunction)
     val sqlQuery = s"SELECT a, " +
       s"var_sum(${0.until(260).map(_ => "b").mkString(",")}) from MyTable group by a"
     val data = Seq[(Int, Int)]((1, 1), (2,2))
@@ -1219,7 +1219,7 @@ class AggregateITCase(
     tEnv.getConfig.setIdleStateRetentionTime(Time.days(0), Time.days(0))
     val t = failingDataSource(Seq(1, 2, 3)).toTable(tEnv, 'a)
     val results = t
-        .select(new GenericAggregateFunction()('a))
+        .select(call(classOf[GenericAggregateFunction], 'a))
         .toRetractStream[Row]
 
     val sink = new TestingRetractSink

@@ -31,6 +31,7 @@ import java.util.List;
  *
  * @param <T> the type of the list elements.
  */
+@Deprecated
 @Internal
 public final class ListViewSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<ListView<T>, ListViewSerializer<T>> {
 

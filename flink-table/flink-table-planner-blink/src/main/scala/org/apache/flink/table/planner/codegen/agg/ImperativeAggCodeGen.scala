@@ -17,31 +17,26 @@
  */
 package org.apache.flink.table.planner.codegen.agg
 
+import java.lang.{Iterable => JIterable}
+
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.table.data.{GenericRowData, RowData, UpdatableRowData}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.UserDefinedAggregateFunction
+import org.apache.flink.table.functions.{UserDefinedAggregateFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
-import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
-import org.apache.flink.table.planner.dataview.DataViewSpec
+import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
-import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
+import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.planner.utils.SingleElementIterator
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.types.{ClassDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.util.Collector
-
-import org.apache.calcite.tools.RelBuilder
-
-import java.lang.reflect.ParameterizedType
-import java.lang.{Iterable => JIterable}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -75,47 +70,45 @@ class ImperativeAggCodeGen(
     relBuilder: RelBuilder,
     hasNamespace: Boolean,
     mergedAccOnHeap: Boolean,
-    mergedAccExternalType: DataType,
+    mergedAccType: LogicalType,
     inputFieldCopy: Boolean)
   extends AggCodeGen {
 
   private val SINGLE_ITERABLE = className[SingleElementIterator[_]]
   private val UPDATABLE_ROW = className[UpdatableRowData]
 
-  val function = aggInfo.function.asInstanceOf[UserDefinedAggregateFunction[_, _]]
-  val functionTerm: String = ctx.addReusableFunction(
-    function,
-    contextTerm = s"$STORE_TERM.getRuntimeContext()")
-  val aggIndex: Int = aggInfo.aggIndex
+  private val function = aggInfo.function.asInstanceOf[UserDefinedAggregateFunction[_, _]]
+  private val functionTerm: String = ctx.addReusableFunction(function)
+  private val aggIndex: Int = aggInfo.aggIndex
 
-  val externalAccType = aggInfo.externalAccTypes(0)
-  private val internalAccType = fromDataTypeToLogicalType(externalAccType)
+  private val externalAccType = aggInfo.externalAccTypes(0)
+  private val internalAccType = externalAccType.getLogicalType
 
   /** whether the acc type is an internal type.
     * Currently we only support GenericRowData as internal acc type */
-  val isAccTypeInternal: Boolean =
+  private val isAccTypeInternal: Boolean =
     classOf[RowData].isAssignableFrom(externalAccType.getConversionClass)
 
-  val accInternalTerm: String = s"agg${aggIndex}_acc_internal"
-  val accExternalTerm: String = s"agg${aggIndex}_acc_external"
-  val accTypeInternalTerm: String = if (isAccTypeInternal) {
+  private val accInternalTerm: String = s"agg${aggIndex}_acc_internal"
+  private val accExternalTerm: String = s"agg${aggIndex}_acc_external"
+  private val accTypeInternalTerm: String = if (isAccTypeInternal) {
     GENERIC_ROW
   } else {
-    boxedTypeTermForType(fromDataTypeToLogicalType(externalAccType))
+    boxedTypeTermForType(externalAccType.getLogicalType)
   }
-  val accTypeExternalTerm: String = typeTerm(externalAccType.getConversionClass)
+  private val accTypeExternalTerm: String = typeTerm(externalAccType.getConversionClass)
 
-  val argTypes: Array[LogicalType] = {
+  private val argTypes: Array[LogicalType] = {
     val types = inputTypes ++ constantExprs.map(_.resultType)
     aggInfo.argIndexes.map(types(_))
   }
 
   private val externalResultType = aggInfo.externalResultType
-  private val internalResultType = fromDataTypeToLogicalType(externalResultType)
+  private val internalResultType = externalResultType.getLogicalType
 
   private val rexNodeGen = new ExpressionConverter(relBuilder)
 
-  val viewSpecs: Array[DataViewSpec] = aggInfo.viewSpecs
+  private val viewSpecs: Array[DataViewSpec] = aggInfo.viewSpecs
   // add reusable dataviews to context
   addReusableStateDataViews(ctx, viewSpecs, hasNamespace, !mergedAccOnHeap)
 
@@ -125,7 +118,7 @@ class ImperativeAggCodeGen(
       // do not need convert to internal type
       s"($accTypeInternalTerm) $functionTerm.createAccumulator()"
     } else {
-      genToInternal(ctx, externalAccType, s"$functionTerm.createAccumulator()")
+      genToInternalConverter(ctx, externalAccType)(s"$functionTerm.createAccumulator()")
     }
     val accInternal = newName("acc_internal")
     val code = s"$accTypeInternalTerm $accInternal = ($accTypeInternalTerm) $accField;"
@@ -151,7 +144,7 @@ class ImperativeAggCodeGen(
       ctx.addReusableMember(s"private $accTypeExternalTerm $accExternalTerm;")
       s"""
          |$accInternalTerm = ${expr.resultTerm};
-         |$accExternalTerm = ${genToExternal(ctx, externalAccType, accInternalTerm)};
+         |$accExternalTerm = ${genToExternalConverter(ctx, externalAccType, accInternalTerm)};
       """.stripMargin
     }
   }
@@ -162,7 +155,7 @@ class ImperativeAggCodeGen(
     } else {
       s"""
          |$accExternalTerm = ($accTypeExternalTerm) $functionTerm.createAccumulator();
-         |$accInternalTerm = ${genToInternal(ctx, externalAccType, accExternalTerm)};
+         |$accInternalTerm = ${genToInternalConverter(ctx, externalAccType)(accExternalTerm)};
        """.stripMargin
     }
   }
@@ -172,15 +165,14 @@ class ImperativeAggCodeGen(
       // do not need convert to internal type
       ""
     } else {
-      s"$accInternalTerm = ${genToInternal(ctx, externalAccType, accExternalTerm)};"
+      s"$accInternalTerm = ${genToInternalConverter(ctx, externalAccType)(accExternalTerm)};"
     }
     Seq(GeneratedExpression(accInternalTerm, "false", code, internalAccType))
   }
 
   def accumulate(generator: ExprCodeGenerator): String = {
-    val (parameters, code) = aggParametersCode(generator)
-    // TODO handle accumulate has primitive parameters
-    val call = s"$functionTerm.accumulate($parameters);"
+    val (operands, code) = prepareExternalOperands(generator)
+    val call = s"$functionTerm.accumulate($operands);"
     filterExpression match {
       case None =>
         s"""
@@ -199,8 +191,8 @@ class ImperativeAggCodeGen(
   }
 
   def retract(generator: ExprCodeGenerator): String = {
-    val (parameters, code) = aggParametersCode(generator)
-    val call = s"$functionTerm.retract($parameters);"
+    val (operands, code) = prepareExternalOperands(generator)
+    val call = s"$functionTerm.retract($operands);"
     filterExpression match {
       case None =>
         s"""
@@ -241,7 +233,7 @@ class ImperativeAggCodeGen(
       val otherAccExternal = newName("other_acc_external")
       s"""
          |$accTypeExternalTerm $otherAccExternal = ${
-            genToExternal(ctx, mergedAccExternalType, expr.resultTerm)};
+            genToExternalConverter(ctx, externalAccType, expr.resultTerm)};
          |$accIterTerm.set($otherAccExternal);
          |$functionTerm.merge($accExternalTerm, $accIterTerm);
       """.stripMargin
@@ -260,24 +252,20 @@ class ImperativeAggCodeGen(
          |$valueExternalTypeTerm $valueExternalTerm = ($valueExternalTypeTerm)
          |  $functionTerm.getValue($accTerm);
          |$valueInternalTypeTerm $valueInternalTerm =
-         |  ${genToInternal(ctx, externalResultType, valueExternalTerm)};
+         |  ${genToInternalConverter(ctx, externalResultType)(valueExternalTerm)};
          |boolean $nullTerm = $valueInternalTerm == null;
       """.stripMargin
 
     GeneratedExpression(valueInternalTerm, nullTerm, code, internalResultType)
   }
 
-  private def aggParametersCode(generator: ExprCodeGenerator): (String, String) = {
-    val externalInputTypes = getAggUserDefinedInputTypes(
-      function,
-      externalAccType,
-      argTypes)
+  private def prepareExternalOperands(generator: ExprCodeGenerator): (String, String) = {
     var codes: ArrayBuffer[String] = ArrayBuffer.empty[String]
     val inputFields = aggInfo.argIndexes.zipWithIndex.map { case (f, index) =>
       if (f >= inputTypes.length) {
         // index to constant
         val expr = constantExprs(f - inputTypes.length)
-        genToExternalIfNeeded(ctx, externalInputTypes(index), expr)
+        genToExternalConverterAll(ctx, aggInfo.externalArgTypes(index), expr)
       } else {
         // index to input field
         val inputRef = if (generator.input1Term.startsWith(DISTINCT_KEY_TERM)) {
@@ -296,7 +284,7 @@ class ImperativeAggCodeGen(
         var inputExpr = generator.generateExpression(inputRef.accept(rexNodeGen))
         if (inputFieldCopy) inputExpr = inputExpr.deepCopy(ctx)
         codes += inputExpr.code
-        genToExternalIfNeeded(ctx, externalInputTypes(index), inputExpr)
+        genToExternalConverterAll(ctx, aggInfo.externalArgTypes(index), inputExpr)
       }
     }
 
@@ -377,7 +365,7 @@ class ImperativeAggCodeGen(
                    |$fieldTerm = null;
                    |if (!${newExpr.nullTerm}) {
                    |  $fieldTerm = new $UPDATABLE_ROW(${newExpr.resultTerm}, ${
-                        PlannerTypeUtils.getArity(fieldType)});
+                        LogicalTypeChecks.getFieldCount(fieldType)});
                    |  ${generateDataViewFieldSetter(fieldTerm, viewSpecs, useBackupDataView)}
                    |}
                 """.stripMargin
@@ -423,7 +411,7 @@ class ImperativeAggCodeGen(
            |if ($NAMESPACE_TERM != null) {
            |  $dataViewTerm.setCurrentNamespace($NAMESPACE_TERM);
            |  $dataViewInternalTerm.setJavaObject($dataViewTerm);
-           |  $accTerm.setField(${spec.fieldIndex}, $dataViewInternalTerm);
+           |  $accTerm.setField(${spec.getFieldIndex}, $dataViewInternalTerm);
            |}
          """.stripMargin
       } else {
@@ -432,7 +420,7 @@ class ImperativeAggCodeGen(
 
         s"""
            |$dataViewInternalTerm.setJavaObject($dataViewTerm);
-           |$accTerm.setField(${spec.fieldIndex}, $dataViewInternalTerm);
+           |$accTerm.setField(${spec.getFieldIndex}, $dataViewInternalTerm);
         """.stripMargin
       }
     }
@@ -446,80 +434,94 @@ class ImperativeAggCodeGen(
       needReset: Boolean = false,
       needEmitValue: Boolean = false): Unit = {
 
-    val methodSignatures = logicalTypesToExternalClasses(argTypes)
+    if (aggInfo.isLegacyMode) {
+      return
+    }
+
+    val functionName = aggInfo.agg.getAggregation.toString
+    val accumulatorClass = aggInfo.externalAccTypes.map(_.getConversionClass)
+    val argumentClasses = aggInfo.externalArgTypes.map(_.getConversionClass)
 
     if (needAccumulate) {
-      getAggFunctionUDIMethod(function, "accumulate", externalAccType, argTypes)
-        .getOrElse(
-          throw new CodeGenException(
-            s"No matching accumulate method found for AggregateFunction " +
-              s"'${function.getClass.getCanonicalName}'" +
-              s"with parameters '${signatureToString(methodSignatures)}'.")
-        )
+      UserDefinedFunctionHelper.validateClassForRuntime(
+        function.getClass,
+        UserDefinedFunctionHelper.AGGREGATE_ACCUMULATE,
+        accumulatorClass ++ argumentClasses,
+        classOf[Unit],
+        functionName
+      )
     }
 
     if (needRetract) {
-      getAggFunctionUDIMethod(function, "retract", externalAccType, argTypes)
-        .getOrElse(
-          throw new CodeGenException(
-            s"No matching retract method found for AggregateFunction " +
-              s"'${function.getClass.getCanonicalName}'" +
-              s"with parameters '${signatureToString(methodSignatures)}'.")
-        )
+      UserDefinedFunctionHelper.validateClassForRuntime(
+        function.getClass,
+        UserDefinedFunctionHelper.AGGREGATE_RETRACT,
+        accumulatorClass ++ argumentClasses,
+        classOf[Unit],
+        functionName
+      )
     }
 
     if (needMerge) {
-      val iterType = ClassDataTypeConverter.fromClassToDataType(classOf[JIterable[Any]])
-      val methods =
-        getUserDefinedMethod(function, "merge", Array(externalAccType, iterType))
-          .getOrElse(
-            throw new CodeGenException(
-              s"No matching merge method found for AggregateFunction " +
-                s"${function.getClass.getCanonicalName}'.")
-          )
-
-      var iterableTypeClass = methods.getGenericParameterTypes.apply(1)
-        .asInstanceOf[ParameterizedType].getActualTypeArguments.apply(0)
-      // further extract iterableTypeClass if the accumulator has generic type
-      iterableTypeClass match {
-        case impl: ParameterizedType => iterableTypeClass = impl.getRawType
-        case _ =>
-      }
-
-      val clazz = externalAccType.getConversionClass
-      if (iterableTypeClass != externalAccType.getConversionClass &&
-          // iterableTypeClass can be GenericRowData, so classOf[RowData] is assignable from it.
-          !toInternalConversionClass(internalAccType).isAssignableFrom(
-            iterableTypeClass.asInstanceOf[Class[_]])) {
-        throw new CodeGenException(
-          s"merge method in AggregateFunction ${function.getClass.getCanonicalName} does not " +
-            s"have the correct Iterable type. Actually: $iterableTypeClass. " +
-            s"Expected: $clazz")
-      }
+      UserDefinedFunctionHelper.validateClassForRuntime(
+        function.getClass,
+        UserDefinedFunctionHelper.AGGREGATE_MERGE,
+        accumulatorClass ++ Array(classOf[JIterable[Any]]),
+        classOf[Unit],
+        functionName
+      )
     }
 
     if (needReset) {
-      getUserDefinedMethod(function, "resetAccumulator", Array(externalAccType))
-        .getOrElse(
-          throw new CodeGenException(
-            s"No matching resetAccumulator method found for " +
-              s"aggregate ${function.getClass.getCanonicalName}'.")
-        )
+      UserDefinedFunctionHelper.validateClassForRuntime(
+        function.getClass,
+        UserDefinedFunctionHelper.AGGREGATE_RESET,
+        accumulatorClass,
+        classOf[Unit],
+        functionName
+      )
     }
 
     if (needEmitValue) {
-      val collectorDataType = ClassDataTypeConverter.fromClassToDataType(classOf[Collector[_]])
-      getUserDefinedMethod(function, "emitValue", Array(externalAccType, collectorDataType))
-        .getOrElse(
-          throw new CodeGenException(
-            s"No matching emitValue method found for " +
-              s"table aggregate ${function.getClass.getCanonicalName}'.")
-        )
+      UserDefinedFunctionHelper.validateClassForRuntime(
+        function.getClass,
+        UserDefinedFunctionHelper.TABLE_AGGREGATE_EMIT,
+        accumulatorClass ++ Array(classOf[Collector[_]]),
+        classOf[Unit],
+        functionName
+      )
     }
   }
 
   def emitValue: String = {
     val accTerm = if (isAccTypeInternal) accInternalTerm else accExternalTerm
     s"$functionTerm.emitValue($accTerm, $MEMBER_COLLECTOR_TERM);"
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Best effort legacy handling
+  // ----------------------------------------------------------------------------------------------
+
+  private def genToInternalConverter(
+      ctx: CodeGeneratorContext,
+      sourceDataType: DataType)
+    : String => String = {
+    if (aggInfo.isLegacyMode) {
+      genToInternal(ctx, sourceDataType)
+    } else {
+      CodeGenUtils.genToInternalConverter(ctx, sourceDataType)
+    }
+  }
+
+  private def genToExternalConverter(
+      ctx: CodeGeneratorContext,
+      targetDataType: DataType,
+      internalTerm: String)
+    : String = {
+    if (aggInfo.isLegacyMode) {
+      genToExternal(ctx, targetDataType, internalTerm)
+    } else {
+      CodeGenUtils.genToExternalConverter(ctx, targetDataType, internalTerm)
+    }
   }
 }

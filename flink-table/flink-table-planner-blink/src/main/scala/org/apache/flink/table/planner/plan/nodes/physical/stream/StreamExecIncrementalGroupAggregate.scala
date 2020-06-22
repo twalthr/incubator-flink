@@ -22,7 +22,6 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -31,15 +30,14 @@ import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction
 import org.apache.flink.table.runtime.operators.aggregate.MiniBatchIncrementalGroupAggFunction
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
-import org.apache.flink.table.types.DataType
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.tools.RelBuilder
-
 import java.util
+
+import org.apache.flink.table.types.logical.LogicalType
 
 import scala.collection.JavaConversions._
 
@@ -195,13 +193,13 @@ class StreamExecIncrementalGroupAggregate(
     name: String,
     aggInfoList: AggregateInfoList,
     mergedAccOffset: Int,
-    mergedAccExternalTypes: Array[DataType],
+    mergedAccExternalTypes: Array[LogicalType],
     config: TableConfig,
     relBuilder: RelBuilder,
     inputFieldCopy: Boolean): GeneratedAggsHandleFunction = {
 
     val generator = new AggsHandlerCodeGenerator(
-      CodeGeneratorContext(config),
+      config,
       relBuilder,
       FlinkTypeFactory.toLogicalRowType(inputRowType).getChildren,
       inputFieldCopy)

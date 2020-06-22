@@ -33,8 +33,9 @@ import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
 import org.apache.calcite.util.Optionality
-
 import java.util
+
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 
 /**
   * Calcite wrapper for user-defined aggregate functions. Currently, the aggregate function can be
@@ -46,7 +47,9 @@ import java.util
   * @param externalResultType the type information of returned value
   * @param externalAccType the type information of the accumulator
   * @param typeFactory type factory for converting Flink's between Calcite's types
+  * @deprecated Replaced by [[BridgingSqlAggFunction]].
   */
+@deprecated
 class AggSqlFunction(
     identifier: FunctionIdentifier,
     displayName: String,

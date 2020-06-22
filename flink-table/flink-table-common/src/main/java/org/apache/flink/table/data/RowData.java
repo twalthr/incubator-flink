@@ -287,6 +287,7 @@ public interface RowData {
 			case BINARY:
 			case VARBINARY:
 				return row.getBinary(pos);
+			case NULL:
 			case RAW:
 				return row.getRawValue(pos);
 			default:
@@ -365,10 +366,10 @@ public interface RowData {
 			case DISTINCT_TYPE:
 				fieldGetter = createFieldGetter(((DistinctType) fieldType).getSourceType(), fieldPos);
 				break;
+			case NULL:
 			case RAW:
 				fieldGetter = row -> row.getRawValue(fieldPos);
 				break;
-			case NULL:
 			case SYMBOL:
 			case UNRESOLVED:
 			default:

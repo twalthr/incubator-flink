@@ -30,6 +30,7 @@ import java.util.Map;
 /**
  * TypeInformation factory for {@link MapView}.
  */
+@Deprecated
 @Internal
 public class MapViewTypeInfoFactory<K, V> extends TypeInfoFactory<MapView<K, V>> {
 

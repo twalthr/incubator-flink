@@ -18,15 +18,14 @@
 package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.api.common.functions.RuntimeContext
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.UserDefinedAggregateFunction
+import org.apache.flink.table.functions.{FunctionContext, UserDefinedAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, _}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
-import org.apache.flink.table.planner.dataview.{DataViewSpec, ListViewSpec, MapViewSpec}
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
 import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
@@ -37,11 +36,11 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDat
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.util.Collector
-
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
+import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStructureConverters}
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, DistinctViewSpec, ListViewSpec, MapViewSpec}
 
 /**
   * A code generator for generating [[AggsHandleFunction]].
@@ -50,10 +49,12 @@ import org.apache.calcite.tools.RelBuilder
   *                       set to true if field will be buffered (such as local aggregate)
   */
 class AggsHandlerCodeGenerator(
-    ctx: CodeGeneratorContext,
+    config: TableConfig,
     relBuilder: RelBuilder,
     inputFieldTypes: Seq[LogicalType],
     copyInputField: Boolean) {
+
+  private val ctx = new AggsHandlerCodeGeneratorContext(config)
 
   private val inputType = RowType.of(inputFieldTypes: _*)
 
@@ -67,10 +68,10 @@ class AggsHandlerCodeGenerator(
   private var hasNamespace: Boolean = false
 
   /** Aggregates informations */
-  private var accTypeInfo: RowType = _
+  private var accRowType: RowType = _
   private var aggBufferSize: Int = _
 
-  private var mergedAccExternalTypes: Array[DataType] = _
+  private var mergedAccTypes: Array[LogicalType] = _
   private var mergedAccOffset: Int = 0
   private var mergedAccOnHeap: Boolean = false
 
@@ -171,15 +172,15 @@ class AggsHandlerCodeGenerator(
     * @param mergedAccOffset the mergedAcc may come from local aggregate,
     *                         this is the first buffer offset in the row
     * @param mergedAccOnHeap true if the mergedAcc is on heap, otherwise
-    * @param mergedAccExternalTypes the merged acc types
+    * @param mergedAccTypes the merged acc types
     */
   def needMerge(
       mergedAccOffset: Int,
       mergedAccOnHeap: Boolean,
-      mergedAccExternalTypes: Array[DataType] = null): AggsHandlerCodeGenerator = {
+      mergedAccTypes: Array[LogicalType] = null): AggsHandlerCodeGenerator = {
     this.mergedAccOffset = mergedAccOffset
     this.mergedAccOnHeap = mergedAccOnHeap
-    this.mergedAccExternalTypes = mergedAccExternalTypes
+    this.mergedAccTypes = mergedAccTypes
     this.isMergeNeeded = true
     this
   }
@@ -200,13 +201,12 @@ class AggsHandlerCodeGenerator(
     */
   private def initialAggregateInformation(aggInfoList: AggregateInfoList): Unit = {
 
-    this.accTypeInfo = RowType.of(
-      aggInfoList.getAccTypes.map(fromDataTypeToLogicalType): _*)
-    this.aggBufferSize = accTypeInfo.getFieldCount
+    this.accRowType = RowType.of(aggInfoList.getAccTypes: _*)
+    this.aggBufferSize = accRowType.getFieldCount
     var aggBufferOffset: Int = 0
 
-    if (mergedAccExternalTypes == null) {
-      mergedAccExternalTypes = aggInfoList.getAccTypes
+    if (mergedAccTypes == null) {
+      mergedAccTypes = aggInfoList.getAccTypes
     }
 
     val aggCodeGens = aggInfoList.aggInfos.map { aggInfo =>
@@ -240,7 +240,7 @@ class AggsHandlerCodeGenerator(
             relBuilder,
             hasNamespace,
             mergedAccOnHeap,
-            mergedAccExternalTypes(aggBufferOffset),
+            mergedAccTypes(aggBufferOffset),
             copyInputField)
       }
       aggBufferOffset = aggBufferOffset + aggInfo.externalAccTypes.length
@@ -805,7 +805,7 @@ class AggsHandlerCodeGenerator(
     val accTerm = newName("acc")
     val resultExpr = exprGenerator.generateResultExpression(
       initAccExprs,
-      accTypeInfo,
+      accRowType,
       classOf[GenericRowData],
       outRow = accTerm,
       reusedOutRow = false,
@@ -830,7 +830,7 @@ class AggsHandlerCodeGenerator(
     // always create a new accumulator row
     val resultExpr = exprGenerator.generateResultExpression(
       accExprs,
-      accTypeInfo,
+      accRowType,
       classOf[GenericRowData],
       outRow = accTerm,
       reusedOutRow = false,
@@ -850,7 +850,7 @@ class AggsHandlerCodeGenerator(
 
     // bind input1 as accumulators
     val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
-        .bindInput(accTypeInfo, inputTerm = ACC_TERM)
+        .bindInput(accRowType, inputTerm = ACC_TERM)
     val body = splitExpressionsIfNecessary(
       aggBufferCodeGens.map(_.setAccumulator(exprGenerator)), methodName)
 
@@ -932,14 +932,13 @@ class AggsHandlerCodeGenerator(
       ctx.startNewLocalVariableStatement(methodName)
 
       // the mergedAcc is partial of mergedInput, such as <key, acc> in local-global, ignore keys
-      val internalAccTypes = mergedAccExternalTypes.map(fromDataTypeToLogicalType)
       val mergedAccType = if (mergedAccOffset > 0) {
         // concat padding types and acc types, use int type as padding
         // the padding types will be ignored
         val padding = Array.range(0, mergedAccOffset).map(_ => new IntType())
-        RowType.of(padding ++ internalAccTypes: _*)
+        RowType.of(padding ++ mergedAccTypes: _*)
       } else {
-        RowType.of(internalAccTypes: _*)
+        RowType.of(mergedAccTypes: _*)
       }
 
       // bind input1 as otherAcc
@@ -1085,7 +1084,8 @@ class AggsHandlerCodeGenerator(
   }
 
   private def genRecordToRowData(aggExternalType: DataType, recordInputName: String): String = {
-    val resultType = fromDataTypeToLogicalType(aggExternalType)
+    ???
+    val resultType = fromDataTypeToLogicalType(aggExternalType) // TODO
     val resultRowType = PlannerTypeUtils.toRowType(resultType)
 
     val newCtx = CodeGeneratorContext(ctx.tableConfig)
@@ -1149,7 +1149,7 @@ object AggsHandlerCodeGenerator {
     * @return term to access MapView or ListView
     */
   def createDataViewTerm(spec: DataViewSpec): String = {
-    s"${spec.stateId}_dataview"
+    s"${spec.getStateId}_dataview"
   }
 
   /**
@@ -1167,7 +1167,7 @@ object AggsHandlerCodeGenerator {
     * @return term to access backup MapView or ListView
     */
   def createDataViewBackupTerm(spec: DataViewSpec): String = {
-    s"${spec.stateId}_dataview_backup"
+    s"${spec.getStateId}_dataview_backup"
   }
 
   /**
@@ -1184,35 +1184,82 @@ object AggsHandlerCodeGenerator {
       enableBackupDataView: Boolean): Unit = {
     // add reusable dataviews to context
     viewSpecs.foreach { spec =>
-      val (viewTypeTerm, registerCall) = spec match {
-        case ListViewSpec(_, _, _) => (className[StateListView[_, _]], "getStateListView")
-        case MapViewSpec(_, _, _) => (className[StateMapView[_, _, _]], "getStateMapView")
+      val stateId = spec.getStateId
+      val (stateViewTypeTerm, getCall, parameters) = spec match {
+        case listViewSpec: ListViewSpec =>
+          val elementType = listViewSpec.getElementDataType.getLogicalType
+          val elementConverter = DataStructureConverters.getConverter(listViewSpec.getElementDataType)
+          val elementConverterTerm = ctx.addReusableConverter(elementConverter)
+          val elementSerializerTerm = ctx.addReusableTypeSerializer(elementType)
+          (
+            className[StateListView[_, _]],
+            "getStateListView",
+            Seq(elementConverterTerm, elementSerializerTerm).mkString(", ")
+          )
+        case mapViewSpec: MapViewSpec =>
+          val keyType = mapViewSpec.getKeyDataType.getLogicalType
+          val valueType = mapViewSpec.getValueDataType.getLogicalType
+          val keyConverter = DataStructureConverters.getConverter(mapViewSpec.getKeyDataType)
+          val valueConverter = DataStructureConverters.getConverter(mapViewSpec.getValueDataType)
+          val keyConverterTerm = ctx.addReusableConverter(keyConverter)
+          val valueConverterTerm = ctx.addReusableConverter(valueConverter)
+          val keySerializerTerm = ctx.addReusableTypeSerializer(keyType)
+          val valueSerializerTerm = ctx.addReusableTypeSerializer(valueType)
+          (
+            className[StateMapView[_, _, _]],
+            "getStateMapView",
+            Seq(
+              "false",
+              keyConverterTerm,
+              keySerializerTerm,
+              valueConverterTerm,
+              valueSerializerTerm).mkString(", ")
+          )
+        case distinctViewSpec: DistinctViewSpec =>
+          val keyType = distinctViewSpec.getKeyType
+          val valueType = distinctViewSpec.getValueType
+          val keyConverter = DataStructureConverters.getIdentityConverter
+          val valueConverter = DataStructureConverters.getIdentityConverter
+          val keyConverterTerm = ctx.addReusableConverter(keyConverter)
+          val valueConverterTerm = ctx.addReusableConverter(valueConverter)
+          val keySerializerTerm = ctx.addReusableTypeSerializer(keyType)
+          val valueSerializerTerm = ctx.addReusableTypeSerializer(valueType)
+          (
+            className[StateMapView[_, _, _]],
+            "getStateMapView",
+            Seq(
+              "true",
+              keyConverterTerm,
+              keySerializerTerm,
+              valueConverterTerm,
+              valueSerializerTerm).mkString(", ")
+          )
       }
-      val viewFieldTerm = createDataViewTerm(spec)
-      val viewFieldInternalTerm = createDataViewRawValueTerm(spec)
-      val viewTypeInfo = ctx.addReusableObject(spec.dataViewTypeInfo, "viewTypeInfo")
-      val parameters = s""""${spec.stateId}", $viewTypeInfo"""
+      val viewTerm = createDataViewTerm(spec)
+      val viewInternalTerm = createDataViewRawValueTerm(spec)
 
-      ctx.addReusableMember(s"private $viewTypeTerm $viewFieldTerm;")
-      ctx.addReusableMember(s"private $BINARY_RAW_VALUE $viewFieldInternalTerm;")
+      // note: the internal data structure of the NULL type is equal to the raw value, we use a
+      // binary raw value to inject existing objects into internal data structures
+
+      ctx.addReusableMember(s"private $stateViewTypeTerm $viewTerm;")
+      ctx.addReusableMember(s"private $BINARY_RAW_VALUE $viewInternalTerm;")
 
       val openCode =
         s"""
-           |$viewFieldTerm = ($viewTypeTerm) $STORE_TERM.$registerCall($parameters);
-           |$viewFieldInternalTerm = ${genToInternal(
-                ctx, fromLegacyInfoToDataType(spec.dataViewTypeInfo), viewFieldTerm)};
+           |$viewTerm = ($stateViewTypeTerm) $STORE_TERM.$getCall("$stateId", $parameters);
+           |$viewInternalTerm = $BINARY_RAW_VALUE.fromObject($viewTerm);
          """.stripMargin
       ctx.addReusableOpenStatement(openCode)
 
       // only cleanup dataview term, do not need to cleanup backup
       val cleanupCode = if (hasNamespace) {
         s"""
-           |$viewFieldTerm.setCurrentNamespace($NAMESPACE_TERM);
-           |$viewFieldTerm.clear();
+           |$viewTerm.setCurrentNamespace($NAMESPACE_TERM);
+           |$viewTerm.clear();
         """.stripMargin
       } else {
         s"""
-           |$viewFieldTerm.clear();
+           |$viewTerm.clear();
         """.stripMargin
       }
       ctx.addReusableCleanupStatement(cleanupCode)
@@ -1221,17 +1268,42 @@ object AggsHandlerCodeGenerator {
       if (enableBackupDataView) {
         val backupViewTerm = createDataViewBackupTerm(spec)
         val backupViewInternalTerm = createDataViewBackupRawValueTerm(spec)
-        // create backup dataview
-        ctx.addReusableMember(s"private $viewTypeTerm $backupViewTerm;")
+        ctx.addReusableMember(s"private $stateViewTypeTerm $backupViewTerm;")
         ctx.addReusableMember(s"private $BINARY_RAW_VALUE $backupViewInternalTerm;")
         val backupOpenCode =
           s"""
-             |$backupViewTerm = ($viewTypeTerm) $STORE_TERM.$registerCall($parameters);
-             |$backupViewInternalTerm = ${genToInternal(
-                ctx, fromLegacyInfoToDataType(spec.dataViewTypeInfo), backupViewTerm)};
+             |$backupViewTerm = ($stateViewTypeTerm) $STORE_TERM.$getCall("$stateId", $parameters);
+             |$backupViewInternalTerm = $BINARY_RAW_VALUE.fromObject($backupViewTerm);
            """.stripMargin
         ctx.addReusableOpenStatement(backupOpenCode)
       }
     }
+  }
+
+  /**
+  * Constant expression code generator context.
+  */
+  private class AggsHandlerCodeGeneratorContext(tableConfig: TableConfig)
+    extends CodeGeneratorContext(tableConfig) {
+
+      override def addReusableFunction(
+          function: UserDefinedFunction,
+          functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
+          runtimeContextTerm: String = null): String = {
+        super.addReusableFunction(
+          function,
+          functionContextClass,
+          if (runtimeContextTerm == null) s"$STORE_TERM.getRuntimeContext()" else runtimeContextTerm
+        )
+      }
+
+      override def addReusableConverter(
+          converter: DataStructureConverter[_, _],
+          classLoaderTerm: String = null)
+        : String = {
+        super.addReusableConverter(
+          converter,
+          s"$STORE_TERM.getRuntimeContext().getUserCodeClassLoader()")
+      }
   }
 }

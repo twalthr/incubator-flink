@@ -57,7 +57,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
 
   @Test
   def testEventTimeSlidingWindow(): Unit = {
-    tEnv.registerFunction("concat_distinct_agg", new ConcatDistinctAggFunction())
+    tEnv.createTemporarySystemFunction("concat_distinct_agg", new ConcatDistinctAggFunction())
 
     val stream = failingDataSource(data)
       .assignTimestampsAndWatermarks(
@@ -195,7 +195,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
     val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
     tEnv.registerTable("T1", table)
-    tEnv.registerFunction("weightAvgFun", new WeightedAvg)
+    tEnv.createTemporaryFunction("weightAvgFun", new WeightedAvg)
 
     val sql =
       """

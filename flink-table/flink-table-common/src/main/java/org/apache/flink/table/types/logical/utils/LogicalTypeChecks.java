@@ -91,6 +91,18 @@ public final class LogicalTypeChecks {
 		return logicalType.accept(rootSearcher).isPresent();
 	}
 
+	/**
+	 * Checks whether a (possible nested) logical type fulfills the given predicate.
+	 */
+	public static boolean hasNested(LogicalType logicalType, Predicate<LogicalType> predicate) {
+		final NestedTypeSearcher typeSearcher = new NestedTypeSearcher(predicate);
+		return logicalType.accept(typeSearcher).isPresent();
+	}
+
+	public static boolean hasLegacyTypes(LogicalType logicalType) {
+		return hasNested(logicalType, t -> t instanceof LegacyTypeInformationType);
+	}
+
 	public static boolean hasFamily(LogicalType logicalType, LogicalTypeFamily family) {
 		return logicalType.getTypeRoot().getFamilies().contains(family);
 	}
@@ -432,6 +444,15 @@ public final class LogicalTypeChecks {
 		@Override
 		public Integer visit(DistinctType distinctType) {
 			return distinctType.getSourceType().accept(this);
+		}
+
+		@Override
+		public Integer visit(LogicalType other) {
+			if (other instanceof LegacyTypeInformationType) {
+				final LegacyTypeInformationType<?> t = (LegacyTypeInformationType<?>) other;
+				return t.getTypeInformation().getArity();
+			}
+			return super.visit(other);
 		}
 	}
 

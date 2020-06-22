@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.aggregate;
 
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.JoinedRowData;
 import org.apache.flink.table.data.RowData;
@@ -29,8 +30,9 @@ import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
@@ -113,6 +115,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<RowDa
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 		// instantiate function
@@ -121,8 +124,8 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<RowDa
 		// instantiate equaliser
 		equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
 
-		RowDataTypeInfo accTypeInfo = new RowDataTypeInfo(accTypes);
-		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
+		TypeSerializer<RowData> wrappedAccTypes = (TypeSerializer<RowData>) InternalSerializers.create(RowType.of(accTypes));
+		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", wrappedAccTypes);
 		accState = getRuntimeContext().getState(accDesc);
 
 		initCleanupTimeState("GroupAggregateCleanupTime");

@@ -32,6 +32,7 @@ import java.util.Map;
  * @param <K> the key type of the map entries.
  * @param <V> the value type of the map entries.
  */
+@Deprecated
 @Internal
 public class MapViewSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<MapView<K, V>, MapViewSerializer<K, V>> {
 

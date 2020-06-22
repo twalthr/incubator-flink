@@ -21,7 +21,10 @@ package org.apache.flink.table.types.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -38,15 +41,19 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
@@ -124,6 +131,25 @@ public final class DataTypeUtils {
 		throw new IllegalArgumentException("Expected a composite type");
 	}
 
+	public static DataType newStructuredDataType(Class<?> implementationClass, DataTypes.Field... fields) {
+		final StructuredType.Builder builder = StructuredType.newBuilder(implementationClass);
+		final List<StructuredAttribute> attributes = Stream.of(fields)
+			.map(f ->
+				new StructuredAttribute(
+					f.getName(),
+					f.getDataType().getLogicalType(),
+					f.getDescription().orElse(null)))
+			.collect(Collectors.toList());
+		builder.attributes(attributes);
+		builder.setFinal(true);
+		builder.setInstantiable(true);
+		builder.comparision(StructuredType.StructuredComparision.EQUALS);
+		final List<DataType> fieldDataTypes = Stream.of(fields)
+			.map(DataTypes.Field::getDataType)
+			.collect(Collectors.toList());
+		return new FieldsDataType(builder.build(), implementationClass, fieldDataTypes);
+	}
+
 	private DataTypeUtils() {
 		// no instantiation
 	}
@@ -164,29 +190,52 @@ public final class DataTypeUtils {
 
 		@Override
 		public DataType visit(FieldsDataType fieldsDataType) {
-			final List<DataType> newFields = fieldsDataType.getChildren().stream()
+			final List<DataType> newDataTypes = fieldsDataType.getChildren().stream()
 				.map(dt -> dt.accept(this))
 				.collect(Collectors.toList());
 
 			final LogicalType logicalType = fieldsDataType.getLogicalType();
 			final LogicalType newLogicalType;
 			if (logicalType instanceof RowType) {
-				final List<RowType.RowField> oldFields = ((RowType) logicalType).getFields();
-				final List<RowType.RowField> newRowFields = IntStream.range(0, oldFields.size())
+				final List<RowField> oldFields = ((RowType) logicalType).getFields();
+				final List<RowField> newFields = IntStream.range(0, oldFields.size())
 					.mapToObj(i ->
-						new RowType.RowField(
+						new RowField(
 							oldFields.get(i).getName(),
-							newFields.get(i).getLogicalType(),
+							newDataTypes.get(i).getLogicalType(),
 							oldFields.get(i).getDescription().orElse(null)))
 					.collect(Collectors.toList());
 
 				newLogicalType = new RowType(
 					logicalType.isNullable(),
-					newRowFields);
+					newFields);
+			} else if (logicalType instanceof StructuredType) {
+				final StructuredType structuredType = (StructuredType) logicalType;
+				if (structuredType.getSuperType().isPresent()) {
+					throw new UnsupportedOperationException("Hierarchies of structured types are not supported yet.");
+				}
+				final List<StructuredAttribute> oldAttributes = structuredType.getAttributes();
+				final List<StructuredAttribute> newAttributes = IntStream.range(0, oldAttributes.size())
+					.mapToObj(i ->
+						new StructuredAttribute(
+							oldAttributes.get(i).getName(),
+							newDataTypes.get(i).getLogicalType(),
+							oldAttributes.get(i).getDescription().orElse(null)))
+					.collect(Collectors.toList());
+
+				final StructuredType.Builder builder = createStructuredBuilder(structuredType);
+				builder.attributes(newAttributes);
+				builder.setNullable(structuredType.isNullable());
+				builder.setFinal(structuredType.isFinal());
+				builder.setInstantiable(structuredType.isInstantiable());
+				builder.comparision(structuredType.getComparision());
+				structuredType.getDescription().ifPresent(builder::description);
+
+				newLogicalType = builder.build();
 			} else {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
-			return transformation.transform(new FieldsDataType(newLogicalType, newFields));
+			return transformation.transform(new FieldsDataType(newLogicalType, newDataTypes));
 		}
 
 		@Override
@@ -204,6 +253,22 @@ public final class DataTypeUtils {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
 			return transformation.transform(new KeyValueDataType(newLogicalType, newKeyType, newValueType));
+		}
+
+		// ----------------------------------------------------------------------------------------
+
+		private StructuredType.Builder createStructuredBuilder(StructuredType structuredType) {
+			final Optional<ObjectIdentifier> identifier = structuredType.getObjectIdentifier();
+			final Optional<Class<?>> implementationClass = structuredType.getImplementationClass();
+			if (identifier.isPresent() && implementationClass.isPresent()) {
+				return StructuredType.newBuilder(identifier.get(), implementationClass.get());
+			} else if (identifier.isPresent()) {
+				return StructuredType.newBuilder(identifier.get());
+			} else if (implementationClass.isPresent()) {
+				return StructuredType.newBuilder(implementationClass.get());
+			} else {
+				throw new TableException("Invalid structured type.");
+			}
 		}
 	}
 

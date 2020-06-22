@@ -30,6 +30,7 @@ import java.util.Map;
 /**
  * TypeInformation factory for {@link ListView}.
  */
+@Deprecated
 @Internal
 public class ListViewTypeInfoFactory<T> extends TypeInfoFactory<ListView<T>> {
 

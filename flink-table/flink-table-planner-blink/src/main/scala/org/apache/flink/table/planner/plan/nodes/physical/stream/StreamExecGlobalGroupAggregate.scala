@@ -24,7 +24,7 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
+import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -34,14 +34,13 @@ import org.apache.flink.table.runtime.operators.aggregate.MiniBatchGlobalGroupAg
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
-import org.apache.flink.table.types.DataType
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.tools.RelBuilder
-
 import java.util
+
+import org.apache.flink.table.types.logical.LogicalType
 
 import scala.collection.JavaConversions._
 
@@ -147,7 +146,7 @@ class StreamExecGlobalGroupAggregate(
       inputFieldCopy = true)
 
     val indexOfCountStar = globalAggInfoList.getIndexOfCountStar
-    val globalAccTypes = globalAggInfoList.getAccTypes.map(fromDataTypeToLogicalType)
+    val globalAccTypes = globalAggInfoList.getAccTypes
     val globalAggValueTypes = globalAggInfoList
       .getActualValueTypes
       .map(fromDataTypeToLogicalType)
@@ -198,13 +197,13 @@ class StreamExecGlobalGroupAggregate(
       aggInfoList: AggregateInfoList,
       mergedAccOffset: Int,
       mergedAccOnHeap: Boolean,
-      mergedAccExternalTypes: Array[DataType],
+      mergedAccExternalTypes: Array[LogicalType],
       config: TableConfig,
       relBuilder: RelBuilder,
       inputFieldCopy: Boolean): GeneratedAggsHandleFunction = {
 
     val generator = new AggsHandlerCodeGenerator(
-      CodeGeneratorContext(config),
+      config,
       relBuilder,
       FlinkTypeFactory.toLogicalRowType(inputRowType).getChildren,
       inputFieldCopy)

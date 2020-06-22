@@ -33,9 +33,10 @@ import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.{SqlUserDefinedTableFunction, SqlUserDefinedTableMacro}
-
 import java.lang.reflect.Method
 import java.util
+
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 /**
   * Calcite wrapper for user-defined table functions.
@@ -46,7 +47,9 @@ import java.util
   * @param typeFactory        type factory for converting Flink's between Calcite's types
   * @param functionImpl       Calcite table function schema
   * @return [[TableSqlFunction]]
+  * @deprecated Replaced by [[BridgingSqlFunction]].
   */
+@deprecated
 class TableSqlFunction(
     identifier: FunctionIdentifier,
     displayName: String,

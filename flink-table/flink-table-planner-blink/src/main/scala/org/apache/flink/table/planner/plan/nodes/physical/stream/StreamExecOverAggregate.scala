@@ -25,14 +25,12 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, OverAggregateUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.over._
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
@@ -189,7 +187,6 @@ class StreamExecOverAggregate(
           "OVER windows can only be applied on time attributes.")
     }
 
-    val codeGenCtx = CodeGeneratorContext(tableConfig)
     val aggregateCalls = logicWindow.groups.get(0).getAggregateCalls(logicWindow).asScala
     val isRowsClause = overWindow.isRows
     val constants = logicWindow.constants.asScala
@@ -212,7 +209,6 @@ class StreamExecOverAggregate(
 
       // unbounded OVER window
       createUnboundedOverProcessFunction(
-        codeGenCtx,
         aggregateCalls,
         constants,
         aggInputType,
@@ -236,7 +232,6 @@ class StreamExecOverAggregate(
       val precedingOffset = -1 * boundValue.asInstanceOf[Long] + (if (isRowsClause) 1 else 0)
 
       createBoundedOverProcessFunction(
-        codeGenCtx,
         aggregateCalls,
         constants,
         aggInputType,
@@ -284,7 +279,6 @@ class StreamExecOverAggregate(
   /**
     * Create an ProcessFunction for unbounded OVER window to evaluate final aggregate value.
     *
-    * @param ctx            code generator context
     * @param aggregateCalls physical calls to aggregate functions and their output field names
     * @param constants      the constants in aggregates parameters, such as sum(1)
     * @param aggInputType   physical type of the input row which consist of input and constants.
@@ -292,7 +286,6 @@ class StreamExecOverAggregate(
     * @param isRowsClause   it is a tag that indicates whether the OVER clause is ROWS clause
     */
   private def createUnboundedOverProcessFunction(
-      ctx: CodeGeneratorContext,
       aggregateCalls: Seq[AggregateCall],
       constants: Seq[RexLiteral],
       aggInputType: RelDataType,
@@ -315,7 +308,7 @@ class StreamExecOverAggregate(
       map(c => FlinkTypeFactory.toLogicalType(c.getType)).toArray
 
     val generator = new AggsHandlerCodeGenerator(
-      ctx,
+      tableConfig,
       relBuilder,
       fieldTypes,
       copyInputField = false)
@@ -326,8 +319,7 @@ class StreamExecOverAggregate(
       .withConstants(constants)
       .generateAggsHandler("UnboundedOverAggregateHelper", aggInfoList)
 
-    val flattenAccTypes = aggInfoList.getAccTypes.map(
-      LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
+    val flattenAccTypes = aggInfoList.getAccTypes
 
     if (rowTimeIdx.isDefined) {
       if (isRowsClause) {
@@ -362,7 +354,6 @@ class StreamExecOverAggregate(
     * Create an ProcessFunction for ROWS clause bounded OVER window to evaluate final
     * aggregate value.
     *
-    * @param ctx            code generator context
     * @param aggregateCalls physical calls to aggregate functions and their output field names
     * @param constants      the constants in aggregates parameters, such as sum(1)
     * @param aggInputType   physical type of the input row which consist of input and constants.
@@ -370,7 +361,6 @@ class StreamExecOverAggregate(
     * @param isRowsClause   it is a tag that indicates whether the OVER clause is ROWS clause
     */
   private def createBoundedOverProcessFunction(
-      ctx: CodeGeneratorContext,
       aggregateCalls: Seq[AggregateCall],
       constants: Seq[RexLiteral],
       aggInputType: RelDataType,
@@ -394,7 +384,7 @@ class StreamExecOverAggregate(
       map(c => FlinkTypeFactory.toLogicalType(c.getType)).toArray
 
     val generator = new AggsHandlerCodeGenerator(
-      ctx,
+      tableConfig,
       relBuilder,
       fieldTypes,
       copyInputField = false)
@@ -407,8 +397,7 @@ class StreamExecOverAggregate(
       .withConstants(constants)
       .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList)
 
-    val flattenAccTypes = aggInfoList.getAccTypes.map(
-      LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
+    val flattenAccTypes = aggInfoList.getAccTypes
 
     if (rowTimeIdx.isDefined) {
       if (isRowsClause) {

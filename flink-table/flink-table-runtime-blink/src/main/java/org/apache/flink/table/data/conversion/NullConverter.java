@@ -19,24 +19,25 @@
 package org.apache.flink.table.data.conversion;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.data.RawValueData;
+import org.apache.flink.table.data.binary.BinaryRawValueData;
+import org.apache.flink.table.types.logical.NullType;
 
 /**
- * No-op converter that just forwards its input.
+ * Converter for {@link NullType} of any external type.
  */
 @Internal
-public class IdentityConverter<I> implements DataStructureConverter<I, I> {
+public class NullConverter implements DataStructureConverter<RawValueData<Object>, Object> {
 
-	public static final IdentityConverter<?> INSTANCE = new IdentityConverter<>();
-
-	private static final long serialVersionUID = 1L;
+	public static final NullConverter INSTANCE = new NullConverter();
 
 	@Override
-	public I toInternal(I external) {
-		return external;
+	public RawValueData<Object> toInternal(Object external) {
+		return BinaryRawValueData.fromObject(external);
 	}
 
 	@Override
-	public I toExternal(I internal) {
-		return internal;
+	public Object toExternal(RawValueData<Object> internal) {
+		return ((BinaryRawValueData<Object>) internal).getJavaObject();
 	}
 }

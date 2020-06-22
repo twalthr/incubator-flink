@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
@@ -41,6 +42,12 @@ public final class WrapperTypeInfo<T> extends TypeInformation<T> {
 	public WrapperTypeInfo(Class<T> typeClass, TypeSerializer<T> typeSerializer) {
 		this.typeClass = Preconditions.checkNotNull(typeClass);
 		this.typeSerializer = Preconditions.checkNotNull(typeSerializer);
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> WrapperTypeInfo<T> of(DataType dataType) {
+		final TypeSerializer<T> serializer = DataStructureSerializer.of(dataType);
+		return new WrapperTypeInfo<>((Class<T>)dataType.getConversionClass(), serializer);
 	}
 
 	@Override

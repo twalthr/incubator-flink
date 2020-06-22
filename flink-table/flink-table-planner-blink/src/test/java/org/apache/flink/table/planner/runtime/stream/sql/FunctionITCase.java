@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.codegen.CodeGenException;
@@ -822,6 +823,66 @@ public class FunctionITCase extends StreamingTestBase {
 			"SELECT CAST(T3.i AS STRING) FROM TABLE(DynamicTableFunction(CAST(NULL AS INT))) AS T3(i)");
 
 		assertThat(TestCollectionTableFactory.getResult(), containsInAnyOrder(sinkData));
+	}
+
+	@Test
+	public void testAggregateFunction() {
+		final List<Row> sourceData = Arrays.asList(
+			Row.of("Bob", 42, 42L),
+			Row.of("Bob", 12, 12L),
+			Row.of("Alice", 1, 1L),
+			Row.of("Alice", 2, 2L),
+			Row.of("Alice", 3, 3L),
+			Row.of(null, 0, 0L)
+		);
+
+		final List<Row> sinkData = Arrays.asList(
+		);
+
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(sourceData);
+
+		tEnv().executeSql("CREATE TABLE SourceTable(s STRING, i INT NOT NULL, b BIGINT NOT NULL) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s STRING, b1 BIGINT NOT NULL, b2 BIGINT NOT NULL) WITH ('connector' = 'COLLECTION')");
+
+		tEnv().createTemporarySystemFunction("WeightedAvgAggregateFunction", WeightedAvgAggregateFunction.class);
+		tEnv().sqlQuery("SELECT s, WeightedAvgAggregateFunction(i, 1), WeightedAvgAggregateFunction(b, i) " +
+			"FROM SourceTable " +
+			"GROUP BY s").execute().print();
+
+//		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+	}
+
+	public static class WeightedAvgAccum {
+		public long sum = 0;
+		public int count = 0;
+	}
+
+	public static class WeightedAvgAggregateFunction extends AggregateFunction<Long, WeightedAvgAccum> {
+
+		@Override
+		public WeightedAvgAccum createAccumulator() {
+			return new WeightedAvgAccum();
+		}
+
+		@Override
+		public Long getValue(WeightedAvgAccum accumulator) {
+			if (accumulator.count == 0) {
+				return null;
+			} else {
+				return accumulator.sum / accumulator.count;
+			}
+		}
+
+		public void accumulate(WeightedAvgAccum accumulator, long iValue, int iWeight) {
+			accumulator.sum += iValue * iWeight;
+			accumulator.count += 1;
+		}
+
+		public void accumulate(WeightedAvgAccum accumulator, int iValue, int iWeight) {
+			accumulator.sum += iValue * iWeight;
+			accumulator.count += 1;
+		}
 	}
 
 	@Test

@@ -24,7 +24,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
+import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -126,7 +126,7 @@ class StreamExecGroupAggregate(
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
 
     val generator = new AggsHandlerCodeGenerator(
-      CodeGeneratorContext(tableConfig),
+      tableConfig,
       planner.getRelBuilder,
       inputRowType.getChildren,
       // TODO: heap state backend do not copy key currently, we have to copy input field
@@ -141,7 +141,7 @@ class StreamExecGroupAggregate(
     val aggsHandler = generator
       .needAccumulate()
       .generateAggsHandler("GroupAggsHandler", aggInfoList)
-    val accTypes = aggInfoList.getAccTypes.map(fromDataTypeToLogicalType)
+    val accTypes = aggInfoList.getAccTypes
     val aggValueTypes = aggInfoList.getActualValueTypes.map(fromDataTypeToLogicalType)
     val recordEqualiser = new EqualiserCodeGenerator(aggValueTypes)
       .generateRecordEqualiser("GroupAggValueEqualiser")

@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.planner.dataview.DataViewSpec
 import org.apache.flink.table.types.DataType
-
 import org.apache.calcite.rel.core.AggregateCall
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, DistinctViewSpec}
+import org.apache.flink.table.types.logical.LogicalType
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -33,8 +33,8 @@ import scala.collection.mutable.ArrayBuffer
   * @param function AggregateFunction or DeclarativeAggregateFunction
   * @param aggIndex the index of the aggregate call in the aggregation list
   * @param argIndexes the aggregate arguments indexes in the input
-  * @param externalAccTypes  accumulator types
-  * @param viewSpecs  data view specs
+  * @param externalAccTypes accumulator types
+  * @param viewSpecs data view specs
   * @param externalResultType the result type of aggregate
   * @param consumeRetraction whether the aggregate consumes retractions
   */
@@ -43,10 +43,14 @@ case class AggregateInfo(
     function: UserDefinedFunction,
     aggIndex: Int,
     argIndexes: Array[Int],
+    externalArgTypes: Array[DataType],
     externalAccTypes: Array[DataType],
     viewSpecs: Array[DataViewSpec],
     externalResultType: DataType,
-    consumeRetraction: Boolean)
+    consumeRetraction: Boolean) {
+
+  def isLegacyMode: Boolean = externalArgTypes.length == 0
+}
 
 /**
   * The information about shared distinct of the aggregates. It indicates which aggregates are
@@ -54,7 +58,7 @@ case class AggregateInfo(
   *
   * @param argIndexes the distinct aggregate arguments indexes in the input
   * @param keyType the distinct key type
-  * @param accType the accumulator type of the shared distinct
+  * @param accType the accumulator type
   * @param excludeAcc whether the distinct acc should excluded from the aggregate accumulator.
   *                    e.g. when this works in incremental mode, returns true, otherwise false.
   * @param dataViewSpec data view spec about this distinct agg used to generate state access,
@@ -65,14 +69,13 @@ case class AggregateInfo(
   */
 case class DistinctInfo(
     argIndexes: Array[Int],
-    keyType: DataType,
-    accType: DataType,
+    keyType: LogicalType,
+    accType: LogicalType,
     excludeAcc: Boolean,
-    dataViewSpec: Option[DataViewSpec],
+    dataViewSpec: Option[DistinctViewSpec],
     consumeRetraction: Boolean,
     filterArgs: ArrayBuffer[Int],
     aggIndexes: ArrayBuffer[Int])
-
 
 /**
   * The information contains all aggregate infos, and including input count information.
@@ -92,8 +95,10 @@ case class AggregateInfoList(
 
   def getAggNames: Array[String] = aggInfos.map(_.agg.getName)
 
-  def getAccTypes: Array[DataType] = {
-    aggInfos.flatMap(_.externalAccTypes) ++ distinctInfos.filter(!_.excludeAcc).map(_.accType)
+  def getAccTypes: Array[LogicalType] = {
+    val aggAccumulatorTypes = aggInfos.flatMap(_.externalAccTypes).map(_.getLogicalType)
+    val distinctAccumulatorTypes = distinctInfos.filter(!_.excludeAcc).map(_.accType)
+    aggAccumulatorTypes ++ distinctAccumulatorTypes
   }
 
   def getActualAggregateCalls: Array[AggregateCall] = {

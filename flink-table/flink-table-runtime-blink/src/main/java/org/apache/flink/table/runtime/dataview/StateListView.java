@@ -18,43 +18,54 @@
 
 package org.apache.flink.table.runtime.dataview;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.util.IterableIterator;
 
+import javax.annotation.Nonnull;
+
+import java.util.AbstractList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 /**
- * {@link StateListView} is a {@link ListView} which implemented using state backend.
+ * A {@link ListView} which is backed by a state backend.
  *
- * @param <T> the type of element
+ * @param <ET> the external element type
  */
-public abstract class StateListView<N, T> extends ListView<T> implements StateDataView<N> {
+@Internal
+public abstract class StateListView<N, ET> extends ListView<ET> implements StateDataView<N> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final Iterable<T> emptyList = Collections.emptyList();
+	private final Iterable<ET> emptyList = Collections.emptyList();
+
+	protected abstract ListState<ET> getListState();
 
 	@Override
-	public Iterable<T> get() throws Exception {
-		Iterable<T> original = getListState().get();
+	public Iterable<ET> get() throws Exception {
+		Iterable<ET> original = getListState().get();
 		return original != null ? original : emptyList;
 	}
 
 	@Override
-	public void add(T value) throws Exception {
+	public void add(ET value) throws Exception {
 		getListState().add(value);
 	}
 
 	@Override
-	public void addAll(List<T> list) throws Exception {
+	public void addAll(List<ET> list) throws Exception {
 		getListState().addAll(list);
 	}
 
 	@Override
-	public boolean remove(T value) throws Exception {
-		List<T> list = (List<T>) getListState().get();
+	public boolean remove(ET value) throws Exception {
+		List<ET> list = (List<ET>) getListState().get();
 		boolean success = list.remove(value);
 		if (success) {
 			getListState().update(list);
@@ -67,19 +78,19 @@ public abstract class StateListView<N, T> extends ListView<T> implements StateDa
 		getListState().clear();
 	}
 
-	protected abstract ListState<T> getListState();
-
 	/**
-	 * {@link KeyedStateListView} is an default implementation of {@link StateListView} whose
-	 * underlying is a keyed state.
+	 * A {@link MapView} backed by a keyed state.
 	 */
-	public static final class KeyedStateListView<N, T> extends StateListView<N, T> {
+	public static final class KeyedStateListView<N, IT, ET> extends StateListView<N, ET> {
 
 		private static final long serialVersionUID = 6526065473887440980L;
-		private final ListState<T> listState;
 
-		public KeyedStateListView(ListState<T> listState) {
-			this.listState = listState;
+		private final ListState<ET> externalListState;
+
+		public KeyedStateListView(
+				ListState<IT> internalListState,
+				DataStructureConverter<IT, ET> elementConverter) {
+			this.externalListState = new ExternalListState<>(internalListState, elementConverter);
 		}
 
 		@Override
@@ -88,22 +99,28 @@ public abstract class StateListView<N, T> extends ListView<T> implements StateDa
 		}
 
 		@Override
-		protected ListState<T> getListState() {
-			return listState;
+		protected ListState<ET> getListState() {
+			return externalListState;
 		}
 	}
 
 	/**
-	 * {@link NamespacedStateListView} is an {@link StateListView} whose underlying is a keyed
-	 * and namespaced state. It also support to change current namespace.
+	 * A {@link MapView} backed by a keyed state with namespace.
 	 */
-	public static final class NamespacedStateListView<N, T> extends StateListView<N, T> {
+	public static final class NamespacedStateListView<N, IT, ET> extends StateListView<N, ET> {
+
 		private static final long serialVersionUID = 1423184510190367940L;
-		private final InternalListState<?, N, T> listState;
+
+		private final InternalListState<?, N, IT> internalListState;
+		private final ListState<ET> externalListState;
+
 		private N namespace;
 
-		public NamespacedStateListView(InternalListState<?, N, T> listState) {
-			this.listState = listState;
+		public NamespacedStateListView(
+				InternalListState<?, N, IT> internalListState,
+				DataStructureConverter<IT, ET> elementConverter) {
+			this.internalListState = internalListState;
+			this.externalListState = new ExternalListState<>(internalListState, elementConverter);
 		}
 
 		@Override
@@ -112,10 +129,110 @@ public abstract class StateListView<N, T> extends ListView<T> implements StateDa
 		}
 
 		@Override
-		protected ListState<T> getListState() {
-			listState.setCurrentNamespace(namespace);
-			return listState;
+		protected ListState<ET> getListState() {
+			internalListState.setCurrentNamespace(namespace);
+			return externalListState;
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Helper classes
+	// --------------------------------------------------------------------------------------------
+
+	private static final class ExternalListState<IT, ET> implements ListState<ET> {
+
+		private final ListState<IT> internalListState;
+		private final DataStructureConverter<IT, ET> elementConverter;
+		private final InternalHelperList helperList = new InternalHelperList();
+
+		private ExternalListState(
+				ListState<IT> internalListState,
+				DataStructureConverter<IT, ET> elementConverter) {
+			this.internalListState = internalListState;
+			this.elementConverter = elementConverter;
+		}
+
+		@Override
+		public void update(List<ET> externalValues) throws Exception {
+			if (externalValues == null) {
+				// let the state backend throw an exception if necessary
+				internalListState.update(null);
+			} else {
+				helperList.externalValues = externalValues;
+				internalListState.update(helperList);
+			}
+		}
+
+		@Override
+		public void addAll(List<ET> externalValues) throws Exception {
+			if (externalValues == null) {
+				// let the state backend throw an exception if necessary
+				internalListState.addAll(null);
+			} else {
+				helperList.externalValues = externalValues;
+				internalListState.addAll(helperList);
+			}
+		}
+
+		@Override
+		public Iterable<ET> get() throws Exception {
+			final Iterable<IT> internalIterable = internalListState.get();
+			if (internalIterable == null) {
+				return null;
+			}
+			return new ElementsIterator(internalIterable.iterator());
+		}
+
+		@Override
+		public void add(ET externalValue) throws Exception {
+			final IT internalValue = elementConverter.toInternalOrNull(externalValue);
+			internalListState.add(internalValue);
+		}
+
+		@Override
+		public void clear() {
+			internalListState.clear();
+		}
+
+		private final class InternalHelperList extends AbstractList<IT> {
+
+			public List<ET> externalValues = null;
+
+			@Override
+			public IT get(int index) {
+				final ET externalValue = externalValues.get(index);
+				return elementConverter.toInternalOrNull(externalValue);
+			}
+
+			@Override
+			public int size() {
+				return externalValues.size();
+			}
+		}
+
+		private final class ElementsIterator implements IterableIterator<ET> {
+
+			private final Iterator<IT> internalIterator;
+
+			private ElementsIterator(Iterator<IT> internalIterator) {
+				this.internalIterator = internalIterator;
+			}
+
+			@Override
+			@Nonnull
+			public Iterator<ET> iterator() {
+				return this;
+			}
+
+			@Override
+			public boolean hasNext() {
+				return internalIterator.hasNext();
+			}
+
+			@Override
+			public ET next() {
+				return elementConverter.toExternalOrNull(internalIterator.next());
+			}
+		}
+	}
 }

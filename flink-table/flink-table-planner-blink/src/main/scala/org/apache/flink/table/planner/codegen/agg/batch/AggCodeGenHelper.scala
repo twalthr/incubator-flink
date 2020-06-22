@@ -18,30 +18,28 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.expressions.ApiExpressionUtils.localRef
-import org.apache.flink.table.expressions.{Expression, _}
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
+import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.STREAM_RECORD
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getAggUserDefinedInputTypes}
+import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.runtime.context.ExecutionContextImpl
 import org.apache.flink.table.runtime.generated.{GeneratedAggsHandleFunction, GeneratedOperator}
 import org.apache.flink.table.runtime.types.InternalSerializers
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
-import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{DistinctType, LogicalType, RowType}
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
+import org.apache.flink.table.types.utils.TypeConversions
 
 import scala.annotation.tailrec
 
@@ -51,34 +49,47 @@ import scala.annotation.tailrec
 object AggCodeGenHelper {
 
   def getAggBufferNames(
-      auxGrouping: Array[Int], aggregates: Seq[UserDefinedFunction]): Array[Array[String]] = {
-    auxGrouping.zipWithIndex.map {
-      case (_, index) => Array(s"aux_group$index")
-    } ++ aggregates.zipWithIndex.toArray.map {
-      case (a: DeclarativeAggregateFunction, index) =>
-        val idx = auxGrouping.length + index
-        a.aggBufferAttributes.map(attr => s"agg${idx}_${attr.getName}")
-      case (_: AggregateFunction[_, _], index) =>
-        val idx = auxGrouping.length + index
-        Array(s"agg$idx")
+      auxGrouping: Array[Int],
+      aggInfos: Seq[AggregateInfo])
+    : Array[Array[String]] = {
+    val auxGroupingNames = auxGrouping.indices
+      .map(index => Array(s"aux_group$index"))
+
+    val aggNames = aggInfos.map { aggInfo =>
+
+      val aggBufferIdx = auxGrouping.length + aggInfo.aggIndex
+
+      aggInfo.function match {
+
+        case function: DeclarativeAggregateFunction =>
+          function.aggBufferAttributes.map(attr => s"agg${aggBufferIdx}_${attr.getName}")
+
+        case _: AggregateFunction[_, _] => Array(s"agg$aggBufferIdx")
+      }
     }
+
+    (auxGroupingNames ++ aggNames).toArray
   }
 
   def getAggBufferTypes(
-      inputType: RowType, auxGrouping: Array[Int], aggregates: Seq[UserDefinedFunction])
+      inputType: RowType,
+      auxGrouping: Array[Int],
+      aggInfos: Seq[AggregateInfo])
     : Array[Array[LogicalType]] = {
-    auxGrouping.map { index =>
-      Array(inputType.getTypeAt(index))
-    } ++ aggregates.map {
-      case a: DeclarativeAggregateFunction => a.getAggBufferTypes.map(_.getLogicalType)
-      case a: AggregateFunction[_, _] =>
-        Array(fromDataTypeToLogicalType(getAccumulatorTypeOfAggregateFunction(a)))
-    }.toArray[Array[LogicalType]]
+    val auxGroupingTypes = auxGrouping
+      .map { index =>
+        Array(inputType.getTypeAt(index))
+      }
+
+    val aggTypes = aggInfos
+      .map(_.externalAccTypes.map(_.getLogicalType))
+
+    auxGroupingTypes ++ aggTypes
   }
 
-  def getUdaggs(
-      aggregates: Seq[UserDefinedFunction]): Map[AggregateFunction[_, _], String] = {
-    aggregates
+  def getFunctionIdentifiers(aggInfos: Seq[AggregateInfo]): Map[AggregateFunction[_, _], String] = {
+    aggInfos
+        .map(_.function)
         .filter(a => a.isInstanceOf[AggregateFunction[_, _]])
         .map(a => a -> CodeGenUtils.udfFieldName(a)).toMap
         .asInstanceOf[Map[AggregateFunction[_, _], String]]
@@ -94,7 +105,8 @@ object AggCodeGenHelper {
   private[flink] def addAggsHandler(
       aggsHandler: GeneratedAggsHandleFunction,
       ctx: CodeGeneratorContext,
-      aggsHandlerCtx: CodeGeneratorContext): String = {
+      aggsHandlerCtx: CodeGeneratorContext)
+    : String = {
     ctx.addReusableInnerClass(aggsHandler.getClassName, aggsHandler.getCode)
     val handler = CodeGenUtils.newName("handler")
     ctx.addReusableMember(s"${aggsHandler.getClassName} $handler = null;")
@@ -115,7 +127,8 @@ object AggCodeGenHelper {
     */
   private[flink] def genGroupKeyChangedCheckCode(
       currentKeyTerm: String,
-      lastKeyTerm: String): String = {
+      lastKeyTerm: String)
+    : String = {
     s"""
        |$currentKeyTerm.getSizeInBytes() != $lastKeyTerm.getSizeInBytes() ||
        |  !(org.apache.flink.table.data.binary.BinaryRowDataUtil.byteArrayEquals(
@@ -132,27 +145,25 @@ object AggCodeGenHelper {
       builder: RelBuilder,
       grouping: Array[Int],
       auxGrouping: Array[Int],
-      aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-      aggArgs: Array[Array[Int]],
-      aggregates: Seq[UserDefinedFunction],
-      aggResultTypes: Seq[DataType],
-      udaggs: Map[AggregateFunction[_, _], String],
+      aggInfos: Seq[AggregateInfo],
+      functionIdentifiers: Map[AggregateFunction[_, _], String],
       inputTerm: String,
       inputType: RowType,
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]],
       outputType: RowType,
-      forHashAgg: Boolean = false): (String, String, GeneratedExpression) = {
+      forHashAgg: Boolean = false)
+    : (String, String, GeneratedExpression) = {
     // gen code to apply aggregate functions to grouping elements
     val argsMapping = buildAggregateArgsMapping(
-      isMerge, grouping.length, inputType, auxGrouping, aggArgs, aggBufferTypes)
+      isMerge, grouping.length, inputType, auxGrouping, aggInfos, aggBufferTypes)
 
     val aggBufferExprs = genFlatAggBufferExprs(
       isMerge,
       ctx,
       builder,
       auxGrouping,
-      aggregates,
+      aggInfos,
       argsMapping,
       aggBufferNames,
       aggBufferTypes)
@@ -164,8 +175,8 @@ object AggCodeGenHelper {
       inputTerm,
       grouping,
       auxGrouping,
-      aggregates,
-      udaggs,
+      aggInfos,
+      functionIdentifiers,
       aggBufferExprs,
       forHashAgg)
 
@@ -176,9 +187,8 @@ object AggCodeGenHelper {
       inputType,
       inputTerm,
       auxGrouping,
-      aggCallToAggFunction,
-      aggregates,
-      udaggs,
+      aggInfos,
+      functionIdentifiers,
       argsMapping,
       aggBufferNames,
       aggBufferTypes,
@@ -191,9 +201,8 @@ object AggCodeGenHelper {
       builder,
       grouping,
       auxGrouping,
-      aggregates,
-      aggResultTypes,
-      udaggs,
+      aggInfos,
+      functionIdentifiers,
       argsMapping,
       aggBufferNames,
       aggBufferTypes,
@@ -217,8 +226,10 @@ object AggCodeGenHelper {
       aggBufferOffset: Int,
       inputType: RowType,
       auxGrouping: Array[Int],
-      aggArgs: Array[Array[Int]],
-      aggBufferTypes: Array[Array[LogicalType]]): Array[Array[(Int, LogicalType)]] = {
+      aggInfos: Seq[AggregateInfo],
+      aggBufferTypes: Array[Array[LogicalType]])
+    : Array[Array[(Int, LogicalType)]] = {
+    val aggArgs = aggInfos.map(_.argIndexes).toArray
     val auxGroupingMapping = auxGrouping.indices.map {
       i => Array[(Int, LogicalType)]((i, aggBufferTypes(i)(0)))
     }.toArray
@@ -238,7 +249,7 @@ object AggCodeGenHelper {
   }
 
   def newLocalReference(resultTerm: String, resultType: LogicalType): LocalReferenceExpression = {
-    localRef(resultTerm, fromLogicalTypeToDataType(resultType))
+    localRef(resultTerm, TypeConversions.fromLogicalToDataType(resultType))
   }
 
   /**
@@ -280,29 +291,45 @@ object AggCodeGenHelper {
       ctx: CodeGeneratorContext,
       builder: RelBuilder,
       auxGrouping: Array[Int],
-      aggregates: Seq[UserDefinedFunction],
+      aggInfos: Seq[AggregateInfo],
       argsMapping: Array[Array[(Int, LogicalType)]],
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]]): Seq[GeneratedExpression] = {
-    val exprCodegen = new ExprCodeGenerator(ctx, false)
+    val exprCodeGen = new ExprCodeGenerator(ctx, false)
     val converter = new ExpressionConverter(builder)
 
-    val accessAuxGroupingExprs = auxGrouping.indices.map {
-      idx => newLocalReference(aggBufferNames(idx)(0), aggBufferTypes(idx)(0))
-    }.map(_.accept(converter)).map(exprCodegen.generateExpression)
+    val accessAuxGroupingExprs = auxGrouping.indices
+      .map(idx => newLocalReference(aggBufferNames(idx).head, aggBufferTypes(idx).head))
 
-    val aggCallExprs = aggregates.zipWithIndex.flatMap {
-      case (agg: DeclarativeAggregateFunction, aggIndex: Int) =>
-        val idx = auxGrouping.length + aggIndex
-        agg.aggBufferAttributes.map(_.accept(
-          ResolveReference(ctx, builder, isMerge, agg, idx, argsMapping, aggBufferTypes)))
-      case (_: AggregateFunction[_, _], aggIndex: Int) =>
-        val idx = auxGrouping.length + aggIndex
-        val variableName = aggBufferNames(idx)(0)
-        Some(newLocalReference(variableName, aggBufferTypes(idx)(0)))
-    }.map(_.accept(converter)).map(exprCodegen.generateExpression)
+    val aggCallExprs = aggInfos.flatMap { aggInfo =>
 
-    accessAuxGroupingExprs ++ aggCallExprs
+      val aggBufferIdx = auxGrouping.length + aggInfo.aggIndex
+
+      aggInfo.function match {
+
+        case function: DeclarativeAggregateFunction =>
+          val ref = ResolveReference(
+            ctx,
+            builder,
+            isMerge,
+            function,
+            aggBufferIdx,
+            argsMapping,
+            aggBufferTypes)
+          function.aggBufferAttributes().map(_.accept(ref))
+
+        case _: AggregateFunction[_, _] =>
+          val aggBufferName = aggBufferNames(aggBufferIdx).head
+          val aggBufferType = aggBufferTypes(aggBufferIdx).head
+          Some(newLocalReference(aggBufferName, aggBufferType))
+      }
+    }
+
+    val aggBufferExprs = accessAuxGroupingExprs ++ aggCallExprs
+
+    aggBufferExprs
+      .map(_.accept(converter))
+      .map(exprCodeGen.generateExpression)
   }
 
   /**
@@ -315,12 +342,14 @@ object AggCodeGenHelper {
       inputTerm: String,
       grouping: Array[Int],
       auxGrouping: Array[Int],
-      aggregates: Seq[UserDefinedFunction],
-      udaggs: Map[AggregateFunction[_, _], String],
+      aggInfos: Seq[AggregateInfo],
+      functionIdentifiers: Map[AggregateFunction[_, _], String],
       aggBufferExprs: Seq[GeneratedExpression],
-      forHashAgg: Boolean = false): String = {
-    val exprCodegen = new ExprCodeGenerator(ctx, false)
+      forHashAgg: Boolean = false)
+    : String = {
+    val exprCodeGen = new ExprCodeGenerator(ctx, false)
         .bindInput(inputType, inputTerm = inputTerm, inputFieldMapping = Some(auxGrouping))
+    val converter = new ExpressionConverter(builder)
 
     val initAuxGroupingExprs = {
       if (forHashAgg) {
@@ -334,25 +363,27 @@ object AggCodeGenHelper {
       GenerateUtils.generateFieldAccess(ctx, inputType, inputTerm, idx)
     }
 
-    val initAggCallBufferExprs = aggregates.flatMap {
-      case (agg: DeclarativeAggregateFunction) =>
-        agg.initialValuesExpressions
-      case (agg: AggregateFunction[_, _]) =>
-        Some(agg)
-    }.map {
-      case (expr: Expression) => expr.accept(new ExpressionConverter(builder))
-      case t@_ => t
-    }.map {
-      case (rex: RexNode) => exprCodegen.generateExpression(rex)
-      case (agg: AggregateFunction[_, _]) =>
-        val resultTerm = s"${udaggs(agg)}.createAccumulator()"
-        val nullTerm = "false"
-        val resultType = getAccumulatorTypeOfAggregateFunction(agg)
-        GeneratedExpression(
-          genToInternal(ctx, resultType, resultTerm),
-          nullTerm,
-          "",
-          fromDataTypeToLogicalType(resultType))
+    val initAggCallBufferExprs = aggInfos.flatMap { aggInfo =>
+      aggInfo.function match {
+
+        // generate code for declarative values
+        case function: DeclarativeAggregateFunction =>
+          val expressions = function.initialValuesExpressions
+          val rexNodes = expressions.map(_.accept(converter))
+          rexNodes.map(exprCodeGen.generateExpression)
+
+        // generate code for calling createAccumulator()
+        case function: AggregateFunction[_, _] =>
+          val accTerm = s"${functionIdentifiers(function)}.createAccumulator()"
+          val externalAccType = aggInfo.externalAccTypes.head
+          val internalAccType = externalAccType.getLogicalType
+          val genExpr = GeneratedExpression(
+            genToInternalConverter(ctx, externalAccType)(accTerm),
+            NEVER_NULL,
+            NO_CODE,
+            internalAccType)
+          Seq(genExpr)
+        }
     }
 
     val initAggBufferExprs = initAuxGroupingExprs ++ initAggCallBufferExprs
@@ -393,13 +424,13 @@ object AggCodeGenHelper {
       inputType: RowType,
       inputTerm: String,
       auxGrouping: Array[Int],
-      aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-      aggregates: Seq[UserDefinedFunction],
-      udaggs: Map[AggregateFunction[_, _], String],
+      aggInfos: Seq[AggregateInfo],
+      functionIdentifiers: Map[AggregateFunction[_, _], String],
       argsMapping: Array[Array[(Int, LogicalType)]],
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]],
-      aggBufferExprs: Seq[GeneratedExpression]): String = {
+      aggBufferExprs: Seq[GeneratedExpression])
+    : String = {
     if (isMerge) {
       genMergeFlatAggregateBuffer(
         ctx,
@@ -407,8 +438,8 @@ object AggCodeGenHelper {
         inputTerm,
         inputType,
         auxGrouping,
-        aggregates,
-        udaggs,
+        aggInfos,
+        functionIdentifiers,
         argsMapping,
         aggBufferNames,
         aggBufferTypes,
@@ -420,8 +451,8 @@ object AggCodeGenHelper {
         inputTerm,
         inputType,
         auxGrouping,
-        aggCallToAggFunction,
-        udaggs,
+        aggInfos,
+        functionIdentifiers,
         argsMapping,
         aggBufferNames,
         aggBufferTypes,
@@ -436,35 +467,34 @@ object AggCodeGenHelper {
       builder: RelBuilder,
       grouping: Array[Int],
       auxGrouping: Array[Int],
-      aggregates: Seq[UserDefinedFunction],
-      aggResultTypes: Seq[DataType],
-      udaggs: Map[AggregateFunction[_, _], String],
+      aggInfos: Seq[AggregateInfo],
+      functionIdentifiers: Map[AggregateFunction[_, _], String],
       argsMapping: Array[Array[(Int, LogicalType)]],
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]],
       aggBufferExprs: Seq[GeneratedExpression],
-      outputType: RowType): GeneratedExpression = {
+      outputType: RowType)
+    : GeneratedExpression = {
     val valueRow = CodeGenUtils.newName("valueRow")
-    val resultCodegen = new ExprCodeGenerator(ctx, false)
+    val resultCodeGen = new ExprCodeGenerator(ctx, false)
     if (isFinal) {
       val getValueExprs = genGetValueFromFlatAggregateBuffer(
         isMerge,
         ctx,
         builder,
         auxGrouping,
-        aggregates,
-        aggResultTypes,
-        udaggs,
+        aggInfos,
+        functionIdentifiers,
         argsMapping,
         aggBufferNames,
         aggBufferTypes,
         outputType)
       val valueRowType = RowType.of(getValueExprs.map(_.resultType): _*)
-      resultCodegen.generateResultExpression(
+      resultCodeGen.generateResultExpression(
         getValueExprs, valueRowType, classOf[GenericRowData], valueRow)
     } else {
       val valueRowType = RowType.of(aggBufferExprs.map(_.resultType): _*)
-      resultCodegen.generateResultExpression(
+      resultCodeGen.generateResultExpression(
         aggBufferExprs, valueRowType, classOf[GenericRowData], valueRow)
     }
   }
@@ -477,44 +507,56 @@ object AggCodeGenHelper {
       ctx: CodeGeneratorContext,
       builder: RelBuilder,
       auxGrouping: Array[Int],
-      aggregates: Seq[UserDefinedFunction],
-      aggResultTypes: Seq[DataType],
-      udaggs: Map[AggregateFunction[_, _], String],
+      aggInfos: Seq[AggregateInfo],
+      functionIdentifiers: Map[AggregateFunction[_, _], String],
       argsMapping: Array[Array[(Int, LogicalType)]],
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]],
       outputType: RowType): Seq[GeneratedExpression] = {
-    val exprCodegen = new ExprCodeGenerator(ctx, false)
+    val exprCodeGen = new ExprCodeGenerator(ctx, false)
+    val converter = new ExpressionConverter(builder)
 
     val auxGroupingExprs = auxGrouping.indices.map { idx =>
-      val resultTerm = aggBufferNames(idx)(0)
-      val nullTerm = s"${resultTerm}IsNull"
-      GeneratedExpression(resultTerm, nullTerm, "", aggBufferTypes(idx)(0))
+      val aggBufferName = aggBufferNames(idx).head
+      val aggBufferType = aggBufferTypes(idx).head
+      val nullTerm = s"${aggBufferName}IsNull"
+      GeneratedExpression(aggBufferName, nullTerm, NO_CODE, aggBufferType)
     }
 
-    val aggExprs = aggregates.zipWithIndex.map {
-      case (agg: DeclarativeAggregateFunction, aggIndex) =>
-        val idx = auxGrouping.length + aggIndex
-        agg.getValueExpression.accept(ResolveReference(
-          ctx, builder, isMerge, agg, idx, argsMapping, aggBufferTypes))
-      case (agg: AggregateFunction[_, _], aggIndex) =>
-        val idx = auxGrouping.length + aggIndex
-        (agg, idx)
-    }.map {
-      case (expr: Expression) => expr.accept(new ExpressionConverter(builder))
-      case t@_ => t
-    }.map {
-      case (rex: RexNode) => exprCodegen.generateExpression(rex)
-      case (agg: AggregateFunction[_, _], aggIndex: Int) =>
-        val resultType = aggResultTypes(aggIndex - auxGrouping.length)
-        val accType = getAccumulatorTypeOfAggregateFunction(agg)
-        val resultTerm = genToInternal(ctx, resultType,
-          s"${udaggs(agg)}.getValue(${genToExternal(ctx, accType, aggBufferNames(aggIndex)(0))})")
-        val nullTerm = s"${aggBufferNames(aggIndex)(0)}IsNull"
-        GeneratedExpression(resultTerm, nullTerm, "", fromDataTypeToLogicalType(resultType))
+    val getValueExprs = aggInfos.map { aggInfo =>
+
+      val aggBufferIdx = auxGrouping.length + aggInfo.aggIndex
+
+      aggInfo.function match {
+
+        case function: DeclarativeAggregateFunction =>
+          val ref = ResolveReference(
+            ctx,
+            builder,
+            isMerge,
+            function,
+            aggBufferIdx,
+            argsMapping,
+            aggBufferTypes)
+          val getValueRexNode = function.getValueExpression
+            .accept(ref)
+            .accept(converter)
+          exprCodeGen.generateExpression(getValueRexNode)
+
+        case function: AggregateFunction[_, _] =>
+          val aggBufferName = aggBufferNames(aggInfo.aggIndex).head
+          val externalAccType = aggInfo.externalAccTypes.head
+          val externalResultType = aggInfo.externalResultType
+          val resultType = externalResultType.getLogicalType
+          val getValueCode = s"${functionIdentifiers(function)}.getValue(" +
+            s"${genToExternalConverter(ctx, externalAccType, aggBufferName)})"
+          val resultTerm = genToInternalConverter(ctx, externalResultType)(getValueCode)
+          val nullTerm = s"${aggBufferName}IsNull"
+          GeneratedExpression(resultTerm, nullTerm, NO_CODE, resultType)
+      }
     }
 
-    auxGroupingExprs ++ aggExprs
+    auxGroupingExprs ++ getValueExprs
   }
 
   /**
@@ -526,55 +568,75 @@ object AggCodeGenHelper {
       inputTerm: String,
       inputType: RowType,
       auxGrouping: Array[Int],
-      aggregates: Seq[UserDefinedFunction],
-      udaggs: Map[AggregateFunction[_, _], String],
+      aggInfos: Seq[AggregateInfo],
+      functionIdentifiers: Map[AggregateFunction[_, _], String],
       argsMapping: Array[Array[(Int, LogicalType)]],
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]],
-      aggBufferExprs: Seq[GeneratedExpression]): String = {
-    val exprCodegen = new ExprCodeGenerator(ctx, false).bindInput(inputType, inputTerm = inputTerm)
+      aggBufferExprs: Seq[GeneratedExpression])
+    : String = {
+    val exprCodeGen = new ExprCodeGenerator(ctx, false)
+      .bindInput(inputType, inputTerm = inputTerm)
+    val converter = new ExpressionConverter(builder)
 
-    // flat map to get flat agg buffers.
-    aggregates.zipWithIndex.flatMap {
-      case (agg: DeclarativeAggregateFunction, aggIndex) =>
-        val idx = auxGrouping.length + aggIndex
-        agg.mergeExpressions.map(_.accept(ResolveReference(
-          ctx, builder, isMerge = true, agg, idx, argsMapping, aggBufferTypes)))
-      case (agg: AggregateFunction[_, _], aggIndex) =>
-        val idx = auxGrouping.length + aggIndex
-        Some(agg, idx)
-    }.zip(aggBufferExprs.slice(auxGrouping.length, aggBufferExprs.size)).map {
-      // DeclarativeAggregateFunction
-      case ((expr: Expression), aggBufVar) =>
-        val mergeExpr = exprCodegen.generateExpression(
-          expr.accept(new ExpressionConverter(builder)))
-        s"""
-           |${mergeExpr.code}
-           |${aggBufVar.nullTerm} = ${mergeExpr.nullTerm};
-           |if (!${mergeExpr.nullTerm}) {
-           |  ${mergeExpr.copyResultTermToTargetIfChanged(ctx, aggBufVar.resultTerm)}
-           |}
-           """.stripMargin.trim
-      // UserDefinedAggregateFunction
-      case ((agg: AggregateFunction[_, _], aggIndex: Int), aggBufVar) =>
-        val (inputIndex, inputType) = argsMapping(aggIndex)(0)
-        val inputRef = toRexInputRef(builder, inputIndex, inputType)
-        val inputExpr = exprCodegen.generateExpression(
-          inputRef.accept(new ExpressionConverter(builder)))
-        val singleIterableClass = classOf[SingleElementIterator[_]].getCanonicalName
+    val mergeCode = aggInfos.map { aggInfo =>
 
-        val externalAccT = getAccumulatorTypeOfAggregateFunction(agg)
-        val javaField = typeTerm(externalAccT.getConversionClass)
-        val tmpAcc = newName("tmpAcc")
-        s"""
-           |final $singleIterableClass accIt$aggIndex = new  $singleIterableClass();
-           |accIt$aggIndex.set(${genToExternal(ctx, externalAccT, inputExpr.resultTerm)});
-           |$javaField $tmpAcc = ${genToExternal(ctx, externalAccT, aggBufferNames(aggIndex)(0))};
-           |${udaggs(agg)}.merge($tmpAcc, accIt$aggIndex);
-           |${aggBufferNames(aggIndex)(0)} = ${genToInternal(ctx, externalAccT, tmpAcc)};
-           |${aggBufVar.nullTerm} = ${aggBufferNames(aggIndex)(0)}IsNull || ${inputExpr.nullTerm};
-         """.stripMargin
-    } mkString "\n"
+      val aggBufferIdx = auxGrouping.length + aggInfo.aggIndex
+
+      aggInfo.function match {
+
+        case function: DeclarativeAggregateFunction =>
+          val ref = ResolveReference(
+            ctx,
+            builder,
+            isMerge = true,
+            function,
+            aggBufferIdx,
+            argsMapping,
+            aggBufferTypes)
+          val mergeExprs = function.mergeExpressions
+            .map(_.accept(ref))
+            .map(_.accept(converter))
+            .map(exprCodeGen.generateExpression)
+          mergeExprs
+            .zipWithIndex
+            .map { case (mergeExpr, mergeIndex) =>
+              val aggBufferExpr = aggBufferExprs(aggBufferIdx + mergeIndex)
+              s"""
+                 |${mergeExpr.code}
+                 |${aggBufferExpr.nullTerm} = ${mergeExpr.nullTerm};
+                 |if (!${mergeExpr.nullTerm}) {
+                 |  ${mergeExpr.copyResultTermToTargetIfChanged(ctx, aggBufferExpr.resultTerm)}
+                 |}
+              """.stripMargin
+            }
+
+        case function: AggregateFunction[_, _] =>
+          val (inputIndex, inputType) = argsMapping(aggInfo.aggIndex).head
+          val inputRef = toRexInputRef(builder, inputIndex, inputType)
+          val inputExpr = exprCodeGen.generateExpression(
+            inputRef.accept(converter))
+          val aggBufferName = aggBufferNames(aggBufferIdx).head
+          val aggBufferExpr = aggBufferExprs(aggBufferIdx)
+          val iterableTypeTerm = className[SingleElementIterator[_]]
+          val externalAccType = aggInfo.externalAccTypes.head
+          val externalAccTypeTerm = typeTerm(externalAccType.getConversionClass)
+          val externalAccTerm = newName("acc")
+          val aggIndex = aggInfo.aggIndex
+          s"""
+            |$iterableTypeTerm accIt$aggIndex = new $iterableTypeTerm();
+            |accIt$aggIndex.set(${
+              genToExternalConverter(ctx, externalAccType, inputExpr.resultTerm)});
+            |$externalAccTypeTerm $externalAccTerm = ${
+              genToExternalConverter(ctx, externalAccType, aggBufferName)};
+            |${functionIdentifiers(function)}.merge($externalAccTerm, accIt$aggIndex);
+            |$aggBufferName = ${genToInternalConverter(ctx, externalAccType)(externalAccTerm)};
+            |${aggBufferExpr.nullTerm} = ${aggBufferName}IsNull || ${inputExpr.nullTerm};
+          """.stripMargin
+      }
+    }
+
+    mergeCode.mkString("\n")
   }
 
   /**
@@ -586,81 +648,90 @@ object AggCodeGenHelper {
       inputTerm: String,
       inputType: RowType,
       auxGrouping: Array[Int],
-      aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-      udaggs: Map[AggregateFunction[_, _], String],
+      aggInfos: Seq[AggregateInfo],
+      functionIdentifiers: Map[AggregateFunction[_, _], String],
       argsMapping: Array[Array[(Int, LogicalType)]],
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]],
-      aggBufferExprs: Seq[GeneratedExpression]): String = {
-    val exprCodegen = new ExprCodeGenerator(ctx, false).bindInput(inputType, inputTerm = inputTerm)
+      aggBufferExprs: Seq[GeneratedExpression])
+    : String = {
+    val exprCodeGen = new ExprCodeGenerator(ctx, false)
+      .bindInput(inputType, inputTerm = inputTerm)
+    val converter = new ExpressionConverter(builder)
 
-    // flat map to get flat agg buffers.
-    aggCallToAggFunction.zipWithIndex.flatMap {
-      case (aggCallToAggFun, aggIndex) =>
-        val idx = auxGrouping.length + aggIndex
-        val aggCall = aggCallToAggFun._1
-        aggCallToAggFun._2 match {
-          case agg: DeclarativeAggregateFunction =>
-            agg.accumulateExpressions.map(_.accept(ResolveReference(
-              ctx, builder, isMerge = false, agg, idx, argsMapping, aggBufferTypes)))
-                .map(e => (e, aggCall))
-          case agg: AggregateFunction[_, _] =>
-            val idx = auxGrouping.length + aggIndex
-            Some(agg, idx, aggCall)
-        }
-    }.zip(aggBufferExprs.slice(auxGrouping.length, aggBufferExprs.size)).map {
-      // DeclarativeAggregateFunction
-      case ((expr: Expression, aggCall: AggregateCall), aggBufVar) =>
-        val accExpr = exprCodegen.generateExpression(expr.accept(new ExpressionConverter(builder)))
-        (s"""
-            |${accExpr.code}
-            |${aggBufVar.nullTerm} = ${accExpr.nullTerm};
-            |if (!${accExpr.nullTerm}) {
-            |  ${accExpr.copyResultTermToTargetIfChanged(ctx, aggBufVar.resultTerm)}
+    val accCode = aggInfos.map { aggInfo =>
+
+      val aggBufferIdx = auxGrouping.length + aggInfo.aggIndex
+
+      aggInfo.function match {
+
+        case function: DeclarativeAggregateFunction =>
+          val ref = ResolveReference(
+            ctx,
+            builder,
+            isMerge = false,
+            function,
+            aggBufferIdx,
+            argsMapping,
+            aggBufferTypes)
+          val accExprs = function.accumulateExpressions
+            .map(_.accept(ref))
+            .map(_.accept(new ExpressionConverter(builder)))
+            .map(exprCodeGen.generateExpression)
+          accExprs
+            .zipWithIndex
+            .map { case (accExpr, accIndex) =>
+              val aggBufferExpr = aggBufferExprs(aggBufferIdx + accIndex)
+              s"""
+                |${accExpr.code}
+                |${aggBufferExpr.nullTerm} = ${accExpr.nullTerm};
+                |if (!${accExpr.nullTerm}) {
+                |  ${accExpr.copyResultTermToTargetIfChanged(ctx, aggBufferExpr.resultTerm)}
+                |}
+              """.stripMargin
+            }
+
+        case function: AggregateFunction[_, _] =>
+          val args = argsMapping(aggInfo.aggIndex)
+          val inputExprs = args.map { case (argIndex, argType) =>
+              val inputRef = toRexInputRef(builder, argIndex, argType)
+              exprCodeGen.generateExpression(inputRef.accept(converter))
+          }
+          val operandTerms = inputExprs.zipWithIndex.map { case (expr, i) =>
+              genToExternalConverterAll(ctx, aggInfo.externalArgTypes(i), expr)
+          }
+          val aggBufferName = aggBufferNames(aggBufferIdx).head
+          val aggBufferExpr = aggBufferExprs(aggBufferIdx)
+          val externalAccType = aggInfo.externalAccTypes.head
+          val externalAccTypeTerm = typeTerm(externalAccType.getConversionClass)
+          val externalAccTerm = newName("acc")
+          val externalAccCode = genToExternalConverter(ctx, externalAccType, aggBufferName)
+          s"""
+            |$externalAccTypeTerm $externalAccTerm = $externalAccCode;
+            |${functionIdentifiers(function)}.accumulate(
+            |  $externalAccTerm,
+            |  ${operandTerms.mkString(", ")});
+            |$aggBufferName = ${genToInternalConverter(ctx, externalAccType)(externalAccTerm)};
+            |${aggBufferExpr.nullTerm} = false;
+          """.stripMargin
+      }
+    }
+
+    val filteredAccCode = accCode
+      .zip(aggInfos.map(_.agg))
+      .map { case (accCode, aggCall) =>
+        if (aggCall.filterArg >= 0) {
+          s"""
+            |if ($inputTerm.getBoolean(${aggCall.filterArg})) {
+            |  $accCode
             |}
-           """.stripMargin, aggCall.filterArg)
-      // UserDefinedAggregateFunction
-      case ((agg: AggregateFunction[_, _], aggIndex: Int, aggCall: AggregateCall),
-      aggBufVar) =>
-        val inFields = argsMapping(aggIndex)
-        val externalAccType = getAccumulatorTypeOfAggregateFunction(agg)
-
-        val inputExprs = inFields.map {
-          f =>
-            val inputRef = toRexInputRef(builder, f._1, f._2)
-            exprCodegen.generateExpression(inputRef.accept(new ExpressionConverter(builder)))
-        }
-
-        val externalUDITypes = getAggUserDefinedInputTypes(
-          agg, externalAccType, inputExprs.map(_.resultType))
-        val parameters = inputExprs.zipWithIndex.map {
-          case (expr, i) =>
-            genToExternalIfNeeded(ctx, externalUDITypes(i), expr)
-        }
-
-        val javaTerm = typeTerm(externalAccType.getConversionClass)
-        val tmpAcc = newName("tmpAcc")
-        val innerCode =
-          s"""
-             |  $javaTerm $tmpAcc = ${
-            genToExternal(ctx, externalAccType, aggBufferNames(aggIndex)(0))};
-             |  ${udaggs(agg)}.accumulate($tmpAcc, ${parameters.mkString(", ")});
-             |  ${aggBufferNames(aggIndex)(0)} = ${genToInternal(ctx, externalAccType, tmpAcc)};
-             |  ${aggBufVar.nullTerm} = false;
-           """.stripMargin
-        (innerCode, aggCall.filterArg)
-    }.map({
-      case (innerCode, filterArg) =>
-        if (filterArg >= 0) {
-          s"""
-             |if ($inputTerm.getBoolean($filterArg)) {
-             | $innerCode
-             |}
           """.stripMargin
         } else {
-          innerCode
+          accCode
         }
-    }) mkString "\n"
+      }
+
+    filteredAccCode.mkString("\n")
   }
 
   /**

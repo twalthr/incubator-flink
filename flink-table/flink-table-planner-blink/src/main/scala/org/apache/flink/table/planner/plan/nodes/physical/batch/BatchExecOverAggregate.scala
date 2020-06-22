@@ -29,7 +29,6 @@ import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.codegen.over.{MultiFieldRangeBoundComparatorCodeGenerator, RangeBoundComparatorCodeGenerator}
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
@@ -389,9 +388,8 @@ class BatchExecOverAggregate(
           // use aggInputType which considers constants as input instead of inputType
           inputTypeWithConstants,
           orderKeyIndices)
-        val codeGenCtx = CodeGeneratorContext(config)
         val generator = new AggsHandlerCodeGenerator(
-          codeGenCtx,
+          config,
           relBuilder,
           inputType.getChildren,
           copyInputField = false)
@@ -454,7 +452,7 @@ class BatchExecOverAggregate(
               Array[Boolean](true) /* needRetraction = true, See LeadLagAggFunction */)
 
             val generator = new AggsHandlerCodeGenerator(
-              CodeGeneratorContext(config),
+              config,
               relBuilder,
               inputType.getChildren,
               copyInputField = false)
@@ -524,9 +522,8 @@ class BatchExecOverAggregate(
             //use aggInputType which considers constants as input instead of inputSchema.relDataType
             inputTypeWithConstants,
             orderKeyIndices)
-          val codeGenCtx = CodeGeneratorContext(config)
           val generator = new AggsHandlerCodeGenerator(
-            codeGenCtx,
+            config,
             relBuilder,
             inputType.getChildren,
             copyInputField = false)

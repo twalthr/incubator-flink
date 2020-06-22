@@ -22,13 +22,11 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.operators.aggregate.GroupTableAggFunction
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -118,7 +116,7 @@ class StreamExecGroupTableAggregate(
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
 
     val generator = new AggsHandlerCodeGenerator(
-      CodeGeneratorContext(tableConfig),
+      tableConfig,
       planner.getRelBuilder,
       inputRowType.getChildren,
       // TODO: heap state backend do not copy key currently, we have to copy input field
@@ -134,7 +132,7 @@ class StreamExecGroupTableAggregate(
       .needAccumulate()
       .generateTableAggsHandler("GroupTableAggHandler", aggInfoList)
 
-    val accTypes = aggInfoList.getAccTypes.map(fromDataTypeToLogicalType)
+    val accTypes = aggInfoList.getAccTypes
     val inputCountIndex = aggInfoList.getIndexOfCountStar
 
     val aggFunction = new GroupTableAggFunction(

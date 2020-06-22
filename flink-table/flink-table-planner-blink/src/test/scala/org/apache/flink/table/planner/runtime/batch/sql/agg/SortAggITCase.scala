@@ -28,11 +28,11 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.Wei
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyToPojoFunc}
 import org.apache.flink.table.planner.utils.{CountAccumulator, CountAggFunction, IntSumAggFunction}
-
 import org.junit.Test
-
 import java.lang
 import java.lang.{Iterable => JIterable}
+
+import org.apache.flink.table.planner.JLong
 
 import scala.annotation.varargs
 import scala.collection.JavaConverters._
@@ -357,21 +357,21 @@ class MyPojoAggFunction extends AggregateFunction[MyPojo, CountAccumulator] {
   override def getResultType: TypeInformation[MyPojo] = MyToPojoFunc.getResultType(null)
 }
 
-class VarArgsAggFunction extends AggregateFunction[Long, CountAccumulator] {
+class VarArgsAggFunction extends AggregateFunction[JLong, CountAccumulator] {
 
   @varargs
-  def accumulate(acc: CountAccumulator, value: Long, args: String*): Unit = {
+  def accumulate(acc: CountAccumulator, value: JLong, args: String*): Unit = {
     acc.f0 += value
     args.foreach(s => acc.f0 += s.toLong)
   }
 
   @varargs
-  def retract(acc: CountAccumulator, value: Long, args: String*): Unit = {
+  def retract(acc: CountAccumulator, value: JLong, args: String*): Unit = {
     acc.f0 -= value
     args.foreach(s => acc.f0 -= s.toLong)
   }
 
-  override def getValue(acc: CountAccumulator): Long = {
+  override def getValue(acc: CountAccumulator): JLong = {
     acc.f0
   }
 
@@ -388,10 +388,6 @@ class VarArgsAggFunction extends AggregateFunction[Long, CountAccumulator] {
 
   def resetAccumulator(acc: CountAccumulator): Unit = {
     acc.f0 = 0L
-  }
-
-  override def getAccumulatorType: TypeInformation[CountAccumulator] = {
-    new TupleTypeInfo[CountAccumulator](classOf[CountAccumulator], Types.LONG)
   }
 }
 

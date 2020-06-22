@@ -32,6 +32,7 @@ import java.util.Map;
  * The {@link NullAwareMapSerializer} is similar to MapSerializer, the only difference is that
  * the {@link NullAwareMapSerializer} can handle null keys.
  */
+@Deprecated
 @Internal
 public class NullAwareMapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 	private static final long serialVersionUID = 5363147328373166590L;

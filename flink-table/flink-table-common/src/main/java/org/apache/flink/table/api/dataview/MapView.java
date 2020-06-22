@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.api.dataview;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.dataview.MapViewTypeInfoFactory;
+import org.apache.flink.table.types.DataType;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -86,6 +89,23 @@ public class MapView<K, V> implements DataView {
 	public transient TypeInformation<?> valueType;
 	public final Map<K, V> map;
 
+	/**
+	 * Creates a MapView.
+	 */
+	public MapView() {
+		this(null, null, new HashMap<>());
+	}
+
+	@Internal
+	public MapView(Map<K, V> map) {
+		this(null, null, map);
+	}
+
+	/**
+	 * @deprecated This method uses {@link TypeInformation}. The new function type inference can extract
+	 *             {@link DataType} from views automatically. Otherwise a {@link DataTypeHint} can be used.
+	 */
+	@Deprecated
 	public MapView(TypeInformation<?> keyType, TypeInformation<?> valueType, Map<K, V> map) {
 		this.keyType = keyType;
 		this.valueType = valueType;
@@ -100,13 +120,6 @@ public class MapView<K, V> implements DataView {
 	 */
 	public MapView(TypeInformation<?> keyType, TypeInformation<?> valueType) {
 		this(keyType, valueType, new HashMap<>());
-	}
-
-	/**
-	 * Creates a MapView.
-	 */
-	public MapView() {
-		this(null, null);
 	}
 
 	/**

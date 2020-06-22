@@ -52,6 +52,7 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
@@ -100,6 +101,12 @@ public class TypeInfoDataTypeConverter {
 	}
 
 	public static TypeInformation<?> fromDataTypeToTypeInfo(DataType dataType) {
+		// new type system
+		if (!LogicalTypeChecks.hasLegacyTypes(dataType.getLogicalType())) {
+			return WrapperTypeInfo.of(dataType);
+		}
+
+		// legacy
 		Class<?> clazz = dataType.getConversionClass();
 		if (clazz.isPrimitive()) {
 			final TypeInformation<?> foundTypeInfo = primitiveDataTypeTypeInfoMap.get(clazz.getName());

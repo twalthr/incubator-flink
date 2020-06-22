@@ -33,7 +33,6 @@ import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFu
 import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.sql.{SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
@@ -42,6 +41,8 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import java.util
+
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 
 import scala.collection.JavaConversions._
 
@@ -120,7 +121,7 @@ class AggFunctionFactory(
       // TODO supports SqlCardinalityCountAggFunction
 
       case a: SqlAggFunction if a.getKind == SqlKind.COLLECT =>
-        createCollectAggFunction(argTypes)
+        new CollectAggFunction(argTypes.head)
 
       case udagg: AggSqlFunction =>
         // Can not touch the literals, Calcite make them in previous RelNode.
@@ -130,6 +131,9 @@ class AggFunctionFactory(
         udagg.makeFunction(
           constants.toArray,
           argTypes)
+
+      case bsf: BridgingSqlAggFunction =>
+        bsf.getDefinition.asInstanceOf[UserDefinedFunction]
 
       case unSupported: SqlAggFunction =>
         throw new TableException(s"Unsupported Function: '${unSupported.getName}'")
@@ -301,7 +305,7 @@ class AggFunctionFactory(
           new StringMinWithRetractAggFunction
         case DECIMAL =>
           val d = argTypes(0).asInstanceOf[DecimalType]
-          new DecimalMinWithRetractAggFunction(DecimalDataTypeInfo.of(d.getPrecision, d.getScale))
+          new DecimalMinWithRetractAggFunction(d.getPrecision, d.getScale)
         case TIME_WITHOUT_TIME_ZONE =>
           new TimeMinWithRetractAggFunction
         case DATE =>
@@ -405,7 +409,7 @@ class AggFunctionFactory(
           new StringMaxWithRetractAggFunction
         case DECIMAL =>
           val d = argTypes(0).asInstanceOf[DecimalType]
-          new DecimalMaxWithRetractAggFunction(DecimalDataTypeInfo.of(d.getPrecision, d.getScale))
+          new DecimalMaxWithRetractAggFunction(d.getPrecision, d.getScale)
         case TIME_WITHOUT_TIME_ZONE =>
           new TimeMaxWithRetractAggFunction
         case DATE =>
@@ -643,13 +647,5 @@ class AggFunctionFactory(
     } else {
       new ListAggFunction(2)
     }
-  }
-
-  private def createCollectAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
-    val elementTypeInfo = argTypes(0) match {
-      case gt: TypeInformationRawType[_] => gt.getTypeInformation
-      case t => TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo(t)
-    }
-    new CollectAggFunction(elementTypeInfo)
   }
 }

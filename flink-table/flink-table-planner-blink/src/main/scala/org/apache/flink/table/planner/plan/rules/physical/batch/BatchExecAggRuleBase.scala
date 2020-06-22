@@ -28,8 +28,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecGroupA
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -156,7 +154,7 @@ trait BatchExecAggRuleBase {
     val (_, aggBufferTypes, _) = AggregateUtil.transformToBatchAggregateFunctions(
       aggCallsWithoutAuxGroupCalls, agg.getInput.getRowType)
 
-    isAggBufferFixedLength(aggBufferTypes.map(_.map(fromDataTypeToLogicalType)))
+    isAggBufferFixedLength(aggBufferTypes)
   }
 
   protected def isAggBufferFixedLength(aggBufferTypes: Array[Array[LogicalType]]): Boolean = {
@@ -191,7 +189,7 @@ trait BatchExecAggRuleBase {
       originalAggRowType: RelDataType,
       grouping: Array[Int],
       auxGrouping: Array[Int],
-      aggBufferTypes: Array[Array[DataType]],
+      aggBufferTypes: Array[Array[LogicalType]],
       aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
       isLocalHashAgg: Boolean): BatchExecGroupAggregateBase = {
     val inputRowType = input.getRowType
@@ -208,7 +206,7 @@ trait BatchExecAggRuleBase {
       grouping,
       auxGrouping,
       aggFunctions,
-      aggBufferTypes.map(_.map(fromDataTypeToLogicalType)))
+      aggBufferTypes)
 
     if (isLocalHashAgg) {
       new BatchExecLocalHashAggregate(

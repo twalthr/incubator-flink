@@ -33,6 +33,7 @@ import java.util.Objects;
  * @param <K> key type
  * @param <V> value type
  */
+@Deprecated
 @Internal
 public class MapViewTypeInfo<K, V> extends TypeInformation<MapView<K, V>> {
 

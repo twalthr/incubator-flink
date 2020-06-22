@@ -83,15 +83,15 @@ class AggsHandlerCodeGeneratorTest extends AggTestBase(isBatchMode = false) {
   }
 
   private def getHandler(needRetract: Boolean, needMerge: Boolean): AggsHandleFunction = {
-    val generator = new AggsHandlerCodeGenerator(ctx, relBuilder, inputTypes, true)
+    val generator = new AggsHandlerCodeGenerator(ctx.tableConfig, relBuilder, inputTypes, true)
     if (needRetract) {
       generator.needRetract()
     }
-    if (needMerge) {
-      generator.needMerge(1, mergedAccOnHeap = true,
-        Array(DataTypes.BIGINT, DataTypes.BIGINT, DataTypes.DOUBLE, DataTypes.BIGINT,
-          TypeConversions.fromLegacyInfoToDataType(imperativeAggFunc.getAccumulatorType)))
-    }
+//    if (needMerge) {
+//      generator.needMerge(1, mergedAccOnHeap = true,
+//        Array(DataTypes.BIGINT, DataTypes.BIGINT, DataTypes.DOUBLE, DataTypes.BIGINT,
+//          TypeConversions.fromLegacyInfoToDataType(imperativeAggFunc.getAccumulatorType)))
+//    }
     val handler = generator
       .needAccumulate()
       .generateAggsHandler("Test", aggInfoList).newInstance(classLoader)

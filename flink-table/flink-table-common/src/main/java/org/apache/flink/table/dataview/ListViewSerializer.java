@@ -41,6 +41,7 @@ import java.util.List;
  *
  * @param <T> The type of element in the list.
  */
+@Deprecated
 @Internal
 public class ListViewSerializer<T>
 		extends TypeSerializer<ListView<T>>

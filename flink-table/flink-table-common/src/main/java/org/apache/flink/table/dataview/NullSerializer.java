@@ -30,6 +30,7 @@ import java.io.IOException;
 /**
  * A serializer for null.
  */
+@Deprecated
 @Internal
 public class NullSerializer extends TypeSerializerSingleton<Object> {
 	private static final long serialVersionUID = -5381596724707742625L;

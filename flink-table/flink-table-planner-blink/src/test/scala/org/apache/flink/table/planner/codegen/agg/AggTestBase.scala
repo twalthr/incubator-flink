@@ -26,7 +26,6 @@ import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.api.{DataTypes, EnvironmentSettings}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
-import org.apache.flink.table.planner.dataview.DataViewSpec
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, LongAvgAggFunction}
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
@@ -35,6 +34,7 @@ import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
+import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.powermock.api.mockito.PowerMockito.{mock, when}
 
 /**

@@ -43,6 +43,7 @@ import java.util.Map;
  * @param <K> The type of the keys in the map.
  * @param <V> The type of the values in the map.
  */
+@Deprecated
 @Internal
 public class MapViewSerializer<K, V>
 		extends TypeSerializer<MapView<K, V>>

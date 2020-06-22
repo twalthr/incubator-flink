@@ -36,14 +36,11 @@ import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFu
 import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.StringMaxWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.TimeMaxWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.TimestampMaxWithRetractAggFunction;
-import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
 
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 
 import java.lang.reflect.Method;
-import java.sql.Date;
-import java.sql.Time;
 import java.util.Arrays;
 import java.util.List;
 
@@ -328,7 +325,7 @@ public final class MaxWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<DecimalData, MaxWithRetractAccumulator<DecimalData>> getAggregator() {
-			return new DecimalMaxWithRetractAggFunction(DecimalDataTypeInfo.of(precision, scale));
+			return new DecimalMaxWithRetractAggFunction(precision, scale);
 		}
 	}
 
@@ -474,17 +471,17 @@ public final class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for DateMaxWithRetractAggFunction.
 	 */
-	public static final class DateMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Date> {
+	public static final class DateMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Integer> {
 
 		@Override
-		protected List<List<Date>> getInputValueSets() {
+		protected List<List<Integer>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							new Date(0),
-							new Date(1000),
-							new Date(100),
+							0,
+							1000,
+							100,
 							null,
-							new Date(10)
+							10
 					),
 					Arrays.asList(
 							null,
@@ -495,22 +492,22 @@ public final class MaxWithRetractAggFunctionTest {
 					),
 					Arrays.asList(
 							null,
-							new Date(1)
+							1
 					)
 			);
 		}
 
 		@Override
-		protected List<Date> getExpectedResults() {
+		protected List<Integer> getExpectedResults() {
 			return Arrays.asList(
-					new Date(1000),
+					1000,
 					null,
-					new Date(1)
+					1
 			);
 		}
 
 		@Override
-		protected AggregateFunction<Date, MaxWithRetractAccumulator<Date>> getAggregator() {
+		protected AggregateFunction<Integer, MaxWithRetractAccumulator<Integer>> getAggregator() {
 			return new DateMaxWithRetractAggFunction();
 		}
 	}
@@ -518,17 +515,17 @@ public final class MaxWithRetractAggFunctionTest {
 	/**
 	 * Test for TimeMaxWithRetractAggFunction.
 	 */
-	public static final class TimeMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Time> {
+	public static final class TimeMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Integer> {
 
 		@Override
-		protected List<List<Time>> getInputValueSets() {
+		protected List<List<Integer>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							new Time(0),
-							new Time(1000),
-							new Time(100),
+							0,
+							1000,
+							100,
 							null,
-							new Time(10)
+							10
 					),
 					Arrays.asList(
 							null,
@@ -539,22 +536,22 @@ public final class MaxWithRetractAggFunctionTest {
 					),
 					Arrays.asList(
 							null,
-							new Time(1)
+							1
 					)
 			);
 		}
 
 		@Override
-		protected List<Time> getExpectedResults() {
+		protected List<Integer> getExpectedResults() {
 			return Arrays.asList(
-					new Time(1000),
+					1000,
 					null,
-					new Time(1)
+					1
 			);
 		}
 
 		@Override
-		protected AggregateFunction<Time, MaxWithRetractAccumulator<Time>> getAggregator() {
+		protected AggregateFunction<Integer, MaxWithRetractAccumulator<Integer>> getAggregator() {
 			return new TimeMaxWithRetractAggFunction();
 		}
 	}
