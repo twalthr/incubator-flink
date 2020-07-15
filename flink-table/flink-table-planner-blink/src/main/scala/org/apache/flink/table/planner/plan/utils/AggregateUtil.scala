@@ -29,7 +29,7 @@ import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
@@ -633,9 +633,9 @@ object AggregateUtil extends Enumeration {
     val distinctInfos = distinctMap.values.zipWithIndex.map { case (d, index) =>
       val valueType = if (consumeRetraction) {
         if (d.filterArgs.length <= 1) {
-          new BigIntType(false)
+          DataTypes.BIGINT().notNull()
         } else {
-          new ArrayType(false, new BigIntType(false))
+          DataTypes.ARRAY()new ArrayType(false, new BigIntType(false))
         }
       } else {
         if (d.filterArgs.length <= 64) {

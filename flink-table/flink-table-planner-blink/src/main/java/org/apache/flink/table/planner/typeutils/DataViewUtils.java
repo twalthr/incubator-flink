@@ -28,7 +28,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeTransformation;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
@@ -110,20 +109,6 @@ public final class DataViewUtils {
 			return accumulatorDataType;
 		}
 		return DataTypeUtils.transform(accumulatorDataType, DataViewAsNullTransformation.INSTANCE);
-	}
-
-	/**
-	 * Creates an logical type for an internal distinct accumulator.
-	 */
-	public static LogicalType createDistinctAccumulatorType(
-			boolean hasStateBackedDataViews,
-			LogicalType keyType,
-			LogicalType valueType) {
-		if (hasStateBackedDataViews) {
-			return new NullType();
-		} else {
-			throw new UnsupportedOperationException();
-		}
 	}
 
 	private static boolean isDataView(LogicalType t, Class<? extends DataView> viewClass) {
