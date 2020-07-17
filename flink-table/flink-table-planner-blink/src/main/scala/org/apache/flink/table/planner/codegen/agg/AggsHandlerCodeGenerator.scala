@@ -40,7 +40,7 @@ import org.apache.flink.util.Collector
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStructureConverters}
-import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, DistinctViewSpec, ListViewSpec, MapViewSpec}
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec, MapViewSpec}
 
 /**
   * A code generator for generating [[AggsHandleFunction]].
@@ -1209,26 +1209,7 @@ object AggsHandlerCodeGenerator {
             className[StateMapView[_, _, _]],
             "getStateMapView",
             Seq(
-              "false",
-              keyConverterTerm,
-              keySerializerTerm,
-              valueConverterTerm,
-              valueSerializerTerm).mkString(", ")
-          )
-        case distinctViewSpec: DistinctViewSpec =>
-          val keyType = distinctViewSpec.getKeyType
-          val valueType = distinctViewSpec.getValueType
-          val keyConverter = DataStructureConverters.getIdentityConverter
-          val valueConverter = DataStructureConverters.getIdentityConverter
-          val keyConverterTerm = ctx.addReusableConverter(keyConverter)
-          val valueConverterTerm = ctx.addReusableConverter(valueConverter)
-          val keySerializerTerm = ctx.addReusableTypeSerializer(keyType)
-          val valueSerializerTerm = ctx.addReusableTypeSerializer(valueType)
-          (
-            className[StateMapView[_, _, _]],
-            "getStateMapView",
-            Seq(
-              "true",
+              mapViewSpec.containsNullKey(),
               keyConverterTerm,
               keySerializerTerm,
               valueConverterTerm,

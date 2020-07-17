@@ -49,7 +49,7 @@ import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTraitDef, RelMo
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.typeutils.DataViewUtils
-import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, DistinctViewSpec}
+import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
@@ -58,6 +58,7 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.types.logical.{LogicalTypeRoot, _}
+import org.apache.flink.table.types.utils.DataTypeUtils
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -601,11 +602,12 @@ object AggregateUtil extends Enumeration {
           .toArray
 
         val keyType = createDistinctKeyType(argTypes)
+        val keyDataType = DataTypeUtils.toInternalDataType(keyType)
         val distinctInfo = distinctMap.getOrElseUpdate(
           argIndexes.mkString(","),
           DistinctInfo(
             argIndexes,
-            keyType,
+            keyDataType,
             null, // later fill in
             excludeAcc = false,
             null, // later fill in
@@ -629,29 +631,23 @@ object AggregateUtil extends Enumeration {
       }
     }
 
-    // fill in the acc type and dataview spec
+    // fill in the acc type and data view spec
+    val filterArgsLimit = if (consumeRetraction) {
+      1
+    } else {
+      64
+    }
     val distinctInfos = distinctMap.values.zipWithIndex.map { case (d, index) =>
-      val valueType = if (consumeRetraction) {
-        if (d.filterArgs.length <= 1) {
-          DataTypes.BIGINT().notNull()
-        } else {
-          DataTypes.ARRAY()new ArrayType(false, new BigIntType(false))
-        }
+      val valueDataType = if (d.filterArgs.length <= filterArgsLimit) {
+        DataTypes.BIGINT()
       } else {
-        if (d.filterArgs.length <= 64) {
-          new BigIntType(false)
-        } else {
-          new ArrayType(false, new BigIntType(false))
-        }
+        DataTypes.ARRAY(DataTypes.BIGINT().notNull()).bridgedTo(classOf[Array[Long]])
       }
 
-      val accType = DataViewUtils.createDistinctAccumulatorType(
-        hasStateBackedDataViews,
-        d.keyType,
-        valueType)
+      val distinctViewDataType = DataViewUtils.newMapView(d.keyType, valueDataType)
 
       val distinctViewSpec = if (hasStateBackedDataViews) {
-        Some(new DistinctViewSpec(s"distinctAcc_$index", d.keyType, valueType))
+        Some(DataViewUtils.createDistinctView(index, distinctViewDataType))
       } else {
         None
       }
@@ -659,7 +655,7 @@ object AggregateUtil extends Enumeration {
       DistinctInfo(
         d.argIndexes,
         d.keyType,
-        accType,
+        distinctViewDataType,
         excludeAcc = false,
         distinctViewSpec,
         consumeRetraction,

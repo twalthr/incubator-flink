@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.types.DataType
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, DistinctViewSpec}
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, DistinctViewSpec, MapViewSpec}
 import org.apache.flink.table.types.logical.LogicalType
 
 import scala.collection.mutable.ArrayBuffer
@@ -69,10 +69,10 @@ case class AggregateInfo(
   */
 case class DistinctInfo(
     argIndexes: Array[Int],
-    keyType: LogicalType,
-    accType: LogicalType,
+    keyType: DataType,
+    accType: DataType,
     excludeAcc: Boolean,
-    dataViewSpec: Option[DistinctViewSpec],
+    dataViewSpec: Option[MapViewSpec],
     consumeRetraction: Boolean,
     filterArgs: ArrayBuffer[Int],
     aggIndexes: ArrayBuffer[Int])
@@ -97,7 +97,7 @@ case class AggregateInfoList(
 
   def getAccTypes: Array[LogicalType] = {
     val aggAccumulatorTypes = aggInfos.flatMap(_.externalAccTypes).map(_.getLogicalType)
-    val distinctAccumulatorTypes = distinctInfos.filter(!_.excludeAcc).map(_.accType)
+    val distinctAccumulatorTypes = distinctInfos.filter(!_.excludeAcc).map(_.accType.getLogicalType)
     aggAccumulatorTypes ++ distinctAccumulatorTypes
   }
 

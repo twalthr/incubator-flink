@@ -62,6 +62,14 @@ public final class DataViewUtils {
 				DataTypes.MAP(keyDataType, valueDataType).bridgedTo(Map.class)));
 	}
 
+	public static DataType newView(DataType keyDataType, DataType valueDataType) {
+		return DataTypeUtils.newStructuredDataType(
+			MapView.class,
+			DataTypes.FIELD(
+				"map",
+				DataTypes.MAP(keyDataType, valueDataType).bridgedTo(Map.class)));
+	}
+
 	/**
 	 * Searches for data views in the data type of an accumulator and extracts them.
 	 */
@@ -111,6 +119,10 @@ public final class DataViewUtils {
 		return DataTypeUtils.transform(accumulatorDataType, DataViewAsNullTransformation.INSTANCE);
 	}
 
+	public static DistinctViewSpec createDistinctView(int index, DataType viewDataType) {
+		return new DistinctViewSpec("distinctAcc_" + index, viewDataType.getChildren().get(0));
+	}
+
 	private static boolean isDataView(LogicalType t, Class<? extends DataView> viewClass) {
 		return hasRoot(t, LogicalTypeRoot.STRUCTURED_TYPE) &&
 			((StructuredType) t).getImplementationClass().map(viewClass::isAssignableFrom).orElse(false);
@@ -131,9 +143,12 @@ public final class DataViewUtils {
 
 		private final int fieldIndex;
 
-		private DataViewSpec(String stateId, int fieldIndex) {
+		protected final DataType dataType;
+
+		private DataViewSpec(String stateId, int fieldIndex, DataType dataType) {
 			this.stateId = stateId;
 			this.fieldIndex = fieldIndex;
+			this.dataType = dataType;
 		}
 
 		public String getStateId() {
@@ -143,25 +158,16 @@ public final class DataViewUtils {
 		public int getFieldIndex() {
 			return fieldIndex;
 		}
-	}
 
-	/**
-	 * Specification for {@link DataView}s that are exposed through the API in a composite type.
-	 */
-	public static abstract class ExternalDataViewSpec extends DataViewSpec {
-
-		protected final DataType dataType;
-
-		private ExternalDataViewSpec(String stateId, int fieldIndex, DataType dataType) {
-			super(stateId, fieldIndex);
-			this.dataType = dataType;
+		public DataType getDataType() {
+			return dataType;
 		}
 	}
 
 	/**
 	 * Specification for a {@link ListView}.
 	 */
-	public static final class ListViewSpec extends ExternalDataViewSpec {
+	public static class ListViewSpec extends DataViewSpec {
 
 		public ListViewSpec(String stateId, int fieldIndex, DataType dataType) {
 			super(stateId, fieldIndex, dataType);
@@ -175,7 +181,7 @@ public final class DataViewUtils {
 	/**
 	 * Specification for a {@link MapView}.
 	 */
-	public static final class MapViewSpec extends ExternalDataViewSpec {
+	public static class MapViewSpec extends DataViewSpec {
 
 		public MapViewSpec(String stateId, int fieldIndex, DataType dataType) {
 			super(stateId, fieldIndex, dataType);
@@ -188,31 +194,24 @@ public final class DataViewUtils {
 		public DataType getValueDataType() {
 			return dataType.getChildren().get(1);
 		}
+
+		public boolean containsNullKey() {
+			return false;
+		}
 	}
 
 	/**
-	 * Specification for a special {@link DataView} that makes distinct aggregates possible.
-	 *
-	 * <p>During runtime it behaves similar to {@link MapView} but works on internal data structures only.
+	 * Specification for an internal {@link MapView} that evaluates distinct aggregates.
 	 */
-	public static class DistinctViewSpec extends DataViewSpec {
+	public static class DistinctViewSpec extends MapViewSpec {
 
-		private final LogicalType keyType;
-
-		private final LogicalType valueType;
-
-		public DistinctViewSpec(String stateId, LogicalType keyType, LogicalType valueType) {
-			super(stateId, -1);
-			this.keyType = keyType;
-			this.valueType = valueType;
+		private DistinctViewSpec(String stateId, DataType dataType) {
+			super(stateId, -1, dataType);
 		}
 
-		public LogicalType getKeyType() {
-			return keyType;
-		}
-
-		public LogicalType getValueType() {
-			return valueType;
+		@Override
+		public boolean containsNullKey() {
+			return true;
 		}
 	}
 

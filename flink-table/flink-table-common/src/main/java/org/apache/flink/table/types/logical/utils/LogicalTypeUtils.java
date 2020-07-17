@@ -94,9 +94,9 @@ public final class LogicalTypeUtils {
 				return RowData.class;
 			case DISTINCT_TYPE:
 				return toInternalConversionClass(((DistinctType) type).getSourceType());
+			case NULL:
 			case RAW:
 				return RawValueData.class;
-			case NULL:
 			case SYMBOL:
 			case UNRESOLVED:
 			default:
