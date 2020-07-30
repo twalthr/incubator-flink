@@ -27,8 +27,9 @@ import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.runtime.operators.TableStreamOperator
-import org.apache.flink.table.runtime.typeutils.InternalSerializers
+import org.apache.flink.table.runtime.typeutils.{ExternalSerializer, InternalSerializers}
 import org.apache.flink.table.runtime.util.collections._
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.InstantiationUtil
@@ -101,6 +102,11 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   // LogicalType -> reused_term
   private val reusableTypeSerializers: mutable.Map[LogicalType, String] =
     mutable.Map[LogicalType,  String]()
+
+  // map of external serializer that will be added only once
+  // DataType -> reused_term
+  private val reusableExternalSerializers: mutable.Map[DataType, String] =
+    mutable.Map[DataType,  String]()
 
   /**
     * The current method name for [[reusableLocalVariableStatements]]. You can start a new
@@ -712,6 +718,35 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
         val ser = InternalSerializers.create(t)
         addReusableObjectInternal(ser, term, ser.getClass.getCanonicalName)
         reusableTypeSerializers(t) = term
+        term
+    }
+  }
+
+  /**
+    * Adds a reusable [[ExternalSerializer]] to the member area of the generated class.
+    *
+    * @param t the internal type which used to generate internal type serializer
+    * @return member variable term
+    */
+  def addReusableExternalSerializer(t: DataType): String = {
+    // if type serializer has been used before, we can reuse the code that
+    // has already been generated
+    reusableExternalSerializers.get(t) match {
+      case Some(term) => term
+
+      case None =>
+        val term = newName("externalSerializer")
+
+        val serializer = ExternalSerializer.of(t)
+        addReusableObjectInternal(serializer, term, serializer.getClass.getCanonicalName)
+        reusableExternalSerializers(t) = term
+
+        val openSerializer =
+          s"""
+             |$term.open(getRuntimeContext().getUserCodeClassLoader());
+           """.stripMargin
+        reusableOpenStatements.add(openSerializer)
+
         term
     }
   }

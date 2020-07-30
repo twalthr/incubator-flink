@@ -24,15 +24,17 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
-import org.apache.flink.table.planner.dataview.DataViewSpec
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
+import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.planner.utils.SingleElementIterator
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.util.Collector
 
@@ -366,7 +368,7 @@ class ImperativeAggCodeGen(
                    |$fieldTerm = null;
                    |if (!${newExpr.nullTerm}) {
                    |  $fieldTerm = new $UPDATABLE_ROW(${newExpr.resultTerm}, ${
-                        PlannerTypeUtils.getArity(fieldType)});
+                        getFieldCount(fieldType)});
                    |  ${generateDataViewFieldSetter(fieldTerm, viewSpecs, useBackupDataView)}
                    |}
                 """.stripMargin
@@ -412,7 +414,7 @@ class ImperativeAggCodeGen(
            |if ($NAMESPACE_TERM != null) {
            |  $dataViewTerm.setCurrentNamespace($NAMESPACE_TERM);
            |  $dataViewInternalTerm.setJavaObject($dataViewTerm);
-           |  $accTerm.setField(${spec.fieldIndex}, $dataViewInternalTerm);
+           |  $accTerm.setField(${spec.getFieldIndex}, $dataViewInternalTerm);
            |}
          """.stripMargin
       } else {
@@ -421,7 +423,7 @@ class ImperativeAggCodeGen(
 
         s"""
            |$dataViewInternalTerm.setJavaObject($dataViewTerm);
-           |$accTerm.setField(${spec.fieldIndex}, $dataViewInternalTerm);
+           |$accTerm.setField(${spec.getFieldIndex}, $dataViewInternalTerm);
         """.stripMargin
       }
     }

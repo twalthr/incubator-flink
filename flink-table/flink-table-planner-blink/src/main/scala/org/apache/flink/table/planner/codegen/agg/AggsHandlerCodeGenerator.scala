@@ -25,18 +25,18 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, _}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
-import org.apache.flink.table.planner.dataview.{DataViewSpec, ListViewSpec, MapViewSpec}
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
 import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec, MapViewSpec}
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.dataview.{StateListView, StateMapView}
 import org.apache.flink.table.runtime.generated._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.util.Collector
 
 import org.apache.calcite.rex.RexLiteral
@@ -1171,7 +1171,7 @@ object AggsHandlerCodeGenerator {
     * @return term to access MapView or ListView
     */
   def createDataViewTerm(spec: DataViewSpec): String = {
-    s"${spec.stateId}_dataview"
+    s"${spec.getStateId}_dataview"
   }
 
   /**
@@ -1189,7 +1189,7 @@ object AggsHandlerCodeGenerator {
     * @return term to access backup MapView or ListView
     */
   def createDataViewBackupTerm(spec: DataViewSpec): String = {
-    s"${spec.stateId}_dataview_backup"
+    s"${spec.getStateId}_dataview_backup"
   }
 
   /**
@@ -1206,23 +1206,51 @@ object AggsHandlerCodeGenerator {
       enableBackupDataView: Boolean): Unit = {
     // add reusable dataviews to context
     viewSpecs.foreach { spec =>
-      val (viewTypeTerm, registerCall) = spec match {
-        case ListViewSpec(_, _, _) => (className[StateListView[_, _]], "getStateListView")
-        case MapViewSpec(_, _, _) => (className[StateMapView[_, _, _]], "getStateMapView")
+      val stateTerm = '"' + spec.getStateId + '"'
+      val (viewTypeTerm, stateStoreCall) = spec match {
+
+        case spec: ListViewSpec =>
+          val viewTypeTerm = className[StateListView[_, _]]
+          val elementSerializerTerm = toScala(spec.getElementSerializer) match {
+            case Some(serializer) =>
+              ctx.addReusableObject(serializer, "elementSerializer")
+            case None =>
+              ctx.addReusableExternalSerializer(spec.getElementDataType)
+          }
+          val stateStoreCall =
+            s"getStateListView($stateTerm, $elementSerializerTerm)"
+          (viewTypeTerm, stateStoreCall)
+
+        case spec: MapViewSpec =>
+          val viewTypeTerm = className[StateMapView[_, _, _]]
+          val withNullKey = spec.containsNullKey()
+          val keySerializerTerm = toScala(spec.getKeySerializer) match {
+            case Some(serializer) =>
+              ctx.addReusableObject(serializer, "keySerializer")
+            case None =>
+              ctx.addReusableExternalSerializer(spec.getKeyDataType)
+          }
+          val valueSerializerTerm = toScala(spec.getValueSerializer) match {
+            case Some(serializer) =>
+              ctx.addReusableObject(serializer, "valueSerializer")
+            case None =>
+              ctx.addReusableExternalSerializer(spec.getValueDataType)
+          }
+          val stateStoreCall =
+            s"getStateMapView($stateTerm, $withNullKey, $keySerializerTerm, $valueSerializerTerm)"
+          (viewTypeTerm, stateStoreCall)
       }
+
       val viewFieldTerm = createDataViewTerm(spec)
       val viewFieldInternalTerm = createDataViewRawValueTerm(spec)
-      val viewTypeInfo = ctx.addReusableObject(spec.dataViewTypeInfo, "viewTypeInfo")
-      val parameters = s""""${spec.stateId}", $viewTypeInfo"""
 
       ctx.addReusableMember(s"private $viewTypeTerm $viewFieldTerm;")
       ctx.addReusableMember(s"private $BINARY_RAW_VALUE $viewFieldInternalTerm;")
 
       val openCode =
         s"""
-           |$viewFieldTerm = ($viewTypeTerm) $STORE_TERM.$registerCall($parameters);
-           |$viewFieldInternalTerm = ${genToInternalConverter(
-                ctx, fromLegacyInfoToDataType(spec.dataViewTypeInfo), viewFieldTerm)};
+           |$viewFieldTerm = ($viewTypeTerm) $STORE_TERM.$stateStoreCall;
+           |$viewFieldInternalTerm = $BINARY_RAW_VALUE.fromObject($viewFieldTerm);
          """.stripMargin
       ctx.addReusableOpenStatement(openCode)
 
@@ -1248,9 +1276,8 @@ object AggsHandlerCodeGenerator {
         ctx.addReusableMember(s"private $BINARY_RAW_VALUE $backupViewInternalTerm;")
         val backupOpenCode =
           s"""
-             |$backupViewTerm = ($viewTypeTerm) $STORE_TERM.$registerCall($parameters);
-             |$backupViewInternalTerm = ${genToInternalConverter(
-                ctx, fromLegacyInfoToDataType(spec.dataViewTypeInfo), backupViewTerm)};
+             |$backupViewTerm = ($viewTypeTerm) $STORE_TERM.$stateStoreCall;
+             |$backupViewInternalTerm = $BINARY_RAW_VALUE.fromObject($backupViewTerm);
            """.stripMargin
         ctx.addReusableOpenStatement(backupOpenCode)
       }

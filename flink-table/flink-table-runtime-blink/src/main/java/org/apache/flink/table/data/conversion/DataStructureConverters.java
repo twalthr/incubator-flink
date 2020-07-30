@@ -163,6 +163,8 @@ public final class DataStructureConverters {
 				return getConverterInternal(dataType.getChildren().get(0));
 			case STRUCTURED_TYPE:
 				return StructuredObjectConverter.create(dataType);
+			case NULL:
+				return NullConverter.INSTANCE;
 			case RAW:
 				return RawObjectConverter.create(dataType);
 			default:
@@ -182,7 +184,7 @@ public final class DataStructureConverters {
 	}
 
 	private static DataStructureConverterFactory identity() {
-		return constructor(IdentityConverter::new);
+		return dataType -> IdentityConverter.INSTANCE;
 	}
 
 	private static DataStructureConverterFactory constructor(Supplier<DataStructureConverter<?, ?>> supplier) {
