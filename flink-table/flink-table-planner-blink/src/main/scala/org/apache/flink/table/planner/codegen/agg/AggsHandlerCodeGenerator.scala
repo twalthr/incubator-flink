@@ -1215,7 +1215,7 @@ object AggsHandlerCodeGenerator {
             case Some(serializer) =>
               ctx.addReusableObject(serializer, "elementSerializer")
             case None =>
-              throw new UnsupportedOperationException("Data type serialization not supported.")
+              ctx.addReusableExternalSerializer(spec.getElementDataType)
           }
           val stateStoreCall =
             s"getStateListView($stateTerm, $elementSerializerTerm)"
@@ -1228,13 +1228,13 @@ object AggsHandlerCodeGenerator {
             case Some(serializer) =>
               ctx.addReusableObject(serializer, "keySerializer")
             case None =>
-              throw new UnsupportedOperationException("Data type serialization not supported.")
+              ctx.addReusableExternalSerializer(spec.getKeyDataType)
           }
           val valueSerializerTerm = toScala(spec.getValueSerializer) match {
             case Some(serializer) =>
               ctx.addReusableObject(serializer, "valueSerializer")
             case None =>
-              throw new UnsupportedOperationException("Data type serialization not supported.")
+              ctx.addReusableExternalSerializer(spec.getValueDataType)
           }
           val stateStoreCall =
             s"getStateMapView($stateTerm, $withNullKey, $keySerializerTerm, $valueSerializerTerm)"
