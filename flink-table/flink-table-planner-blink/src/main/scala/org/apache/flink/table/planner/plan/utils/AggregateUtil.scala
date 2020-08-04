@@ -21,7 +21,6 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
-import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.data.{DecimalData, RowData, StringData, TimestampData}
 import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
@@ -31,7 +30,7 @@ import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.aggfunctions.{DeclarativeAggregateFunction, InternalAggregateFunction}
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction, SqlListAggFunction}
@@ -53,6 +52,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.types.logical.{LogicalTypeRoot, _}
+import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import org.apache.calcite.rel.`type`._
@@ -61,7 +61,7 @@ import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.sql.`type`.SqlTypeUtil
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.validate.SqlMonotonicity
-import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
+import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import org.apache.calcite.tools.RelBuilder
 
 import java.time.Duration
@@ -346,15 +346,24 @@ object AggregateUtil extends Enumeration {
         hasStateBackedDataViews,
         needsRetraction)
 
-    case _ =>
+    case _: AggSqlFunction =>
       createAggregateInfoFromLegacyFunction(
         inputRowRelDataType,
         call,
         index,
         argIndexes,
-        udf,
+        udf.asInstanceOf[ImperativeAggregateFunction[_, _]],
         hasStateBackedDataViews,
         needsRetraction)
+
+    case _: SqlAggFunction =>
+      createAggregateInfoFromInternalFunction(
+        call,
+        udf,
+        index,
+        argIndexes,
+        needsRetraction,
+        hasStateBackedDataViews)
   }
 
   private def createAggregateInfoFromBridgingFunction(
@@ -404,8 +413,7 @@ object AggregateUtil extends Enumeration {
       adaptedCallContext,
       inference.getOutputTypeStrategy)
 
-    createAggregateInfo(
-      dataTypeFactory,
+    createImperativeAggregateInfo(
       call,
       udf,
       index,
@@ -417,8 +425,41 @@ object AggregateUtil extends Enumeration {
       hasStateBackedDataViews)
   }
 
-  private def createAggregateInfo(
-      dataTypeFactory: DataTypeFactory,
+  private def createAggregateInfoFromInternalFunction(
+      call: AggregateCall,
+      udf: UserDefinedFunction,
+      index: Int,
+      argIndexes: Array[Int],
+      needsRetraction: Boolean,
+      hasStateBackedDataViews: Boolean)
+    : AggregateInfo = udf match {
+
+    case imperativeFunction: InternalAggregateFunction[_, _] =>
+      createImperativeAggregateInfo(
+        call,
+        imperativeFunction,
+        index,
+        argIndexes,
+        imperativeFunction.getInputDataTypes,
+        imperativeFunction.getAccumulatorDataType,
+        imperativeFunction.getOutputDataType,
+        needsRetraction,
+        hasStateBackedDataViews)
+
+    case declarativeFunction: DeclarativeAggregateFunction =>
+      AggregateInfo(
+          call,
+          udf,
+          index,
+          argIndexes,
+          null,
+          declarativeFunction.getAggBufferTypes,
+          Array(),
+          DataTypeUtils.toInternalDataType(declarativeFunction.getResultType.getLogicalType),
+          needsRetraction)
+  }
+
+  private def createImperativeAggregateInfo(
       call: AggregateCall,
       udf: ImperativeAggregateFunction[_, _],
       index: Int,
@@ -465,17 +506,6 @@ object AggregateUtil extends Enumeration {
       needsRetraction: Boolean)
     : AggregateInfo = {
       val (externalArgTypes, externalAccTypes, viewSpecs, externalResultType) = udf match {
-
-        case a: DeclarativeAggregateFunction =>
-          val bufferTypes: Array[LogicalType] = a.getAggBufferTypes.map(_.getLogicalType)
-          val bufferTypeInfos = bufferTypes.map(fromLogicalTypeToDataType)
-          (
-            null,
-            bufferTypeInfos,
-            Array.empty[DataViewSpec],
-            fromLogicalTypeToDataType(a.getResultType.getLogicalType)
-          )
-
         case a: ImperativeAggregateFunction[_, _] =>
           val (implicitAccType, implicitResultType) = call.getAggregation match {
             case aggSqlFun: AggSqlFunction =>
