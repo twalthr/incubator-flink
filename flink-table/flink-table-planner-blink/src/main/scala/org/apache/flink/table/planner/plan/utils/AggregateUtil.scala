@@ -52,7 +52,6 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.types.logical.{LogicalTypeRoot, _}
-import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import org.apache.calcite.rel.`type`._
@@ -455,7 +454,7 @@ object AggregateUtil extends Enumeration {
           null,
           declarativeFunction.getAggBufferTypes,
           Array(),
-          DataTypeUtils.toInternalDataType(declarativeFunction.getResultType.getLogicalType),
+          declarativeFunction.getResultType,
           needsRetraction)
   }
 
