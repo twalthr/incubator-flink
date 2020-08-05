@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -57,9 +58,10 @@ import java.util.List;
 import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType;
 
 /**
- * built-in FirstValue with retraction aggregate function.
+ * Built-in FIRST_VALUE with retraction aggregate function.
  */
-public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunction<T, RowData> {
+@Internal
+public final class FirstValueWithRetractAggFunction<T> extends InternalAggregateFunction<T, RowData> {
 
 	@Override
 	public RowData createAccumulator() {
@@ -111,6 +113,18 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 			}
 			valueList.add(v);
 			orderToValueMapView.put(order, valueList);
+		}
+	}
+
+	public void accumulate(GenericRowData acc, StringData value) throws Exception {
+		if (value != null) {
+			accumulate(acc, (Object) ((BinaryStringData) value).copy());
+		}
+	}
+
+	public void accumulate(GenericRowData acc, StringData value, Long order) throws Exception {
+		if (value != null) {
+			accumulate(acc, (Object) ((BinaryStringData) value).copy(), order);
 		}
 	}
 
@@ -240,176 +254,5 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 				new MapSerializer<>(
 						LongSerializer.INSTANCE,
 						new ListSerializer<>(createValueSerializer())));
-	}
-
-	/**
-	 * Built-in Byte FirstValue with retract aggregate function.
-	 */
-	public static class ByteFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Byte> {
-
-		@Override
-		public TypeInformation<Byte> getResultType() {
-			return Types.BYTE;
-		}
-
-		@Override
-		protected TypeSerializer<Byte> createValueSerializer() {
-			return ByteSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in Short FirstValue with retract aggregate function.
-	 */
-	public static class ShortFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Short> {
-
-		@Override
-		public TypeInformation<Short> getResultType() {
-			return Types.SHORT;
-		}
-
-		@Override
-		protected TypeSerializer<Short> createValueSerializer() {
-			return ShortSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in Int FirstValue with retract aggregate function.
-	 */
-	public static class IntFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Integer> {
-
-		@Override
-		public TypeInformation<Integer> getResultType() {
-			return Types.INT;
-		}
-
-		@Override
-		protected TypeSerializer<Integer> createValueSerializer() {
-			return IntSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in Long FirstValue with retract aggregate function.
-	 */
-	public static class LongFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Long> {
-
-		@Override
-		public TypeInformation<Long> getResultType() {
-			return Types.LONG;
-		}
-
-		@Override
-		protected TypeSerializer<Long> createValueSerializer() {
-			return LongSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in Float FirstValue with retract aggregate function.
-	 */
-	public static class FloatFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Float> {
-
-		@Override
-		public TypeInformation<Float> getResultType() {
-			return Types.FLOAT;
-		}
-
-		@Override
-		protected TypeSerializer<Float> createValueSerializer() {
-			return FloatSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in Double FirstValue with retract aggregate function.
-	 */
-	public static class DoubleFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Double> {
-
-		@Override
-		public TypeInformation<Double> getResultType() {
-			return Types.DOUBLE;
-		}
-
-		@Override
-		protected TypeSerializer<Double> createValueSerializer() {
-			return DoubleSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in Boolean FirstValue with retract aggregate function.
-	 */
-	public static class BooleanFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<Boolean> {
-
-		@Override
-		public TypeInformation<Boolean> getResultType() {
-			return Types.BOOLEAN;
-		}
-
-		@Override
-		protected TypeSerializer<Boolean> createValueSerializer() {
-			return BooleanSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in DecimalData FirstValue with retract aggregate function.
-	 */
-	public static class DecimalFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<DecimalData> {
-
-		private DecimalDataTypeInfo decimalTypeInfo;
-
-		public DecimalFirstValueWithRetractAggFunction(DecimalDataTypeInfo decimalTypeInfo) {
-			this.decimalTypeInfo = decimalTypeInfo;
-		}
-
-		public void accumulate(GenericRowData acc, DecimalData value) throws Exception {
-			super.accumulate(acc, value);
-		}
-
-		public void accumulate(GenericRowData acc, DecimalData value, Long order) throws Exception {
-			super.accumulate(acc, value, order);
-		}
-
-		@Override
-		public TypeInformation<DecimalData> getResultType() {
-			return decimalTypeInfo;
-		}
-
-		@Override
-		protected TypeSerializer<DecimalData> createValueSerializer() {
-			return new DecimalDataSerializer(decimalTypeInfo.precision(), decimalTypeInfo.scale());
-		}
-	}
-
-	/**
-	 * Built-in String FirstValue with retract aggregate function.
-	 */
-	public static class StringFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<StringData> {
-
-		@Override
-		public TypeInformation<StringData> getResultType() {
-			return StringDataTypeInfo.INSTANCE;
-		}
-
-		public void accumulate(GenericRowData acc, StringData value) throws Exception {
-			if (value != null) {
-				super.accumulate(acc, ((BinaryStringData) value).copy());
-			}
-		}
-
-		public void accumulate(GenericRowData acc, StringData value, Long order) throws Exception {
-			// just ignore nulls values and orders
-			if (value != null) {
-				super.accumulate(acc, ((BinaryStringData) value).copy(), order);
-			}
-		}
-
-		@Override
-		protected TypeSerializer<StringData> createValueSerializer() {
-			return StringDataSerializer.INSTANCE;
-		}
 	}
 }

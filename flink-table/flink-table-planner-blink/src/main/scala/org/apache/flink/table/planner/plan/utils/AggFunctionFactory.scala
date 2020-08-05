@@ -476,8 +476,9 @@ class AggFunctionFactory(
   private def createFirstValueAggFunction(
       argTypes: Array[LogicalType],
       index: Int): UserDefinedFunction = {
+    val valueType = argTypes(0)
     if (needRetraction(index)) {
-      argTypes(0).getTypeRoot match {
+      valueType.getTypeRoot match {
         case TINYINT =>
           new ByteFirstValueWithRetractAggFunction
         case SMALLINT =>
@@ -503,26 +504,9 @@ class AggFunctionFactory(
             s"support type: ''$t''.\nPlease re-check the data type.")
       }
     } else {
-      argTypes(0).getTypeRoot match {
-        case TINYINT =>
-          new ByteFirstValueAggFunction
-        case SMALLINT =>
-          new ShortFirstValueAggFunction
-        case INTEGER =>
-          new IntFirstValueAggFunction
-        case BIGINT =>
-          new LongFirstValueAggFunction
-        case FLOAT =>
-          new FloatFirstValueAggFunction
-        case DOUBLE =>
-          new DoubleFirstValueAggFunction
-        case BOOLEAN =>
-          new BooleanFirstValueAggFunction
-        case VARCHAR =>
-          new StringFirstValueAggFunction
-        case DECIMAL =>
-          val d = argTypes(0).asInstanceOf[DecimalType]
-          new DecimalFirstValueAggFunction(DecimalDataTypeInfo.of(d.getPrecision, d.getScale))
+      valueType.getTypeRoot match {
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
+          new FirstValueAggFunction[_](valueType)
         case t =>
           throw new TableException(s"FIRST_VALUE aggregate function does not support " +
             s"type: ''$t''.\nPlease re-check the data type.")
