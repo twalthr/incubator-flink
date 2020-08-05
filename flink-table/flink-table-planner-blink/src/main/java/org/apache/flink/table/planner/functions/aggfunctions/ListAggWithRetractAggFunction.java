@@ -37,7 +37,7 @@ import java.util.Objects;
  */
 @Internal
 public final class ListAggWithRetractAggFunction
-	extends InternalAggregateFunction<StringData, ListAggWithRetractAggFunction.ListAggWithRetractAccumulator> {
+		extends InternalAggregateFunction<StringData, ListAggWithRetractAggFunction.ListAggWithRetractAccumulator> {
 
 	private static final long serialVersionUID = -2836795091288790955L;
 

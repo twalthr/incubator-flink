@@ -37,7 +37,7 @@ import java.util.Objects;
  */
 @Internal
 public final class ListAggWsWithRetractAggFunction
-	extends InternalAggregateFunction<StringData, ListAggWsWithRetractAggFunction.ListAggWsWithRetractAccumulator> {
+		extends InternalAggregateFunction<StringData, ListAggWsWithRetractAggFunction.ListAggWsWithRetractAccumulator> {
 
 	private static final long serialVersionUID = -8627988150350160473L;
 
@@ -55,7 +55,7 @@ public final class ListAggWsWithRetractAggFunction
 	@Override
 	public DataType getAccumulatorDataType() {
 		return DataTypes.STRUCTURED(
-			ListAggWithRetractAggFunction.ListAggWithRetractAccumulator.class,
+			ListAggWsWithRetractAccumulator.class,
 			DataTypes.FIELD(
 				"list",
 				ListView.newListViewDataType(DataTypes.STRING().bridgedTo(StringData.class))),
