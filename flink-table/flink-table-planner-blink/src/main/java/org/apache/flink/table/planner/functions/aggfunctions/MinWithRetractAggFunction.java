@@ -56,7 +56,7 @@ public final class MinWithRetractAggFunction<T extends Comparable<T>>
 	public DataType getAccumulatorDataType() {
 		return DataTypes.STRUCTURED(
 			MinWithRetractAccumulator.class,
-			DataTypes.FIELD("min", valueDataType),
+			DataTypes.FIELD("min", valueDataType.nullable()),
 			DataTypes.FIELD("mapSize", DataTypes.BIGINT()),
 			DataTypes.FIELD("map", MapView.newMapViewDataType(valueDataType, DataTypes.BIGINT())));
 	}
