@@ -55,8 +55,8 @@ public final class MaxWithRetractAggFunction<T extends Comparable<T>>
 	@Override
 	public DataType getAccumulatorDataType() {
 		return DataTypes.STRUCTURED(
-			MaxWithRetractAggFunction.class,
-			DataTypes.FIELD("max", valueDataType),
+			MaxWithRetractAccumulator.class,
+			DataTypes.FIELD("max", valueDataType.nullable()),
 			DataTypes.FIELD("mapSize", DataTypes.BIGINT()),
 			DataTypes.FIELD("map", MapView.newMapViewDataType(valueDataType, DataTypes.BIGINT())));
 	}
