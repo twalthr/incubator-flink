@@ -18,20 +18,12 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.BooleanFirstValueAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.ByteFirstValueAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.DecimalFirstValueAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.DoubleFirstValueAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.FloatFirstValueAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.IntFirstValueAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.LongFirstValueAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.ShortFirstValueAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.StringFirstValueAggFunction;
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
 
 import org.junit.experimental.runners.Enclosed;
@@ -68,7 +60,7 @@ public final class FirstValueAggFunctionWithOrderTest {
 
 		@Override
 		protected AggregateFunction<Byte, RowData> getAggregator() {
-			return new ByteFirstValueAggFunction();
+			return new FirstValueAggFunction<>(DataTypes.TINYINT().getLogicalType());
 		}
 	}
 
@@ -85,7 +77,7 @@ public final class FirstValueAggFunctionWithOrderTest {
 
 		@Override
 		protected AggregateFunction<Short, RowData> getAggregator() {
-			return new ShortFirstValueAggFunction();
+			return new FirstValueAggFunction<>(DataTypes.SMALLINT().getLogicalType());
 		}
 	}
 
@@ -102,7 +94,7 @@ public final class FirstValueAggFunctionWithOrderTest {
 
 		@Override
 		protected AggregateFunction<Integer, RowData> getAggregator() {
-			return new IntFirstValueAggFunction();
+			return new FirstValueAggFunction<>(DataTypes.INT().getLogicalType());
 		}
 	}
 
@@ -119,7 +111,7 @@ public final class FirstValueAggFunctionWithOrderTest {
 
 		@Override
 		protected AggregateFunction<Long, RowData> getAggregator() {
-			return new LongFirstValueAggFunction();
+			return new FirstValueAggFunction<>(DataTypes.BIGINT().getLogicalType());
 		}
 	}
 

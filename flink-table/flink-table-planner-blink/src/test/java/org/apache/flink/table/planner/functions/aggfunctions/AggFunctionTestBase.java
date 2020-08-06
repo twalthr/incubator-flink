@@ -219,7 +219,7 @@ public abstract class AggFunctionTestBase<T, ACC> {
 		}
 	}
 
-	protected <E> void validateResult(E expected, E result, TypeInformation<?> typeInfo) {
+	protected <E> void validateResult(E expected, E result) {
 		if (expected instanceof BigDecimal && result instanceof BigDecimal) {
 			// BigDecimal.equals() value and scale but we are only interested in value.
 			assertEquals(0, ((BigDecimal) expected).compareTo((BigDecimal) result));
@@ -241,19 +241,19 @@ public abstract class AggFunctionTestBase<T, ACC> {
 					(RawValueData) result,
 					equivalent((RawValueData<?>) expected, new RawValueDataSerializer<>(serializer)));
 		} else if (expected instanceof GenericRowData && result instanceof GenericRowData) {
-			validateGenericRow((GenericRowData) expected, (GenericRowData) result, (InternalTypeInfo<RowData>) typeInfo);
+			validateGenericRow((GenericRowData) expected, (GenericRowData) result);
 		} else {
 			assertEquals(expected, result);
 		}
 	}
 
-	private void validateGenericRow(GenericRowData expected, GenericRowData result, InternalTypeInfo<RowData> typeInfo) {
+	private void validateGenericRow(GenericRowData expected, GenericRowData result) {
 		assertEquals(expected.getArity(), result.getArity());
 
 		for (int i = 0; i < expected.getArity(); ++i) {
 			Object expectedObj = expected.getField(i);
 			Object resultObj = result.getField(i);
-			validateResult(expectedObj, resultObj, fromLogicalTypeToTypeInfo(typeInfo.toRowFieldTypes()[i]));
+			validateResult(expectedObj, resultObj);
 		}
 	}
 

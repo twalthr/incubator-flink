@@ -32,18 +32,13 @@ import java.lang.reflect.Method;
 import java.util.List;
 
 /**
- * Base test case for built-in FirstValue and LastValue (with retreat) aggregate function.
+ * Base test case for built-in FIRST_VALUE and LAST_VALUE (with retract) aggregate function.
  * This class tests `accumulate` method with order argument.
  */
-public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggFunctionTestBase<T, RowData> {
+public abstract class FirstLastValueAggFunctionWithOrderTestBase<T, ACC> extends AggFunctionTestBase<T, ACC> {
 
 	protected Method getAccumulateFunc() throws NoSuchMethodException {
 		return getAggregator().getClass().getMethod("accumulate", getAccClass(), Object.class, Long.class);
-	}
-
-	@Override
-	protected Class<?> getAccClass() {
-		return RowData.class;
 	}
 
 	protected abstract List<List<Long>> getInputOrderSets();
@@ -60,7 +55,7 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T> extends AggF
 				"The number of inputValueSets is not same with the number of inputOrderSets");
 		Preconditions.checkArgument(inputValueSets.size() == expectedResults.size(),
 				"The number of inputValueSets is not same with the number of expectedResults");
-		AggregateFunction<T, RowData> aggregator = getAggregator();
+		AggregateFunction<T, ACC> aggregator = getAggregator();
 		int size = getInputValueSets().size();
 		// iterate over input sets
 		for (int i = 0; i < size; ++i) {
