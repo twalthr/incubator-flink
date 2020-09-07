@@ -384,24 +384,25 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("p", DataTypes.DECIMAL(38, 18)),
                  DataTypes.FIELD("q", DataTypes.DECIMAL(38, 18))]))
 
-        exec_insert_table(t.select(bigint_func(t.a),
-                                   bigint_func_none(t.b),
-                                   tinyint_func(t.c),
-                                   boolean_func(t.d),
-                                   smallint_func(t.e),
-                                   int_func(t.f),
-                                   float_func(t.g),
-                                   double_func(t.h),
-                                   bytes_func(t.i),
-                                   str_func(t.j),
-                                   date_func(t.k),
-                                   time_func(t.l),
-                                   timestamp_func(t.m),
-                                   array_func(t.n),
-                                   map_func(t.o),
-                                   decimal_func(t.p),
-                                   decimal_cut_func(t.q)),
-                          "Results")
+        t.select(
+            bigint_func(t.a),
+            bigint_func_none(t.b),
+            tinyint_func(t.c),
+            boolean_func(t.d),
+            smallint_func(t.e),
+            int_func(t.f),
+            float_func(t.g),
+            double_func(t.h),
+            bytes_func(t.i),
+            str_func(t.j),
+            date_func(t.k),
+            time_func(t.l),
+            timestamp_func(t.m),
+            array_func(t.n),
+            map_func(t.o),
+            decimal_func(t.p),
+            decimal_cut_func(t.q)) \
+            .execute_insert("Results").wait()
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
         self.assert_equals(actual,
