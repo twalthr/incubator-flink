@@ -95,6 +95,27 @@ public class TableSchemaTest {
 	}
 
 	@Test
+	public void testPersistedRowDataType() {
+		final TableSchema schema = TableSchema.builder()
+			.add(TableColumn.physical("f0", DataTypes.BIGINT()))
+			.add(TableColumn.metadata("f1", DataTypes.BIGINT(), true))
+			.add(TableColumn.metadata("f2", DataTypes.BIGINT(), false))
+			.add(TableColumn.physical("f3", DataTypes.STRING()))
+			.add(TableColumn.computed("f4", DataTypes.BIGINT(), "f0 + 1"))
+			.add(TableColumn.metadata("f5", DataTypes.BIGINT(), false))
+			.build();
+
+		final DataType expectedDataType = DataTypes.ROW(
+			DataTypes.FIELD("f0", DataTypes.BIGINT()),
+			DataTypes.FIELD("f2", DataTypes.BIGINT()),
+			DataTypes.FIELD("f3", DataTypes.STRING()),
+			DataTypes.FIELD("f5", DataTypes.BIGINT())
+		);
+
+		assertThat(schema.toPersistedRowDataType(), equalTo(expectedDataType));
+	}
+
+	@Test
 	public void testWatermarkOnDifferentFields() {
 		// column_name, column_type, exception_msg
 		List<Tuple3<String, DataType, String>> testData = new ArrayList<>();
