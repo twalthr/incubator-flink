@@ -310,8 +310,9 @@ class TableScanTest extends TableTestBase {
       """.stripMargin)
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
-      "'default_catalog.default_database.src' source produces ChangelogMode " +
-        "which contains UPDATE_BEFORE but doesn't contain UPDATE_AFTER, this is invalid.")
+      "Invalid source for table 'default_catalog.default_database.src'. A ScanTableSource doesn't " +
+      "support a changelog which contains UPDATE_BEFORE but no UPDATE_AFTER. Please adapt the " +
+      "implementation of class 'org.apache.flink.table.planner.factories.TestValuesTableFactory$TestValuesTableSource'.")
     util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 
@@ -328,10 +329,11 @@ class TableScanTest extends TableTestBase {
         |  'changelog-mode' = 'I,UA,D'
         |)
       """.stripMargin)
-    thrown.expect(classOf[UnsupportedOperationException])
-    thrown.expectMessage("Currently, ScanTableSource doesn't support producing " +
-      "ChangelogMode which contains UPDATE_AFTER but no UPDATE_BEFORE. " +
-      "Please adapt the implementation of 'TestValues' source.")
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Unsupported source for table 'default_catalog.default_database.src'. Currently, a " +
+      "ScanTableSource doesn't support a changelog which contains UPDATE_AFTER but no UPDATE_BEFORE. " +
+      "Please adapt the implementation of class 'org.apache.flink.table.planner.factories.TestValuesTableFactory$TestValuesTableSource'.")
     util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 
@@ -349,9 +351,10 @@ class TableScanTest extends TableTestBase {
         |  'changelog-mode' = 'I,UB,UA,D'
         |)
       """.stripMargin)
-    thrown.expect(classOf[UnsupportedOperationException])
+    thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      "Currently, defining WATERMARK on a changelog source is not supported.")
+      "Defining WATERMARK for table 'default_catalog.default_database.src' on a table source that " +
+      "emits more than INSERT-only changes is currently not supported.")
     util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 
