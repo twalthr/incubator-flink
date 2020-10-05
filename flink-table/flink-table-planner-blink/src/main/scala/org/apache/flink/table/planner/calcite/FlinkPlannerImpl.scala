@@ -22,6 +22,7 @@ import org.apache.flink.sql.parser.ExtendedSqlNode
 import org.apache.flink.sql.parser.dql.{SqlRichDescribeTable, SqlShowCatalogs, SqlShowCurrentCatalog, SqlShowCurrentDatabase, SqlShowDatabases, SqlShowFunctions, SqlShowPartitions, SqlShowTables, SqlShowViews}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
+
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan._
@@ -33,11 +34,13 @@ import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
 import org.apache.calcite.sql.{SqlCall, SqlExplain, SqlKind, SqlNode, SqlOperatorTable, SqlSnapshot}
 import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
+
 import java.lang.{Boolean => JBoolean}
 import java.util
 import java.util.function.{Function => JFunction}
-
 import org.apache.calcite.rel.logical.LogicalValues
+import org.apache.calcite.rex.{RexInputRef, RexNode}
+import org.apache.calcite.sql.validate.SqlValidator
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -157,7 +160,57 @@ class FlinkPlannerImpl(
   private def rel(validatedSqlNode: SqlNode, sqlValidator: FlinkCalciteSqlValidator) = {
     try {
       assert(validatedSqlNode != null)
-      val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
+      val sqlToRelConverter: SqlToRelConverter = createSqlToRelConverter(sqlValidator)
+
+      sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
+      // we disable automatic flattening in order to let composite types pass without modification
+      // we might enable it again once Calcite has better support for structured types
+      // root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
+
+      // TableEnvironment.optimize will execute the following
+      // root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))
+      // convert time indicators
+      // root = root.withRel(RelTimeIndicatorConverter.convert(root.rel, rexBuilder))
+    } catch {
+      case e: RelConversionException => throw new TableException(e.getMessage)
+    }
+  }
+
+  def rex(sqlNode: SqlNode, inputRowType: RelDataType): RexNode = {
+    rex(sqlNode, getOrCreateSqlValidator(), inputRowType)
+  }
+
+  private def rex(
+      sqlNode: SqlNode,
+      sqlValidator: FlinkCalciteSqlValidator,
+      inputRowType: RelDataType) = {
+    try {
+      val sqlToRelConverter = createSqlToRelConverter(sqlValidator)
+      val nameToTypeMap = inputRowType
+        .getFieldList
+        .asScala
+        .map { field =>
+          (field.getName, field.getType)
+        }
+        .toMap[String, RelDataType]
+        .asJava
+      val validatedSqlNode = sqlValidator.validateParameterizedExpression(sqlNode, nameToTypeMap)
+      val nameToNodeMap = inputRowType
+        .getFieldList
+        .asScala
+        .map { field =>
+          (field.getName, RexInputRef.of(field.getIndex, inputRowType))
+        }
+        .toMap[String, RexNode]
+        .asJava
+      sqlToRelConverter.convertExpression(validatedSqlNode, nameToNodeMap)
+    } catch {
+      case e: RelConversionException => throw new TableException(e.getMessage)
+    }
+  }
+
+  def createSqlToRelConverter(sqlValidator: SqlValidator): SqlToRelConverter = {
+    new SqlToRelConverter(
         createToRelContext(),
         sqlValidator,
         sqlValidator.getCatalogReader.unwrap(classOf[CalciteCatalogReader]),
@@ -192,19 +245,6 @@ class FlinkPlannerImpl(
           bb.setRoot(snapshotRel, false)
         }
       }
-
-      sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
-      // we disable automatic flattening in order to let composite types pass without modification
-      // we might enable it again once Calcite has better support for structured types
-      // root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
-
-      // TableEnvironment.optimize will execute the following
-      // root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))
-      // convert time indicators
-      // root = root.withRel(RelTimeIndicatorConverter.convert(root.rel, rexBuilder))
-    } catch {
-      case e: RelConversionException => throw new TableException(e.getMessage)
-    }
   }
 
   /**
