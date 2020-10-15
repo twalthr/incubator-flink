@@ -42,17 +42,29 @@ import java.util.Properties;
  */
 @Internal
 public abstract class KafkaDynamicSinkBase implements DynamicTableSink {
-	/** Consumed data type of the table. */
+
+	// --------------------------------------------------------------------------------------------
+	// Common attributes
+	// --------------------------------------------------------------------------------------------
+
 	protected final DataType consumedDataType;
+
+	// --------------------------------------------------------------------------------------------
+	// Format attributes
+	// --------------------------------------------------------------------------------------------
+
+	/** Sink format for encoding records to Kafka. */
+	protected final EncodingFormat<SerializationSchema<RowData>> encodingFormat;
+
+	// --------------------------------------------------------------------------------------------
+	// Kafka-specific attributes
+	// --------------------------------------------------------------------------------------------
 
 	/** The Kafka topic to write to. */
 	protected final String topic;
 
 	/** Properties for the Kafka producer. */
 	protected final Properties properties;
-
-	/** Sink format for encoding records to Kafka. */
-	protected final EncodingFormat<SerializationSchema<RowData>> encodingFormat;
 
 	/** Partitioner to select Kafka partition for each item. */
 	protected final Optional<FlinkKafkaPartitioner<RowData>> partitioner;

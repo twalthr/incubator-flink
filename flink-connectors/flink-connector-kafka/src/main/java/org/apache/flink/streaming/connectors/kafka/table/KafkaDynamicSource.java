@@ -25,8 +25,8 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
 
 import javax.annotation.Nullable;
@@ -37,15 +37,15 @@ import java.util.Properties;
 import java.util.regex.Pattern;
 
 /**
- * Kafka {@link org.apache.flink.table.connector.source.DynamicTableSource}.
+ * Kafka {@link ScanTableSource}.
  */
 @Internal
 public class KafkaDynamicSource extends KafkaDynamicSourceBase {
 
 	/**
-	 * Creates a generic Kafka {@link StreamTableSource}.
+	 * Creates a generic Kafka {@link ScanTableSource}.
 	 *
-	 * @param outputDataType         Source output data type
+	 * @param producedDataType       Source output data type
 	 * @param topics                 Kafka topic to consume
 	 * @param topicPattern           Kafka topic pattern to consume
 	 * @param properties             Properties for the Kafka consumer
@@ -55,7 +55,7 @@ public class KafkaDynamicSource extends KafkaDynamicSourceBase {
 	 *                               mode is {@link StartupMode#SPECIFIC_OFFSETS}
 	 */
 	public KafkaDynamicSource(
-			DataType outputDataType,
+			DataType producedDataType,
 			@Nullable List<String> topics,
 			@Nullable Pattern topicPattern,
 			Properties properties,
@@ -65,7 +65,7 @@ public class KafkaDynamicSource extends KafkaDynamicSourceBase {
 			long startupTimestampMillis) {
 
 		super(
-			outputDataType,
+			producedDataType,
 			topics,
 			topicPattern,
 			properties,
@@ -94,7 +94,7 @@ public class KafkaDynamicSource extends KafkaDynamicSourceBase {
 	@Override
 	public DynamicTableSource copy() {
 		return new KafkaDynamicSource(
-				this.outputDataType,
+				this.producedDataType,
 				this.topics,
 				this.topicPattern,
 				this.properties,
