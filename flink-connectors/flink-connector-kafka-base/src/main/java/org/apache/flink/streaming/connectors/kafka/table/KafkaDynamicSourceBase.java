@@ -20,40 +20,61 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
+import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.data.GenericMapData;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Header;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /**
  * A version-agnostic Kafka {@link ScanTableSource}.
  *
- * <p>The version-specific Kafka consumers need to extend this class and
- * override {@link #createKafkaConsumer(List, Properties, DeserializationSchema)}} and
- * {@link #createKafkaConsumer(Pattern, Properties, DeserializationSchema)}}.
+ * <p>The version-specific Kafka consumers need to extend this class and override
+ * {@link #createKafkaConsumer(List, Properties, KafkaDeserializationSchema)}} and
+ * {@link #createKafkaConsumer(Pattern, Properties, KafkaDeserializationSchema)}}.
  */
 @Internal
-public abstract class KafkaDynamicSourceBase implements ScanTableSource {
+public abstract class KafkaDynamicSourceBase implements ScanTableSource, SupportsReadingMetadata {
 
 	// --------------------------------------------------------------------------------------------
-	// Common attributes
+	// Mutable attributes
 	// --------------------------------------------------------------------------------------------
 
-	protected final DataType producedDataType;
+	/** Data type that describes the final output of the source. */
+	protected DataType producedDataType;
+
+	/** Metadata that is appended at the end of a physical source row. */
+	protected MetadataSupplier[] metadataSuppliers;
 
 	// --------------------------------------------------------------------------------------------
 	// Format attributes
@@ -61,6 +82,9 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 
 	/** Scan format for decoding records from Kafka. */
 	protected final DecodingFormat<DeserializationSchema<RowData>> decodingFormat;
+
+	/** Data type to configure the format. */
+	protected final DataType physicalDataType;
 
 	// --------------------------------------------------------------------------------------------
 	// Kafka-specific attributes
@@ -85,7 +109,7 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 	protected final long startupTimestampMillis;
 
 	protected KafkaDynamicSourceBase(
-			DataType producedDataType,
+			DataType physicalDataType,
 			@Nullable List<String> topics,
 			@Nullable Pattern topicPattern,
 			Properties properties,
@@ -93,7 +117,8 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
 			long startupTimestampMillis) {
-		this.producedDataType = Preconditions.checkNotNull(producedDataType, "Produced data type must not be null.");
+		this.physicalDataType = Preconditions.checkNotNull(physicalDataType, "Physical data type must not be null.");
+		this.producedDataType = physicalDataType;
 		Preconditions.checkArgument((topics != null && topicPattern == null) ||
 				(topics == null && topicPattern != null),
 			"Either Topic or Topic Pattern must be set for source.");
@@ -116,10 +141,26 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 	@Override
 	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
 		DeserializationSchema<RowData> deserializationSchema =
-				this.decodingFormat.createRuntimeDecoder(runtimeProviderContext, this.producedDataType);
+			decodingFormat.createRuntimeDecoder(runtimeProviderContext, physicalDataType);
 		// Version-specific Kafka consumer
 		FlinkKafkaConsumerBase<RowData> kafkaConsumer = getKafkaConsumer(deserializationSchema);
 		return SourceFunctionProvider.of(kafkaConsumer, false);
+	}
+
+	@Override
+	public Map<String, DataType> listReadableMetadata() {
+		final Map<String, DataType> metadataMap = new LinkedHashMap<>();
+		Stream.of(Metadata.values()).forEachOrdered(m -> metadataMap.put(m.key, m.dataType));
+		return metadataMap;
+	}
+
+	@Override
+	public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
+		this.metadataSuppliers = metadataKeys.stream()
+			.map(Metadata::valueOf)
+			.map(m -> m.supplier)
+			.toArray(MetadataSupplier[]::new);
+		this.producedDataType = producedDataType;
 	}
 
 	@Override
@@ -132,6 +173,8 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 		}
 		final KafkaDynamicSourceBase that = (KafkaDynamicSourceBase) o;
 		return Objects.equals(producedDataType, that.producedDataType) &&
+			Arrays.equals(metadataSuppliers, that.metadataSuppliers) &&
+			Objects.equals(physicalDataType, that.physicalDataType) &&
 			Objects.equals(topics, that.topics) &&
 			Objects.equals(topicPattern, that.topicPattern) &&
 			Objects.equals(properties, that.properties) &&
@@ -143,7 +186,10 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(producedDataType,
+		return Objects.hash(
+			producedDataType,
+			metadataSuppliers,
+			physicalDataType,
 			topics,
 			topicPattern,
 			properties,
@@ -168,7 +214,7 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 	protected abstract FlinkKafkaConsumerBase<RowData> createKafkaConsumer(
 			List<String> topics,
 			Properties properties,
-			DeserializationSchema<RowData> deserializationSchema);
+			KafkaDeserializationSchema<RowData> deserializationSchema);
 
 	/**
 	 * Creates a version-specific Kafka consumer.
@@ -181,7 +227,72 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 	protected abstract FlinkKafkaConsumerBase<RowData> createKafkaConsumer(
 			Pattern topicPattern,
 			Properties properties,
-			DeserializationSchema<RowData> deserializationSchema);
+			KafkaDeserializationSchema<RowData> deserializationSchema);
+
+	// --------------------------------------------------------------------------------------------
+	// Metadata attributes
+	// --------------------------------------------------------------------------------------------
+
+	public enum Metadata {
+		TOPIC(
+			"topic",
+			DataTypes.STRING(),
+			record -> StringData.fromString(record.topic())
+		),
+
+		PARTITION(
+			"partition",
+			DataTypes.INT(),
+			ConsumerRecord::partition
+		),
+
+		HEADERS(
+			"headers",
+			DataTypes.MAP(DataTypes.STRING(), DataTypes.BYTES()),
+			record -> {
+				final Map<StringData, byte[]> map = new HashMap<>();
+				for (Header header : record.headers()) {
+					map.put(StringData.fromString(header.key()), header.value());
+				}
+				return new GenericMapData(map);
+			}
+		),
+
+		LEADER_EPOCH(
+			"leader-epoch",
+			DataTypes.INT(),
+			ConsumerRecord::leaderEpoch
+		),
+
+		OFFSET(
+			"offset",
+			DataTypes.BIGINT(),
+			ConsumerRecord::offset),
+
+
+		TIMESTAMP(
+			"timestamp",
+			DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3),
+			record -> TimestampData.fromEpochMillis(record.timestamp())),
+
+		TIMESTAMP_TYPE(
+			"timestamp-type",
+			DataTypes.STRING(),
+			record -> StringData.fromString(record.timestampType().toString())
+		);
+
+		public final String key;
+
+		public final DataType dataType;
+
+		public final MetadataSupplier supplier;
+
+		Metadata(String key, DataType dataType, MetadataSupplier supplier) {
+			this.key = key;
+			this.dataType = dataType;
+			this.supplier = supplier;
+		}
+	}
 
 	// --------------------------------------------------------------------------------------------
 	// Utilities
@@ -194,9 +305,11 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 	 * @return The version-specific Kafka consumer
 	 */
 	protected FlinkKafkaConsumerBase<RowData> getKafkaConsumer(DeserializationSchema<RowData> deserializationSchema) {
+		final MetadataKafkaDeserializationSchema kafkaSchema = new MetadataKafkaDeserializationSchema(deserializationSchema, metadataSuppliers, )
+
 		FlinkKafkaConsumerBase<RowData> kafkaConsumer = topics != null ?
-			createKafkaConsumer(topics, properties, deserializationSchema) :
-			createKafkaConsumer(topicPattern, properties, deserializationSchema);
+			createKafkaConsumer(topics, properties, kafkaSchema) :
+			createKafkaConsumer(topicPattern, properties, kafkaSchema);
 
 		switch (startupMode) {
 			case EARLIEST:
@@ -217,5 +330,99 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 			}
 		kafkaConsumer.setCommitOffsetsOnCheckpoints(properties.getProperty("group.id") != null);
 		return kafkaConsumer;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static class MetadataKafkaDeserializationSchema implements KafkaDeserializationSchema<RowData> {
+
+		private final DeserializationSchema<RowData> valueDeserializer;
+
+		private final MetadataAppendingCollector metadataAppendingCollector;
+
+		private final TypeInformation<RowData> producedTypeInfo;
+
+		MetadataKafkaDeserializationSchema(
+				DeserializationSchema<RowData> valueDeserializer,
+				MetadataSupplier[] suppliers,
+				TypeInformation<RowData> producedTypeInfo) {
+			this.valueDeserializer = valueDeserializer;
+			this.metadataAppendingCollector = new MetadataAppendingCollector(suppliers);
+			this.producedTypeInfo = producedTypeInfo;
+		}
+
+		@Override
+		public boolean isEndOfStream(RowData nextElement) {
+			return false;
+		}
+
+		@Override
+		public RowData deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
+			throw new IllegalStateException("A collector is required for deserializing.");
+		}
+
+		@Override
+		public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<RowData> collector) throws Exception {
+			metadataAppendingCollector.inputRecord = record;
+			metadataAppendingCollector.outputCollector = collector;
+			valueDeserializer.deserialize(record.value(), metadataAppendingCollector);
+		}
+
+		@Override
+		public TypeInformation<RowData> getProducedType() {
+			return producedTypeInfo;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static final class MetadataAppendingCollector implements Collector<RowData>, Serializable {
+
+		private final MetadataSupplier[] suppliers;
+
+		private transient ConsumerRecord<?, ?> inputRecord;
+
+		private transient Collector<RowData> outputCollector;
+
+		MetadataAppendingCollector(MetadataSupplier[] suppliers) {
+			this.suppliers = suppliers;
+		}
+
+		@Override
+		public void collect(RowData physicalRow) {
+			final int metadataArity = suppliers.length;
+			// shortcut if no metadata is required
+			if (metadataArity == 0) {
+				outputCollector.collect(physicalRow);
+			}
+
+			final GenericRowData genericPhysicalRow = (GenericRowData) physicalRow;
+			final int physicalArity = physicalRow.getArity();
+
+			final GenericRowData outputRow = new GenericRowData(
+				physicalRow.getRowKind(),
+				physicalArity + metadataArity);
+
+			for (int i = 0; i < physicalArity; i++) {
+				outputRow.setField(i, genericPhysicalRow.getField(i));
+			}
+
+			for (int i = 0; i < metadataArity; i++) {
+				outputRow.setField(i + physicalArity, suppliers[i].get(inputRecord));
+			}
+
+			outputCollector.collect(outputRow);
+		}
+
+		@Override
+		public void close() {
+			// nothing to do
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	interface MetadataSupplier extends Serializable {
+		Object get(ConsumerRecord<?, ?> record);
 	}
 }
