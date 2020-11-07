@@ -52,6 +52,8 @@ import java.util.Set;
 @Internal
 public final class RowDataFieldsKinesisPartitioner extends KinesisPartitioner<RowData> {
 
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Allowed maximum length limit of a partition key.
 	 *

@@ -31,7 +31,7 @@ import java.util.Objects;
 @PublicEvolving
 public final class FixedKinesisPartitioner<T> extends KinesisPartitioner<T> {
 
-	private static final long serialVersionUID = 2711436587071612529L;
+	private static final long serialVersionUID = 1L;
 
 	private int indexOfThisSubtask = 0;
 
