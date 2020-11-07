@@ -156,7 +156,7 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Table source format & serialization schema
+	// Table source format & deserialization schema
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -252,10 +252,10 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 	 */
 	private static class DeserializationSchemaMock implements DeserializationSchema<RowData> {
 
-		private final TypeInformation<RowData> producedType;
+		private final TypeInformation<RowData> producedTypeInfo;
 
-		private DeserializationSchemaMock(TypeInformation<RowData> producedType) {
-			this.producedType = producedType;
+		private DeserializationSchemaMock(TypeInformation<RowData> producedTypeInfo) {
+			this.producedTypeInfo = producedTypeInfo;
 		}
 
 		@Override
@@ -271,7 +271,7 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 
 		@Override
 		public TypeInformation<RowData> getProducedType() {
-			return producedType;
+			return producedTypeInfo;
 		}
 	}
 
