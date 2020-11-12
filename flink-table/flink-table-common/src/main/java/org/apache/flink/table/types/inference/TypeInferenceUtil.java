@@ -28,6 +28,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.AdaptedCallContext;
 import org.apache.flink.table.types.inference.utils.UnknownCallContext;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import javax.annotation.Nullable;
 
@@ -224,6 +225,37 @@ public final class TypeInferenceUtil {
 				"Unexpected error in type inference logic of function '%s'. This is a bug.",
 				callContext.getName()),
 			cause);
+	}
+
+	/**
+	 * Transforms the given {@link TypeInference} to a new one that always returns {@link DataType}
+	 * of internal data structures.
+	 *
+	 * @see TypeTransformations#TO_INTERNAL_CLASS
+	 */
+	public static TypeInference createInternalTypeInference(TypeInference externalInference) {
+		final TypeInference.Builder internalInferenceBuilder = TypeInference.newBuilder();
+
+		externalInference.getNamedArguments()
+			.ifPresent(internalInferenceBuilder::namedArguments);
+
+		externalInference.getTypedArguments()
+			.ifPresent(args ->
+				internalInferenceBuilder.typedArguments(
+					args.stream()
+						.map(dataType -> DataTypeUtils.transform(dataType, TypeTransformations.TO_INTERNAL_CLASS))
+						.collect(Collectors.toList())));
+
+		internalInferenceBuilder.inputTypeStrategy(
+			InputTypeStrategies.internal(externalInference.getInputTypeStrategy()));
+
+		externalInference.getAccumulatorTypeStrategy()
+			.ifPresent(s -> internalInferenceBuilder.accumulatorTypeStrategy(TypeStrategies.internal(s)));
+
+		internalInferenceBuilder.outputTypeStrategy(
+			TypeStrategies.internal(externalInference.getOutputTypeStrategy()));
+
+		return internalInferenceBuilder.build();
 	}
 
 	/**

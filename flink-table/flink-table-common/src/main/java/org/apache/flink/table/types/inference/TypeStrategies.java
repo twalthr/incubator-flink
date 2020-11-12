@@ -24,6 +24,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.CommonTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FirstTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.InternalTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MappingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MatchFamilyTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
@@ -130,6 +131,13 @@ public final class TypeStrategies {
 	 */
 	public static TypeStrategy varyingString(TypeStrategy initialStrategy) {
 		return new VaryingStringTypeStrategy(initialStrategy);
+	}
+
+	/**
+	 * A type strategy that always return a {@link DataType} of internal data structure.
+	 */
+	public static TypeStrategy internal(TypeStrategy initialStrategy) {
+		return new InternalTypeStrategy(initialStrategy);
 	}
 
 	// --------------------------------------------------------------------------------------------

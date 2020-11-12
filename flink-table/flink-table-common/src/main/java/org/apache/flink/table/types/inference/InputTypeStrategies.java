@@ -30,6 +30,7 @@ import org.apache.flink.table.types.inference.strategies.CompositeArgumentTypeSt
 import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FamilyArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.InternalInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.LiteralArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MapInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrArgumentTypeStrategy;
@@ -172,6 +173,13 @@ public final class InputTypeStrategies {
 			ConstantArgumentCount argumentCount,
 			StructuredComparision requiredComparision) {
 		return new ComparableTypeStrategy(argumentCount, requiredComparision);
+	}
+
+	/**
+	 * Strategy that always returns {@link DataType}s of internal data structures.
+	 */
+	public static InputTypeStrategy internal(InputTypeStrategy initialStrategy) {
+		return new InternalInputTypeStrategy(initialStrategy);
 	}
 
 	// --------------------------------------------------------------------------------------------

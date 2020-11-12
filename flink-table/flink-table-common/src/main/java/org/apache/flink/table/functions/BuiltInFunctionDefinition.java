@@ -26,7 +26,10 @@ import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
+import java.util.Optional;
 
 /**
  * Definition of a built-in function. It enables unique identification across different
@@ -48,15 +51,19 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 
 	private final boolean isDeterministic;
 
+	private final @Nullable String runtimeClassName;
+
 	private BuiltInFunctionDefinition(
 			String name,
 			FunctionKind kind,
 			TypeInference typeInference,
-			boolean isDeterministic) {
+			boolean isDeterministic,
+			@Nullable String runtimeClassName) {
 		this.name = Preconditions.checkNotNull(name, "Name must not be null.");
 		this.kind = Preconditions.checkNotNull(kind, "Kind must not be null.");
 		this.typeInference = Preconditions.checkNotNull(typeInference, "Type inference must not be null.");
 		this.isDeterministic = isDeterministic;
+		this.runtimeClassName = runtimeClassName;
 	}
 
 	/**
@@ -85,6 +92,10 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 		return isDeterministic;
 	}
 
+	public Optional<String> getRuntimeClassName() {
+		return Optional.ofNullable(runtimeClassName);
+	}
+
 	@Override
 	public String toString() {
 		return name;
@@ -104,6 +115,8 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 		private TypeInference.Builder typeInferenceBuilder = TypeInference.newBuilder();
 
 		private boolean isDeterministic = true;
+
+		private @Nullable String runtimeClassName;
 
 		public Builder() {
 			// default constructor to allow a fluent definition
@@ -149,12 +162,25 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 			return this;
 		}
 
+		/**
+		 * Optional class name that references an implementation class in the runtime module.
+		 *
+		 * <p>If specified, the planner will look up the given class name and will instantiate a
+		 * {@link UserDefinedFunction}. If no class name is specified, the runtime implementation
+		 * is most likely code generated.
+		 */
+		public Builder runtimeClass(String runtimeClass) {
+			this.runtimeClassName = runtimeClass;
+			return this;
+		}
+
 		public BuiltInFunctionDefinition build() {
 			return new BuiltInFunctionDefinition(
 				name,
 				kind,
 				typeInferenceBuilder.build(),
-				isDeterministic);
+				isDeterministic,
+				runtimeClassName);
 		}
 	}
 }
