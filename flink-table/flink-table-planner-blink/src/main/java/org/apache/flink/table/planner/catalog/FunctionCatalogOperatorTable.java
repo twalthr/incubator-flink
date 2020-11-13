@@ -38,6 +38,7 @@ import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction;
+import org.apache.flink.table.runtime.functions.FunctionRuntimeResolver;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
@@ -146,13 +147,17 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			FunctionIdentifier identifier,
 			FunctionDefinition definition) {
 
-		if (!verifyFunctionKind(category, identifier, definition)) {
+		// resolve to runtime implementation that is only available in this module
+		final FunctionDefinition resolvedDefinition =
+			FunctionRuntimeResolver.resolveFunctionDefinition(definition);
+
+		if (!verifyFunctionKind(category, identifier, resolvedDefinition)) {
 			return Optional.empty();
 		}
 
 		final TypeInference typeInference;
 		try {
-			typeInference = definition.getTypeInference(dataTypeFactory);
+			typeInference = resolvedDefinition.getTypeInference(dataTypeFactory);
 		} catch (Throwable t) {
 			throw new ValidationException(
 				String.format(
@@ -165,14 +170,14 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 		}
 
 		final SqlFunction function;
-		if (definition.getKind() == FunctionKind.AGGREGATE ||
-				definition.getKind() == FunctionKind.TABLE_AGGREGATE) {
+		if (resolvedDefinition.getKind() == FunctionKind.AGGREGATE ||
+				resolvedDefinition.getKind() == FunctionKind.TABLE_AGGREGATE) {
 			function = BridgingSqlAggFunction.of(
 				dataTypeFactory,
 				typeFactory,
 				SqlKind.OTHER_FUNCTION,
 				identifier,
-				definition,
+				resolvedDefinition,
 				typeInference);
 		} else {
 			function = BridgingSqlFunction.of(
@@ -180,7 +185,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 				typeFactory,
 				SqlKind.OTHER_FUNCTION,
 				identifier,
-				definition,
+				resolvedDefinition,
 				typeInference);
 		}
 		return Optional.of(function);

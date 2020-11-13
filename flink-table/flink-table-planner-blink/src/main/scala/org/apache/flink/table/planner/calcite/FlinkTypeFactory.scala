@@ -567,6 +567,9 @@ object FlinkTypeFactory {
       case OTHER if relDataType.isInstanceOf[RawRelDataType] =>
         relDataType.asInstanceOf[RawRelDataType].getRawType
 
+      case COLUMN_LIST =>
+        new NullType
+
       case _@t =>
         throw new TableException(s"Type is not supported: $t")
     }

@@ -1075,6 +1075,7 @@ public final class BuiltInFunctionDefinitions {
 			.kind(SCALAR)
 			.inputTypeStrategy(InputTypeStrategies.wildcardWithCount(ConstantArgumentCount.from(1)))
 			.outputTypeStrategy(TypeStrategies.ROW)
+			.runtimeClass("org.apache.flink.table.runtime.functions.RowConstructorFunction")
 			.build();
 
 	// composite

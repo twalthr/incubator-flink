@@ -58,7 +58,7 @@ public final class GettingStartedExample {
 		env.createTemporaryFunction("func", MyFunc.class);
 		env.createTemporaryFunction("MyRow", MyRow.class);
 
-		env.sqlQuery("SELECT func(MyRow(12, 'Hello'))").execute().print();
+		env.sqlQuery("SELECT func(ROW(12, 'Hello'))").execute().print();
 	}
 
 	public static class MyFunc extends ScalarFunction {

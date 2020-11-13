@@ -54,13 +54,16 @@ public final class FunctionRuntimeResolver {
 			}
 		};
 
-	public FunctionDefinition resolveFunction(FunctionDefinition definition) {
+	public static FunctionDefinition resolveFunctionDefinition(FunctionDefinition definition) {
 		if (definition instanceof BuiltInFunctionDefinition) {
 			final BuiltInFunctionDefinition builtInDefinition = (BuiltInFunctionDefinition) definition;
 			if (!builtInDefinition.getRuntimeClassName().isPresent()) {
 				return definition;
 			}
-			return FUNCTION_CACHE.get(builtInDefinition.getRuntimeClassName().get());
+			final UserDefinedFunction function = FUNCTION_CACHE.get(builtInDefinition.getRuntimeClassName().get());
+			if (function instanceof InternalScalarFunction) {
+				((InternalScalarFunction) function).setBuiltInDefinition(builtInDefinition);
+			}
 		}
 		return definition;
 	}

@@ -98,6 +98,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			SqlSyntax syntax,
 			List<SqlOperator> operatorList,
 			SqlNameMatcher nameMatcher) {
+		System.out.println();
 		// set caseSensitive=false to make sure the behavior is same with before.
 		super.lookupOperatorOverloads(opName, category, syntax, operatorList, SqlNameMatchers.withCaseSensitive(false));
 	}
