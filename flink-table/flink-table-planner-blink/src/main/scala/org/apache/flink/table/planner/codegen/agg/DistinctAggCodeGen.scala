@@ -495,8 +495,9 @@ class DistinctAggCodeGen(
                  |${expr.code}
                  |$otherMapViewTerm = null;
                  |if (!${expr.nullTerm}) {
+                 |// here 2
                  | $otherMapViewTerm =
-                 |   ${genToExternalConverter(ctx, accDataType, expr.resultTerm)};
+                 |   ${genToExternalConverter(ctx, externalAccType, expr.resultTerm)};
                  |}
                """.stripMargin
             GeneratedExpression(otherMapViewTerm, expr.nullTerm, code, accDataType.getLogicalType)
@@ -504,6 +505,7 @@ class DistinctAggCodeGen(
             val code =
               s"""
                  |${expr.code}
+                 |// here 1
                  |$distinctAccTerm =
                  |  ${genToExternalConverter(ctx, accDataType, expr.resultTerm)};
               """.stripMargin
