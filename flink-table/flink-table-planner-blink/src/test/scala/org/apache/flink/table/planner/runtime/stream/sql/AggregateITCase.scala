@@ -67,7 +67,7 @@ class AggregateITCase(
          |CREATE TABLE datagen (a INT, b BIGINT, c STRING) WITH (
          | 'connector'='datagen',
          | 'rows-per-second'='500000',
-         | 'number-of-rows'='1000000',
+         | 'number-of-rows'='3',
          | 'fields.a.kind' = 'random',
          | 'fields.a.min' = '1',
          | 'fields.a.max' = '10000',
