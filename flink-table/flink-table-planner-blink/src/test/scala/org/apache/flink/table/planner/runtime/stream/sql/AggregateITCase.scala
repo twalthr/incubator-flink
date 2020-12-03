@@ -22,10 +22,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{Types, _}
+import org.apache.flink.table.data.conversion.MapMapConverter
 import org.apache.flink.table.planner.functions.aggfunctions.{ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSumAggFunction
 import org.apache.flink.table.planner.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsAggFunction}
@@ -57,6 +59,46 @@ class AggregateITCase(
     miniBatch: MiniBatchMode,
     backend: StateBackendMode)
   extends StreamingWithAggTestBase(aggMode, miniBatch, backend) {
+
+  @Test
+  def testPerf(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE datagen (a INT, b BIGINT, c STRING) WITH (
+         | 'connector'='datagen',
+         | 'rows-per-second'='500000',
+         | 'number-of-rows'='1000000',
+         | 'fields.a.kind' = 'random',
+         | 'fields.a.min' = '1',
+         | 'fields.a.max' = '10000',
+         | 'fields.b.min' = '1',
+         | 'fields.b.max' = '100000',
+         | 'fields.c.length' = '1000'
+         |)
+         |""".stripMargin)
+
+    val sqlQuery =
+      "SELECT b, " +
+        "  SUM(DISTINCT (a * 3)), " +
+        "  COUNT(DISTINCT SUBSTRING(c FROM 1 FOR 2))," +
+        "  MAX(DISTINCT a), " +
+        "  MIN(DISTINCT b), " +
+        "  MAX(a), " +
+        "  MIN(b), " +
+        "  COUNT(DISTINCT c) " +
+        "FROM datagen " +
+        "GROUP BY b"
+
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(new DiscardingSink[(Boolean, Row)])
+    env.execute()
+  }
+
+  Runtime.getRuntime.addShutdownHook(new Thread() {
+    override def run(): Unit = {
+      println(MapMapConverter.at.get())
+    }
+  })
 
   val data = List(
     (1000L, 1, "Hello"),

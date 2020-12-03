@@ -83,6 +83,7 @@ import java.time.LocalTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -1213,6 +1214,8 @@ public class DataFormatConverters {
 	 */
 	public static final class MapConverter extends DataFormatConverter<MapData, Map> {
 
+		public static AtomicInteger at = new AtomicInteger(0);
+
 		private static final long serialVersionUID = -916429669828309919L;
 
 		private final LogicalType keyType;
@@ -1311,6 +1314,7 @@ public class DataFormatConverters {
 				}
 				javaMap.put(key, value);
 			}
+			at.incrementAndGet();
 			return javaMap;
 		}
 

@@ -30,6 +30,7 @@ import org.apache.flink.table.types.logical.MultisetType;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Converter for {@link MapType}/{@link MultisetType} of {@link Map} external type.
@@ -81,8 +82,11 @@ public class MapMapConverter<K, V> implements DataStructureConverter<MapData, Ma
 				keyConverter.elementConverter.toExternalOrNull(keyValue),
 				valueConverter.elementConverter.toExternalOrNull(valueValue));
 		}
+		at.incrementAndGet();
 		return map;
 	}
+
+	public static AtomicInteger at = new AtomicInteger(0);
 
 	// --------------------------------------------------------------------------------------------
 	// Runtime helper methods
