@@ -175,7 +175,9 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
 
 	@Override
 	public MapData deserialize(MapData reuse, DataInputView source) throws IOException {
-		return deserializeReuse(reuse instanceof GenericMapData ? new BinaryMapData() : (BinaryMapData) reuse, source);
+		return deserializeReuse(
+			(reuse == null || reuse instanceof GenericMapData) ? new BinaryMapData() : (BinaryMapData) reuse,
+			source);
 	}
 
 	private BinaryMapData deserializeReuse(BinaryMapData reuse, DataInputView source) throws IOException {
