@@ -45,6 +45,7 @@ import org.apache.flink.table.runtime.typeutils.serializers.python.StringSeriali
 
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -137,7 +138,12 @@ public class PythonTypeUtilsTest {
 		TypeInformation rowTypeInfo = Types.ROW(Types.INT);
 		convertedTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
 			.typeInfoSerializerConverter(rowTypeInfo);
-		assertEquals(convertedTypeSerializer, new RowSerializer(new TypeSerializer[]{IntSerializer.INSTANCE}, false));
+		assertEquals(
+			convertedTypeSerializer,
+			new RowSerializer(
+				new TypeSerializer[]{IntSerializer.INSTANCE},
+				Collections.singletonMap("f0", 0),
+				false));
 
 		TupleTypeInfo tupleTypeInfo = (TupleTypeInfo) Types.TUPLE(Types.INT);
 		convertedTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
