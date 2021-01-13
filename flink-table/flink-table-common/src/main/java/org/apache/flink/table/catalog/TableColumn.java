@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -52,12 +53,11 @@ public abstract class TableColumn {
         return new PhysicalColumn(name, type);
     }
 
-    /** Creates a computed column that is computed from the given SQL expression. */
-    public static ComputedColumn computed(String name, DataType type, String expression) {
+    /** Creates a computed column that is computed from the given {@link ResolvedExpression}. */
+    public static ComputedColumn computed(String name, ResolvedExpression expression) {
         Preconditions.checkNotNull(name, "Column name can not be null.");
-        Preconditions.checkNotNull(type, "Column type can not be null.");
         Preconditions.checkNotNull(expression, "Column expression can not be null.");
-        return new ComputedColumn(name, type, expression);
+        return new ComputedColumn(name, expression);
     }
 
     /**
@@ -190,10 +190,10 @@ public abstract class TableColumn {
     /** Representation of a computed column. */
     public static class ComputedColumn extends TableColumn {
 
-        private final String expression;
+        private final ResolvedExpression expression;
 
-        private ComputedColumn(String name, DataType type, String expression) {
-            super(name, type);
+        private ComputedColumn(String name, ResolvedExpression expression) {
+            super(name, expression.getOutputDataType());
             this.expression = expression;
         }
 
@@ -207,7 +207,7 @@ public abstract class TableColumn {
             return false;
         }
 
-        public String getExpression() {
+        public ResolvedExpression getExpression() {
             return expression;
         }
 
