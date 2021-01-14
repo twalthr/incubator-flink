@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.api.constraints;
 
+import org.apache.flink.table.catalog.Constraint;
+import org.apache.flink.table.catalog.UniqueConstraint;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

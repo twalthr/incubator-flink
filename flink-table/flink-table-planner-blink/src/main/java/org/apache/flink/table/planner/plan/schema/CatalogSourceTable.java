@@ -19,14 +19,14 @@
 package org.apache.flink.table.planner.plan.schema;
 
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableColumn.ComputedColumn;
-import org.apache.flink.table.api.TableColumn.MetadataColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.TableColumn;
+import org.apache.flink.table.catalog.TableColumn.ComputedColumn;
+import org.apache.flink.table.catalog.TableColumn.MetadataColumn;
+import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.factories.FactoryUtil;

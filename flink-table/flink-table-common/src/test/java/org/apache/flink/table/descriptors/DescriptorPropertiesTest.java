@@ -20,9 +20,9 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.TableColumn;
 import org.apache.flink.table.types.LogicalTypeParserTest;
 
 import org.junit.Test;

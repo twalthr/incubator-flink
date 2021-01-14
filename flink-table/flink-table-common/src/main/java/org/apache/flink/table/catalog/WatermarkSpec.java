@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api;
+package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
 
 import java.util.Objects;

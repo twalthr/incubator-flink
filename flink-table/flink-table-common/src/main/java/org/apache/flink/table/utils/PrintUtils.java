@@ -19,8 +19,8 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.TableColumn;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.IntType;

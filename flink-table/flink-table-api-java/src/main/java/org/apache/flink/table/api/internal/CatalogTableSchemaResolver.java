@@ -19,13 +19,13 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableColumn.ComputedColumn;
-import org.apache.flink.table.api.TableColumn.MetadataColumn;
-import org.apache.flink.table.api.TableColumn.PhysicalColumn;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.TableColumn;
+import org.apache.flink.table.catalog.TableColumn.ComputedColumn;
+import org.apache.flink.table.catalog.TableColumn.MetadataColumn;
+import org.apache.flink.table.catalog.TableColumn.PhysicalColumn;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.DataType;

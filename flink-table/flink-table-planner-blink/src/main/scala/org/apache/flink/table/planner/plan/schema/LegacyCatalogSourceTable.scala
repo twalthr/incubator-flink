@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.configuration.ReadableConfig
-import org.apache.flink.table.api.TableColumn.ComputedColumn
+import org.apache.flink.table.catalog.TableColumn.ComputedColumn
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogTable
