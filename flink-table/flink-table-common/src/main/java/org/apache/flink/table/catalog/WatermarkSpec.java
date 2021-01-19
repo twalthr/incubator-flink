@@ -18,68 +18,57 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.types.logical.TimestampType;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Watermark metadata defined in {@link TableSchema}. It mainly contains 3 parts:
+ * Representation of a watermark specification in a {@link ResolvedSchema}.
  *
- * <ol>
- *   <li>the rowtime attribute.
- *   <li>the string representation of watermark generation expression.
- *   <li>the data type of the computation result of watermark generation expression.
- * </ol>
+ * <p>It defines the (possibly nested) rowtime attribute and a {@link ResolvedExpression} for
+ * watermark generation.
  */
-public class WatermarkSpec {
+@PublicEvolving
+public final class WatermarkSpec {
 
-    private final String rowtimeAttribute;
+    private final String[] rowtimeAttribute;
 
-    private final String watermarkExpressionString;
+    private final ResolvedExpression watermarkExpression;
 
-    private final DataType watermarkExprOutputType;
-
-    public WatermarkSpec(
-            String rowtimeAttribute,
-            String watermarkExpressionString,
-            DataType watermarkExprOutputType) {
-        this.rowtimeAttribute = checkNotNull(rowtimeAttribute);
-        this.watermarkExpressionString = checkNotNull(watermarkExpressionString);
-        this.watermarkExprOutputType = checkNotNull(watermarkExprOutputType);
+    public WatermarkSpec(String[] rowtimeAttribute, ResolvedExpression watermarkExpression) {
+        this.rowtimeAttribute =
+                checkNotNull(rowtimeAttribute, "Rowtime attribute must not be null.");
+        this.watermarkExpression =
+                checkNotNull(watermarkExpression, "Watermark expression must not be null.");
     }
 
     /**
-     * Returns the name of rowtime attribute, it can be a nested field using dot separator. The
-     * referenced attribute must be present in the {@link TableSchema} and of type {@link
-     * org.apache.flink.table.types.logical.LogicalTypeRoot#TIMESTAMP_WITHOUT_TIME_ZONE}.
+     * Returns the (possibly nested) name of a rowtime attribute.
+     *
+     * <p>The referenced attribute must be present in the {@link ResolvedSchema} and must be of
+     * {@link TimestampType}.
      */
-    public String getRowtimeAttribute() {
+    public String[] getRowtimeAttribute() {
         return rowtimeAttribute;
     }
 
-    /**
-     * Returns the string representation of watermark generation expression. The string
-     * representation is a qualified SQL expression string (UDFs are expanded).
-     */
-    public String getWatermarkExpr() {
-        return watermarkExpressionString;
-    }
-
-    /** Returns the data type of the computation result of watermark generation expression. */
-    public DataType getWatermarkExprOutputType() {
-        return watermarkExprOutputType;
+    /** Returns the {@link ResolvedExpression} for watermark generation. */
+    public ResolvedExpression getWatermarkExpression() {
+        return watermarkExpression;
     }
 
     public String asSummaryString() {
         return "WATERMARK FOR "
-                + rowtimeAttribute
+                + String.join(".", rowtimeAttribute)
                 + ": "
-                + watermarkExprOutputType
+                + watermarkExpression.getOutputDataType()
                 + " AS "
-                + watermarkExpressionString;
+                + watermarkExpression;
     }
 
     @Override
@@ -91,14 +80,13 @@ public class WatermarkSpec {
             return false;
         }
         WatermarkSpec that = (WatermarkSpec) o;
-        return Objects.equals(rowtimeAttribute, that.rowtimeAttribute)
-                && Objects.equals(watermarkExpressionString, that.watermarkExpressionString)
-                && Objects.equals(watermarkExprOutputType, that.watermarkExprOutputType);
+        return Arrays.equals(rowtimeAttribute, that.rowtimeAttribute)
+                && Objects.equals(watermarkExpression, that.watermarkExpression);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(rowtimeAttribute, watermarkExpressionString, watermarkExprOutputType);
+        return Objects.hash(rowtimeAttribute, watermarkExpression);
     }
 
     @Override

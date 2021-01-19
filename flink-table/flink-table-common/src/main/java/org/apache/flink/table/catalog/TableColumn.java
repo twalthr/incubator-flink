@@ -29,7 +29,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Representation of a table column in the API.
+ * Representation of a table column in a {@link ResolvedSchema}.
  *
  * <p>A table column is fully resolved with a name and {@link DataType}. It describes either a
  * {@link PhysicalColumn}, {@link ComputedColumn}, or {@link MetadataColumn}.
@@ -165,7 +165,7 @@ public abstract class TableColumn {
     // --------------------------------------------------------------------------------------------
 
     /** Representation of a physical column. */
-    public static class PhysicalColumn extends TableColumn {
+    public static final class PhysicalColumn extends TableColumn {
 
         private PhysicalColumn(String name, DataType type) {
             super(name, type);
@@ -188,7 +188,7 @@ public abstract class TableColumn {
     }
 
     /** Representation of a computed column. */
-    public static class ComputedColumn extends TableColumn {
+    public static final class ComputedColumn extends TableColumn {
 
         private final ResolvedExpression expression;
 
@@ -238,7 +238,7 @@ public abstract class TableColumn {
     }
 
     /** Representation of a metadata column. */
-    public static class MetadataColumn extends TableColumn {
+    public static final class MetadataColumn extends TableColumn {
 
         private final @Nullable String metadataAlias;
 

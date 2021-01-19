@@ -96,8 +96,8 @@ public final class Schema {
             return this;
         }
 
-        public Builder watermark(String timeColumnName, Expression expression) {
-            this.watermarkSpecs.add(new UnresolvedWatermarkSpec(timeColumnName, expression));
+        public Builder watermark(Expression timeColumn, Expression watermarkExpression) {
+            this.watermarkSpecs.add(new UnresolvedWatermarkSpec(timeColumn, watermarkExpression));
             return this;
         }
 
@@ -166,15 +166,15 @@ public final class Schema {
     }
 
     static class UnresolvedWatermarkSpec {
-        final String timeColumnName;
-        final Expression expression;
+        final Expression timeColumn;
+        final Expression watermarkExpression;
 
-        UnresolvedWatermarkSpec(String timeColumnName, Expression expression) {
-            this.timeColumnName =
+        UnresolvedWatermarkSpec(Expression timeColumn, Expression watermarkExpression) {
+            this.timeColumn =
+                    Preconditions.checkNotNull(timeColumn, "Time column must not be null.");
+            this.watermarkExpression =
                     Preconditions.checkNotNull(
-                            timeColumnName, "Time column name must not be null.");
-            this.expression =
-                    Preconditions.checkNotNull(expression, "Expression must not be null.");
+                            watermarkExpression, "Watermark expression must not be null.");
         }
     }
 
