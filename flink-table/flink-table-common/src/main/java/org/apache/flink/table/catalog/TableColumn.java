@@ -31,15 +31,18 @@ import java.util.Optional;
 /**
  * Representation of a table column in a {@link ResolvedSchema}.
  *
- * <p>A table column is fully resolved with a name and {@link DataType}. It describes either a
- * {@link PhysicalColumn}, {@link ComputedColumn}, or {@link MetadataColumn}.
+ * <p>A table column describes either a {@link PhysicalColumn}, {@link ComputedColumn}, or {@link
+ * MetadataColumn}.
+ *
+ * <p>Every column is fully resolved. The enclosed {@link DataType} indicates whether the column is
+ * a time attribute and thus might differ from the original data type.
  */
 @PublicEvolving
 public abstract class TableColumn {
 
-    private final String name;
+    protected final String name;
 
-    private final DataType type;
+    protected final DataType type;
 
     private TableColumn(String name, DataType type) {
         this.name = name;
@@ -57,7 +60,7 @@ public abstract class TableColumn {
     public static ComputedColumn computed(String name, ResolvedExpression expression) {
         Preconditions.checkNotNull(name, "Column name can not be null.");
         Preconditions.checkNotNull(expression, "Column expression can not be null.");
-        return new ComputedColumn(name, expression);
+        return new ComputedColumn(name, expression.getOutputDataType(), expression);
     }
 
     /**
@@ -138,6 +141,9 @@ public abstract class TableColumn {
     /** Returns an explanation of specific column extras next to name and type. */
     public abstract Optional<String> explainExtras();
 
+    /** Returns a copy of the column with a replaced {@link DataType}. */
+    public abstract TableColumn copy(DataType newType);
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -185,6 +191,11 @@ public abstract class TableColumn {
         public Optional<String> explainExtras() {
             return Optional.empty();
         }
+
+        @Override
+        public TableColumn copy(DataType newDataType) {
+            return new PhysicalColumn(name, newDataType);
+        }
     }
 
     /** Representation of a computed column. */
@@ -192,8 +203,8 @@ public abstract class TableColumn {
 
         private final ResolvedExpression expression;
 
-        private ComputedColumn(String name, ResolvedExpression expression) {
-            super(name, expression.getOutputDataType());
+        private ComputedColumn(String name, DataType type, ResolvedExpression expression) {
+            super(name, type);
             this.expression = expression;
         }
 
@@ -214,6 +225,11 @@ public abstract class TableColumn {
         @Override
         public Optional<String> explainExtras() {
             return Optional.of("AS " + expression);
+        }
+
+        @Override
+        public TableColumn copy(DataType newType) {
+            return new ComputedColumn(name, newType, expression);
         }
 
         @Override
@@ -283,6 +299,11 @@ public abstract class TableColumn {
                 sb.append(" VIRTUAL");
             }
             return Optional.of(sb.toString());
+        }
+
+        @Override
+        public TableColumn copy(DataType newType) {
+            return new MetadataColumn(name, newType, metadataAlias, isVirtual);
         }
 
         @Override

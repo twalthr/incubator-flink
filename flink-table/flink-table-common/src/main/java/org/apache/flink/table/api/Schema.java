@@ -19,27 +19,39 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
+/**
+ * Schema of a table or view.
+ *
+ * <p>This class is used in the API and catalogs to define an unresolved schema that will be
+ * translated to {@link ResolvedSchema}.
+ *
+ * <p>Some methods of this class perform basic validation, however, the main validation happens
+ * during the resolution.
+ */
 @PublicEvolving
 public final class Schema {
 
     final List<UnresolvedColumn> columns;
 
-    final @Nullable List<UnresolvedWatermarkSpec> watermarkSpecs;
+    final List<UnresolvedWatermarkSpec> watermarkSpecs;
 
     final @Nullable UnresolvedPrimaryKey primaryKey;
 
     private Schema(
             List<UnresolvedColumn> columns,
-            @Nullable List<UnresolvedWatermarkSpec> watermarkSpecs,
+            List<UnresolvedWatermarkSpec> watermarkSpecs,
             @Nullable UnresolvedPrimaryKey primaryKey) {
         this.columns = columns;
         this.watermarkSpecs = watermarkSpecs;
@@ -66,23 +78,31 @@ public final class Schema {
         }
 
         public Builder column(String columnName, AbstractDataType<?> dataType) {
+            Preconditions.checkNotNull(columnName, "Column name must not be null.");
+            Preconditions.checkNotNull(dataType, "Data type must not be null.");
             columns.add(new UnresolvedPhysicalColumn(columnName, dataType));
             return this;
         }
 
         public Builder columnByExpression(String columnName, Expression expression) {
+            Preconditions.checkNotNull(columnName, "Column name must not be null.");
+            Preconditions.checkNotNull(expression, "Expression must not be null.");
             columns.add(new UnresolvedComputedColumn(columnName, expression));
             return this;
         }
 
         public Builder columnByMetadata(
                 String columnName, AbstractDataType<?> dataType, boolean isVirtual) {
+            Preconditions.checkNotNull(columnName, "Column name must not be null.");
+            Preconditions.checkNotNull(dataType, "Data type must not be null.");
             columns.add(new UnresolvedMetadataColumn(columnName, dataType, null, isVirtual));
             return this;
         }
 
         public Builder columnByMetadata(
                 String columnName, AbstractDataType<?> dataType, @Nullable String metadataKey) {
+            Preconditions.checkNotNull(columnName, "Column name must not be null.");
+            Preconditions.checkNotNull(dataType, "Data type must not be null.");
             columns.add(new UnresolvedMetadataColumn(columnName, dataType, metadataKey, false));
             return this;
         }
@@ -92,22 +112,35 @@ public final class Schema {
                 AbstractDataType<?> dataType,
                 @Nullable String metadataKey,
                 boolean isVirtual) {
+            Preconditions.checkNotNull(columnName, "Column name must not be null.");
             columns.add(new UnresolvedMetadataColumn(columnName, dataType, metadataKey, isVirtual));
             return this;
         }
 
-        public Builder watermark(Expression timeColumn, Expression watermarkExpression) {
-            this.watermarkSpecs.add(new UnresolvedWatermarkSpec(timeColumn, watermarkExpression));
+        public Builder watermark(Expression timeField, Expression watermarkExpression) {
+            Preconditions.checkNotNull(timeField, "Time field must not be null.");
+            Preconditions.checkNotNull(
+                    watermarkExpression, "Watermark expression must not be null.");
+            this.watermarkSpecs.add(new UnresolvedWatermarkSpec(timeField, watermarkExpression));
             return this;
         }
 
         public Builder primaryKey(String... columnNames) {
-            this.primaryKey = new UnresolvedPrimaryKey(null, columnNames);
-            return this;
+            return primaryKeyNamed(UUID.randomUUID().toString(), columnNames);
         }
 
-        public Builder primaryKeyNamed(@Nullable String constraintName, String... columnNames) {
-            this.primaryKey = new UnresolvedPrimaryKey(constraintName, columnNames);
+        public Builder primaryKeyNamed(String constraintName, String... columnNames) {
+            Preconditions.checkState(
+                    primaryKey != null, "Multiple primary keys are not supported.");
+            Preconditions.checkNotNull(
+                    constraintName, "Primary key constraint name must not be null.");
+            Preconditions.checkArgument(
+                    StringUtils.isNullOrWhitespaceOnly(constraintName),
+                    "Primary key constraint name must not be empty.");
+            Preconditions.checkArgument(
+                    columnNames != null && columnNames.length > 0,
+                    "Primary key constraint must be defined for at least a single column.");
+            primaryKey = new UnresolvedPrimaryKey(constraintName, columnNames);
             return this;
         }
 
@@ -124,8 +157,7 @@ public final class Schema {
         final String columnName;
 
         UnresolvedColumn(String columnName) {
-            this.columnName =
-                    Preconditions.checkNotNull(columnName, "Column name must not be null.");
+            this.columnName = columnName;
         }
     }
 
@@ -134,7 +166,7 @@ public final class Schema {
 
         UnresolvedPhysicalColumn(String columnName, AbstractDataType<?> dataType) {
             super(columnName);
-            this.dataType = Preconditions.checkNotNull(dataType, "Data type must not be null.");
+            this.dataType = dataType;
         }
     }
 
@@ -143,8 +175,7 @@ public final class Schema {
 
         UnresolvedComputedColumn(String columnName, Expression expression) {
             super(columnName);
-            this.expression =
-                    Preconditions.checkNotNull(expression, "Expression must not be null.");
+            this.expression = expression;
         }
     }
 
@@ -159,29 +190,26 @@ public final class Schema {
                 @Nullable String metadataKey,
                 boolean isVirtual) {
             super(columnName);
-            this.dataType = Preconditions.checkNotNull(dataType, "Data type must not be null.");
+            this.dataType = dataType;
             this.metadataKey = metadataKey;
             this.isVirtual = isVirtual;
         }
     }
 
     static class UnresolvedWatermarkSpec {
-        final Expression timeColumn;
+        final Expression timeField;
         final Expression watermarkExpression;
 
-        UnresolvedWatermarkSpec(Expression timeColumn, Expression watermarkExpression) {
-            this.timeColumn =
-                    Preconditions.checkNotNull(timeColumn, "Time column must not be null.");
-            this.watermarkExpression =
-                    Preconditions.checkNotNull(
-                            watermarkExpression, "Watermark expression must not be null.");
+        UnresolvedWatermarkSpec(Expression timeField, Expression watermarkExpression) {
+            this.timeField = timeField;
+            this.watermarkExpression = watermarkExpression;
         }
     }
 
     abstract static class UnresolvedConstraint {
-        final @Nullable String constraintName;
+        final String constraintName;
 
-        UnresolvedConstraint(@Nullable String constraintName) {
+        UnresolvedConstraint(String constraintName) {
             this.constraintName = constraintName;
         }
     }
@@ -189,10 +217,9 @@ public final class Schema {
     static class UnresolvedPrimaryKey extends UnresolvedConstraint {
         final String[] columnNames;
 
-        UnresolvedPrimaryKey(@Nullable String constraintName, String[] columnNames) {
+        UnresolvedPrimaryKey(String constraintName, String[] columnNames) {
             super(constraintName);
-            this.columnNames =
-                    Preconditions.checkNotNull(columnNames, "Column names must not be null.");
+            this.columnNames = columnNames;
         }
     }
 }
