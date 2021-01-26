@@ -26,7 +26,6 @@ import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -76,8 +75,6 @@ public final class CatalogManager {
     private String currentCatalogName;
 
     private String currentDatabaseName;
-
-    private CatalogTableSchemaResolver schemaResolver;
 
     // The name of the built-in catalog
     private final String builtInCatalogName;
@@ -372,15 +369,17 @@ public final class CatalogManager {
         Preconditions.checkNotNull(schemaResolver, "schemaResolver should not be null");
         CatalogBaseTable temporaryTable = temporaryTables.get(objectIdentifier);
         if (temporaryTable != null) {
-            TableSchema resolvedSchema = resolveTableSchema(temporaryTable);
+            final ResolvedSchema resolvedSchema = resolveSchema(temporaryTable);
             return Optional.of(TableLookupResult.temporary(temporaryTable, resolvedSchema));
         } else {
             return getPermanentTable(objectIdentifier);
         }
     }
 
-    private TableSchema resolveTableSchema(CatalogBaseTable table) {
-        return schemaResolver.resolve(table.getSchema());
+    private ResolvedSchema resolveSchema(CatalogBaseTable table) {
+        if () {
+
+        }
     }
 
     /**
@@ -556,8 +555,10 @@ public final class CatalogManager {
      */
     public Set<String> listSchemas(String catalogName) {
         return Stream.concat(
-                        Optional.ofNullable(catalogs.get(catalogName)).map(Catalog::listDatabases)
-                                .orElse(Collections.emptyList()).stream(),
+                        Optional.ofNullable(catalogs.get(catalogName))
+                                .map(Catalog::listDatabases)
+                                .orElse(Collections.emptyList())
+                                .stream(),
                         temporaryTables.keySet().stream()
                                 .filter(i -> i.getCatalogName().equals(catalogName))
                                 .map(ObjectIdentifier::getDatabaseName))

@@ -25,6 +25,9 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableColumn;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.WatermarkSpec;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ExpressionVisitor;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
@@ -267,7 +270,7 @@ public class TableSchema extends ResolvedSchema {
 
         // Validate watermark and rowtime attribute.
         for (WatermarkSpec watermark : watermarkSpecs) {
-            String rowtimeAttribute = watermark.getRowtimeAttribute();
+            String rowtimeAttribute = watermark.getRowtimeAttribute()[0];
             LogicalType rowtimeType =
                     Optional.ofNullable(fieldNameToType.get(rowtimeAttribute))
                             .orElseThrow(
@@ -283,12 +286,12 @@ public class TableSchema extends ResolvedSchema {
                                 rowtimeAttribute, rowtimeType));
             }
             LogicalType watermarkOutputType =
-                    watermark.getWatermarkExprOutputType().getLogicalType();
+                    watermark.getWatermarkExpression().getOutputDataType().getLogicalType();
             if (watermarkOutputType.getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
                 throw new ValidationException(
                         String.format(
                                 "Watermark strategy %s must be of type TIMESTAMP but is of type '%s'.",
-                                watermark.getWatermarkExpr(),
+                                watermark.getWatermarkExpression(),
                                 watermarkOutputType.asSummaryString()));
             }
         }
@@ -423,7 +426,7 @@ public class TableSchema extends ResolvedSchema {
             Preconditions.checkNotNull(name);
             Preconditions.checkNotNull(dataType);
             Preconditions.checkNotNull(expression);
-            columns.add(TableColumn.computed(name, dataType, expression));
+            columns.add(TableColumn.computed(name, new LazySqlExpression(dataType, expression)));
             return this;
         }
 
@@ -492,7 +495,9 @@ public class TableSchema extends ResolvedSchema {
             }
             this.watermarkSpecs.add(
                     new WatermarkSpec(
-                            rowtimeAttribute, watermarkExpressionString, watermarkExprOutputType));
+                            new String[] {rowtimeAttribute},
+                            new LazySqlExpression(
+                                    watermarkExprOutputType, watermarkExpressionString)));
             return this;
         }
 
@@ -551,6 +556,63 @@ public class TableSchema extends ResolvedSchema {
             }
 
             return new TableSchema(columns, watermarkSpecs, primaryKey);
+        }
+    }
+
+    /**
+     * A {@link ResolvedExpression} to model legacy behavior and make the {@link TableSchema}
+     * working again.
+     */
+    public static final class LazySqlExpression implements ResolvedExpression {
+
+        private final DataType outputDataType;
+        private final String sqlString;
+
+        private LazySqlExpression(DataType outputDataType, String sqlString) {
+            this.outputDataType = outputDataType;
+            this.sqlString = sqlString;
+        }
+
+        public static LazySqlExpression of(DataType outputDataType, String sqlString) {
+            return new LazySqlExpression(outputDataType, sqlString);
+        }
+
+        @Override
+        public String asSummaryString() {
+            return sqlString;
+        }
+
+        @Override
+        public List<Expression> getChildren() {
+            throw new UnsupportedOperationException(
+                    "Lazy SQL expression does not support getChildren().");
+        }
+
+        @Override
+        public <R> R accept(ExpressionVisitor<R> visitor) {
+            throw new UnsupportedOperationException(
+                    "Lazy SQL expression does not support accept().");
+        }
+
+        @Override
+        public DataType getOutputDataType() {
+            return outputDataType;
+        }
+
+        @Override
+        public List<ResolvedExpression> getResolvedChildren() {
+            throw new UnsupportedOperationException(
+                    "Lazy SQL expression does not support getResolvedChildren().");
+        }
+
+        // ----------------------------------------------------------------------------------------
+
+        public static String extractSqlString(ResolvedExpression expression) {
+            if (expression instanceof LazySqlExpression) {
+                return ((LazySqlExpression) expression).sqlString;
+            }
+            throw new UnsupportedOperationException(
+                    "Expression should have been defined as a SQL string for usage at this location.");
         }
     }
 }

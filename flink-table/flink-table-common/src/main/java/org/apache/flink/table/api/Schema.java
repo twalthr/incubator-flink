@@ -19,7 +19,14 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.Constraint;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TableColumn;
+import org.apache.flink.table.catalog.TableColumn.ComputedColumn;
+import org.apache.flink.table.catalog.TableColumn.MetadataColumn;
+import org.apache.flink.table.catalog.TableColumn.PhysicalColumn;
+import org.apache.flink.table.catalog.UniqueConstraint;
+import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.util.Preconditions;
@@ -28,6 +35,7 @@ import org.apache.flink.util.StringUtils;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -75,6 +83,62 @@ public final class Schema {
         private Builder() {
             columns = new ArrayList<>();
             watermarkSpecs = new ArrayList<>();
+        }
+
+        public Builder fromSchema(Schema unresolvedSchema) {
+            columns.addAll(unresolvedSchema.columns);
+            watermarkSpecs.addAll(unresolvedSchema.watermarkSpecs);
+            if (unresolvedSchema.primaryKey != null) {
+                primaryKeyNamed(
+                        unresolvedSchema.primaryKey.constraintName,
+                        unresolvedSchema.primaryKey.columnNames);
+            }
+            return this;
+        }
+
+        public Builder fromSchema(ResolvedSchema resolvedSchema) {
+            addResolvedColumns(resolvedSchema.getTableColumns());
+            addResolvedWatermarkSpec(resolvedSchema.getWatermarkSpecs());
+            resolvedSchema.getPrimaryKey().ifPresent(this::addResolvedConstraint);
+            return this;
+        }
+
+        private void addResolvedColumns(List<TableColumn> columns) {
+            columns.forEach(
+                    c -> {
+                        if (c instanceof PhysicalColumn) {
+                            final PhysicalColumn physicalColumn = (PhysicalColumn) c;
+                            column(physicalColumn.getName(), physicalColumn.getType());
+                        } else if (c instanceof ComputedColumn) {
+                            final ComputedColumn computedColumn = (ComputedColumn) c;
+                            columnByExpression(
+                                    computedColumn.getName(), computedColumn.getExpression());
+                        } else if (c instanceof MetadataColumn) {
+                            final MetadataColumn metadataColumn = (MetadataColumn) c;
+                            columnByMetadata(
+                                    metadataColumn.getName(),
+                                    metadataColumn.getType(),
+                                    metadataColumn.getMetadataAlias().orElse(null),
+                                    metadataColumn.isVirtual());
+                        }
+                    });
+        }
+
+        private void addResolvedWatermarkSpec(List<WatermarkSpec> specs) {
+            specs.forEach(
+                    s ->
+                            watermarkSpecs.add(
+                                    new UnresolvedWatermarkSpec(
+                                            Arrays.asList(s.getRowtimeAttribute()),
+                                            s.getWatermarkExpression())));
+        }
+
+        private void addResolvedConstraint(UniqueConstraint constraint) {
+            if (constraint.getType() == Constraint.ConstraintType.PRIMARY_KEY) {
+                primaryKeyNamed(constraint.getName(), constraint.getColumns());
+            } else {
+                throw new UnsupportedOperationException("Unsupported constraint type.");
+            }
         }
 
         public Builder column(String columnName, AbstractDataType<?> dataType) {
@@ -126,10 +190,20 @@ public final class Schema {
         }
 
         public Builder primaryKey(String... columnNames) {
+            Preconditions.checkNotNull(columnNames, "Primary key column names must not be null.");
+            return primaryKey(Arrays.asList(columnNames));
+        }
+
+        public Builder primaryKey(List<String> columnNames) {
             return primaryKeyNamed(UUID.randomUUID().toString(), columnNames);
         }
 
         public Builder primaryKeyNamed(String constraintName, String... columnNames) {
+            Preconditions.checkNotNull(columnNames, "Primary key column names must not be null.");
+            return primaryKeyNamed(constraintName, Arrays.asList(columnNames));
+        }
+
+        public Builder primaryKeyNamed(String constraintName, List<String> columnNames) {
             Preconditions.checkState(
                     primaryKey != null, "Multiple primary keys are not supported.");
             Preconditions.checkNotNull(
@@ -138,7 +212,7 @@ public final class Schema {
                     StringUtils.isNullOrWhitespaceOnly(constraintName),
                     "Primary key constraint name must not be empty.");
             Preconditions.checkArgument(
-                    columnNames != null && columnNames.length > 0,
+                    columnNames != null && columnNames.size() > 0,
                     "Primary key constraint must be defined for at least a single column.");
             primaryKey = new UnresolvedPrimaryKey(constraintName, columnNames);
             return this;
@@ -197,11 +271,22 @@ public final class Schema {
     }
 
     static class UnresolvedWatermarkSpec {
-        final Expression timeField;
+        // either as $("field").get("otherField")
+        final @Nullable Expression timeFieldExpression;
+        // or as ["field", "otherField"]
+        final @Nullable List<String> timeFieldString;
+
         final Expression watermarkExpression;
 
-        UnresolvedWatermarkSpec(Expression timeField, Expression watermarkExpression) {
-            this.timeField = timeField;
+        UnresolvedWatermarkSpec(Expression timeFieldExpression, Expression watermarkExpression) {
+            this.timeFieldExpression = timeFieldExpression;
+            this.timeFieldString = null;
+            this.watermarkExpression = watermarkExpression;
+        }
+
+        UnresolvedWatermarkSpec(List<String> timeFieldString, Expression watermarkExpression) {
+            this.timeFieldExpression = null;
+            this.timeFieldString = timeFieldString;
             this.watermarkExpression = watermarkExpression;
         }
     }
@@ -215,9 +300,9 @@ public final class Schema {
     }
 
     static class UnresolvedPrimaryKey extends UnresolvedConstraint {
-        final String[] columnNames;
+        final List<String> columnNames;
 
-        UnresolvedPrimaryKey(String constraintName, String[] columnNames) {
+        UnresolvedPrimaryKey(String constraintName, List<String> columnNames) {
             super(constraintName);
             this.columnNames = columnNames;
         }

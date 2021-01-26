@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.factories.DynamicTableFactory;
 
@@ -46,11 +47,30 @@ public interface CatalogBaseTable {
     }
 
     /**
-     * Get the schema of the table.
-     *
-     * @return schema of the table/view.
+     * @deprecated Use {@link #getUnresolvedSchema()} instead. At least one of the two methods must
+     *     be implemented. This method has highest precedence until it will be removed.
      */
-    TableSchema getSchema();
+    @Deprecated
+    default TableSchema getSchema() {
+        return null;
+    }
+
+    /**
+     * Returns the {@link Schema} of a table or view.
+     *
+     * <p>The returned schema can reference other catalog objects (i.e. user-defined data types or
+     * functions) that will be resolved in a later step.
+     */
+    default Schema getUnresolvedSchema() {
+        final TableSchema tableSchema = getSchema();
+        if (tableSchema == null) {
+            throw new UnsupportedOperationException(
+                    "No schema information provided for catalog base table. Please implement CatalogBaseTable.getUnresolvedSchema().");
+        }
+        final Schema.Builder builder = Schema.newBuilder();
+        builder.fromSchema(tableSchema);
+        return builder.build();
+    }
 
     /**
      * Get comment of the table or view.

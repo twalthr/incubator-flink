@@ -36,7 +36,6 @@ import org.apache.flink.table.types.logical.TimestampType;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -61,10 +60,6 @@ public final class SchemaResolver {
     private final SchemaResolverContext context;
 
     // TODO integrate MergeTableLikeUtil.mergeTables here
-
-    // TODO integrate CatalogTableSchemaResolver here
-
-    // TODO integrate validation logic of TableSchema.Builder here
 
     public SchemaResolver(SchemaResolverContext context) {
         this.context = context;
@@ -244,8 +239,7 @@ public final class SchemaResolver {
         }
 
         final UniqueConstraint primaryKey =
-                UniqueConstraint.primaryKey(
-                        constraintName, Arrays.asList(unresolvedPrimaryKey.columnNames));
+                UniqueConstraint.primaryKey(constraintName, unresolvedPrimaryKey.columnNames);
 
         validatePrimaryKey(primaryKey, columns);
 

@@ -24,6 +24,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableSchema.LazySqlExpression;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.TableColumn;
 import org.apache.flink.table.catalog.TableColumn.ComputedColumn;
@@ -61,6 +62,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.TableSchema.LazySqlExpression.extractSqlString;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -254,9 +256,10 @@ public class DescriptorProperties {
             for (WatermarkSpec spec : schema.getWatermarkSpecs()) {
                 watermarkValues.add(
                         Arrays.asList(
-                                spec.getRowtimeAttribute(),
-                                spec.getWatermarkExpr(),
-                                spec.getWatermarkExprOutputType()
+                                spec.getRowtimeAttribute()[0],
+                                extractSqlString(spec.getWatermarkExpression()),
+                                spec.getWatermarkExpression()
+                                        .getOutputDataType()
                                         .getLogicalType()
                                         .asSerializableString()));
             }
@@ -671,7 +674,8 @@ public class DescriptorProperties {
             final boolean virtual = getOptionalBoolean(virtualKey).orElse(false);
             // computed column
             if (expr.isPresent()) {
-                schemaBuilder.add(TableColumn.computed(name, type, expr.get()));
+                schemaBuilder.add(
+                        TableColumn.computed(name, LazySqlExpression.of(type, expr.get())));
             }
             // metadata column
             else if (metadata.isPresent()) {

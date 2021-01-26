@@ -34,6 +34,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.api.TableSchema.LazySqlExpression.extractSqlString;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utilities to {@link TableSchema}. */
@@ -140,9 +141,9 @@ public class TableSchemaUtils {
         // Copy watermark specification.
         for (WatermarkSpec wms : oriSchema.getWatermarkSpecs()) {
             builder.watermark(
-                    wms.getRowtimeAttribute(),
-                    wms.getWatermarkExpr(),
-                    wms.getWatermarkExprOutputType());
+                    wms.getRowtimeAttribute()[0],
+                    extractSqlString(wms.getWatermarkExpression()),
+                    wms.getWatermarkExpression().getOutputDataType());
         }
         // Copy primary key constraint.
         oriSchema
@@ -167,9 +168,9 @@ public class TableSchemaUtils {
         // Copy watermark specification.
         for (WatermarkSpec wms : oriSchema.getWatermarkSpecs()) {
             builder.watermark(
-                    wms.getRowtimeAttribute(),
-                    wms.getWatermarkExpr(),
-                    wms.getWatermarkExprOutputType());
+                    wms.getRowtimeAttribute()[0],
+                    extractSqlString(wms.getWatermarkExpression()),
+                    wms.getWatermarkExpression().getOutputDataType());
         }
         return builder.build();
     }
