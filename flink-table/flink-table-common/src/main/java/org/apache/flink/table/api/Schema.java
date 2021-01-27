@@ -129,8 +129,7 @@ public final class Schema {
                     s ->
                             watermarkSpecs.add(
                                     new UnresolvedWatermarkSpec(
-                                            Arrays.asList(s.getRowtimeAttribute()),
-                                            s.getWatermarkExpression())));
+                                            s.getRowtimeAttribute(), s.getWatermarkExpression())));
         }
 
         private void addResolvedConstraint(UniqueConstraint constraint) {
@@ -273,8 +272,8 @@ public final class Schema {
     static class UnresolvedWatermarkSpec {
         // either as $("field").get("otherField")
         final @Nullable Expression timeFieldExpression;
-        // or as ["field", "otherField"]
-        final @Nullable List<String> timeFieldString;
+        // or as ["field", "otherField"] (if source is a resolved watermark spec)
+        final @Nullable String[] timeFieldString;
 
         final Expression watermarkExpression;
 
@@ -284,7 +283,7 @@ public final class Schema {
             this.watermarkExpression = watermarkExpression;
         }
 
-        UnresolvedWatermarkSpec(List<String> timeFieldString, Expression watermarkExpression) {
+        UnresolvedWatermarkSpec(String[] timeFieldString, Expression watermarkExpression) {
             this.timeFieldExpression = null;
             this.timeFieldString = timeFieldString;
             this.watermarkExpression = watermarkExpression;

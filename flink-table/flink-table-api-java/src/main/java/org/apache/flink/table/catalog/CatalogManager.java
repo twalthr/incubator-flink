@@ -324,22 +324,22 @@ public final class CatalogManager {
     public static class TableLookupResult {
         private final boolean isTemporary;
         private final CatalogBaseTable table;
-        private final TableSchema resolvedSchema;
+        private final ResolvedSchema resolvedSchema;
 
         @VisibleForTesting
         public static TableLookupResult temporary(
-                CatalogBaseTable table, TableSchema resolvedSchema) {
+                CatalogBaseTable table, ResolvedSchema resolvedSchema) {
             return new TableLookupResult(true, table, resolvedSchema);
         }
 
         @VisibleForTesting
         public static TableLookupResult permanent(
-                CatalogBaseTable table, TableSchema resolvedSchema) {
+                CatalogBaseTable table, ResolvedSchema resolvedSchema) {
             return new TableLookupResult(false, table, resolvedSchema);
         }
 
         private TableLookupResult(
-                boolean isTemporary, CatalogBaseTable table, TableSchema resolvedSchema) {
+                boolean isTemporary, CatalogBaseTable table, ResolvedSchema resolvedSchema) {
             this.isTemporary = isTemporary;
             this.table = table;
             this.resolvedSchema = resolvedSchema;
@@ -353,7 +353,7 @@ public final class CatalogManager {
             return table;
         }
 
-        public TableSchema getResolvedSchema() {
+        public ResolvedSchema getResolvedSchema() {
             return resolvedSchema;
         }
     }

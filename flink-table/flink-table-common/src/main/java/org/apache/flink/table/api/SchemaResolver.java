@@ -157,24 +157,54 @@ public final class SchemaResolver {
         final Schema.UnresolvedWatermarkSpec watermarkSpec = unresolvedWatermarkSpecs.get(0);
 
         // resolve time field
-        final ResolvedExpression resolvedTimeField =
-                context.resolveExpression(inputColumns, watermarkSpec.timeField);
-        if (!(resolvedTimeField instanceof FieldReferenceExpression)) {
-            throw new ValidationException(
-                    "Invalid time field for watermark definition. "
-                            + "A watermark definition must be defined on a top-level column. "
-                            + "Nested fields are not supported yet.");
+        final String[] timeField;
+        if (watermarkSpec.timeFieldString != null) {
+            timeField = resolveTimeField(watermarkSpec.timeFieldString, inputColumns);
+        } else {
+            timeField = resolveTimeField(watermarkSpec.timeFieldExpression, inputColumns);
         }
-        final FieldReferenceExpression timeField = (FieldReferenceExpression) resolvedTimeField;
-        validateTimeField(timeField.getOutputDataType().getLogicalType());
 
         // resolve watermark expression
         final ResolvedExpression watermarkExpression =
                 context.resolveExpression(inputColumns, watermarkSpec.watermarkExpression);
         validateWatermarkExpression(watermarkExpression.getOutputDataType().getLogicalType());
 
-        return Collections.singletonList(
-                new WatermarkSpec(new String[] {timeField.getName()}, watermarkExpression));
+        return Collections.singletonList(new WatermarkSpec(timeField, watermarkExpression));
+    }
+
+    private String[] resolveTimeField(Expression timeField, List<TableColumn> columns) {
+        final ResolvedExpression resolvedTimeField = context.resolveExpression(columns, timeField);
+        if (!(resolvedTimeField instanceof FieldReferenceExpression)) {
+            throw new ValidationException(
+                    "Invalid time field for watermark definition. "
+                            + "A watermark definition must be defined on a top-level column. "
+                            + "Nested fields are not supported yet.");
+        }
+        final FieldReferenceExpression fieldRef = (FieldReferenceExpression) resolvedTimeField;
+        validateTimeField(fieldRef.getOutputDataType().getLogicalType());
+        return new String[] {fieldRef.getName()};
+    }
+
+    private String[] resolveTimeField(String[] timeField, List<TableColumn> columns) {
+        if (timeField.length > 1) {
+            throw new ValidationException(
+                    "Invalid time field for watermark definition. "
+                            + "A watermark definition must be defined on a top-level column. "
+                            + "Nested fields are not supported yet.");
+        }
+        final String timeFieldName = timeField[0];
+        final TableColumn column =
+                columns.stream()
+                        .filter(c -> c.getName().equals(timeFieldName))
+                        .findAny()
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                String.format(
+                                                        "Invalid time field '%s' for watermark definition. Available columns are: %s",
+                                                        timeFieldName, columns)));
+        validateTimeField(column.getType().getLogicalType());
+        return timeField;
     }
 
     private void validateTimeField(LogicalType timeFieldType) {
