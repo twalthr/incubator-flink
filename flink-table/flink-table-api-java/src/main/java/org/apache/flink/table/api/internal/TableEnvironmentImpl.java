@@ -29,6 +29,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.ResultKind;
+import org.apache.flink.table.api.SchemaResolver;
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
@@ -47,7 +48,9 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -72,6 +75,10 @@ import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver;
+import org.apache.flink.table.expressions.resolver.SqlExpressionResolver;
+import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.factories.TableFactoryService;
@@ -147,6 +154,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
+
 /**
  * Implementation of {@link TableEnvironment} that works exclusively with Table API interfaces. Only
  * {@link TableSource} is supported as an input and {@link TableSink} as an output. It also does not
@@ -205,8 +214,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             boolean isStreamingMode,
             ClassLoader userClassLoader) {
         this.catalogManager = catalogManager;
-        this.catalogManager.setCatalogTableSchemaResolver(
-                new CatalogTableSchemaResolver(planner.getParser(), isStreamingMode));
         this.moduleManager = moduleManager;
         this.execEnv = executor;
 
@@ -217,39 +224,66 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         this.parser = planner.getParser();
         this.isStreamingMode = isStreamingMode;
         this.userClassLoader = userClassLoader;
+
+        final DataTypeFactory dataTypeFactory = catalogManager.getDataTypeFactory();
+
+        final FunctionLookup functionLookup = functionCatalog.asLookup(parser::parseIdentifier);
+
+        final TableReferenceLookup tableRefLookup =
+                path -> {
+                    try {
+                        UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
+                        Optional<CatalogQueryOperation> catalogQueryOperation =
+                                scanInternal(unresolvedIdentifier);
+                        return catalogQueryOperation.map(t -> ApiExpressionUtils.tableRef(path, t));
+                    } catch (SqlParserException ex) {
+                        // The TableLookup is used during resolution of expressions and it
+                        // actually might not be an
+                        // identifier of a table. It might be a reference to some other
+                        // object such as column, local
+                        // reference etc. This method should return empty optional in such
+                        // cases to fallback for other
+                        // identifiers resolution.
+                        return Optional.empty();
+                    }
+                };
+
+        final SqlExpressionResolver sqlExprResolver =
+                (sqlExpression, inputSchema) -> {
+                    try {
+                        return parser.parseSqlExpression(sqlExpression, inputSchema);
+                    } catch (Throwable t) {
+                        throw new ValidationException(
+                                String.format("Invalid SQL expression: %s", sqlExpression), t);
+                    }
+                };
+
+        this.catalogManager.setSchemaResolver(
+                new SchemaResolver(
+                        isStreamingMode,
+                        dataTypeFactory,
+                        columns -> {
+                            final LocalReferenceExpression[] localRefs =
+                                    columns.stream()
+                                            .map(c -> localRef(c.getName(), c.getType()))
+                                            .toArray(LocalReferenceExpression[]::new);
+                            return ExpressionResolver.resolverFor(
+                                            tableConfig,
+                                            tableRefLookup,
+                                            functionLookup,
+                                            dataTypeFactory,
+                                            sqlExprResolver)
+                                    .withLocalReferences(localRefs)
+                                    .build();
+                        }));
+
         this.operationTreeBuilder =
                 OperationTreeBuilder.create(
                         tableConfig,
-                        functionCatalog.asLookup(parser::parseIdentifier),
+                        functionLookup,
                         catalogManager.getDataTypeFactory(),
-                        path -> {
-                            try {
-                                UnresolvedIdentifier unresolvedIdentifier =
-                                        parser.parseIdentifier(path);
-                                Optional<CatalogQueryOperation> catalogQueryOperation =
-                                        scanInternal(unresolvedIdentifier);
-                                return catalogQueryOperation.map(
-                                        t -> ApiExpressionUtils.tableRef(path, t));
-                            } catch (SqlParserException ex) {
-                                // The TableLookup is used during resolution of expressions and it
-                                // actually might not be an
-                                // identifier of a table. It might be a reference to some other
-                                // object such as column, local
-                                // reference etc. This method should return empty optional in such
-                                // cases to fallback for other
-                                // identifiers resolution.
-                                return Optional.empty();
-                            }
-                        },
-                        (sqlExpression, inputSchema) -> {
-                            try {
-                                return parser.parseSqlExpression(sqlExpression, inputSchema);
-                            } catch (Throwable t) {
-                                throw new ValidationException(
-                                        String.format("Invalid SQL expression: %s", sqlExpression),
-                                        t);
-                            }
-                        },
+                        tableRefLookup,
+                        sqlExprResolver,
                         isStreamingMode);
     }
 

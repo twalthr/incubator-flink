@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableColumn;
 import org.apache.flink.table.catalog.UniqueConstraint;
@@ -26,7 +27,7 @@ import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.types.AbstractDataType;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -57,16 +58,25 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.replaceLogicalTyp
 @Internal
 public final class SchemaResolver {
 
-    private final SchemaResolverContext context;
+    private final boolean isStreamingMode;
+
+    private final DataTypeFactory dataTypeFactory;
+
+    private final ExpressionResolverFactory resolverFactory;
 
     // TODO integrate MergeTableLikeUtil.mergeTables here
 
-    public SchemaResolver(SchemaResolverContext context) {
-        this.context = context;
+    public SchemaResolver(
+            boolean isStreamingMode,
+            DataTypeFactory dataTypeFactory,
+            ExpressionResolverFactory resolverFactory) {
+        this.isStreamingMode = isStreamingMode;
+        this.dataTypeFactory = dataTypeFactory;
+        this.resolverFactory = resolverFactory;
     }
 
-    public ResolvedSchema resolve(Schema schema) {
-        final List<TableColumn> columns = resolveColumns(schema.columns);
+    public ResolvedSchema resolve(Schema schema, boolean supportMetadata) {
+        final List<TableColumn> columns = resolveColumns(schema.columns, supportMetadata);
 
         final List<WatermarkSpec> watermarkSpecs =
                 resolveWatermarkSpecs(schema.watermarkSpecs, columns);
@@ -79,14 +89,18 @@ public final class SchemaResolver {
         return new ResolvedSchema(columnsWithRowtime, watermarkSpecs, primaryKey);
     }
 
-    private List<TableColumn> resolveColumns(List<Schema.UnresolvedColumn> unresolvedColumns) {
+    private List<TableColumn> resolveColumns(
+            List<Schema.UnresolvedColumn> unresolvedColumns, boolean supportMetadata) {
         final List<TableColumn> resolvedColumns = new ArrayList<>();
         for (Schema.UnresolvedColumn unresolvedColumn : unresolvedColumns) {
             final TableColumn column;
             if (unresolvedColumn instanceof Schema.UnresolvedPhysicalColumn) {
                 column = resolvePhysicalColumn((Schema.UnresolvedPhysicalColumn) unresolvedColumn);
             } else if (unresolvedColumn instanceof Schema.UnresolvedMetadataColumn) {
-                column = resolveMetadataColumn((Schema.UnresolvedMetadataColumn) unresolvedColumn);
+                column =
+                        resolveMetadataColumn(
+                                (Schema.UnresolvedMetadataColumn) unresolvedColumn,
+                                supportMetadata);
             } else if (unresolvedColumn instanceof Schema.UnresolvedComputedColumn) {
                 column =
                         resolveComputedColumn(
@@ -106,18 +120,19 @@ public final class SchemaResolver {
     private TableColumn.PhysicalColumn resolvePhysicalColumn(
             Schema.UnresolvedPhysicalColumn unresolvedColumn) {
         return TableColumn.physical(
-                unresolvedColumn.columnName, context.resolveDataType(unresolvedColumn.dataType));
+                unresolvedColumn.columnName,
+                dataTypeFactory.createDataType(unresolvedColumn.dataType));
     }
 
     private TableColumn.MetadataColumn resolveMetadataColumn(
-            Schema.UnresolvedMetadataColumn unresolvedColumn) {
-        if (!context.supportsMetadata()) {
+            Schema.UnresolvedMetadataColumn unresolvedColumn, boolean supportMetadata) {
+        if (!supportMetadata) {
             throw new ValidationException(
                     "Metadata columns are not supported in a schema at the current location.");
         }
         return TableColumn.metadata(
                 unresolvedColumn.columnName,
-                context.resolveDataType(unresolvedColumn.dataType),
+                dataTypeFactory.createDataType(unresolvedColumn.dataType),
                 unresolvedColumn.metadataKey,
                 unresolvedColumn.isVirtual);
     }
@@ -125,7 +140,7 @@ public final class SchemaResolver {
     private TableColumn.ComputedColumn resolveComputedColumn(
             Schema.UnresolvedComputedColumn unresolvedColumn, List<TableColumn> inputColumns) {
         final ResolvedExpression resolvedExpression =
-                context.resolveExpression(inputColumns, unresolvedColumn.expression);
+                resolveExpression(inputColumns, unresolvedColumn.expression);
         return TableColumn.computed(unresolvedColumn.columnName, resolvedExpression);
     }
 
@@ -166,14 +181,14 @@ public final class SchemaResolver {
 
         // resolve watermark expression
         final ResolvedExpression watermarkExpression =
-                context.resolveExpression(inputColumns, watermarkSpec.watermarkExpression);
+                resolveExpression(inputColumns, watermarkSpec.watermarkExpression);
         validateWatermarkExpression(watermarkExpression.getOutputDataType().getLogicalType());
 
         return Collections.singletonList(new WatermarkSpec(timeField, watermarkExpression));
     }
 
     private String[] resolveTimeField(Expression timeField, List<TableColumn> columns) {
-        final ResolvedExpression resolvedTimeField = context.resolveExpression(columns, timeField);
+        final ResolvedExpression resolvedTimeField = resolveExpression(columns, timeField);
         if (!(resolvedTimeField instanceof FieldReferenceExpression)) {
             throw new ValidationException(
                     "Invalid time field for watermark definition. "
@@ -240,7 +255,7 @@ public final class SchemaResolver {
                             final boolean hasWatermarkSpec =
                                     watermarkSpecs.stream()
                                             .anyMatch(s -> s.getRowtimeAttribute()[0].equals(name));
-                            if (hasWatermarkSpec && context.isStreamingMode()) {
+                            if (hasWatermarkSpec && isStreamingMode) {
                                 final TimestampType originalType =
                                         (TimestampType) dataType.getLogicalType();
                                 final LogicalType rowtimeType =
@@ -276,7 +291,7 @@ public final class SchemaResolver {
         return primaryKey;
     }
 
-    private static void validatePrimaryKey(UniqueConstraint primaryKey, List<TableColumn> columns) {
+    private void validatePrimaryKey(UniqueConstraint primaryKey, List<TableColumn> columns) {
         final Map<String, TableColumn> columnsByNameLookup =
                 columns.stream()
                         .collect(Collectors.toMap(TableColumn::getName, Function.identity()));
@@ -307,15 +322,16 @@ public final class SchemaResolver {
         }
     }
 
-    // --------------------------------------------------------------------------------------------
+    private ResolvedExpression resolveExpression(List<TableColumn> columns, Expression expression) {
+        return resolverFactory
+                .createResolver(columns)
+                .resolve(Collections.singletonList(expression))
+                .get(0);
+    }
 
-    private interface SchemaResolverContext {
-        boolean supportsMetadata();
+    // -------------------------------------------------------
 
-        boolean isStreamingMode();
-
-        ResolvedExpression resolveExpression(List<TableColumn> inputColumns, Expression expression);
-
-        DataType resolveDataType(AbstractDataType<?> dataType);
+    public interface ExpressionResolverFactory {
+        ExpressionResolver createResolver(List<TableColumn> columns);
     }
 }

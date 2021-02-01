@@ -23,8 +23,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.CatalogNotExistException;
+import org.apache.flink.table.api.SchemaResolver;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -65,11 +65,11 @@ public final class CatalogManager {
     private static final Logger LOG = LoggerFactory.getLogger(CatalogManager.class);
 
     // A map between names and catalogs.
-    private Map<String, Catalog> catalogs;
+    private final Map<String, Catalog> catalogs;
 
     // Those tables take precedence over corresponding permanent tables, thus they shadow
     // tables coming from catalogs.
-    private Map<ObjectIdentifier, CatalogBaseTable> temporaryTables;
+    private final Map<ObjectIdentifier, CatalogBaseTable> temporaryTables;
 
     // The name of the current catalog and database
     private String currentCatalogName;
@@ -80,6 +80,8 @@ public final class CatalogManager {
     private final String builtInCatalogName;
 
     private final DataTypeFactory typeFactory;
+
+    private SchemaResolver schemaResolver;
 
     private CatalogManager(
             String defaultCatalogName, Catalog defaultCatalog, DataTypeFactory typeFactory) {
@@ -149,12 +151,12 @@ public final class CatalogManager {
     }
 
     /**
-     * We do not pass it in the ctor, because we need a {@link Parser} that is constructed in a
-     * {@link Planner}. At the same time {@link Planner} needs a {@link CatalogManager} to be
-     * constructed. Thus we can't get {@link Parser} instance when creating a {@link
+     * We do not pass it in the constructor, because we need a {@link Parser} that is constructed in
+     * a {@link Planner}. At the same time {@link Planner} needs a {@link CatalogManager} to be
+     * constructed. Thus we can't get a {@link Parser} instance when creating a {@link
      * CatalogManager}. See {@link TableEnvironmentImpl#create}.
      */
-    public void setCatalogTableSchemaResolver(CatalogTableSchemaResolver schemaResolver) {
+    public void setSchemaResolver(SchemaResolver schemaResolver) {
         this.schemaResolver = schemaResolver;
     }
 
@@ -369,16 +371,11 @@ public final class CatalogManager {
         Preconditions.checkNotNull(schemaResolver, "schemaResolver should not be null");
         CatalogBaseTable temporaryTable = temporaryTables.get(objectIdentifier);
         if (temporaryTable != null) {
-            final ResolvedSchema resolvedSchema = resolveSchema(temporaryTable);
+            final ResolvedSchema resolvedSchema =
+                    schemaResolver.resolve(temporaryTable.getUnresolvedSchema(), true);
             return Optional.of(TableLookupResult.temporary(temporaryTable, resolvedSchema));
         } else {
             return getPermanentTable(objectIdentifier);
-        }
-    }
-
-    private ResolvedSchema resolveSchema(CatalogBaseTable table) {
-        if () {
-
         }
     }
 
@@ -409,7 +406,8 @@ public final class CatalogManager {
         if (currentCatalog != null) {
             try {
                 CatalogBaseTable catalogTable = currentCatalog.getTable(objectPath);
-                TableSchema resolvedSchema = resolveTableSchema(catalogTable);
+                ResolvedSchema resolvedSchema =
+                        schemaResolver.resolve(catalogTable.getUnresolvedSchema(), true);
                 return Optional.of(TableLookupResult.permanent(catalogTable, resolvedSchema));
             } catch (TableNotExistException e) {
                 // Ignore.
