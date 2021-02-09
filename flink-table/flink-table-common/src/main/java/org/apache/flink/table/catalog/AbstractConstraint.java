@@ -27,6 +27,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Base class for {@link Constraint constraints}. */
 @Internal
 abstract class AbstractConstraint implements Constraint {
+
     private final String name;
     private final boolean enforced;
 

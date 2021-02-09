@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -38,18 +40,22 @@ import static org.apache.flink.table.api.DataTypes.ROW;
  * Schema of a table or view consisting of columns, constraints, and watermark specifications.
  *
  * <p>This class is the result of resolving a {@link Schema} into a final validated representation.
+ *
+ * <ul>
+ *   <li>Data types and functions have been expanded to fully qualified identifiers.
+ *   <li>Time attributes are represented in the column's data type.
+ *   <li>{@link Expression}s have been translated to {@link ResolvedExpression}.
+ *   <li>{@link AbstractDataType}s have been translated to {@link DataType}.
+ * </ul>
  */
 @PublicEvolving
 public final class ResolvedSchema {
 
     private final List<Column> columns;
-
     private final List<WatermarkSpec> watermarkSpecs;
-
     private final @Nullable UniqueConstraint primaryKey;
 
-    @Internal
-    public ResolvedSchema(
+    ResolvedSchema(
             List<Column> columns,
             List<WatermarkSpec> watermarkSpecs,
             @Nullable UniqueConstraint primaryKey) {

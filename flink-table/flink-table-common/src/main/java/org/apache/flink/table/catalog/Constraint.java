@@ -26,6 +26,7 @@ import org.apache.flink.annotation.PublicEvolving;
  */
 @PublicEvolving
 public interface Constraint {
+
     String getName();
 
     /**

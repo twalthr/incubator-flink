@@ -32,6 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @PublicEvolving
 public final class UniqueConstraint extends AbstractConstraint {
+
     private final List<String> columns;
     private final ConstraintType type;
 
