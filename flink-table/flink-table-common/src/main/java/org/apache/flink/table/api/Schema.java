@@ -76,6 +76,18 @@ public final class Schema {
         return new Builder();
     }
 
+    public List<UnresolvedColumn> getColumns() {
+        return columns;
+    }
+
+    public List<UnresolvedWatermarkSpec> getWatermarkSpecs() {
+        return watermarkSpecs;
+    }
+
+    public Optional<UnresolvedPrimaryKey> getPrimaryKey() {
+        return Optional.ofNullable(primaryKey);
+    }
+
     /** Resolves the given {@link Schema} to a validated {@link ResolvedSchema}. */
     public ResolvedSchema resolve(SchemaResolver resolver) {
         return resolver.resolve(this);
@@ -418,6 +430,10 @@ public final class Schema {
         UnresolvedColumn(String columnName) {
             this.columnName = columnName;
         }
+
+        public String getColumnName() {
+            return columnName;
+        }
     }
 
     /**
@@ -508,8 +524,8 @@ public final class Schema {
             return columnName;
         }
 
-        public Optional<Expression> getWatermarkExpression() {
-            return Optional.ofNullable(watermarkExpression);
+        public Expression getWatermarkExpression() {
+            return watermarkExpression;
         }
     }
 
