@@ -95,9 +95,10 @@ public class SchemaResolutionTest {
                                                 DataTypes.FIELD("name", DataTypes.STRING()),
                                                 DataTypes.FIELD("age", DataTypes.INT()),
                                                 DataTypes.FIELD("flag", DataTypes.BOOLEAN()))),
-                                Column.metadata("topic", DataTypes.STRING(), true),
+                                Column.metadata("topic", DataTypes.STRING(), null, true),
                                 Column.computed("ts", COMPUTED_COLUMN_RESOLVED),
-                                Column.metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp"),
+                                Column.metadata(
+                                        "orig_ts", DataTypes.TIMESTAMP(3), "timestamp", false),
                                 Column.computed("proctime", PROCTIME_RESOLVED)),
                         Collections.singletonList(new WatermarkSpec("ts", WATERMARK_RESOLVED)),
                         UniqueConstraint.primaryKey(

@@ -20,6 +20,8 @@ package org.apache.flink.table.utils
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.catalog.CatalogPropertiesUtil
+import org.apache.flink.table.catalog.CatalogPropertiesUtil.{EXPR, PRIMARY_KEY_COLUMNS, PRIMARY_KEY_NAME, WATERMARK, WATERMARK_ROWTIME, WATERMARK_STRATEGY_DATA_TYPE, WATERMARK_STRATEGY_EXPR}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.DescriptorProperties._
 import org.apache.flink.table.descriptors.Rowtime._
@@ -145,8 +147,8 @@ class InMemoryTableFactory(terminationCount: Int)
     properties.add(SCHEMA + ".#." + EXPR)
 
     // table constraint
-    properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
-    properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+    properties.add(SCHEMA + "." + PRIMARY_KEY_NAME);
+    properties.add(SCHEMA + "." + PRIMARY_KEY_COLUMNS);
 
     properties
   }

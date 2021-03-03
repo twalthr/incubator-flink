@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.catalog.config.CatalogConfig;
-
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 
 /** Base of tests for any catalog implementations, like GenericInMemoryCatalog and HiveCatalog. */
 public abstract class CatalogTestBase extends CatalogTest {
@@ -64,7 +64,7 @@ public abstract class CatalogTestBase extends CatalogTest {
     @Override
     public CatalogTable createStreamingTable() {
         Map<String, String> prop = getBatchTableProperties();
-        prop.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+        prop.put(IS_GENERIC, String.valueOf(false));
 
         return new CatalogTableImpl(
                 createTableSchema(), getStreamingTableProperties(), TEST_COMMENT);
@@ -134,7 +134,7 @@ public abstract class CatalogTestBase extends CatalogTest {
     private Map<String, String> getGenericFlag(boolean isGeneric) {
         return new HashMap<String, String>() {
             {
-                put(CatalogConfig.IS_GENERIC, String.valueOf(isGeneric));
+                put(IS_GENERIC, String.valueOf(isGeneric));
             }
         };
     }

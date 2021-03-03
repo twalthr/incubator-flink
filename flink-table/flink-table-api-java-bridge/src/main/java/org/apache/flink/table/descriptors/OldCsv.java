@@ -36,6 +36,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.DATA_TYPE;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.NAME;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_COMMENT_PREFIX;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
@@ -275,8 +277,7 @@ public class OldCsv extends FormatDescriptor {
         if (deriveSchema.isPresent() && deriveSchema.get()) {
             properties.putBoolean(FORMAT_DERIVE_SCHEMA, true);
         } else {
-            List<String> subKeys =
-                    Arrays.asList(DescriptorProperties.NAME, DescriptorProperties.DATA_TYPE);
+            List<String> subKeys = Arrays.asList(NAME, DATA_TYPE);
 
             List<List<String>> subValues =
                     schema.entrySet().stream()

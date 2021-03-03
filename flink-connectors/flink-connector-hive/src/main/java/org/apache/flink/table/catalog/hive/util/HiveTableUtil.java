@@ -30,7 +30,6 @@ import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalogConfig;
@@ -81,7 +80,8 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableS
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_OUTPUT_FORMAT;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
-import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utils to for Hive-backed table. */
@@ -428,7 +428,7 @@ public class HiveTableUtil {
                 .map(
                         e ->
                                 new Tuple2<>(
-                                        e.getKey().equals(CatalogConfig.IS_GENERIC)
+                                        e.getKey().equals(IS_GENERIC)
                                                 ? e.getKey()
                                                 : FLINK_PROPERTY_PREFIX + e.getKey(),
                                         e.getValue()))

@@ -26,7 +26,6 @@ import org.apache.flink.sql.parser.hive.impl.ParseException;
 import org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec;
 import org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec;
 import org.apache.flink.sql.parser.type.SqlMapTypeNameSpec;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 
 import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlCall;
@@ -60,6 +59,7 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_C
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRAINT_TRAIT;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 
 /** Util methods for Hive DDL Sql nodes. */
 public class HiveDDLUtils {
@@ -113,9 +113,7 @@ public class HiveDDLUtils {
     public static SqlNodeList ensureNonGeneric(SqlNodeList props) throws ParseException {
         for (SqlNode node : props) {
             if (node instanceof SqlTableOption
-                    && ((SqlTableOption) node)
-                            .getKeyString()
-                            .equalsIgnoreCase(CatalogConfig.IS_GENERIC)) {
+                    && ((SqlTableOption) node).getKeyString().equalsIgnoreCase(IS_GENERIC)) {
                 if (!((SqlTableOption) node).getValueString().equalsIgnoreCase("false")) {
                     throw new ParseException(
                             "Creating generic object with Hive dialect is not allowed");

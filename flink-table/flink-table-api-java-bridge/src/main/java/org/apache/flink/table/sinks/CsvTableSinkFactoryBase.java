@@ -41,6 +41,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.DATA_TYPE;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.EXPR;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.NAME;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_PATH;
@@ -75,8 +79,8 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
         properties.add(CONNECTOR_PATH);
         // format
         properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TYPE);
-        properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.DATA_TYPE);
-        properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.NAME);
+        properties.add(FORMAT_FIELDS + ".#." + DATA_TYPE);
+        properties.add(FORMAT_FIELDS + ".#." + NAME);
         properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
         properties.add(FORMAT_FIELD_DELIMITER);
         properties.add(CONNECTOR_PATH);
@@ -85,11 +89,11 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 
         // schema
         properties.add(SCHEMA + ".#." + DescriptorProperties.TYPE);
-        properties.add(SCHEMA + ".#." + DescriptorProperties.DATA_TYPE);
-        properties.add(SCHEMA + ".#." + DescriptorProperties.NAME);
-        properties.add(SCHEMA + ".#." + DescriptorProperties.EXPR);
+        properties.add(SCHEMA + ".#." + DATA_TYPE);
+        properties.add(SCHEMA + ".#." + NAME);
+        properties.add(SCHEMA + ".#." + EXPR);
         // schema watermark
-        properties.add(SCHEMA + "." + DescriptorProperties.WATERMARK + ".*");
+        properties.add(SCHEMA + "." + WATERMARK + ".*");
         return properties;
     }
 

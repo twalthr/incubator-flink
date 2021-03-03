@@ -35,11 +35,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.EXPR;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.PRIMARY_KEY_COLUMNS;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.PRIMARY_KEY_NAME;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_ROWTIME;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 
 /** Mocking {@link TableSourceFactory} for tests. */
@@ -87,8 +89,8 @@ public class TableSourceFactoryMock implements TableSourceFactory<Row> {
                 Schema.SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_DATA_TYPE);
 
         // table constraint
-        supportedProperties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
-        supportedProperties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+        supportedProperties.add(SCHEMA + "." + PRIMARY_KEY_NAME);
+        supportedProperties.add(SCHEMA + "." + PRIMARY_KEY_COLUMNS);
 
         return supportedProperties;
     }

@@ -42,7 +42,11 @@ import org.apache.flink.table.types.utils.TypeConversions;
  *
  * <p>Such as `proctime()` function, its type in given TableSchema is Timestamp(3), but its correct
  * type is Timestamp(3) *PROCTIME*.
+ *
+ * @deprecated Replaced by {@link org.apache.flink.table.catalog.SchemaResolver}. Can be dropped
+ *     when we drop {@link TableSchema}.
  */
+@Deprecated
 @Internal
 public class CatalogTableSchemaResolver {
     private final Parser parser;

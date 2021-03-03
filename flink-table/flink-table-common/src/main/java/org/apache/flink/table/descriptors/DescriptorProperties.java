@@ -21,6 +21,7 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableColumn.ComputedColumn;
@@ -29,6 +30,8 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
+import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -61,6 +64,18 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.DATA_TYPE;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.EXPR;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.METADATA;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.NAME;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.PARTITION_KEYS;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.PRIMARY_KEY_COLUMNS;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.PRIMARY_KEY_NAME;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.VIRTUAL;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_ROWTIME;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -73,37 +88,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * instead of connector.kafka.kafka-version use connector.kafka.version.
  *
  * <p>Properties with key normalization enabled contain only lower-case keys.
+ *
+ * @deprecated This utility will be dropped soon. {@link DynamicTableFactory} is based on {@link
+ *     ConfigOption} and catalogs use {@link CatalogPropertiesUtil}.
  */
+@Deprecated
 @Internal
 public class DescriptorProperties {
 
-    public static final String NAME = "name";
-
     public static final String TYPE = "type";
-
-    public static final String DATA_TYPE = "data-type";
-
-    public static final String EXPR = "expr";
-
-    public static final String METADATA = "metadata";
-
-    public static final String VIRTUAL = "virtual";
-
-    public static final String PARTITION_KEYS = "partition.keys";
-
-    public static final String WATERMARK = "watermark";
-
-    public static final String WATERMARK_ROWTIME = "rowtime";
-
-    public static final String WATERMARK_STRATEGY = "strategy";
-
-    public static final String WATERMARK_STRATEGY_EXPR = WATERMARK_STRATEGY + '.' + EXPR;
-
-    public static final String WATERMARK_STRATEGY_DATA_TYPE = WATERMARK_STRATEGY + '.' + DATA_TYPE;
-
-    public static final String PRIMARY_KEY_NAME = "primary-key.name";
-
-    public static final String PRIMARY_KEY_COLUMNS = "primary-key.columns";
 
     private static final Pattern SCHEMA_COLUMN_NAME_SUFFIX = Pattern.compile("\\d+\\.name");
 
@@ -310,18 +303,7 @@ public class DescriptorProperties {
      */
     public void putIndexedFixedProperties(
             String key, List<String> subKeys, List<List<String>> subKeyValues) {
-        checkNotNull(key);
-        checkNotNull(subKeys);
-        checkNotNull(subKeyValues);
-        for (int idx = 0; idx < subKeyValues.size(); idx++) {
-            final List<String> values = subKeyValues.get(idx);
-            if (values == null || values.size() != subKeys.size()) {
-                throw new ValidationException("Values must have same arity as keys.");
-            }
-            for (int keyIdx = 0; keyIdx < values.size(); keyIdx++) {
-                put(key + '.' + idx + '.' + subKeys.get(keyIdx), values.get(keyIdx));
-            }
-        }
+        CatalogPropertiesUtil.putIndexedProperties(properties, key, subKeys, subKeyValues);
     }
 
     /**
@@ -341,24 +323,7 @@ public class DescriptorProperties {
      */
     public void putIndexedOptionalProperties(
             String key, List<String> subKeys, List<List<String>> subKeyValues) {
-        checkNotNull(key);
-        checkNotNull(subKeys);
-        checkNotNull(subKeyValues);
-        for (int idx = 0; idx < subKeyValues.size(); idx++) {
-            final List<String> values = subKeyValues.get(idx);
-            if (values == null || values.size() != subKeys.size()) {
-                throw new ValidationException("Values must have same arity as keys.");
-            }
-            if (values.stream().allMatch(Objects::isNull)) {
-                throw new ValidationException("Values must have at least one non-null value.");
-            }
-            for (int keyIdx = 0; keyIdx < values.size(); keyIdx++) {
-                String value = values.get(keyIdx);
-                if (value != null) {
-                    put(key + '.' + idx + '.' + subKeys.get(keyIdx), values.get(keyIdx));
-                }
-            }
-        }
+        CatalogPropertiesUtil.putIndexedProperties(properties, key, subKeys, subKeyValues);
     }
 
     /**

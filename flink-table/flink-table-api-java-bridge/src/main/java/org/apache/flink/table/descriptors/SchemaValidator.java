@@ -40,11 +40,13 @@ import java.util.Map;
 import java.util.Optional;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.EXPR;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.PRIMARY_KEY_COLUMNS;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.PRIMARY_KEY_NAME;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_ROWTIME;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_CLASS;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_FROM;
@@ -166,8 +168,8 @@ public class SchemaValidator implements DescriptorValidator {
         keys.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_DATA_TYPE);
 
         // table constraint
-        keys.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
-        keys.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+        keys.add(SCHEMA + "." + PRIMARY_KEY_NAME);
+        keys.add(SCHEMA + "." + PRIMARY_KEY_COLUMNS);
 
         return keys;
     }

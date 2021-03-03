@@ -24,7 +24,6 @@ import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.hive.impl.ParseException;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -39,6 +38,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 
 /** CREATE Table DDL for Hive dialect. */
 public class SqlCreateHiveTable extends SqlCreateTable {
@@ -97,7 +98,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
         originPropList = new SqlNodeList(propertyList.getList(), propertyList.getParserPosition());
         // mark it as a hive table
         HiveDDLUtils.ensureNonGeneric(propertyList);
-        propertyList.add(HiveDDLUtils.toTableOption(CatalogConfig.IS_GENERIC, "false", pos));
+        propertyList.add(HiveDDLUtils.toTableOption(IS_GENERIC, "false", pos));
         // set external
         this.isExternal = isExternal;
         if (isExternal) {

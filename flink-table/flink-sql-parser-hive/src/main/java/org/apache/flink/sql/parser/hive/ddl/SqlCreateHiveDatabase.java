@@ -21,7 +21,6 @@ package org.apache.flink.sql.parser.hive.ddl;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.hive.impl.ParseException;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -30,6 +29,8 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 
 /** CREATE Database DDL for Hive dialect. */
 public class SqlCreateHiveDatabase extends SqlCreateDatabase {
@@ -56,7 +57,7 @@ public class SqlCreateHiveDatabase extends SqlCreateDatabase {
         HiveDDLUtils.ensureNonGeneric(propertyList);
         originPropList = new SqlNodeList(propertyList.getList(), propertyList.getParserPosition());
         // mark it as a hive database
-        propertyList.add(HiveDDLUtils.toTableOption(CatalogConfig.IS_GENERIC, "false", pos));
+        propertyList.add(HiveDDLUtils.toTableOption(IS_GENERIC, "false", pos));
         if (location != null) {
             propertyList.add(
                     new SqlTableOption(
