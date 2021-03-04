@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
@@ -31,7 +30,8 @@ import java.util.Optional;
  * Catalog} but resolved by the framework.
  */
 @PublicEvolving
-public final class ResolvedCatalogView implements CatalogView {
+public final class ResolvedCatalogView
+        implements ResolvedCatalogBaseTable<CatalogView>, CatalogView {
 
     private final CatalogView origin;
 
@@ -43,17 +43,13 @@ public final class ResolvedCatalogView implements CatalogView {
                 Preconditions.checkNotNull(resolvedSchema, "Resolved schema must not be null.");
     }
 
-    /**
-     * Returns the original, unresolved {@link CatalogView} from the {@link Catalog}.
-     *
-     * <p>This method might be useful if catalog-specific object instances need to be accessed.
-     */
-    CatalogView getOrigin() {
+    @Override
+    public CatalogView getOrigin() {
         return origin;
     }
 
-    /** Returns a fully resolved and validated {@link ResolvedSchema}. */
-    ResolvedSchema getResolvedSchema() {
+    @Override
+    public ResolvedSchema getResolvedSchema() {
         return resolvedSchema;
     }
 
@@ -64,12 +60,6 @@ public final class ResolvedCatalogView implements CatalogView {
     @Override
     public Map<String, String> getOptions() {
         return origin.getOptions();
-    }
-
-    @Override
-    @Deprecated
-    public TableSchema getSchema() {
-        return origin.getSchema();
     }
 
     @Override

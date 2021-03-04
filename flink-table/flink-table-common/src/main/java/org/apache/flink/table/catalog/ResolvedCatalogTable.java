@@ -20,8 +20,6 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.util.Preconditions;
 
 import java.util.List;
@@ -36,7 +34,8 @@ import java.util.Optional;
  * string properties.
  */
 @PublicEvolving
-public final class ResolvedCatalogTable implements CatalogTable {
+public final class ResolvedCatalogTable
+        implements ResolvedCatalogBaseTable<CatalogTable>, CatalogTable {
 
     private final CatalogTable origin;
 
@@ -49,41 +48,19 @@ public final class ResolvedCatalogTable implements CatalogTable {
                 Preconditions.checkNotNull(resolvedSchema, "Resolved schema must not be null.");
     }
 
-    /**
-     * Returns the original, unresolved {@link CatalogTable} from the {@link Catalog}.
-     *
-     * <p>This method might be useful if catalog-specific object instances should be directly
-     * forwarded from the catalog to a {@link DynamicTableFactory}.
-     */
-    CatalogTable getOrigin() {
+    @Override
+    public CatalogTable getOrigin() {
         return origin;
     }
 
-    /**
-     * Returns a fully resolved and validated {@link ResolvedSchema}.
-     *
-     * <p>Connectors can configure themselves by accessing {@link ResolvedSchema#getPrimaryKey()}
-     * and {@link ResolvedSchema#toPhysicalRowDataType()}.
-     */
-    ResolvedSchema getResolvedSchema() {
+    @Override
+    public ResolvedSchema getResolvedSchema() {
         return resolvedSchema;
     }
 
     @Override
     public Map<String, String> toProperties() {
         return CatalogPropertiesUtil.serializeCatalogTable(this);
-    }
-
-    /**
-     * @deprecated This method returns the deprecated {@link TableSchema} class. The old class was a
-     *     hybrid of resolved and unresolved schema information. It has been replaced by the new
-     *     {@link ResolvedSchema} which is resolved by the framework and accessible via {@link
-     *     #getResolvedSchema()}.
-     */
-    @Deprecated
-    @Override
-    public TableSchema getSchema() {
-        return TableSchema.fromResolvedSchema(getResolvedSchema());
     }
 
     // --------------------------------------------------------------------------------------------

@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * A common parent that describes the unresolved metadata of a table or view in a catalog.
+ * A common parent that describes the <i>unresolved</i> metadata of a table or view in a catalog.
  *
  * @see CatalogTable
  * @see CatalogView

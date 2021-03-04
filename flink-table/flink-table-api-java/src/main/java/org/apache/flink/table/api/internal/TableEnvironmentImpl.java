@@ -212,8 +212,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             boolean isStreamingMode,
             ClassLoader userClassLoader) {
         this.catalogManager = catalogManager;
-        this.catalogManager.setCatalogTableSchemaResolver(
-                new CatalogTableSchemaResolver(planner.getParser(), isStreamingMode));
         this.moduleManager = moduleManager;
         this.execEnv = executor;
 
@@ -258,6 +256,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             }
                         },
                         isStreamingMode);
+
+        catalogManager.initSchemaResolver(
+                isStreamingMode, operationTreeBuilder.expressionResolverBuilder());
     }
 
     public static TableEnvironmentImpl create(EnvironmentSettings settings) {
@@ -533,7 +534,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         return catalogManager
                 .getTable(tableIdentifier)
-                .map(t -> new CatalogQueryOperation(tableIdentifier, t.getResolvedSchema()));
+                .map(
+                        t ->
+                                new CatalogQueryOperation(
+                                        tableIdentifier,
+                                        TableSchema.fromResolvedSchema(t.getResolvedSchema())));
     }
 
     @Override
@@ -1135,7 +1140,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             Optional<CatalogManager.TableLookupResult> result =
                     catalogManager.getTable(describeTableOperation.getSqlIdentifier());
             if (result.isPresent()) {
-                return buildDescribeResult(result.get().getResolvedSchema());
+                return buildDescribeResult(
+                        TableSchema.fromResolvedSchema(result.get().getResolvedSchema()));
             } else {
                 throw new ValidationException(
                         String.format(

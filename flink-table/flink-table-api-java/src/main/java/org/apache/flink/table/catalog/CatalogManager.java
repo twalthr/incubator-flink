@@ -26,16 +26,13 @@ import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.util.Preconditions;
@@ -79,8 +76,6 @@ public final class CatalogManager {
     private String currentCatalogName;
 
     private String currentDatabaseName;
-
-    private CatalogTableSchemaResolver legacySchemaResolver;
 
     private DefaultSchemaResolver schemaResolver;
 
@@ -157,20 +152,6 @@ public final class CatalogManager {
     }
 
     /**
-     * We do not pass it in the ctor, because we need a {@link Parser} that is constructed in a
-     * {@link Planner}. At the same time {@link Planner} needs a {@link CatalogManager} to be
-     * constructed. Thus we can't get {@link Parser} instance when creating a {@link
-     * CatalogManager}. See {@link TableEnvironmentImpl#create}.
-     *
-     * @deprecated Replaced by {@link org.apache.flink.table.catalog.SchemaResolver}. Can be dropped
-     *     when we drop {@link TableSchema}.
-     */
-    @Deprecated
-    public void setCatalogTableSchemaResolver(CatalogTableSchemaResolver schemaResolver) {
-        this.legacySchemaResolver = schemaResolver;
-    }
-
-    /**
      * Initializes a {@link SchemaResolver} for {@link Schema} resolution.
      *
      * <p>Currently, the resolver cannot be passed in the constructor because of a chicken-and-egg
@@ -178,7 +159,7 @@ public final class CatalogManager {
      *
      * @see TableEnvironmentImpl#create(EnvironmentSettings)
      */
-    public void initializeSchemaResolver(
+    public void initSchemaResolver(
             boolean isStreamingMode, ExpressionResolverBuilder expressionResolverBuilder) {
         this.schemaResolver =
                 new DefaultSchemaResolver(
@@ -357,27 +338,23 @@ public final class CatalogManager {
      * table or comes from the catalog.
      */
     public static class TableLookupResult {
+
         private final boolean isTemporary;
         private final CatalogBaseTable table;
-        private final TableSchema resolvedSchema;
 
         @VisibleForTesting
-        public static TableLookupResult temporary(
-                CatalogBaseTable table, TableSchema resolvedSchema) {
-            return new TableLookupResult(true, table, resolvedSchema);
+        public static TableLookupResult temporary(CatalogBaseTable table) {
+            return new TableLookupResult(true, table);
         }
 
         @VisibleForTesting
-        public static TableLookupResult permanent(
-                CatalogBaseTable table, TableSchema resolvedSchema) {
-            return new TableLookupResult(false, table, resolvedSchema);
+        public static TableLookupResult permanent(CatalogBaseTable table) {
+            return new TableLookupResult(false, table);
         }
 
-        private TableLookupResult(
-                boolean isTemporary, CatalogBaseTable table, TableSchema resolvedSchema) {
+        private TableLookupResult(boolean isTemporary, CatalogBaseTable table) {
             this.isTemporary = isTemporary;
             this.table = table;
-            this.resolvedSchema = resolvedSchema;
         }
 
         public boolean isTemporary() {
@@ -388,8 +365,12 @@ public final class CatalogManager {
             return table;
         }
 
-        public TableSchema getResolvedSchema() {
-            return resolvedSchema;
+        public ResolvedSchema getResolvedSchema() {
+            if (!(table instanceof ResolvedCatalogBaseTable)) {
+                throw new IllegalStateException(
+                        "Unable to return a resolved schema. Table has not been resolved before.");
+            }
+            return ((ResolvedCatalogBaseTable<?>) table).getResolvedSchema();
         }
     }
 
@@ -401,18 +382,13 @@ public final class CatalogManager {
      * @return table that the path points to.
      */
     public Optional<TableLookupResult> getTable(ObjectIdentifier objectIdentifier) {
-        Preconditions.checkNotNull(legacySchemaResolver, "schemaResolver should not be null");
         CatalogBaseTable temporaryTable = temporaryTables.get(objectIdentifier);
         if (temporaryTable != null) {
-            TableSchema resolvedSchema = resolveTableSchema(temporaryTable);
-            return Optional.of(TableLookupResult.temporary(temporaryTable, resolvedSchema));
+            final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(temporaryTable);
+            return Optional.of(TableLookupResult.temporary(resolvedTable));
         } else {
             return getPermanentTable(objectIdentifier, true);
         }
-    }
-
-    private TableSchema resolveTableSchema(CatalogBaseTable table) {
-        return legacySchemaResolver.resolve(table.getSchema());
     }
 
     /**
@@ -437,17 +413,15 @@ public final class CatalogManager {
     }
 
     private Optional<TableLookupResult> getPermanentTable(
-            ObjectIdentifier objectIdentifier, boolean needResolveSchema) {
+            ObjectIdentifier objectIdentifier, boolean resolve) {
         Catalog currentCatalog = catalogs.get(objectIdentifier.getCatalogName());
         ObjectPath objectPath = objectIdentifier.toObjectPath();
         if (currentCatalog != null) {
             try {
-                CatalogBaseTable catalogTable = currentCatalog.getTable(objectPath);
-                TableSchema resolvedSchema =
-                        needResolveSchema
-                                ? resolveTableSchema(catalogTable)
-                                : catalogTable.getSchema();
-                return Optional.of(TableLookupResult.permanent(catalogTable, resolvedSchema));
+                final CatalogBaseTable table = currentCatalog.getTable(objectPath);
+                final CatalogBaseTable resolvedTable =
+                        resolve ? resolveCatalogBaseTable(table) : table;
+                return Optional.of(TableLookupResult.permanent(resolvedTable));
             } catch (TableNotExistException e) {
                 // Ignore.
             }
@@ -668,10 +642,8 @@ public final class CatalogManager {
     public void createTable(
             CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfExists) {
         execute(
-                (catalog, path) -> {
-                    final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(table);
-                    catalog.createTable(path, resolvedTable, ignoreIfExists);
-                },
+                (catalog, path) ->
+                        catalog.createTable(path, resolveCatalogBaseTable(table), ignoreIfExists),
                 objectIdentifier,
                 false,
                 "CreateTable");
@@ -773,7 +745,10 @@ public final class CatalogManager {
     public void alterTable(
             CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
         execute(
-                (catalog, path) -> catalog.alterTable(path, table, ignoreIfNotExists),
+                (catalog, path) -> {
+                    final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(table);
+                    catalog.alterTable(path, resolvedTable, ignoreIfNotExists);
+                },
                 objectIdentifier,
                 ignoreIfNotExists,
                 "AlterTable");
@@ -816,8 +791,8 @@ public final class CatalogManager {
                                     + "Drop it first before removing the permanent %s.",
                             tableOrView, objectIdentifier, tableOrView));
         }
-        // we can't resolve the schema here, because the schema might be illegal and DROP TABLE
-        // doesn't care about the schema, so we skip schema resolve here, see FLINK-20937
+        // we can't resolve the table here, because the schema might be illegal and DROP TABLE
+        // doesn't care about the schema, so we skip table resolve here, see FLINK-20937
         final Optional<TableLookupResult> resultOpt = getPermanentTable(objectIdentifier, false);
         if (resultOpt.isPresent() && filter.test(resultOpt.get().getTable())) {
             execute(
@@ -868,16 +843,18 @@ public final class CatalogManager {
         return String.format("Could not execute %s in path %s", commandName, objectIdentifier);
     }
 
-    private CatalogBaseTable resolveCatalogBaseTable(CatalogBaseTable baseTable) {
+    private ResolvedCatalogBaseTable<?> resolveCatalogBaseTable(CatalogBaseTable baseTable) {
+        Preconditions.checkState(schemaResolver != null, "Schema resolver is not initialized.");
         if (baseTable instanceof CatalogTable) {
-            return resolvedCatalogTable((CatalogTable) baseTable);
+            return resolveCatalogTable((CatalogTable) baseTable);
         } else if (baseTable instanceof CatalogView) {
-            return resolvedCatalogView((CatalogView) baseTable);
+            return resolveCatalogView((CatalogView) baseTable);
         }
-        throw new IllegalArgumentException("Unknown kind of catalog base table.");
+        throw new IllegalArgumentException(
+                "Unknown kind of catalog base table: " + baseTable.getClass());
     }
 
-    private ResolvedCatalogTable resolvedCatalogTable(CatalogTable table) {
+    private ResolvedCatalogTable resolveCatalogTable(CatalogTable table) {
         if (table instanceof ResolvedCatalogTable) {
             return (ResolvedCatalogTable) table;
         }
@@ -885,7 +862,7 @@ public final class CatalogManager {
         return new ResolvedCatalogTable(table, resolvedSchema);
     }
 
-    private ResolvedCatalogView resolvedCatalogView(CatalogView view) {
+    private ResolvedCatalogView resolveCatalogView(CatalogView view) {
         if (view instanceof ResolvedCatalogView) {
             return (ResolvedCatalogView) view;
         }

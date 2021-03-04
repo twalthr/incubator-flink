@@ -237,7 +237,7 @@ public class CatalogBaseTableResolutionTest {
     private static CatalogManager catalogManager() {
         final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
 
-        catalogManager.initializeSchemaResolver(true, expressionResolverBuilder(catalogManager));
+        catalogManager.initSchemaResolver(true, expressionResolverBuilder(catalogManager));
 
         return catalogManager;
     }

@@ -21,7 +21,6 @@ package org.apache.flink.table.examples.java.basics;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
@@ -57,13 +56,7 @@ import static org.apache.flink.table.api.Expressions.withColumns;
  */
 public final class GettingStartedExample {
 
-    public static ResolvedCatalogTable cat() {
-        return null;
-    }
-
     public static void main(String[] args) throws Exception {
-
-        cat().getSchema().toSchema();
 
         // setup the unified API
         // in this case: declare that the table programs should be executed in batch mode

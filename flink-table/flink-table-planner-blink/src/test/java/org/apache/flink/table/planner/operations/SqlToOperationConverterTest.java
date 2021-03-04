@@ -28,7 +28,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -45,6 +44,7 @@ import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -149,8 +149,16 @@ public class SqlToOperationConverterTest {
 
     @Before
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {
-        catalogManager.setCatalogTableSchemaResolver(
-                new CatalogTableSchemaResolver(parser, isStreamingMode));
+        catalogManager.initSchemaResolver(
+                isStreamingMode,
+                ExpressionResolver.resolverFor(
+                        tableConfig,
+                        name -> {
+                            throw new UnsupportedOperationException();
+                        },
+                        functionCatalog.asLookup(parser::parseIdentifier),
+                        catalogManager.getDataTypeFactory(),
+                        parser::parseSqlExpression));
         final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
         final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
         final TableSchema tableSchema =
