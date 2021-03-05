@@ -22,7 +22,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.descriptors.FileSystem;
 
@@ -32,6 +31,8 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -54,17 +55,15 @@ public class HiveCatalogTest {
                         HiveTestUtils.createHiveConf());
 
         Map<String, String> prop = hiveTable.getParameters();
-        assertEquals(prop.remove(CatalogConfig.IS_GENERIC), String.valueOf("true"));
-        assertTrue(
-                prop.keySet().stream()
-                        .allMatch(k -> k.startsWith(CatalogConfig.FLINK_PROPERTY_PREFIX)));
+        assertEquals(prop.remove(IS_GENERIC), String.valueOf("true"));
+        assertTrue(prop.keySet().stream().allMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)));
     }
 
     @Test
     public void testCreateHiveTable() {
         Map<String, String> map = new HashMap<>(new FileSystem().path("/test_path").toProperties());
 
-        map.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+        map.put(IS_GENERIC, String.valueOf(false));
 
         Table hiveTable =
                 HiveTableUtil.instantiateHiveTable(
@@ -73,9 +72,7 @@ public class HiveCatalogTest {
                         HiveTestUtils.createHiveConf());
 
         Map<String, String> prop = hiveTable.getParameters();
-        assertEquals(prop.remove(CatalogConfig.IS_GENERIC), String.valueOf(false));
-        assertTrue(
-                prop.keySet().stream()
-                        .noneMatch(k -> k.startsWith(CatalogConfig.FLINK_PROPERTY_PREFIX)));
+        assertEquals(prop.remove(IS_GENERIC), String.valueOf(false));
+        assertTrue(prop.keySet().stream().noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)));
     }
 }

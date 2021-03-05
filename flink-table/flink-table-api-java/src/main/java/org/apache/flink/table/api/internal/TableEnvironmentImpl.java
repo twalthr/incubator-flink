@@ -846,7 +846,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             (AlterTableOptionsOperation) operation;
                     catalog.alterTable(
                             alterTablePropertiesOp.getTableIdentifier().toObjectPath(),
-                            alterTablePropertiesOp.getCatalogTable(),
+                            catalogManager.resolveCatalogBaseTable(
+                                    alterTablePropertiesOp.getCatalogTable()),
                             false);
                 } else if (alterTableOperation instanceof AlterTableAddConstraintOperation) {
                     AlterTableAddConstraintOperation addConstraintOP =
@@ -873,7 +874,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     oriTable.getOptions(),
                                     oriTable.getComment());
                     catalog.alterTable(
-                            addConstraintOP.getTableIdentifier().toObjectPath(), newTable, false);
+                            addConstraintOP.getTableIdentifier().toObjectPath(),
+                            catalogManager.resolveCatalogBaseTable(newTable),
+                            false);
                 } else if (alterTableOperation instanceof AlterTableDropConstraintOperation) {
                     AlterTableDropConstraintOperation dropConstraintOperation =
                             (AlterTableDropConstraintOperation) operation;
@@ -893,7 +896,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     oriTable.getComment());
                     catalog.alterTable(
                             dropConstraintOperation.getTableIdentifier().toObjectPath(),
-                            newTable,
+                            catalogManager.resolveCatalogBaseTable(newTable),
                             false);
                 } else if (alterTableOperation instanceof AlterPartitionPropertiesOperation) {
                     AlterPartitionPropertiesOperation alterPartPropsOp =
@@ -908,7 +911,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             (AlterTableSchemaOperation) alterTableOperation;
                     catalog.alterTable(
                             alterTableSchemaOperation.getTableIdentifier().toObjectPath(),
-                            alterTableSchemaOperation.getCatalogTable(),
+                            catalogManager.resolveCatalogBaseTable(
+                                    alterTableSchemaOperation.getCatalogTable()),
                             false);
                 } else if (alterTableOperation instanceof AddPartitionsOperation) {
                     AddPartitionsOperation addPartitionsOperation =

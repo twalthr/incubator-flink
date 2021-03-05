@@ -21,14 +21,13 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.resolver.ExpressionResolver;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.utils.CatalogManagerMocks;
-import org.apache.flink.table.utils.FunctionLookupMock;
+import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.junit.Test;
 
@@ -37,7 +36,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
@@ -237,19 +235,14 @@ public class CatalogBaseTableResolutionTest {
     private static CatalogManager catalogManager() {
         final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
 
-        catalogManager.initSchemaResolver(true, expressionResolverBuilder(catalogManager));
+        final ExpressionResolverBuilder expressionResolverBuilder =
+                ExpressionResolverMocks.forSqlExpression(
+                        catalogManager.getDataTypeFactory(),
+                        CatalogBaseTableResolutionTest::resolveSqlExpression);
+
+        catalogManager.initSchemaResolver(true, expressionResolverBuilder);
 
         return catalogManager;
-    }
-
-    private static ExpressionResolver.ExpressionResolverBuilder expressionResolverBuilder(
-            CatalogManager catalogManager) {
-        return ExpressionResolver.resolverFor(
-                new TableConfig(),
-                name -> Optional.empty(),
-                new FunctionLookupMock(Collections.emptyMap()),
-                catalogManager.getDataTypeFactory(),
-                CatalogBaseTableResolutionTest::resolveSqlExpression);
     }
 
     private static ResolvedExpression resolveSqlExpression(

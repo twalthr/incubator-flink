@@ -429,7 +429,7 @@ public class TableSchema {
                                 final Column.ComputedColumn c = (Column.ComputedColumn) column;
                                 return TableColumn.computed(
                                         c.getName(),
-                                        c.getExpression().getOutputDataType(),
+                                        c.getDataType(),
                                         c.getExpression().asSerializableString());
                             }
                             throw new IllegalArgumentException(

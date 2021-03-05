@@ -30,7 +30,6 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -66,6 +65,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
@@ -262,7 +262,7 @@ public class DependencyTest {
         @Override
         public List<String> supportedProperties() {
             List<String> list = super.supportedProperties();
-            list.add(CatalogConfig.IS_GENERIC);
+            list.add(IS_GENERIC);
 
             return list;
         }
@@ -291,7 +291,7 @@ public class DependencyTest {
                                 TableSchema.builder().field("testcol", DataTypes.INT()).build(),
                                 new HashMap<String, String>() {
                                     {
-                                        put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+                                        put(IS_GENERIC, String.valueOf(false));
                                     }
                                 },
                                 ""),
@@ -325,7 +325,7 @@ public class DependencyTest {
                     tableSchema,
                     new HashMap<String, String>() {
                         {
-                            put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+                            put(IS_GENERIC, String.valueOf(false));
                         }
                     },
                     "");

@@ -32,7 +32,6 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogTestUtil;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
@@ -60,6 +59,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -266,7 +266,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         catalog.dropTable(path1, true);
 
         Map<String, String> properties = new HashMap<>();
-        properties.put(CatalogConfig.IS_GENERIC, "false");
+        properties.put(IS_GENERIC, "false");
         properties.put(StatsSetupConst.ROW_COUNT, String.valueOf(inputStat));
         properties.put(StatsSetupConst.NUM_FILES, String.valueOf(inputStat));
         properties.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(inputStat));

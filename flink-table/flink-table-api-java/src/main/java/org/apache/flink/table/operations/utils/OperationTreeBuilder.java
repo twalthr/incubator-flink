@@ -686,9 +686,7 @@ public final class OperationTreeBuilder {
         }
 
         private List<String> extractAliases(UnresolvedCallExpression unresolvedCall) {
-            return unresolvedCall
-                    .getChildren()
-                    .subList(1, unresolvedCall.getChildren().size())
+            return unresolvedCall.getChildren().subList(1, unresolvedCall.getChildren().size())
                     .stream()
                     .map(
                             ex ->

@@ -1380,7 +1380,7 @@ public abstract class CatalogTest {
     }
 
     /** Test table used to assert on table of different class. */
-    public static class TestTable implements CatalogBaseTable {
+    public static class TestTable implements CatalogTable {
 
         @Override
         public Map<String, String> getOptions() {
@@ -1410,6 +1410,26 @@ public abstract class CatalogTest {
         @Override
         public Optional<String> getDetailedDescription() {
             return Optional.empty();
+        }
+
+        @Override
+        public boolean isPartitioned() {
+            return false;
+        }
+
+        @Override
+        public List<String> getPartitionKeys() {
+            return null;
+        }
+
+        @Override
+        public CatalogTable copy(Map<String, String> options) {
+            return null;
+        }
+
+        @Override
+        public Map<String, String> toProperties() {
+            return null;
         }
     }
 

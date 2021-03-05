@@ -25,7 +25,6 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -41,6 +40,7 @@ import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 import static org.junit.Assert.assertEquals;
 
 /** Test for data type mappings in HiveCatalog. */
@@ -199,7 +199,7 @@ public class HiveCatalogDataTypeTest {
                 new HashMap<String, String>() {
                     {
                         put("is_streaming", "false");
-                        put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+                        put(IS_GENERIC, String.valueOf(false));
                     }
                 },
                 "");

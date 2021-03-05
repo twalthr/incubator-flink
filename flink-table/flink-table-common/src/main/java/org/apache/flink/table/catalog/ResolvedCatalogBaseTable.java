@@ -25,7 +25,7 @@ import org.apache.flink.table.api.TableSchema;
  *
  * @param <T> {@link CatalogTable} or {@link CatalogView}
  */
-interface ResolvedCatalogBaseTable<T extends CatalogBaseTable> extends CatalogBaseTable {
+public interface ResolvedCatalogBaseTable<T extends CatalogBaseTable> extends CatalogBaseTable {
 
     /**
      * Returns the original, unresolved metadata object from the {@link Catalog}.

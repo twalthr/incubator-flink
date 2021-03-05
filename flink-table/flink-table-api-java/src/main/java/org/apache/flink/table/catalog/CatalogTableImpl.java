@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.COMMENT;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.SCHEMA;
 
@@ -101,6 +102,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
         descriptorProperties.putProperties(properties);
         TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
         List<String> partitionKeys = descriptorProperties.getPartitionKeys();
+
         return new CatalogTableImpl(
                 tableSchema,
                 partitionKeys,
@@ -115,6 +117,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
         DescriptorProperties descriptorProperties = new DescriptorProperties();
         descriptorProperties.putTableSchema(SCHEMA, schema);
         descriptorProperties.putPartitionKeys(partitionKeys);
+        descriptorProperties.putString(COMMENT, "");
         descriptorProperties.asMap().keySet().forEach(ret::remove);
         return ret;
     }

@@ -23,7 +23,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
@@ -37,12 +36,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.EXPR;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.PRIMARY_KEY_COLUMNS;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.PRIMARY_KEY_NAME;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_ROWTIME;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
-import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_FROM;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_TYPE;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE;
@@ -88,8 +89,8 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
         properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_EXPR);
         properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_DATA_TYPE);
         // table constraint
-        properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
-        properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+        properties.add(SCHEMA + "." + PRIMARY_KEY_NAME);
+        properties.add(SCHEMA + "." + PRIMARY_KEY_COLUMNS);
 
         return properties;
     }

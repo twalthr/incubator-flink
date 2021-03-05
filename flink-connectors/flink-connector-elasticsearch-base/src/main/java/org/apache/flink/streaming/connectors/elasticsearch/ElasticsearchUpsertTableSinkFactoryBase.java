@@ -50,14 +50,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.EXPR;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.PRIMARY_KEY_COLUMNS;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.PRIMARY_KEY_NAME;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_ROWTIME;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
-import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
-import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_BULK_FLUSH_BACKOFF_DELAY;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_BULK_FLUSH_BACKOFF_MAX_RETRIES;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_BULK_FLUSH_BACKOFF_TYPE;
@@ -158,8 +160,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase
         properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_DATA_TYPE);
 
         // table constraint
-        properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
-        properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+        properties.add(SCHEMA + "." + PRIMARY_KEY_NAME);
+        properties.add(SCHEMA + "." + PRIMARY_KEY_COLUMNS);
 
         // format wildcard
         properties.add(FORMAT + ".*");

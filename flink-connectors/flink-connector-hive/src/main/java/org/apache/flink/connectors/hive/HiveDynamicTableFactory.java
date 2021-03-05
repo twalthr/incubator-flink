@@ -21,7 +21,6 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
@@ -36,7 +35,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.table.catalog.config.CatalogConfig.IS_GENERIC;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_ENABLE;
 import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
 
@@ -78,8 +77,7 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
         boolean isGeneric =
-                Boolean.parseBoolean(
-                        context.getCatalogTable().getOptions().get(CatalogConfig.IS_GENERIC));
+                Boolean.parseBoolean(context.getCatalogTable().getOptions().get(IS_GENERIC));
 
         // temporary table doesn't have the IS_GENERIC flag but we still consider it generic
         if (!isGeneric && !context.isTemporary()) {
@@ -102,8 +100,7 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
     @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
         boolean isGeneric =
-                Boolean.parseBoolean(
-                        context.getCatalogTable().getOptions().get(CatalogConfig.IS_GENERIC));
+                Boolean.parseBoolean(context.getCatalogTable().getOptions().get(IS_GENERIC));
 
         // temporary table doesn't have the IS_GENERIC flag but we still consider it generic
         if (!isGeneric && !context.isTemporary()) {
