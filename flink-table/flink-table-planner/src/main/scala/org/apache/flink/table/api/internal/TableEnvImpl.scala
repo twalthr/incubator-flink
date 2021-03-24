@@ -283,6 +283,10 @@ abstract class TableEnvImpl(
     catalogManager.getCatalog(catalogName)
   }
 
+  override def getOperationTreeBuilder: OperationTreeBuilder = {
+    operationTreeBuilder
+  }
+
   override def loadModule(moduleName: String, module: Module): Unit = {
     moduleManager.loadModule(moduleName, module)
   }

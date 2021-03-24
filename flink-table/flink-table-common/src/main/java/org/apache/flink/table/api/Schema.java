@@ -312,6 +312,45 @@ public final class Schema {
          * column differs from the data type of the metadata field. Of course, this requires that
          * the two data types are compatible.
          *
+         * <p>Note: This method assumes that the metadata key is equal to the column name and the
+         * metadata column can be used for both reading and writing.
+         *
+         * @param columnName column name
+         * @param dataType data type of the column
+         */
+        public Builder columnByMetadata(String columnName, AbstractDataType<?> dataType) {
+            Preconditions.checkNotNull(columnName, "Column name must not be null.");
+            columns.add(new UnresolvedMetadataColumn(columnName, dataType, null, false));
+            return this;
+        }
+
+        /**
+         * Declares a metadata column that is appended to this schema.
+         *
+         * <p>See {@link #columnByMetadata(String, AbstractDataType)} for a detailed explanation.
+         *
+         * <p>This method uses a type string that can be easily persisted in a durable catalog.
+         *
+         * @param columnName column name
+         * @param serializableTypeString data type of the column
+         */
+        public Builder columnByMetadata(String columnName, String serializableTypeString) {
+            return columnByMetadata(columnName, DataTypes.of(serializableTypeString));
+        }
+
+        /**
+         * Declares a metadata column that is appended to this schema.
+         *
+         * <p>Metadata columns allow to access connector and/or format specific fields for every row
+         * of a table. For example, a metadata column can be used to read and write the timestamp
+         * from and to Kafka records for time-based operations. The connector and format
+         * documentation lists the available metadata fields for every component.
+         *
+         * <p>Every metadata field is identified by a string-based key and has a documented data
+         * type. For convenience, the runtime will perform an explicit cast if the data type of the
+         * column differs from the data type of the metadata field. Of course, this requires that
+         * the two data types are compatible.
+         *
          * <p>By default, a metadata column can be used for both reading and writing. However, in
          * many cases an external system provides more read-only metadata fields than writable
          * fields. Therefore, it is possible to exclude metadata columns from persisting by setting

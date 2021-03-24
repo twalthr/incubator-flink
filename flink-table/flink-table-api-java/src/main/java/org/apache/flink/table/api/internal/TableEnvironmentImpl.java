@@ -1427,6 +1427,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return catalogManager;
     }
 
+    @Override
+    public OperationTreeBuilder getOperationTreeBuilder() {
+        return operationTreeBuilder;
+    }
+
     /**
      * Subclasses can override this method to transform the given QueryOperation to a new one with
      * the qualified object identifier. This is needed for some QueryOperations, e.g.

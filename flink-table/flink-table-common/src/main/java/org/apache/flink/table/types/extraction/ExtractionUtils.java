@@ -194,7 +194,7 @@ public final class ExtractionUtils {
      * both Java and Scala in different flavors.
      */
     public static Optional<Method> getStructuredFieldGetter(Class<?> clazz, Field field) {
-        final String normalizedFieldName = field.getName().toUpperCase();
+        final String normalizedFieldName = field.getName().toUpperCase().replaceAll("_", "");
 
         final List<Method> methods = collectStructuredMethods(clazz);
         for (Method method : methods) {
@@ -202,7 +202,7 @@ public final class ExtractionUtils {
             // get<Name>()
             // is<Name>()
             // <Name>() for Scala
-            final String normalizedMethodName = method.getName().toUpperCase();
+            final String normalizedMethodName = method.getName().toUpperCase().replaceAll("_", "");
             final boolean hasName =
                     normalizedMethodName.equals("GET" + normalizedFieldName)
                             || normalizedMethodName.equals("IS" + normalizedFieldName)

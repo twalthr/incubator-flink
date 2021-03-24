@@ -18,17 +18,19 @@
 
 package org.apache.flink.table.examples.java.basics;
 
+import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
-import java.util.Arrays;
+import java.time.Duration;
 import java.util.Objects;
-
-import static org.apache.flink.table.api.Expressions.$;
 
 /**
  * Simple example for demonstrating the use of SQL on a Stream Table in Java.
@@ -68,38 +70,32 @@ public class StreamSQLExample {
             return;
         }
 
-        DataStream<Order> orderA =
-                env.fromCollection(
-                        Arrays.asList(
-                                new Order(1L, "beer", 3),
-                                new Order(1L, "diaper", 4),
-                                new Order(3L, "rubber", 2)));
+        SerializableTimestampAssigner<Integer> assigner = (element, recordTimestamp) -> element;
 
-        DataStream<Order> orderB =
-                env.fromCollection(
-                        Arrays.asList(
-                                new Order(2L, "pen", 3),
-                                new Order(2L, "rubber", 3),
-                                new Order(4L, "beer", 1)));
+        DataStream<Integer> orderA =
+                env.fromElements(1, 2, 3)
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.<Integer>forBoundedOutOfOrderness(
+                                                Duration.ofSeconds(1))
+                                        .withTimestampAssigner(assigner));
 
         // convert DataStream to Table
-        Table tableA = tEnv.fromDataStream(orderA, $("user"), $("product"), $("amount"));
-        // register DataStream as Table
-        tEnv.createTemporaryView("OrderB", orderB, $("user"), $("product"), $("amount"));
+        Table t =
+                tEnv.fromDataStream(
+                        orderA,
+                        Schema.newBuilder()
+                                .columnByMetadata("rowtime", DataTypes.TIMESTAMP(3))
+                                .watermark("rowtime", "source_watermark()")
+                                .build());
 
-        // union the two tables
-        Table result =
-                tEnv.sqlQuery(
-                        "SELECT * FROM "
-                                + tableA
-                                + " WHERE amount > 2 UNION ALL "
-                                + "SELECT * FROM OrderB WHERE amount < 2");
+        t.execute().print();
 
-        tEnv.toAppendStream(result, Order.class).print();
-
-        // after the table program is converted to DataStream program,
-        // we must use `env.execute()` to submit the job.
-        env.execute();
+        //        System.out.println(
+        //                tEnv.explainSql(
+        //                        "SELECT f0, COUNT(*) FROM "
+        //                                + t
+        //                                + " GROUP BY f0, TUMBLE(rowtime, INTERVAL '0.001'
+        // SECOND)"));
     }
 
     // *************************************************************************

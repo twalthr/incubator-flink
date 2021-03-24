@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -199,17 +200,9 @@ public interface StreamTableEnvironment extends TableEnvironment {
     <T, ACC> void registerFunction(
             String name, TableAggregateFunction<T, ACC> tableAggregateFunction);
 
-    /**
-     * Converts the given {@link DataStream} into a {@link Table}.
-     *
-     * <p>The field names of the {@link Table} are automatically derived from the type of the {@link
-     * DataStream}.
-     *
-     * @param dataStream The {@link DataStream} to be converted.
-     * @param <T> The type of the {@link DataStream}.
-     * @return The converted {@link Table}.
-     */
     <T> Table fromDataStream(DataStream<T> dataStream);
+
+    <T> Table fromDataStream(DataStream<T> dataStream, Schema schema);
 
     /**
      * Converts the given {@link DataStream} into a {@link Table} with specified field names.
@@ -329,23 +322,9 @@ public interface StreamTableEnvironment extends TableEnvironment {
     @Deprecated
     <T> void registerDataStream(String name, DataStream<T> dataStream);
 
-    /**
-     * Creates a view from the given {@link DataStream} in a given path. Registered views can be
-     * referenced in SQL queries.
-     *
-     * <p>The field names of the {@link Table} are automatically derived from the type of the {@link
-     * DataStream}.
-     *
-     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-     * it will be inaccessible in the current session. To make the permanent object available again
-     * you can drop the corresponding temporary object.
-     *
-     * @param path The path under which the {@link DataStream} is created. See also the {@link
-     *     TableEnvironment} class description for the format of the path.
-     * @param dataStream The {@link DataStream} out of which to create the view.
-     * @param <T> The type of the {@link DataStream}.
-     */
     <T> void createTemporaryView(String path, DataStream<T> dataStream);
+
+    <T> void createTemporaryView(String path, DataStream<T> dataStream, Schema schema);
 
     /**
      * Creates a view from the given {@link DataStream} in a given path with specified field names.

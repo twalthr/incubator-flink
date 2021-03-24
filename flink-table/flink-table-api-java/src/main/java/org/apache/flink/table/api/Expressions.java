@@ -297,6 +297,10 @@ public final class Expressions {
                 timePoint2);
     }
 
+    public static ApiExpression source_watermark() {
+        return apiCall(BuiltInFunctionDefinitions.SOURCE_WATERMARK);
+    }
+
     /** Creates an array of literals. */
     public static ApiExpression array(Object head, Object... tail) {
         return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.ARRAY, head, tail);
