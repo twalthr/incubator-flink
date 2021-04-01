@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.SelectResultProvider;
+import org.apache.flink.table.api.internal.CollectResultProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -90,8 +90,8 @@ public abstract class SelectTableSinkBase<T> implements StreamTableSink<T> {
         return sink.name("Select table sink");
     }
 
-    public SelectResultProvider getSelectResultProvider() {
-        return new SelectResultProvider() {
+    public CollectResultProvider getSelectResultProvider() {
+        return new CollectResultProvider() {
             @Override
             public void setJobClient(JobClient jobClient) {
                 iterator.setJobClient(jobClient);

@@ -85,10 +85,6 @@ class BatchPlanner(
     }
   }
 
-  override protected def createSelectTableSink(tableSchema: TableSchema): SelectTableSinkBase[_] = {
-    new BatchSelectTableSink(tableSchema)
-  }
-
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
     require(operations.nonEmpty, "operations should not be empty")
     validateAndOverrideConfiguration()

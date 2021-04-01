@@ -187,21 +187,9 @@ abstract class PlannerBase(
           "UnregisteredSink",
           ConnectorCatalogTable.sink(s.getSink, !isStreamingMode))
 
-      case s: SelectSinkOperation =>
-        val input = getRelBuilder.queryOperation(s.getChild).build()
-        // convert query schema to sink schema
-        val sinkSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
-          SelectTableSinkSchemaConverter.changeDefaultConversionClass(
-            TableSchema.fromResolvedSchema(s.getChild.getResolvedSchema)))
-        // validate query schema and sink schema, and apply cast if possible
-        val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, null, getTypeFactory)
-        val sink = createSelectTableSink(sinkSchema)
-        s.setSelectResultProvider(sink.getSelectResultProvider)
-        LogicalLegacySink.create(
-          query,
-          sink,
-          "collect",
-          ConnectorCatalogTable.sink(sink, !isStreamingMode))
+      case collectModifyOperation: CollectModifyOperation =>
+        val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
+        DynamicSinkUtils.convertCollectToRel(getRelBuilder, input, collectModifyOperation)
 
       case catalogSink: CatalogSinkModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
@@ -328,14 +316,6 @@ abstract class PlannerBase(
     * @return The [[Transformation]] DAG that corresponds to the node DAG.
     */
   protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]]
-
-  /**
-   * Creates a [[SelectTableSinkBase]] for a select query.
-   *
-   * @param tableSchema the table schema of select result.
-   * @return The sink to fetch the select result.
-   */
-  protected def createSelectTableSink(tableSchema: TableSchema): SelectTableSinkBase[_]
 
   private def getTableSink(
       objectIdentifier: ObjectIdentifier,

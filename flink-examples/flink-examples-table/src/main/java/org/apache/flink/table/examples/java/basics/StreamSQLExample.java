@@ -95,11 +95,11 @@ public class StreamSQLExample {
                                 + " WHERE amount > 2 UNION ALL "
                                 + "SELECT * FROM OrderB WHERE amount < 2");
 
-        tEnv.toAppendStream(result, Order.class).print();
+        result.execute().collect().forEachRemaining(System.out::println);
 
         // after the table program is converted to DataStream program,
         // we must use `env.execute()` to submit the job.
-        env.execute();
+        // env.execute();
     }
 
     // *************************************************************************
