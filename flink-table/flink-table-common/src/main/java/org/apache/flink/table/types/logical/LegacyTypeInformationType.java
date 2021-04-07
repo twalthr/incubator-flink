@@ -40,12 +40,12 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInte
  * the stack whereas {@link TypeInformationRawType} should be resolved eagerly to {@link RawType} by
  * the planner.
  *
- * <p>This class can be removed once we have removed all deprecated methods that take or return
- * {@link TypeInformation}.
- *
+ * @deprecated This class can be removed once we have removed all deprecated methods that take or
+ *     return {@link TypeInformation}.
  * @see LegacyTypeInfoDataTypeConverter
  */
 @Internal
+@Deprecated
 public final class LegacyTypeInformationType<T> extends LogicalType {
     private static final long serialVersionUID = 1L;
 

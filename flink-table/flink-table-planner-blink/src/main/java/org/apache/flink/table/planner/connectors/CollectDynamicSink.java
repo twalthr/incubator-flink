@@ -19,11 +19,25 @@
 package org.apache.flink.table.planner.connectors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
+import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.CollectResultProvider;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.ExternalTypeInfo;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 
 /** Table sink for {@link TableResult#collect()}. */
 @Internal
@@ -33,9 +47,29 @@ final class CollectDynamicSink implements DynamicTableSink {
 
     private final DataType consumedDataType;
 
+    // mutable attributes
+
+    private CollectResultIterator<RowData> iterator;
+
     CollectDynamicSink(ObjectIdentifier tableIdentifier, DataType consumedDataType) {
         this.tableIdentifier = tableIdentifier;
         this.consumedDataType = consumedDataType;
+    }
+
+    public CollectResultProvider getSelectResultProvider() {
+        return new CollectResultProvider() {
+            @Override
+            public void setJobClient(JobClient jobClient) {
+                iterator.setJobClient(jobClient);
+            }
+
+            @Override
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            public CloseableIterator<Row> getResultIterator() {
+                // Row after deserialization
+                return (CloseableIterator) iterator;
+            }
+        };
     }
 
     @Override
@@ -45,8 +79,33 @@ final class CollectDynamicSink implements DynamicTableSink {
 
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
+        return (DataStreamSinkProvider)
+                inputStream -> {
+                    final CheckpointConfig checkpointConfig =
+                            inputStream.getExecutionEnvironment().getCheckpointConfig();
+                    final ExecutionConfig config = inputStream.getExecutionConfig();
 
-        return null;
+                    final TypeSerializer<RowData> externalSerializer =
+                            ExternalTypeInfo.<RowData>of(consumedDataType, true)
+                                    .createSerializer(config);
+                    final String accumulatorName = tableIdentifier.getObjectName();
+
+                    final CollectSinkOperatorFactory<RowData> factory =
+                            new CollectSinkOperatorFactory<>(externalSerializer, accumulatorName);
+                    final CollectSinkOperator<RowData> operator =
+                            (CollectSinkOperator<RowData>) factory.getOperator();
+
+                    this.iterator =
+                            new CollectResultIterator<>(
+                                    operator.getOperatorIdFuture(),
+                                    externalSerializer,
+                                    accumulatorName,
+                                    checkpointConfig);
+
+                    final CollectStreamSink<RowData> sink =
+                            new CollectStreamSink<>(inputStream, factory);
+                    return sink.name("Collect table sink");
+                };
     }
 
     @Override
@@ -56,6 +115,6 @@ final class CollectDynamicSink implements DynamicTableSink {
 
     @Override
     public String asSummaryString() {
-        return null;
+        return String.format("TableToCollect(type=%s)", consumedDataType);
     }
 }

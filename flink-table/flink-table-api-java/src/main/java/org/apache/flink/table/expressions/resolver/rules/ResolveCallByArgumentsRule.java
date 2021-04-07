@@ -228,6 +228,9 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                                     resolvedArgs),
                             surroundingInfo);
 
+            // TODO erase the conversion class of the inference result to not let them travel
+            //  through the API stack
+
             final List<ResolvedExpression> adaptedArguments =
                     adaptArguments(inferenceResult, resolvedArgs);
 

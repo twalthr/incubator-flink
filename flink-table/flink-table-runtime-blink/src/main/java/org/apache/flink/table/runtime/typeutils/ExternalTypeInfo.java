@@ -64,20 +64,27 @@ public final class ExternalTypeInfo<T> extends TypeInformation<T> implements Dat
      * structures but serialized and deserialized into external data structures.
      */
     public static <T> ExternalTypeInfo<T> of(DataType dataType) {
-        final TypeSerializer<T> serializer = createExternalTypeSerializer(dataType);
+        final TypeSerializer<T> serializer = createExternalTypeSerializer(dataType, false);
+        return new ExternalTypeInfo<>(dataType, serializer);
+    }
+
+    public static <T> ExternalTypeInfo<T> of(DataType dataType, boolean isInternalInput) {
+        final TypeSerializer<T> serializer =
+                createExternalTypeSerializer(dataType, isInternalInput);
         return new ExternalTypeInfo<>(dataType, serializer);
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> TypeSerializer<T> createExternalTypeSerializer(DataType dataType) {
+    private static <T> TypeSerializer<T> createExternalTypeSerializer(
+            DataType dataType, boolean isInternalInput) {
         final LogicalType logicalType = dataType.getLogicalType();
-        if (logicalType instanceof RawType) {
+        if (logicalType instanceof RawType && !isInternalInput) {
             final RawType<?> rawType = (RawType<?>) logicalType;
             if (dataType.getConversionClass() == rawType.getOriginatingClass()) {
                 return (TypeSerializer<T>) rawType.getTypeSerializer();
             }
         }
-        return ExternalSerializer.of(dataType);
+        return ExternalSerializer.of(dataType, isInternalInput);
     }
 
     // --------------------------------------------------------------------------------------------

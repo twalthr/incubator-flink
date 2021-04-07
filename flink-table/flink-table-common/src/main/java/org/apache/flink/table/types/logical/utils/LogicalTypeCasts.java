@@ -59,6 +59,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_YEAR_MONTH;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.NULL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.RAW;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.SMALLINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TYPE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.SYMBOL;
@@ -335,8 +336,11 @@ public final class LogicalTypeCasts {
             LogicalType sourceType, LogicalType targetType, boolean allowExplicit) {
         final LogicalTypeRoot sourceRoot = sourceType.getTypeRoot();
         final LogicalTypeRoot targetRoot = targetType.getTypeRoot();
-        // all constructed types can only be casted within the same type root
-        if (sourceRoot == targetRoot) {
+        // all constructed types can only be casted within the same type root,
+        // however, a casting between row and structured types is allowed
+        if (sourceRoot == targetRoot
+                || (sourceRoot == ROW && targetRoot == STRUCTURED_TYPE)
+                || (sourceRoot == STRUCTURED_TYPE && targetRoot == ROW)) {
             final List<LogicalType> sourceChildren = sourceType.getChildren();
             final List<LogicalType> targetChildren = targetType.getChildren();
             if (sourceChildren.size() != targetChildren.size()) {

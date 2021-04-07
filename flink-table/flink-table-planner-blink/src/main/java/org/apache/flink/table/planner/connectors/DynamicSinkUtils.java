@@ -50,6 +50,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
@@ -88,9 +89,22 @@ public final class DynamicSinkUtils {
                         childSchema.getColumnNames(), childSchema.getColumnDataTypes());
         final CatalogTable unresolvedTable = new InlineCatalogTable(schema);
         final ResolvedCatalogTable catalogTable = new ResolvedCatalogTable(unresolvedTable, schema);
-        final DynamicTableSink tableSink =
+
+        // TODO remove the following lines and erase the conversion class earlier
+        //  when dropping legacy code
+        final DataType fixedDataType =
+                DataTypeUtils.transform(
+                        schema.toSourceRowDataType(),
+                        TypeTransformations.legacyDecimalToDefaultDecimal(),
+                        TypeTransformations.legacyRawToTypeInfoRaw(),
+                        TypeTransformations.legacyToNonLegacy());
+        final DataType defaultDataType =
+                TypeConversions.fromLogicalToDataType(fixedDataType.getLogicalType());
+
+        final CollectDynamicSink tableSink =
                 new CollectDynamicSink(
-                        collectModifyOperation.getTableIdentifier(), schema.toSourceRowDataType());
+                        collectModifyOperation.getTableIdentifier(), defaultDataType);
+        collectModifyOperation.setSelectResultProvider(tableSink.getSelectResultProvider());
         return convertSinkToRel(
                 relBuilder,
                 input,
@@ -412,6 +426,7 @@ public final class DynamicSinkUtils {
                 sinkDataType,
                 TypeTransformations.legacyDecimalToDefaultDecimal(),
                 TypeTransformations.legacyRawToTypeInfoRaw(),
+                TypeTransformations.legacyToNonLegacy(),
                 TypeTransformations.toNullable());
     }
 

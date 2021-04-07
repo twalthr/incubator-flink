@@ -22,11 +22,10 @@ import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException, TableSchema}
+import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
-import org.apache.flink.table.planner.connectors.{BatchSelectTableSink, SelectTableSinkBase}
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph

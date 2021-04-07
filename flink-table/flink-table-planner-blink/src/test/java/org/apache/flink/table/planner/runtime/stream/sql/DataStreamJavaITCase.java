@@ -184,9 +184,12 @@ public class DataStreamJavaITCase extends AbstractTestBase {
 
         tableEnv.createTemporaryView("t", table);
 
-        final TableResult result = tableEnv.executeSql("SELECT p.d, p.b FROM t");
+        final TableResult result = tableEnv.executeSql("SELECT p, p.d, p.b FROM t");
 
-        testResult(result, Row.of(42.0, null), Row.of(null, null));
+        testResult(
+                result,
+                Row.of(new ImmutablePojo(42.0, null), 42.0, null),
+                Row.of(null, null, null));
 
         testResult(tableEnv.toDataStream(table, ComplexPojo.class), pojos);
     }

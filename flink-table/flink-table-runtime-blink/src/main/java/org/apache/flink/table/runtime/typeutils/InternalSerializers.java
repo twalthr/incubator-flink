@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
@@ -74,6 +75,12 @@ public final class InternalSerializers {
             case VARBINARY:
                 return BytePrimitiveArraySerializer.INSTANCE;
             case DECIMAL:
+                if (type instanceof LegacyTypeInformationType) {
+                    return new RawValueDataSerializer<>(
+                            ((LegacyTypeInformationType<?>) type)
+                                    .getTypeInformation()
+                                    .createSerializer(new ExecutionConfig()));
+                }
                 return new DecimalDataSerializer(getPrecision(type), getScale(type));
             case TINYINT:
                 return ByteSerializer.INSTANCE;
@@ -110,14 +117,20 @@ public final class InternalSerializers {
             case DISTINCT_TYPE:
                 return create(((DistinctType) type).getSourceType());
             case RAW:
-                if (type instanceof RawType) {
-                    final RawType<?> rawType = (RawType<?>) type;
-                    return new RawValueDataSerializer<>(rawType.getTypeSerializer());
+                if (type instanceof TypeInformationRawType) {
+                    return new RawValueDataSerializer<>(
+                            ((TypeInformationRawType<?>) type)
+                                    .getTypeInformation()
+                                    .createSerializer(new ExecutionConfig()));
+                } else if (type instanceof LegacyTypeInformationType) {
+                    return new RawValueDataSerializer<>(
+                            ((LegacyTypeInformationType<?>) type)
+                                    .getTypeInformation()
+                                    .createSerializer(new ExecutionConfig()));
                 }
-                return new RawValueDataSerializer<>(
-                        ((TypeInformationRawType<?>) type)
-                                .getTypeInformation()
-                                .createSerializer(new ExecutionConfig()));
+                final RawType<?> rawType = (RawType<?>) type;
+                return new RawValueDataSerializer<>(rawType.getTypeSerializer());
+
             case NULL:
             case SYMBOL:
             case UNRESOLVED:

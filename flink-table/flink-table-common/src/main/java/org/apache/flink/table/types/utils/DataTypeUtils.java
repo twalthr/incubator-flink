@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.AtomicDataType;
@@ -48,6 +49,8 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -226,23 +229,36 @@ public final class DataTypeUtils {
     /**
      * Transforms the given data type to a different data type using the given transformations.
      *
+     * @see #transform(DataTypeFactory, DataType, TypeTransformation...)
+     */
+    public static DataType transform(
+            DataType typeToTransform, TypeTransformation... transformations) {
+        return transform(null, typeToTransform, transformations);
+    }
+
+    /**
+     * Transforms the given data type to a different data type using the given transformations.
+     *
      * <p>The transformations will be called in the given order. In case of constructed or composite
      * types, a transformation will be applied transitively to children first.
      *
      * <p>Both the {@link DataType#getLogicalType()} and {@link DataType#getConversionClass()} can
      * be transformed.
      *
+     * @param factory {@link DataTypeFactory} if available
      * @param typeToTransform data type to be transformed.
      * @param transformations the transformations to transform data type to another type.
      * @return the new data type
      */
     public static DataType transform(
-            DataType typeToTransform, TypeTransformation... transformations) {
+            @Nullable DataTypeFactory factory,
+            DataType typeToTransform,
+            TypeTransformation... transformations) {
         Preconditions.checkArgument(
                 transformations.length > 0, "transformations should not be empty.");
         DataType newType = typeToTransform;
         for (TypeTransformation transformation : transformations) {
-            newType = newType.accept(new DataTypeTransformer(transformation));
+            newType = newType.accept(new DataTypeTransformer(factory, transformation));
         }
         return newType;
     }
@@ -400,15 +416,19 @@ public final class DataTypeUtils {
      */
     private static class DataTypeTransformer implements DataTypeVisitor<DataType> {
 
+        private final @Nullable DataTypeFactory factory;
+
         private final TypeTransformation transformation;
 
-        private DataTypeTransformer(TypeTransformation transformation) {
+        private DataTypeTransformer(
+                @Nullable DataTypeFactory factory, TypeTransformation transformation) {
+            this.factory = factory;
             this.transformation = transformation;
         }
 
         @Override
         public DataType visit(AtomicDataType atomicDataType) {
-            return transformation.transform(atomicDataType);
+            return transformation.transform(factory, atomicDataType);
         }
 
         @Override
@@ -427,6 +447,7 @@ public final class DataTypeUtils {
                         "Unsupported logical type : " + logicalType);
             }
             return transformation.transform(
+                    factory,
                     new CollectionDataType(
                             newLogicalType,
                             collectionDataType.getConversionClass(),
@@ -492,6 +513,7 @@ public final class DataTypeUtils {
                         "Unsupported logical type : " + logicalType);
             }
             return transformation.transform(
+                    factory,
                     new FieldsDataType(
                             newLogicalType, fieldsDataType.getConversionClass(), newDataTypes));
         }
@@ -513,6 +535,7 @@ public final class DataTypeUtils {
                         "Unsupported logical type : " + logicalType);
             }
             return transformation.transform(
+                    factory,
                     new KeyValueDataType(
                             newLogicalType,
                             keyValueDataType.getConversionClass(),

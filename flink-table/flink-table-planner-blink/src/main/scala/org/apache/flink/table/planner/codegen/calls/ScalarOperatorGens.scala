@@ -36,9 +36,12 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils._
 import org.apache.flink.table.types.logical.LogicalTypeFamily.DATETIME
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
+import org.apache.flink.table.types.logical.utils.{LogicalTypeCasts, LogicalTypeChecks}
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getFieldTypes}
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.util.Preconditions.checkArgument
+
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
@@ -1318,7 +1321,8 @@ object ScalarOperatorGens {
           | (INTERVAL_YEAR_MONTH, BIGINT) =>
       internalExprCasting(operand, targetType)
 
-    case (ROW, ROW) if LogicalTypeCasts.supportsExplicitCast(operand.resultType, targetType) =>
+    case (ROW | STRUCTURED_TYPE, ROW | STRUCTURED_TYPE)
+        if supportsExplicitCast(operand.resultType, targetType) =>
       generateCastRowToRow(ctx, operand, targetType)
 
     case (_, _) =>
@@ -1458,11 +1462,10 @@ object ScalarOperatorGens {
 
   def generateRow(
       ctx: CodeGeneratorContext,
-      resultType: LogicalType,
+      rowType: LogicalType,
       elements: Seq[GeneratedExpression]): GeneratedExpression = {
-    checkArgument(resultType.isInstanceOf[RowType])
-    val rowType = resultType.asInstanceOf[RowType]
-    val fieldTypes = rowType.getChildren
+    checkArgument(rowType.isInstanceOf[RowType] || rowType.isInstanceOf[StructuredType])
+    val fieldTypes = LogicalTypeChecks.getFieldTypes(rowType)
     val isLiteral = elements.forall(e => e.literal)
     val isPrimitive = fieldTypes.forall(PlannerTypeUtils.isPrimitive)
 
@@ -1512,7 +1515,7 @@ object ScalarOperatorGens {
 
   private def generateLiteralRow(
       ctx: CodeGeneratorContext,
-      rowType: RowType,
+      rowType: LogicalType,
       elements: Seq[GeneratedExpression]): GeneratedExpression = {
     checkArgument(elements.forall(e => e.literal))
     val expr = generateNonLiteralRow(ctx, rowType, elements)
@@ -1522,8 +1525,9 @@ object ScalarOperatorGens {
 
   private def generateNonLiteralRow(
       ctx: CodeGeneratorContext,
-      rowType: RowType,
+      rowType: LogicalType,
       elements: Seq[GeneratedExpression]): GeneratedExpression = {
+    val fieldTypes = getFieldTypes(rowType)
 
     val rowTerm = newName("row")
     val writerTerm = newName("writer")
@@ -1531,7 +1535,7 @@ object ScalarOperatorGens {
 
     val writeCode = elements.zipWithIndex.map {
       case (element, idx) =>
-        val tpe = rowType.getTypeAt(idx)
+        val tpe = fieldTypes.get(idx)
         if (ctx.nullCheck) {
           s"""
              |${element.code}
@@ -1556,7 +1560,7 @@ object ScalarOperatorGens {
          |$writerTerm.complete();
        """.stripMargin
 
-    ctx.addReusableMember(s"$BINARY_ROW $rowTerm = new $BINARY_ROW(${rowType.getFieldCount});")
+    ctx.addReusableMember(s"$BINARY_ROW $rowTerm = new $BINARY_ROW(${fieldTypes.size()});")
     ctx.addReusableMember(s"$writerCls $writerTerm = new $writerCls($rowTerm);")
     GeneratedExpression(rowTerm, GeneratedExpression.NEVER_NULL, code, rowType)
   }

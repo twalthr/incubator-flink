@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
@@ -59,6 +60,11 @@ public class RawObjectConverter<T> implements DataStructureConverter<RawValueDat
         if (logicalType instanceof TypeInformationRawType) {
             serializer =
                     ((TypeInformationRawType<?>) logicalType)
+                            .getTypeInformation()
+                            .createSerializer(new ExecutionConfig());
+        } else if (logicalType instanceof LegacyTypeInformationType) {
+            serializer =
+                    ((LegacyTypeInformationType<?>) logicalType)
                             .getTypeInformation()
                             .createSerializer(new ExecutionConfig());
         } else {
