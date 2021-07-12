@@ -340,7 +340,7 @@ public class ExecutionConfigOptions {
     public static final ConfigOption<String> TABLE_EXEC_SHUFFLE_MODE =
             key("table.exec.shuffle-mode")
                     .stringType()
-                    .defaultValue("ALL_EDGES_BLOCKING")
+                    .defaultValue("FORWARD_EDGES_PIPELINED")
                     .withDescription(
                             Description.builder()
                                     .text("Sets exec shuffle mode.")
