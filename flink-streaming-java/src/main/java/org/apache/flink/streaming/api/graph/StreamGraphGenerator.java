@@ -362,6 +362,7 @@ public class StreamGraphGenerator {
             }
 
             graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED);
+            graph.setAllVerticesInSameSlotSharingGroupByDefault(false);
             setDefaultBufferTimeout(-1);
             setBatchStateBackendAndTimerService(graph);
         } else {
