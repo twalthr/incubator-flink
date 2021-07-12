@@ -58,7 +58,7 @@ public class ExecutorUtils {
     public static void setBatchProperties(StreamExecutionEnvironment execEnv) {
         ExecutionConfig executionConfig = execEnv.getConfig();
         executionConfig.enableObjectReuse();
-        executionConfig.setLatencyTrackingInterval(-1);
+        // executionConfig.setLatencyTrackingInterval(-1);
         execEnv.getConfig().setAutoWatermarkInterval(0);
         execEnv.setBufferTimeout(-1);
     }
