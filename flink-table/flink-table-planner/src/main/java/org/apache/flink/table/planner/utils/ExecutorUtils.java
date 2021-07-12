@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -65,9 +64,10 @@ public class ExecutorUtils {
 
     /** Sets batch properties for {@link StreamGraph}. */
     public static void setBatchProperties(StreamGraph streamGraph, TableConfig tableConfig) {
-        streamGraph
-                .getStreamNodes()
-                .forEach(sn -> sn.setResources(ResourceSpec.UNKNOWN, ResourceSpec.UNKNOWN));
+        //        streamGraph
+        //                .getStreamNodes()
+        //                .forEach(sn -> sn.setResources(ResourceSpec.UNKNOWN,
+        // ResourceSpec.UNKNOWN));
         streamGraph.setChaining(true);
         streamGraph.setAllVerticesInSameSlotSharingGroupByDefault(false);
         // Configure job type for properly selecting a supported scheduler for batch jobs.
