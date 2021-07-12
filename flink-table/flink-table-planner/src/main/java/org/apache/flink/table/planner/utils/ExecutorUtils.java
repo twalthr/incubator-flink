@@ -59,7 +59,7 @@ public class ExecutorUtils {
         ExecutionConfig executionConfig = execEnv.getConfig();
         executionConfig.enableObjectReuse();
         executionConfig.setLatencyTrackingInterval(-1);
-        execEnv.getConfig().setAutoWatermarkInterval(0);
+        execEnv.getConfig().setAutoWatermarkInterval(1000);
         execEnv.setBufferTimeout(-1);
     }
 
