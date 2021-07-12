@@ -69,7 +69,7 @@ public class ExecutorUtils {
                 .getStreamNodes()
                 .forEach(sn -> sn.setResources(ResourceSpec.UNKNOWN, ResourceSpec.UNKNOWN));
         streamGraph.setChaining(true);
-        streamGraph.setAllVerticesInSameSlotSharingGroupByDefault(false);
+        streamGraph.setAllVerticesInSameSlotSharingGroupByDefault(true);
         // Configure job type for properly selecting a supported scheduler for batch jobs.
         // LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST is only supported by the Batch scheduler (=Ng
         // scheduler)
