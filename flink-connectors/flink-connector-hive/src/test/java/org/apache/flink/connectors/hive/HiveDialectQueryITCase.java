@@ -39,6 +39,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.junit.BeforeClass;
 import org.junit.ComparisonFailure;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -139,6 +140,7 @@ public class HiveDialectQueryITCase {
     }
 
     @Test
+    @Ignore
     public void testQueries() throws Exception {
         File[] qfiles = new File(QTEST_DIR).listFiles();
         for (File qfile : qfiles) {
