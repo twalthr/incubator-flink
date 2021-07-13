@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -31,6 +32,7 @@ import static org.junit.Assert.assertEquals;
 public class ShuffleModeUtilsTest extends TestLogger {
 
     @Test
+    @Ignore
     public void testGetValidShuffleMode() {
         final Configuration configuration = new Configuration();
 
