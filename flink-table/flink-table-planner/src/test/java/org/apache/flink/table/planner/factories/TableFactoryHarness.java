@@ -47,6 +47,7 @@ import org.apache.flink.testutils.junit.SharedObjects;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -185,11 +186,14 @@ public class TableFactoryHarness {
         private final @Nullable SinkBase sink;
 
         private HarnessTableDescriptor(
-                Schema schema, @Nullable SourceBase source, @Nullable SinkBase sink) {
+                Schema schema,
+                List<String> partitionKeys,
+                @Nullable SourceBase source,
+                @Nullable SinkBase sink) {
             super(
                     schema,
                     Collections.singletonMap(FactoryUtil.CONNECTOR.key(), IDENTIFIER),
-                    Collections.emptyList(),
+                    partitionKeys,
                     null);
 
             this.source = source;
@@ -204,6 +208,7 @@ public class TableFactoryHarness {
         /** Builder for {@link HarnessTableDescriptor}. */
         public static class Builder {
             private @Nullable Schema schema;
+            private List<String> partitionKeys = Collections.emptyList();
             private @Nullable SourceBase source;
             private @Nullable SinkBase sink;
 
@@ -259,9 +264,14 @@ public class TableFactoryHarness {
                 return this;
             }
 
+            public Builder partitionKeys(List<String> partitionKeys) {
+                this.partitionKeys = partitionKeys;
+                return this;
+            }
+
             /** Builds a {@link TableDescriptor}. */
             public TableDescriptor build() {
-                return new HarnessTableDescriptor(schema, source, sink);
+                return new HarnessTableDescriptor(schema, partitionKeys, source, sink);
             }
         }
     }

@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
-import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.table.planner.plan.optimize.program.BatchOptimizeContext;
@@ -29,9 +28,9 @@ import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgramBuilder;
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.tools.RuleSets;
@@ -39,10 +38,9 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -280,6 +278,19 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
+    public void testInterfaces() {
+        final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(NoPushDownSource.SCHEMA)
+                        .source(new NoPushDownSource(true, appliedKeys))
+                        .build();
+        util().tableEnv().createTable("T1", sourceDescriptor);
+
+        util().tableEnv().explainSql("SELECT d FROM T1 WHERE c = 100");
+    }
+
+    @Test
     public void testMetadataProjectionWithoutProjectionPushDownWhenNotSupported() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
         final TableDescriptor sourceDescriptor =
@@ -325,14 +336,10 @@ public class PushProjectIntoTableSourceScanRuleTest
 
     /** Source which supports metadata but not {@link SupportsProjectionPushDown}. */
     private static class NoPushDownSource extends TableFactoryHarness.ScanSourceBase
-            implements SupportsReadingMetadata {
+            implements SupportsProjectionPushDown {
 
         public static final Schema SCHEMA =
-                Schema.newBuilder()
-                        .columnByMetadata("m1", STRING())
-                        .columnByMetadata("metadata", STRING(), "m2")
-                        .columnByMetadata("m3", STRING())
-                        .build();
+                Schema.newBuilder().column("c", INT()).column("d", STRING()).build();
 
         private final boolean supportsMetadataProjection;
         private final SharedReference<List<String>> appliedMetadataKeys;
@@ -345,23 +352,13 @@ public class PushProjectIntoTableSourceScanRuleTest
         }
 
         @Override
-        public Map<String, DataType> listReadableMetadata() {
-            final Map<String, DataType> metadata = new HashMap<>();
-            metadata.put("m1", STRING());
-            metadata.put("m2", STRING());
-            metadata.put("m3", STRING());
-            return metadata;
+        public boolean supportsNestedProjection() {
+            return false;
         }
 
         @Override
-        public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
-            appliedMetadataKeys.get().clear();
-            appliedMetadataKeys.get().addAll(metadataKeys);
-        }
-
-        @Override
-        public boolean supportsMetadataProjection() {
-            return supportsMetadataProjection;
+        public void applyProjection(int[][] projectedFields) {
+            System.out.println("Projections: " + StringUtils.arrayAwareToString(projectedFields));
         }
     }
 }
