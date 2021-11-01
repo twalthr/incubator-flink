@@ -9,14 +9,10 @@ import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDo
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
-import org.apache.flink.testutils.junit.SharedObjects;
-import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Rule;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -28,26 +24,21 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 
 public class TestClass {
 
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-
     @Test
     public void testClass() {
         TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
-                        .schema(NoPushDownSource.SCHEMA)
-                        .partitionKeys(Collections.singletonList("xxxx"))
-                        .source(new NoPushDownSource(true, appliedKeys))
+                        .schema(TestPushDownSource.SCHEMA)
+                        .partitionKeys(Collections.singletonList("d"))
+                        .source(new TestPushDownSource())
                         .build();
         tableEnv.createTable("T1", sourceDescriptor);
 
-        System.out.println(
-                tableEnv.explainSql("SELECT d FROM T1 WHERE c = 100 AND xxxx = 'my-partition'"));
+        System.out.println(tableEnv.explainSql("SELECT d FROM T1 WHERE c = 100 AND d > '2012'"));
     }
 
-    /** Source which supports metadata but not {@link SupportsProjectionPushDown}. */
-    private static class NoPushDownSource extends TableFactoryHarness.ScanSourceBase
+    private static class TestPushDownSource extends TableFactoryHarness.ScanSourceBase
             implements SupportsProjectionPushDown,
                     SupportsFilterPushDown,
                     SupportsPartitionPushDown {
@@ -58,16 +49,6 @@ public class TestClass {
                         .column("f", INT())
                         .column("d", STRING())
                         .build();
-
-        private final boolean supportsMetadataProjection;
-        private final SharedReference<List<String>> appliedMetadataKeys;
-
-        public NoPushDownSource(
-                boolean supportsMetadataProjection,
-                SharedReference<List<String>> appliedMetadataKeys) {
-            this.supportsMetadataProjection = supportsMetadataProjection;
-            this.appliedMetadataKeys = appliedMetadataKeys;
-        }
 
         @Override
         public boolean supportsNestedProjection() {
@@ -80,21 +61,20 @@ public class TestClass {
         }
 
         @Override
-        public Result applyFilters(List<ResolvedExpression> filters) {
-            System.out.println("Filters: " + filters);
-            return Result.of(filters, filters);
-        }
-
-        @Override
         public Optional<List<Map<String, String>>> listPartitions() {
             Map<String, String> map = new HashMap<>();
-            map.put("d", "my-partition");
+            map.put("d", "2012");
             return Optional.of(Collections.singletonList(map));
         }
 
         @Override
         public void applyPartitions(List<Map<String, String>> remainingPartitions) {
             System.out.println("Apply Partition:" + remainingPartitions);
+        }
+
+        @Override
+        public Result applyFilters(List<ResolvedExpression> filters) {
+            return Result.of(Collections.emptyList(), filters);
         }
     }
 }
