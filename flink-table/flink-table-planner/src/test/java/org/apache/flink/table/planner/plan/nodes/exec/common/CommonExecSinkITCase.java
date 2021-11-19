@@ -236,7 +236,10 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                 ScanTableSource.ScanContext context) {
             final DynamicTableSource.DataStructureConverter converter =
                     context.createDataStructureConverter(
-                            getFactoryContext().getPhysicalRowDataType());
+                            getFactoryContext()
+                                    .getCatalogTable()
+                                    .getResolvedSchema()
+                                    .toPhysicalRowDataType());
 
             return SourceFunctionProvider.of(new TestSource(rows, converter), true);
         }
