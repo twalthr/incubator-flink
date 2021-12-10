@@ -20,7 +20,6 @@ package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -31,19 +30,22 @@ import java.util.Objects;
  * Logical type for representing symbol values. The symbol type is an extension to the SQL standard
  * and only serves as a helper type within the expression stack.
  *
- * <p>A symbol type only accepts conversions from and to its enum class.
+ * <p>A symbol type only accepts conversions from and to its enum class. But note that this is not
+ * an enum type for users.
  *
  * <p>This type has no serializable string representation.
  *
- * @param <T> table symbol
+ * @param <T> any enum that is defined by Flink
  */
 @PublicEvolving
-public final class SymbolType<T extends TableSymbol> extends LogicalType {
+public final class SymbolType<T extends Enum<T>> extends LogicalType {
     private static final long serialVersionUID = 1L;
 
     private static final String FORMAT = "SYMBOL('%s')";
 
     private final Class<T> symbolClass;
+
+    public static final SymbolType<?> GENERIC_TYPE = new SymbolType<>(Enum.class);
 
     public SymbolType(boolean isNullable, Class<T> symbolClass) {
         super(isNullable, LogicalTypeRoot.SYMBOL);
@@ -76,12 +78,12 @@ public final class SymbolType<T extends TableSymbol> extends LogicalType {
 
     @Override
     public boolean supportsInputConversion(Class<?> clazz) {
-        return symbolClass.equals(clazz);
+        return symbolClass.equals(Enum.class) || symbolClass.equals(clazz);
     }
 
     @Override
     public boolean supportsOutputConversion(Class<?> clazz) {
-        return symbolClass.equals(clazz);
+        return symbolClass.equals(Enum.class) || symbolClass.equals(clazz);
     }
 
     @Override

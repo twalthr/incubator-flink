@@ -59,8 +59,8 @@ public class SymbolArgumentTypeStrategyTest extends InputTypeStrategiesTestBase 
                                         + "Expected symbol type 'TestEnum' but actual type was 'STRING'."));
     }
 
-    private static <T extends TableSymbol> DataType makeEnumType(Class<T> enumClass) {
-        return new AtomicDataType(new SymbolType<T>(enumClass));
+    private static <T extends Enum<T>> DataType makeEnumType(Class<T> enumClass) {
+        return new AtomicDataType(new SymbolType<>(enumClass));
     }
 
     private enum TestEnum implements TableSymbol {

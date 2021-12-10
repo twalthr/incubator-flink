@@ -20,6 +20,7 @@ package org.apache.flink.table.examples.java.basics;
 
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.types.logical.SymbolType;
 
 /** The famous word count example that shows a minimal Flink SQL job in batch execution mode. */
 public final class WordCountSQLExample {
@@ -30,6 +31,8 @@ public final class WordCountSQLExample {
         final EnvironmentSettings settings =
                 EnvironmentSettings.newInstance().inBatchMode().build();
         final TableEnvironment tableEnv = TableEnvironment.create(settings);
+
+        SymbolType<?> sym = SymbolType.GENERIC_TYPE;
 
         // execute a Flink SQL job and print the result locally
         tableEnv.executeSql(

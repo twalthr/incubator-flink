@@ -32,17 +32,7 @@ object WordCountSQLExample {
     val tableEnv = TableEnvironment.create(settings)
 
     // execute a Flink SQL job and print the result locally
-    tableEnv.executeSql(
-      // define the aggregation
-      "SELECT word, SUM(frequency) AS `count`\n"
-        // read from an artificial fixed-size table with rows and columns
-        + "FROM (\n"
-        + "  VALUES ('Hello', 1), ('Ciao', 1), ('Hello', 2)\n"
-        + ")\n"
-        // name the table and its columns
-        + "AS WordTable(word, frequency)\n"
-        // group for aggregation
-        + "GROUP BY word")
-      .print()
+    tableEnv.fromValues(row(1, 1L, "Hello")).as("a", "b", "c").select('a, 'b, 'c)
+      .where((1 to 30).map($"b" === _).reduce((ex1, ex2) => ex1 || ex2) && ($"c" === "xx")).execute().print()
   }
 }
