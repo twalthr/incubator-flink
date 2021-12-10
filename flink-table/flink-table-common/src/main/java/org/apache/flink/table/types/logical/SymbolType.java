@@ -57,6 +57,11 @@ public final class SymbolType<T extends Enum<T>> extends LogicalType {
         this(true, symbolClass);
     }
 
+    @SuppressWarnings("unchecked")
+    public static <E extends Enum<E>> SymbolType<E> ofValue(Enum<E> enumValue) {
+        return new SymbolType<>((Class<E>) enumValue.getClass());
+    }
+
     public Class<T> getSymbolClass() {
         return symbolClass;
     }

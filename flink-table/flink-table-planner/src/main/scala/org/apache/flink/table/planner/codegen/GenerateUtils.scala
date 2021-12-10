@@ -448,8 +448,7 @@ object GenerateUtils {
       qualifyEnum(enum),
       NEVER_NULL,
       NO_CODE,
-      new TypeInformationRawType[AnyRef](new GenericTypeInfo[AnyRef](
-        enum.getDeclaringClass.asInstanceOf[Class[AnyRef]])),
+      SymbolType.ofValue(enum),
       literalValue = Some(enum))
   }
 
