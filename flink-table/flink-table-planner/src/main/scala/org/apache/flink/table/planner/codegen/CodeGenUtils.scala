@@ -349,8 +349,7 @@ object CodeGenUtils {
   def getEnum(genExpr: GeneratedExpression): Enum[_] = {
     val split = genExpr.resultTerm.split('.')
     val value = split.last
-    val clazz = genExpr.resultType.asInstanceOf[TypeInformationRawType[_]]
-        .getTypeInformation.getTypeClass
+    val clazz = genExpr.resultType.asInstanceOf[SymbolType[_]].getSymbolClass
     enumValueOf(clazz, value)
   }
 
