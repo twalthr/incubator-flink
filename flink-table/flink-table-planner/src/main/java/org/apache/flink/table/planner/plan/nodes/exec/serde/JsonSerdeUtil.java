@@ -23,6 +23,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MapperFea
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.BeanDeserializerFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.DefaultDeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.DefaultSerializerProvider;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -44,17 +45,19 @@ public class JsonSerdeUtil {
 
     /** Create an {@link ObjectMapper} which DeserializationContext wraps a {@link SerdeContext}. */
     public static ObjectMapper createObjectMapper(SerdeContext serdeCtx) {
-        FlinkDeserializationContext ctx =
+        final FlinkSerializationProvider serializationProvider =
+                new FlinkSerializationProvider(new DefaultSerializerProvider.Impl(), serdeCtx);
+        final FlinkDeserializationContext deserializationContext =
                 new FlinkDeserializationContext(
                         new DefaultDeserializationContext.Impl(BeanDeserializerFactory.instance),
                         serdeCtx);
         ObjectMapper mapper =
                 new ObjectMapper(
                         null, // JsonFactory
-                        null, // DefaultSerializerProvider
-                        ctx);
+                        serializationProvider,
+                        deserializationContext);
         mapper.configure(MapperFeature.USE_GETTERS_AS_SETTERS, false);
-        ctx.setObjectMapper(mapper);
+        deserializationContext.setObjectMapper(mapper);
         return mapper;
     }
 

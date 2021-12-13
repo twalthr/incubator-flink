@@ -45,6 +45,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
@@ -62,6 +63,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 import org.apache.flink.util.Preconditions;
@@ -104,6 +106,9 @@ public final class DataTypes {
      * @see LogicalType#getDefaultConversion()
      */
     public static DataType of(LogicalType logicalType) {
+        Preconditions.checkArgument(
+                !LogicalTypeChecks.hasNested(logicalType, t -> t.is(LogicalTypeRoot.UNRESOLVED)),
+                "Unresolved types are not supported at this location.");
         return TypeConversions.fromLogicalToDataType(logicalType);
     }
 

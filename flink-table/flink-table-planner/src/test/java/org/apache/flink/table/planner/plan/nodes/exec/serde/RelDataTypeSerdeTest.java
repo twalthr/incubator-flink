@@ -197,7 +197,7 @@ public class RelDataTypeSerdeTest {
                         FACTORY.createFieldTypeFromLogicalType(
                                 StructuredType.newBuilder(
                                                 ObjectIdentifier.of("cat", "db", "structuredType"),
-                                                LogicalTypeSerdeTest.PojoClass.class)
+                                                LogicalTypeJsonSerdeTest.PojoClass.class)
                                         .attributes(
                                                 Arrays.asList(
                                                         new StructuredType.StructuredAttribute(

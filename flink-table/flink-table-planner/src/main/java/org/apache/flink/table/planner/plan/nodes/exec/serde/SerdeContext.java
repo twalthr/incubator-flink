@@ -22,6 +22,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
+
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.SqlOperatorTable;
 
@@ -45,6 +48,14 @@ public class SerdeContext {
         this.typeFactory = typeFactory;
         this.operatorTable = operatorTable;
         this.rexBuilder = new RexBuilder(typeFactory);
+    }
+
+    public static SerdeContext from(SerializerProvider serializerProvider) {
+        return ((FlinkSerializationProvider) serializerProvider).getSerdeContext();
+    }
+
+    public static SerdeContext from(DeserializationContext deserializationContext) {
+        return ((FlinkDeserializationContext) deserializationContext).getSerdeContext();
     }
 
     public Configuration getConfiguration() {

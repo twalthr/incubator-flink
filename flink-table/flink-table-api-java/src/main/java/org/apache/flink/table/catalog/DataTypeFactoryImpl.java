@@ -75,9 +75,7 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
 
     @Override
     public DataType createDataType(String name) {
-        final LogicalType parsedType = LogicalTypeParser.parse(name, classLoader);
-        final LogicalType resolvedType = parsedType.accept(resolver);
-        return fromLogicalToDataType(resolvedType);
+        return fromLogicalToDataType(createLogicalType(name));
     }
 
     @Override
@@ -110,6 +108,17 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
         // we assume that a RAW type is nullable by default
         return DataTypes.RAW(
                 typeInfo.getTypeClass(), typeInfo.createSerializer(executionConfig.get()));
+    }
+
+    @Override
+    public LogicalType createLogicalType(String name) {
+        final LogicalType parsedType = LogicalTypeParser.parse(name, classLoader);
+        return parsedType.accept(resolver);
+    }
+
+    @Override
+    public LogicalType createLogicalType(UnresolvedIdentifier identifier) {
+        return resolveType(identifier);
     }
 
     // --------------------------------------------------------------------------------------------
