@@ -67,7 +67,6 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
             String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        // Get length of target
         final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
 
         // Get serializer for RAW type
