@@ -45,7 +45,7 @@ class StringToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Stri
                         .build());
     }
 
-    /* Example generated code for BINARY(@):
+    /* Example generated code for BINARY(2):
 
     // legacy behavior
     isNull$0 = _myInputIsNull;
@@ -79,11 +79,8 @@ class StringToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Stri
             String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        // Get length of target
         final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
 
-        // Get serializer for RAW type
-        final String typeSerializer = context.declareTypeSerializer(inputLogicalType);
         final String byteArrayTerm = newName("byteArrayTerm");
 
         if (context.legacyBehaviour()) {
