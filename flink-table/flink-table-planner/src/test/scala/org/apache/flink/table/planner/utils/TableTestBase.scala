@@ -741,11 +741,18 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val jsonPlanWithoutFlinkVersion = TableTestUtil.replaceFlinkVersion(jsonPlan)
     // add the postfix to the path to avoid conflicts
     // between the test class name and the result file name
-    val path = test.getClass.getName.replaceAll("\\.", "/") + "_jsonplan"
-    val fileName = test.testName.getMethodName + ".out"
-    val file = new File(s"./src/test/resources/$path/$fileName")
+    val testClassDirPath = test.getClass.getName.replaceAll("\\.", "/") + "_jsonplan"
+    val testMethodFileName = test.testName.getMethodName + ".out"
+    val resourceTestFilePath = s"/$testClassDirPath/$testMethodFileName"
+    val resourceUrl = test.getClass.getResource(resourceTestFilePath)
+    val file = if (resourceUrl != null) {
+      new File(resourceUrl.getFile)
+    } else {
+      val plannerDirPath = test.getClass.getResource("/").getFile.replace("/target/test-classes/", "")
+      new File(s"$plannerDirPath/src/test/resources$resourceTestFilePath")
+    }
     if (file.exists()) {
-      val expected = TableTestUtil.readFromResource(s"$path/$fileName")
+      val expected = TableTestUtil.readFromResource(resourceTestFilePath)
       assertEquals(
         TableTestUtil.replaceExecNodeId(
           TableTestUtil.getFormattedJson(expected)),
@@ -756,7 +763,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       assertTrue(file.createNewFile())
       val prettyJson = TableTestUtil.getPrettyJson(jsonPlanWithoutFlinkVersion)
       Files.write(Paths.get(file.toURI), prettyJson.getBytes)
-      fail(s"$fileName does not exist.")
+      fail(s"$testMethodFileName does not exist.")
     }
   }
 
