@@ -746,7 +746,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val resourceTestFilePath = s"/$testClassDirPath/$testMethodFileName"
     val resourceUrl = test.getClass.getResource(resourceTestFilePath)
     val file = if (resourceUrl != null) {
-      new File(resourceUrl.getFile)
+      new File(resourceUrl.toURI)
     } else {
       val plannerDirPath = test.getClass.getResource("/").getFile.replace("/target/test-classes/", "")
       new File(s"$plannerDirPath/src/test/resources$resourceTestFilePath")
