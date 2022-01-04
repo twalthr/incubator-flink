@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeEx
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitorImpl;
 import org.apache.flink.table.planner.plan.utils.ReflectionsUtil;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
@@ -110,6 +111,8 @@ public class ExecNodeGraphJsonPlanGenerator {
         module.addSerializer(new ObjectIdentifierJsonSerializer());
         // LogicalTypeJsonSerializer is needed for RelDataType serialization
         module.addSerializer(new LogicalTypeJsonSerializer());
+        // DataTypeJsonSerializer is needed for LogicalType serialization
+        module.addSerializer(new DataTypeJsonSerializer());
         // RelDataTypeJsonSerializer is needed for RexNode serialization
         module.addSerializer(new RelDataTypeJsonSerializer());
         // RexNode is used in many exec nodes, so we register its serializer directly here
@@ -123,6 +126,8 @@ public class ExecNodeGraphJsonPlanGenerator {
         module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
         // LogicalTypeJsonSerializer is needed for RelDataType serialization
         module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
+        // DataTypeJsonDeserializer is needed for LogicalType serialization
+        module.addDeserializer(DataType.class, new DataTypeJsonDeserializer());
         // RelDataTypeJsonSerializer is needed for RexNode serialization
         module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
         // RexNode is used in many exec nodes, so we register its deserializer directly here

@@ -59,6 +59,10 @@ public class DataTypeJsonSerdeTest {
         final String json = toJson(mapper, dataType);
         final DataType actual = toDataType(mapper, json);
 
+        if (json.contains("children")) {
+            System.out.println();
+        }
+
         assertThat(actual).isEqualTo(dataType);
     }
 
@@ -68,7 +72,21 @@ public class DataTypeJsonSerdeTest {
                 DataTypes.INT(),
                 DataTypes.INT().notNull().bridgedTo(int.class),
                 DataTypes.TIMESTAMP_LTZ(3).toInternal(),
-                DataTypes.TIMESTAMP_LTZ(9).bridgedTo(long.class));
+                DataTypes.TIMESTAMP_LTZ(9).bridgedTo(long.class),
+                DataTypes.ROW(
+                        DataTypes.TIMESTAMP_LTZ(3).toInternal(),
+                        DataTypes.TIMESTAMP_LTZ(9).bridgedTo(long.class),
+                        DataTypes.ROW(
+                                DataTypes.INT(),
+                                DataTypes.MULTISET(
+                                        DataTypes.DOUBLE().notNull().bridgedTo(double.class)))),
+                DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(int[].class),
+                DataTypes.STRUCTURED(
+                        PojoClass.class,
+                        DataTypes.FIELD("f0", DataTypes.INT().notNull().bridgedTo(int.class)),
+                        DataTypes.FIELD("f1", DataTypes.BIGINT().notNull().bridgedTo(long.class)),
+                        DataTypes.FIELD("f2", DataTypes.STRING())),
+                DataTypes.MAP(DataTypes.STRING().toInternal(), DataTypes.TIMESTAMP(3)));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -123,5 +141,12 @@ public class DataTypeJsonSerdeTest {
         } catch (JsonProcessingException e) {
             throw new AssertionError(e);
         }
+    }
+
+    /** Testing class. */
+    public static class PojoClass {
+        public int f0;
+        public long f1;
+        public String f2;
     }
 }

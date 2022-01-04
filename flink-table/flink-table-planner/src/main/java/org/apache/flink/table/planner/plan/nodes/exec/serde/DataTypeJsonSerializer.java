@@ -37,11 +37,30 @@ import java.util.stream.Collectors;
 /**
  * JSON serializer for {@link LogicalType}.
  *
- * @see LogicalTypeJsonDeserializer for the reverse operation
+ * @see DataTypeJsonDeserializer for the reverse operation
  */
 @Internal
 public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
     private static final long serialVersionUID = 1L;
+
+    /*
+    Example generated JSON for
+
+        DataTypes.ROW(
+            DataTypes.STRING().toInternal(),
+            DataTypes.TIMESTAMP_LTZ().bridgedTo(Long.class))
+
+    {
+       "logicalType":"ROW<`f0` VARCHAR(2147483647), `f1` TIMESTAMP(6) WITH LOCAL TIME ZONE>",
+       "conversionClass":"org.apache.flink.types.Row",
+       "fields":[
+          {
+             "name":"f1",
+             "conversionClass":"java.lang.Long"
+          }
+       ]
+     }
+     */
 
     // Common fields
     public static final String FIELD_NAME_TYPE = "logicalType";
@@ -67,7 +86,7 @@ public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
     public void serialize(
             DataType dataType, JsonGenerator jsonGenerator, SerializerProvider serializerProvider)
             throws IOException {
-        if (DataTypeUtils.isInternal(dataType)) {
+        if (DataTypeUtils.isInternal(dataType, false)) {
             jsonGenerator.writeObject(dataType.getLogicalType());
         } else {
             jsonGenerator.writeStartObject();
@@ -102,7 +121,10 @@ public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
             case STRUCTURED_TYPE:
                 final List<Field> externalFields =
                         DataType.getFields(dataType).stream()
-                                .filter(field -> !DataTypeUtils.isInternal(field.getDataType()))
+                                .filter(
+                                        field ->
+                                                !DataTypeUtils.isInternal(
+                                                        field.getDataType(), false))
                                 .collect(Collectors.toList());
                 if (externalFields.isEmpty()) {
                     break;
@@ -110,7 +132,7 @@ public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
                 jsonGenerator.writeFieldName(FIELD_NAME_FIELDS);
                 jsonGenerator.writeStartArray();
                 for (Field externalField : externalFields) {
-                    if (!DataTypeUtils.isInternal(externalField.getDataType())) {
+                    if (!DataTypeUtils.isInternal(externalField.getDataType(), false)) {
                         jsonGenerator.writeStartObject();
                         jsonGenerator.writeStringField(
                                 FIELD_NAME_FIELD_NAME, externalField.getName());
@@ -122,7 +144,7 @@ public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
                 break;
             case DISTINCT_TYPE:
                 final DataType sourceDataType = dataType.getChildren().get(0);
-                if (!DataTypeUtils.isInternal(sourceDataType)) {
+                if (!DataTypeUtils.isInternal(sourceDataType, false)) {
                     serializeClass(sourceDataType, jsonGenerator);
                 }
                 break;
@@ -133,7 +155,7 @@ public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
 
     private static void serializeFieldIfNotInternal(
             DataType dataType, String fieldName, JsonGenerator jsonGenerator) throws IOException {
-        if (!DataTypeUtils.isInternal(dataType)) {
+        if (!DataTypeUtils.isInternal(dataType, false)) {
             jsonGenerator.writeFieldName(fieldName);
             jsonGenerator.writeStartObject();
             serializeClass(dataType, jsonGenerator);

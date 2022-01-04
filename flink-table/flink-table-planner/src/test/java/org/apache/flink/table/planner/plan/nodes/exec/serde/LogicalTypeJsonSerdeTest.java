@@ -23,6 +23,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.DataTypeJsonSerdeTest.PojoClass;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.DataType;
@@ -322,13 +323,6 @@ public class LogicalTypeJsonSerdeTest {
     private static DataType convertToInternalTypeIfNeeded(
             DataType dataType, boolean isInternalType) {
         return isInternalType ? dataType.toInternal() : dataType;
-    }
-
-    /** Testing class. */
-    public static class PojoClass {
-        public int f0;
-        public long f1;
-        public String f2;
     }
 
     // --------------------------------------------------------------------------------------------

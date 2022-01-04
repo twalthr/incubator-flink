@@ -56,6 +56,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 
+import org.apache.commons.lang3.ClassUtils;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -333,7 +335,8 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
             implementationClass =
                     loadClass(
                             logicalTypeNode.get(FIELD_NAME_IMPLEMENTATION_CLASS).asText(),
-                            serdeContext);
+                            serdeContext,
+                            "structured type");
         } else {
             implementationClass = null;
         }
@@ -396,7 +399,7 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
     private static LogicalType deserializeSpecializedRaw(
             JsonNode logicalTypeNode, SerdeContext serdeContext) {
         final Class<?> clazz =
-                loadClass(logicalTypeNode.get(FIELD_NAME_CLASS).asText(), serdeContext);
+                loadClass(logicalTypeNode.get(FIELD_NAME_CLASS).asText(), serdeContext, "RAW type");
 
         final TypeSerializer<?> serializer;
         if (logicalTypeNode.has(FIELD_NAME_SPECIAL_SERIALIZER)) {
@@ -419,11 +422,13 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
         return new RawType(clazz, serializer);
     }
 
-    private static Class<?> loadClass(String className, SerdeContext serdeContext) {
+    private static Class<?> loadClass(
+            String className, SerdeContext serdeContext, String explanation) {
         try {
-            return Class.forName(className, true, serdeContext.getClassLoader());
+            return ClassUtils.getClass(serdeContext.getClassLoader(), className, true);
         } catch (ClassNotFoundException e) {
-            throw new TableException(String.format("Could not load class '%s'.", className));
+            throw new TableException(
+                    String.format("Could not load class '%s' for %s.", className, explanation));
         }
     }
 }

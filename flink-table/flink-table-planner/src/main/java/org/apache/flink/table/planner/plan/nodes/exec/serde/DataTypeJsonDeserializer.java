@@ -35,6 +35,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 
+import org.apache.commons.lang3.ClassUtils;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -163,15 +165,20 @@ public class DataTypeJsonDeserializer extends StdDeserializer<DataType> {
         }
 
         final Class<?> conversionClass =
-                loadClass(classNode.get(FIELD_NAME_CONVERSION_CLASS).asText(), serdeContext);
+                loadClass(
+                        classNode.get(FIELD_NAME_CONVERSION_CLASS).asText(),
+                        serdeContext,
+                        String.format("conversion class of data type '%s'", dataType));
         return dataType.bridgedTo(conversionClass);
     }
 
-    private static Class<?> loadClass(String className, SerdeContext serdeContext) {
+    private static Class<?> loadClass(
+            String className, SerdeContext serdeContext, String explanation) {
         try {
-            return Class.forName(className, true, serdeContext.getClassLoader());
+            return ClassUtils.getClass(serdeContext.getClassLoader(), className, true);
         } catch (ClassNotFoundException e) {
-            throw new TableException(String.format("Could not load class '%s'.", className));
+            throw new TableException(
+                    String.format("Could not load class '%s' for %s.", className, explanation));
         }
     }
 }
