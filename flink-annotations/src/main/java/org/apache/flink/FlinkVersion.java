@@ -18,6 +18,8 @@
 
 package org.apache.flink;
 
+import org.apache.flink.annotation.Public;
+
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -28,9 +30,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Enumeration for Flink versions, used for enabling APIs versioning and SQL/TableAPI upgrades, but
- * also used in migration integration tests to indicate the migrated snapshot version.
+ * Enumeration for Flink versions.
+ *
+ * <p>It used for API versioning, during SQL/Table API upgrades, and for migration tests.
  */
+@Public
 public enum FlinkVersion {
 
     // NOTE: the version strings must not change,
