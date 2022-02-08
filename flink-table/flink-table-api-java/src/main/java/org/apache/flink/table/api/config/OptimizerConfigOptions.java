@@ -119,6 +119,7 @@ public class OptimizerConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED =
             key("table.optimizer.multiple-input-enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "When it is true, the optimizer will merge the operators with pipelined shuffling "
@@ -127,6 +128,7 @@ public class OptimizerConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED =
             key("table.optimizer.simplify-operator-name-enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "When it is true, the optimizer will simplify the operator name with id and type of ExecNode and keep detail in description. Default value is true.");

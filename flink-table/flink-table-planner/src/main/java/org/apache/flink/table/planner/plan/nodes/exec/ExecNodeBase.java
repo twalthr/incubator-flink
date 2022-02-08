@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.delegation.Planner;
@@ -172,7 +172,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return createTransformationName(config.getConfiguration());
     }
 
-    protected String createTransformationName(Configuration config) {
+    protected String createTransformationName(ReadableConfig config) {
         return createFormattedTransformationName(getDescription(), getSimplifiedName(), config);
     }
 
@@ -180,7 +180,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return createTransformationDescription(config.getConfiguration());
     }
 
-    protected String createTransformationDescription(Configuration config) {
+    protected String createTransformationDescription(ReadableConfig config) {
         return createFormattedTransformationDescription(getDescription(), config);
     }
 
@@ -190,12 +190,12 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     protected TransformationMetadata createTransformationMeta(
-            String operatorName, Configuration config) {
+            String operatorName, ReadableConfig config) {
         if (ExecNodeMetadataUtil.isUnsupported(this.getClass())) {
             return new TransformationMetadata(
                     createTransformationName(config), createTransformationDescription(config));
         } else {
-            // Only classes supporting metadata util needs to set the uid
+            // Only classes supporting metadata util need to set the uid
             return new TransformationMetadata(
                     createTransformationUid(operatorName),
                     createTransformationName(config),
@@ -204,30 +204,28 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     protected TransformationMetadata createTransformationMeta(
-            String operatorName, String detailName, String simplifiedName, Configuration config) {
+            String operatorName, String detailName, String simplifiedName, ReadableConfig config) {
         final String name = createFormattedTransformationName(detailName, simplifiedName, config);
         final String desc = createFormattedTransformationDescription(detailName, config);
         if (ExecNodeMetadataUtil.isUnsupported(this.getClass())) {
             return new TransformationMetadata(name, desc);
         } else {
-            // Only classes supporting metadata util needs to set the uid
+            // Only classes supporting metadata util need to set the uid
             return new TransformationMetadata(createTransformationUid(operatorName), name, desc);
         }
     }
 
     protected String createFormattedTransformationDescription(
-            String description, Configuration config) {
-        if (config.getBoolean(
-                OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
+            String description, ReadableConfig config) {
+        if (config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
             return String.format("[%d]:%s", getId(), description);
         }
         return description;
     }
 
     protected String createFormattedTransformationName(
-            String detailName, String simplifiedName, Configuration config) {
-        if (config.getBoolean(
-                OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
+            String detailName, String simplifiedName, ReadableConfig config) {
+        if (config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
             return String.format("%s[%d]", simplifiedName, getId());
         }
         return detailName;
