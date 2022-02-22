@@ -482,6 +482,7 @@ abstract class PlannerBase(
    * the configuration before planner do optimization with [[ModifyOperation]] or other works.
    */
   protected def validateAndOverrideConfiguration(): Unit = {
+<<<<<<< HEAD
     val configuration = tableConfig.getConfiguration
     if (!configuration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
       throw new IllegalArgumentException(
@@ -490,6 +491,9 @@ abstract class PlannerBase(
           "table environment. Subsequent changes are not supported. " +
           "Please instantiate a new TableEnvironment if necessary.");
     }
+=======
+    val configuration = config.getConfiguration
+>>>>>>> d8625b91930 ([hotfix][table] Remove 'table.planner' table config option)
 
     // Add query start time to TableConfig, these config are used internally,
     // these configs will be used by temporal functions like CURRENT_TIMESTAMP,LOCALTIMESTAMP.
