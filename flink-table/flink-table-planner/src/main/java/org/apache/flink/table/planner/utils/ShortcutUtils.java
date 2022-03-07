@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlScalarFunction;
 
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptCluster;
@@ -116,10 +116,10 @@ public final class ShortcutUtils {
             return null;
         }
         final RexCall call = (RexCall) rexNode;
-        if (!(call.getOperator() instanceof BridgingSqlFunction)) {
+        if (!(call.getOperator() instanceof BridgingSqlScalarFunction)) {
             return null;
         }
-        return ((BridgingSqlFunction) call.getOperator()).getDefinition();
+        return ((BridgingSqlScalarFunction) call.getOperator()).getDefinition();
     }
 
     private ShortcutUtils() {

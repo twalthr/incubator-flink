@@ -22,7 +22,7 @@ import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlScalarFunction;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 
@@ -62,8 +62,8 @@ public class FunctionDefinitionConvertRule implements CallExpressionConvertRule 
                                 .map(context::toRexNode)
                                 .collect(Collectors.toList());
 
-                final BridgingSqlFunction sqlFunction =
-                        BridgingSqlFunction.of(
+                final BridgingSqlScalarFunction sqlFunction =
+                        BridgingSqlScalarFunction.of(
                                 context.getDataTypeFactory(),
                                 context.getTypeFactory(),
                                 SqlKind.OTHER_FUNCTION,

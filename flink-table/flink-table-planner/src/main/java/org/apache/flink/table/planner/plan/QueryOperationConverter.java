@@ -67,7 +67,7 @@ import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.SqlAggFunctionVisitor;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlTableFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 import org.apache.flink.table.planner.operations.InternalDataStreamQueryOperation;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
@@ -303,8 +303,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                         typeFactory);
             }
 
-            final BridgingSqlFunction sqlFunction =
-                    BridgingSqlFunction.of(relBuilder.getCluster(), resolvedFunction);
+            final BridgingSqlTableFunction sqlFunction =
+                    BridgingSqlTableFunction.of(relBuilder.getCluster(), resolvedFunction);
 
             return relBuilder
                     .functionScan(sqlFunction, 0, parameters)

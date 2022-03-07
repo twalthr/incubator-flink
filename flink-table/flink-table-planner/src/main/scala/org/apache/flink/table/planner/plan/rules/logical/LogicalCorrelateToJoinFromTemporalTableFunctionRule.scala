@@ -22,14 +22,14 @@ import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.operations.QueryOperation
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.functions.bridging.{BridgingSqlScalarFunction, BridgingSqlTableFunction}
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.optimize.program.FlinkOptimizeContext
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{makeProcTimeTemporalFunctionJoinConCall, makeRowTimeTemporalFunctionJoinConCall}
 import org.apache.flink.table.planner.plan.utils.{ExpandTableScanShuttle, RexDefaultVisitor}
 import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE}
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{isProctimeAttribute}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute
 import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.plan.RelOptRule.{any, none, operand, some}
@@ -185,7 +185,7 @@ class GetTemporalTableFunctionCall(
   override def visitCall(rexCall: RexCall): TemporalTableFunctionCall = {
     val functionDefinition = rexCall.getOperator match {
       case tsf: TableSqlFunction => tsf.udtf
-      case bsf: BridgingSqlFunction => bsf.getDefinition
+      case bsf: BridgingSqlTableFunction => bsf.getDefinition
       case _ => return null
     }
 

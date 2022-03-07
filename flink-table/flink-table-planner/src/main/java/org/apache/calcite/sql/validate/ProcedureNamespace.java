@@ -21,13 +21,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlTableFunction;
-import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Namespace whose contents are defined by the result of a call to a user-defined procedure.
@@ -38,7 +38,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * interpret ARRAY or MULTISET types as it would be standard.
  */
 @Internal
-public final class ProcedureNamespace extends AbstractNamespace {
+public class ProcedureNamespace extends AbstractNamespace {
 
     private final SqlValidatorScope scope;
 
@@ -54,43 +54,26 @@ public final class ProcedureNamespace extends AbstractNamespace {
         this.call = call;
     }
 
+    // ~ Methods ----------------------------------------------------------------
+
+    @Override
     public RelDataType validateImpl(RelDataType targetRowType) {
         validator.inferUnknownTypes(validator.unknownType, scope, call);
-        final RelDataType type = validator.deriveTypeImpl(scope, call);
         final SqlOperator operator = call.getOperator();
         final SqlCallBinding callBinding = new SqlCallBinding(validator, scope, call);
-        if (operator instanceof SqlTableFunction) {
-            final SqlTableFunction tableFunction = (SqlTableFunction) operator;
-            if (type.getSqlTypeName() != SqlTypeName.CURSOR) {
-                throw new IllegalArgumentException(
-                        "Table function should have CURSOR " + "type, not " + type);
-            }
-            final SqlReturnTypeInference rowTypeInference = tableFunction.getRowTypeInference();
-            RelDataType retType = rowTypeInference.inferReturnType(callBinding);
-            return validator.getTypeFactory().createTypeWithNullability(retType, false);
+        if (!(operator instanceof SqlTableFunction)) {
+            throw new IllegalArgumentException(
+                    "Argument must be a table function: " + operator.getNameAsId());
         }
-
-        // special handling of collection tables TABLE(function(...))
-        if (SqlUtil.stripAs(enclosingNode).getKind() == SqlKind.COLLECTION_TABLE) {
-            return toStruct(type, getNode());
-        }
-        return type;
+        final SqlTableFunction tableFunction = (SqlTableFunction) operator;
+        final SqlReturnTypeInference rowTypeInference = tableFunction.getRowTypeInference();
+        return requireNonNull(
+                rowTypeInference.inferReturnType(callBinding),
+                () -> "got null from inferReturnType for call " + callBinding.getCall());
     }
 
-    /** Converts a type to a struct if it is not already. */
-    protected RelDataType toStruct(RelDataType type, SqlNode unnest) {
-        if (type.isStruct()) {
-            return validator.getTypeFactory().createTypeWithNullability(type, false);
-        }
-        return validator
-                .getTypeFactory()
-                .builder()
-                .kind(type.getStructKind())
-                .add(validator.deriveAlias(unnest, 0), type)
-                .build();
-    }
-
-    public SqlNode getNode() {
+    @Override
+    public @Nullable SqlNode getNode() {
         return call;
     }
 }

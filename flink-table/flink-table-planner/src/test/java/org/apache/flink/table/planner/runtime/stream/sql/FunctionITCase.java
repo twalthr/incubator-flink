@@ -929,11 +929,7 @@ public class FunctionITCase extends StreamingTestBase {
             tEnv().explainSql("INSERT INTO SinkTable " + "SELECT * FROM TABLE(MD5('3'))");
             fail();
         } catch (ValidationException e) {
-            assertThat(
-                    e,
-                    hasMessage(
-                            containsString(
-                                    "Currently, only table functions can be used in a correlate operation.")));
+            assertThat(e, hasMessage(containsString("Argument must be a table function")));
         }
     }
 
@@ -950,11 +946,7 @@ public class FunctionITCase extends StreamingTestBase {
             tEnv().explainSql("INSERT INTO SinkTable " + "SELECT RowTableFunction('test')");
             fail();
         } catch (ValidationException e) {
-            assertThat(
-                    e,
-                    hasMessage(
-                            containsString(
-                                    "Currently, only scalar functions can be used in a projection or filter operation.")));
+            assertThat(e, hasMessage(containsString("Cannot call table function here")));
         }
     }
 

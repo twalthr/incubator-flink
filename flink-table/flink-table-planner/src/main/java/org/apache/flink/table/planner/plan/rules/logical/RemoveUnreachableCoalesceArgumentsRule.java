@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlScalarFunction;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -118,8 +118,8 @@ public class RemoveUnreachableCoalesceArgumentsRule
     }
 
     private static boolean operatorIsCoalesce(SqlOperator op) {
-        return op instanceof BridgingSqlFunction
-                && ((BridgingSqlFunction) op)
+        return op instanceof BridgingSqlScalarFunction
+                && ((BridgingSqlScalarFunction) op)
                         .getDefinition()
                         .equals(BuiltInFunctionDefinitions.COALESCE);
     }

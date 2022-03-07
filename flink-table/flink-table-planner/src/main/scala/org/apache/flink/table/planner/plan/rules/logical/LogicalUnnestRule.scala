@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.functions.bridging.{BridgingSqlScalarFunction, BridgingSqlTableFunction}
 import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.functions.table.UnnestRowsFunction
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toRowType
@@ -93,7 +93,7 @@ class LogicalUnnestRule(
           val relDataType = uc.getInput.getRowType.getFieldList.get(0).getValue
           val logicalType = FlinkTypeFactory.toLogicalType(relDataType)
 
-          val sqlFunction = BridgingSqlFunction.of(
+          val sqlFunction = BridgingSqlTableFunction.of(
             cluster,
             BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS)
 

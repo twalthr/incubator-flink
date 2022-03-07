@@ -23,7 +23,7 @@ import org.apache.calcite.rex.{RexCall, RexFieldAccess, RexNode}
 import org.apache.flink.table.functions.FunctionDefinition
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionKind}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.planner.functions.bridging.{BridgingSqlAggFunction, BridgingSqlFunction}
+import org.apache.flink.table.planner.functions.bridging.{BridgingSqlAggFunction, BridgingSqlFunctionBase, BridgingSqlScalarFunction}
 import org.apache.flink.table.planner.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 
@@ -107,7 +107,7 @@ object PythonUtil {
     (call.getOperator match {
       case sfc: ScalarSqlFunction => sfc.scalarFunction
       case tfc: TableSqlFunction => tfc.udtf
-      case bsf: BridgingSqlFunction => bsf.getDefinition
+      case bsf: BridgingSqlFunctionBase => bsf.getDefinition
     }).asInstanceOf[PythonFunction].takesRowAsInput()
   }
 
@@ -144,7 +144,7 @@ object PythonUtil {
       rexCall.getOperator match {
         case sfc: ScalarSqlFunction => isPythonFunction(sfc.scalarFunction)
         case tfc: TableSqlFunction => isPythonFunction(tfc.udtf)
-        case bsf: BridgingSqlFunction => isPythonFunction(bsf.getDefinition)
+        case bsf: BridgingSqlFunctionBase => isPythonFunction(bsf.getDefinition)
         case _ => false
     }
 

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlScalarFunction;
 import org.apache.flink.table.planner.hint.FlinkHints;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -47,7 +47,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_STRING;
-import static org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction.of;
+import static org.apache.flink.table.planner.functions.bridging.BridgingSqlScalarFunction.of;
 
 /**
  * Transforms JSON aggregation functions by wrapping operands into {@link
@@ -130,7 +130,7 @@ public class WrapJsonAggFunctionArgumentsRule
      */
     private void addProjections(
             RelOptCluster cluster, RelBuilder relBuilder, List<Integer> affectedArgs) {
-        final BridgingSqlFunction operandToStringOperator = of(cluster, JSON_STRING);
+        final BridgingSqlScalarFunction operandToStringOperator = of(cluster, JSON_STRING);
 
         final List<RexNode> projects = new ArrayList<>();
         affectedArgs.stream()

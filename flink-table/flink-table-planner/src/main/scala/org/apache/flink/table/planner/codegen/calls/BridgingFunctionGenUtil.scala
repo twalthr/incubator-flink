@@ -31,11 +31,11 @@ import org.apache.flink.table.runtime.operators.join.lookup.DelegatingResultFutu
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper
 import org.apache.flink.table.types.inference.{CallContext, TypeInference, TypeInferenceUtil}
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{isCompositeType}
-import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toRowType
 import org.apache.flink.table.types.utils.DataTypeUtils.{isInternal, validateInputDataType, validateOutputDataType}
-import org.apache.flink.util.Preconditions
 
 import java.util.concurrent.CompletableFuture
 
@@ -239,7 +239,7 @@ object BridgingFunctionGenUtil {
       val resultGenerator = new ExprCodeGenerator(collectorCtx, outputType.isNullable)
         .bindInput(outputType, externalResultTerm)
       val wrappedResult = resultGenerator.generateConverterResultExpression(
-        returnType.asInstanceOf[RowType],
+        toRowType(returnType),
         classOf[GenericRowData])
       s"""
        |${wrappedResult.code}
@@ -351,32 +351,24 @@ object BridgingFunctionGenUtil {
       udf: UserDefinedFunction)
     : Unit = {
     val enrichedType = enrichedDataType.getLogicalType
-    if (udf.getKind == FunctionKind.TABLE && !isCompositeType(enrichedType)) {
-      // logically table functions wrap atomic types into ROW, however, the physical function might
-      // return an atomic type
-      Preconditions.checkState(
-        returnType.is(LogicalTypeRoot.ROW) && returnType.getChildren.size() == 1,
-        "Logical output type of function call should be a ROW wrapping an atomic type.",
-        Seq(): _*)
-      val atomicOutputType = returnType.asInstanceOf[RowType].getChildren.get(0)
-      verifyOutputType(atomicOutputType, enrichedDataType, udf)
-    } else if (udf.getKind == FunctionKind.ASYNC_TABLE && !isCompositeType(enrichedType)) {
+    if (udf.getKind == FunctionKind.ASYNC_TABLE && !isCompositeType(enrichedType)) {
       throw new CodeGenException(
         "Async table functions must not emit an atomic type. " +
             "Only a composite type such as the row type are supported.")
     }
-    else if (udf.getKind == FunctionKind.TABLE || udf.getKind == FunctionKind.ASYNC_TABLE) {
+    else if (udf.getKind == FunctionKind.TABLE && !isCompositeType(enrichedType)) {
+       verifyOutputType(returnType, enrichedDataType)
+     } else if (udf.getKind == FunctionKind.TABLE || udf.getKind == FunctionKind.ASYNC_TABLE) {
       // null values are skipped therefore, the result top level row will always be not null
-      verifyOutputType(returnType.copy(true), enrichedDataType, udf)
+      verifyOutputType(returnType.copy(true), enrichedDataType)
     } else {
-      verifyOutputType(returnType, enrichedDataType, udf)
+      verifyOutputType(returnType, enrichedDataType)
     }
   }
 
   private def verifyOutputType(
       returnType: LogicalType,
-      enrichedDataType: DataType,
-      udf: UserDefinedFunction)
+      enrichedDataType: DataType)
     : Unit = {
     val enrichedType = enrichedDataType.getLogicalType
     // check that the logical type has not changed during the enrichment

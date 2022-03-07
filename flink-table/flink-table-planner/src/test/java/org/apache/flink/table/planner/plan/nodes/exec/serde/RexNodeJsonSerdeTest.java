@@ -34,7 +34,7 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlScalarFunction;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -690,8 +690,8 @@ public class RexNodeJsonSerdeTest {
 
     private static RexNode createFunctionCall(
             SerdeContext serdeContext, ContextResolvedFunction resolvedFunction) {
-        final BridgingSqlFunction nonSerializableFunction =
-                BridgingSqlFunction.of(
+        final BridgingSqlScalarFunction nonSerializableFunction =
+                BridgingSqlScalarFunction.of(
                         serdeContext.getFlinkContext(),
                         serdeContext.getTypeFactory(),
                         resolvedFunction);
@@ -766,7 +766,7 @@ public class RexNodeJsonSerdeTest {
             throws IOException {
         final RexNode actualDeserialized =
                 createObjectReader(serdeContext).readValue(node, RexNode.class);
-        return ((BridgingSqlFunction) ((RexCall) actualDeserialized).getOperator())
+        return ((BridgingSqlScalarFunction) ((RexCall) actualDeserialized).getOperator())
                 .getResolvedFunction();
     }
 

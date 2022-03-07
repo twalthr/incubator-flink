@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.functions.sql;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlScalarFunction;
 
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
@@ -42,8 +42,8 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinition.validat
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * SQL version of {@link BuiltInFunctionDefinition} in cases where {@link BridgingSqlFunction} does
- * not apply. This is the case when the operator has a special parsing syntax or uses other
+ * SQL version of {@link BuiltInFunctionDefinition} in cases where {@link BridgingSqlScalarFunction}
+ * does not apply. This is the case when the operator has a special parsing syntax or uses other
  * Calcite-specific features that are not exposed via {@link BuiltInFunctionDefinition} yet.
  *
  * <p>Note: Try to keep usages of this class to a minimum and use Flink's {@link

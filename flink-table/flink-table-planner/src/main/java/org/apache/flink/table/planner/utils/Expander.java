@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlScalarFunction;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
@@ -89,9 +89,9 @@ public class Expander {
                     @Override
                     public Void visit(SqlCall call) {
                         SqlOperator operator = call.getOperator();
-                        if (operator instanceof BridgingSqlFunction) {
+                        if (operator instanceof BridgingSqlScalarFunction) {
                             final SqlIdentifier functionID =
-                                    ((BridgingSqlFunction) operator).getSqlIdentifier();
+                                    ((BridgingSqlScalarFunction) operator).getSqlIdentifier();
                             if (!functionID.isSimple()) {
                                 funcNameToId.put(Util.last(functionID.names), functionID);
                             }

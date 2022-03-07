@@ -34,7 +34,7 @@ import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlScalarFunction;
 import org.apache.flink.table.planner.functions.sql.BuiltInSqlOperator;
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
@@ -372,8 +372,8 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
             gen.writeStringField(
                     FIELD_NAME_SYNTAX, calciteToSerializable(operator.getSyntax()).getValue());
         }
-        if (operator instanceof BridgingSqlFunction) {
-            final BridgingSqlFunction function = (BridgingSqlFunction) operator;
+        if (operator instanceof BridgingSqlScalarFunction) {
+            final BridgingSqlScalarFunction function = (BridgingSqlScalarFunction) operator;
             serializeBridgingSqlFunction(
                     function.getName(),
                     function.getResolvedFunction(),

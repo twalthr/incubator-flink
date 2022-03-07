@@ -25,8 +25,9 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.functions.FunctionKind
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.functions.bridging.{BridgingSqlScalarFunction, BridgingSqlTableFunction}
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.exec.utils.{ExecNodeUtil, TransformationMetadata}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -34,6 +35,8 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.util.StreamRecordCollector
 import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toRowType
 
 import org.apache.calcite.rex._
 
@@ -57,7 +60,7 @@ object CorrelateCodeGenerator {
     // according to the SQL standard, every scalar function should also be a table function
     // but we don't allow that for now
     invocation.getOperator match {
-      case func: BridgingSqlFunction if func.getDefinition.getKind == FunctionKind.TABLE => // ok
+      case _: BridgingSqlTableFunction => // ok
       case _: TableSqlFunction => // ok
       case f@_ =>
         throw new ValidationException(
@@ -107,7 +110,7 @@ object CorrelateCodeGenerator {
       retainHeader: Boolean = true)
     : CodeGenOperatorFactory[RowData] = {
 
-    val functionResultType = FlinkTypeFactory.toLogicalRowType(rexCall.getType)
+    val functionResultType = toRowType(toLogicalType(rexCall.getType))
 
     // 1. prepare collectors
 

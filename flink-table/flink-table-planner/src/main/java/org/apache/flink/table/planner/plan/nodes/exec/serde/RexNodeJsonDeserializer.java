@@ -28,7 +28,7 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlScalarFunction;
 import org.apache.flink.table.planner.functions.sql.BuiltInSqlOperator;
 import org.apache.flink.table.planner.typeutils.SymbolUtil.SerializableSymbol;
 
@@ -406,7 +406,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         switch (functionInstance.getKind()) {
             case SCALAR:
             case TABLE:
-                return BridgingSqlFunction.of(
+                return BridgingSqlScalarFunction.of(
                         serdeContext.getFlinkContext(),
                         serdeContext.getTypeFactory(),
                         resolvedFunction);
@@ -470,8 +470,8 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
     }
 
     private static boolean isTemporary(SqlOperator sqlOperator) {
-        if (sqlOperator instanceof BridgingSqlFunction) {
-            return ((BridgingSqlFunction) sqlOperator).getResolvedFunction().isTemporary();
+        if (sqlOperator instanceof BridgingSqlScalarFunction) {
+            return ((BridgingSqlScalarFunction) sqlOperator).getResolvedFunction().isTemporary();
         } else if (sqlOperator instanceof BridgingSqlAggFunction) {
             return ((BridgingSqlAggFunction) sqlOperator).getResolvedFunction().isTemporary();
         }

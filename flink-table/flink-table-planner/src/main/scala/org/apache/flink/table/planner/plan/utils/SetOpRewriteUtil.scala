@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 
 
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.functions.bridging.{BridgingSqlScalarFunction, BridgingSqlTableFunction}
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
@@ -72,7 +72,7 @@ object SetOpRewriteUtil {
       fields: util.List[Integer]): RelNode = {
     val cluster = relBuilder.getCluster
 
-    val sqlFunction = BridgingSqlFunction.of(
+    val sqlFunction = BridgingSqlTableFunction.of(
       relBuilder.getCluster,
       BuiltInFunctionDefinitions.INTERNAL_REPLICATE_ROWS)
 

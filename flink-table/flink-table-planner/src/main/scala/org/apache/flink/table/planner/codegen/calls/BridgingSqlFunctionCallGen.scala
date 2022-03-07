@@ -22,7 +22,7 @@ import org.apache.flink.table.functions.{FunctionDefinition, ScalarFunction, Tab
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.generateFunctionAwareCall
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.functions.bridging.{BridgingSqlScalarFunction, BridgingSqlFunctionBase}
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.types.logical.LogicalType
@@ -46,7 +46,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       returnType: LogicalType)
     : GeneratedExpression = {
 
-    val function: BridgingSqlFunction = call.getOperator.asInstanceOf[BridgingSqlFunction]
+    val function: BridgingSqlFunctionBase = call.getOperator.asInstanceOf[BridgingSqlFunctionBase]
     val definition: FunctionDefinition = function.getDefinition
     val dataTypeFactory = function.getDataTypeFactory
 

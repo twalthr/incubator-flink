@@ -43,7 +43,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlScalarFunction;
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
@@ -135,11 +135,11 @@ public class CommonPythonUtil {
             } else if (operator instanceof TableSqlFunction) {
                 return createPythonFunctionInfo(
                         pythonRexCall, inputNodes, ((TableSqlFunction) operator).udtf());
-            } else if (operator instanceof BridgingSqlFunction) {
+            } else if (operator instanceof BridgingSqlScalarFunction) {
                 return createPythonFunctionInfo(
                         pythonRexCall,
                         inputNodes,
-                        ((BridgingSqlFunction) operator).getDefinition());
+                        ((BridgingSqlScalarFunction) operator).getDefinition());
             }
         } catch (InvocationTargetException | IllegalAccessException e) {
             throw new TableException("Method pickleValue accessed failed. ", e);

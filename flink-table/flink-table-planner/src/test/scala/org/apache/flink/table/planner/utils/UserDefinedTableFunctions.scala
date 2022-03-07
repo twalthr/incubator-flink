@@ -21,10 +21,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.typeutils.Types
-import org.apache.flink.table.annotation.DataTypeHint
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
+import org.apache.flink.table.api.{DataTypes, ValidationException}
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction, TableFunction}
+import org.apache.flink.table.planner.JInt
+import org.apache.flink.table.types.inference.TypeInference
 import org.apache.flink.types.Row
 
 import org.junit.Assert
@@ -117,9 +120,10 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
 }
 
 @SerialVersionUID(1L)
+@DataTypeHint("ROW<x INT, y INT>")
 class MockPythonTableFunction extends TableFunction[Row] with PythonFunction {
 
-  def eval(x: Int, y: Int) = ???
+  def eval(x: JInt, y: JInt) = ???
 
   override def getResultType: TypeInformation[Row] =
     new RowTypeInfo(Types.INT, Types.INT)
@@ -379,16 +383,10 @@ class TableFunc4 extends TableFunction[Row] {
 }
 
 @SerialVersionUID(1L)
+@DataTypeHint("ROW<a INT, b INT, c INT>")
 class TableFunc6 extends TableFunction[Row] {
-  def eval(row: Row): Unit = {
+  def eval(@DataTypeHint("ROW<a INT, b INT, c INT>") row: Row): Unit = {
     collect(row)
-  }
-
-  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
-    Array(new RowTypeInfo(Types.INT, Types.INT, Types.INT))
-
-  override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(Types.INT, Types.INT, Types.INT)
   }
 }
 

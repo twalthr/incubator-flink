@@ -25,7 +25,6 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
-import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.hive.HiveGenericUDAF;
 import org.apache.flink.table.functions.hive.HiveGenericUDTF;
 import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
@@ -46,7 +45,8 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserUnparseTran
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunctionBase;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlTableFunction;
 import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter;
@@ -887,7 +887,7 @@ public class HiveParserUtils {
             RelDataTypeFactory dataTypeFactory) {
         HiveParserOperatorBinding operatorBinding =
                 new HiveParserOperatorBinding(dataTypeFactory, sqlOperator, types, operands);
-        if (sqlOperator instanceof BridgingSqlFunction
+        if (sqlOperator instanceof BridgingSqlFunctionBase
                 || sqlOperator instanceof HiveAggSqlFunction) {
             SqlReturnTypeInference returnTypeInference = sqlOperator.getReturnTypeInference();
             return returnTypeInference.inferReturnType(operatorBinding);
@@ -993,9 +993,8 @@ public class HiveParserUtils {
     }
 
     public static boolean isUDTF(SqlOperator sqlOperator) {
-        if (sqlOperator instanceof BridgingSqlFunction) {
-            return ((BridgingSqlFunction) sqlOperator).getDefinition().getKind()
-                    == FunctionKind.TABLE;
+        if (sqlOperator instanceof BridgingSqlTableFunction) {
+            return true;
         } else {
             return sqlOperator instanceof SqlUserDefinedTableFunction;
         }

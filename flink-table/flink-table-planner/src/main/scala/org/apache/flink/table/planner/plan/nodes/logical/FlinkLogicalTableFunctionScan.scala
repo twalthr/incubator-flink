@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.functions.TemporalTableFunction
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.functions.bridging.{BridgingSqlScalarFunction, BridgingSqlTableFunction}
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 
@@ -101,7 +101,7 @@ class FlinkLogicalTableFunctionScanConverter
     val rexCall = logicalTableFunction.getCall.asInstanceOf[RexCall]
     val functionDefinition = rexCall.getOperator match {
       case tsf: TableSqlFunction => tsf.udtf
-      case bsf: BridgingSqlFunction => bsf.getDefinition
+      case bsf: BridgingSqlTableFunction => bsf.getDefinition
       case _ => return false
     }
     functionDefinition.isInstanceOf[TemporalTableFunction]
