@@ -38,7 +38,12 @@ import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toRowType
 
+import com.google.common.collect.ImmutableList
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex._
+
+import java.util
+import java.util.{LinkedList, List}
 
 object CorrelateCodeGenerator {
 

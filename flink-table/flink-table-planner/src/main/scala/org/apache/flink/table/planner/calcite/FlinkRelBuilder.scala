@@ -30,21 +30,22 @@ import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelCollation
-import org.apache.calcite.rel.`type`.RelDataTypeField
+import org.apache.calcite.rel.{RelCollation, RelNode}
+import org.apache.calcite.rel.`type`.{RelDataTypeField, StructKind}
 import org.apache.calcite.rel.hint.RelHint
-import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalTableFunctionScan}
+import org.apache.calcite.rex.{RexCall, RexNode}
+import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import org.apache.calcite.tools.RelBuilder.{AggCall, Config, GroupKey}
 import org.apache.calcite.tools.{RelBuilder, RelBuilderFactory}
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 import org.apache.flink.table.catalog.ObjectIdentifier
 import org.apache.flink.table.planner.hint.FlinkHints
+import org.apache.flink.util.CollectionUtil
 
 import java.lang.Iterable
 import java.util
-import java.util.List
+import java.util.{Collections, List}
 import java.util.function.UnaryOperator
 
 import scala.collection.JavaConversions._
@@ -197,6 +198,35 @@ class FlinkRelBuilder(
     hints.add(RelHint.builder(FlinkHints.HINT_NAME_OPTIONS).hintOptions(dynamicOptions).build)
     val toRelContext = ViewExpanders.simpleContext(cluster, hints)
     push(relOptSchema.getTableForMember(identifier.toList).toRel(toRelContext))
+    this
+  }
+
+  def functionScan(
+      operator: SqlOperator,
+      inputCount: Int,
+      operands: java.lang.Iterable[_ <: RexNode],
+      names: util.List[String])
+    : RelBuilder = {
+    val inputs: util.List[RelNode] = new util.LinkedList[RelNode]
+    (0 until inputCount).foreach(_ => inputs.add(0, build()))
+
+    val operandsList: util.List[_] = CollectionUtil.iterableToList(operands)
+
+    val rexBuilder = cluster.getRexBuilder
+    val functionReturnType = rexBuilder.deriveReturnType(
+      operator,
+      operandsList.asInstanceOf[util.List[RexNode]])
+    val renamedType = getTypeFactory.createStructType(
+      functionReturnType.getFieldList.toSeq.map(_.getType), names)
+    val call = rexBuilder.makeCall(functionReturnType, operator, operandsList.asInstanceOf[util.List[RexNode]])
+    val functionScan = LogicalTableFunctionScan.create(
+      cluster,
+      inputs,
+      call,
+      null,
+      renamedType,
+      Collections.emptySet())
+    push(functionScan)
     this
   }
 }

@@ -307,7 +307,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                     BridgingSqlTableFunction.of(relBuilder.getCluster(), resolvedFunction);
 
             return relBuilder
-                    .functionScan(sqlFunction, 0, parameters)
+                    .functionScan(
+                            sqlFunction,
+                            0,
+                            parameters,
+                            calculatedTable.getResolvedSchema().getColumnNames())
                     .rename(calculatedTable.getResolvedSchema().getColumnNames())
                     .build();
         }
