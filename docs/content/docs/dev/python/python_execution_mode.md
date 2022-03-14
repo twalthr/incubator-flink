@@ -63,13 +63,13 @@ You could specify the Python execution mode using Python Table API as following:
 
 ```python
 # Specify `PROCESS` mode
-table_env.get_config().get_configuration().set_string("python.execution-mode", "process")
+table_env.get_config().set("python.execution-mode", "process")
 
 # Specify `MULTI-THREAD` mode
-table_env.get_config().get_configuration().set_string("python.execution-mode", "multi-thread")
+table_env.get_config().set("python.execution-mode", "multi-thread")
 
 # Specify `SUB-INTERPRETER` mode
-table_env.get_config().get_configuration().set_string("python.execution-mode", "sub-interpreter")
+table_env.get_config().set("python.execution-mode", "sub-interpreter")
 ```
 
 {{< hint info >}}

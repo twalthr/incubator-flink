@@ -51,6 +51,20 @@ class TableConfig(object):
         else:
             self._j_table_config = j_table_config
 
+    def get(self, key: str, default_value: str) -> str:
+        """
+        Returns the value associated with the given key as a string.
+
+        :param key: The key pointing to the associated value.
+        :param default_value: The default value which is returned in case there is no value
+                              associated with the given key.
+        :return: The (default) value associated with the given key.
+        """
+        if self.get_configuration().contains_key(key):
+            return self.get_configuration().get_string(key, default_value)
+        else:
+            return self._j_table_config.getRootConfiguration().getString(key, default_value)
+
     def set(self, key: str, value: str) -> 'TableConfig':
         """
         Sets a string-based value for the given string-based key.
@@ -372,7 +386,7 @@ class TableConfig(object):
         .. versionadded:: 1.10.0
         """
         jvm = get_gateway().jvm
-        self.get_configuration().set_string(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), python_exec)
+        self.set(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), python_exec)
 
     def get_python_executable(self) -> str:
         """
