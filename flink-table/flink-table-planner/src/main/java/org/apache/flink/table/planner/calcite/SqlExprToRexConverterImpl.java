@@ -19,22 +19,14 @@
 package org.apache.flink.table.planner.calcite;
 
 import org.apache.flink.table.planner.parse.CalciteParser;
-import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 
-import org.apache.calcite.config.CalciteConnectionConfigImpl;
-import org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.tools.FrameworkConfig;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
-import java.util.Properties;
 import java.util.stream.Stream;
 
 /** Standard implementation of {@link SqlExprToRexConverter}. */
@@ -49,18 +41,11 @@ public class SqlExprToRexConverterImpl implements SqlExprToRexConverter {
     private final @Nullable RelDataType outputType;
 
     public SqlExprToRexConverterImpl(
-            FrameworkConfig config,
-            FlinkTypeFactory typeFactory,
-            RelOptCluster cluster,
+            FlinkPlannerImpl planner,
             SqlDialect sqlDialect,
             RelDataType inputRowType,
             @Nullable RelDataType outputType) {
-        this.planner =
-                new FlinkPlannerImpl(
-                        config,
-                        (isLenient) -> createEmptyCatalogReader(typeFactory),
-                        typeFactory,
-                        cluster);
+        this.planner = planner;
         this.sqlDialect = sqlDialect;
         this.inputRowType = inputRowType;
         this.outputType = outputType;
@@ -87,17 +72,5 @@ public class SqlExprToRexConverterImpl implements SqlExprToRexConverter {
                 .map(parser::parseExpression)
                 .map(node -> planner.rex(node, inputRowType, null))
                 .toArray(RexNode[]::new);
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // Utilities
-    // ------------------------------------------------------------------------------------------
-
-    private static CalciteCatalogReader createEmptyCatalogReader(FlinkTypeFactory typeFactory) {
-        return new FlinkCalciteCatalogReader(
-                CalciteSchema.createRootSchema(false),
-                Collections.emptyList(),
-                typeFactory,
-                new CalciteConnectionConfigImpl(new Properties()));
     }
 }

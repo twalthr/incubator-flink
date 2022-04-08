@@ -25,11 +25,11 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
+import org.apache.flink.table.planner.calcite.ExpressionConverterFactory;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -59,7 +59,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class BridgingSqlFunction extends SqlFunction {
 
-    private final DataTypeFactory dataTypeFactory;
+    private final FlinkContext context;
 
     private final FlinkTypeFactory typeFactory;
 
@@ -68,7 +68,7 @@ public class BridgingSqlFunction extends SqlFunction {
     private final TypeInference typeInference;
 
     private BridgingSqlFunction(
-            DataTypeFactory dataTypeFactory,
+            FlinkContext context,
             FlinkTypeFactory typeFactory,
             SqlKind kind,
             ContextResolvedFunction resolvedFunction,
@@ -78,15 +78,21 @@ public class BridgingSqlFunction extends SqlFunction {
                 createSqlIdentifier(resolvedFunction),
                 kind,
                 createSqlReturnTypeInference(
-                        dataTypeFactory, resolvedFunction.getDefinition(), typeInference),
+                        context.getCatalogManager().getDataTypeFactory(),
+                        resolvedFunction.getDefinition(),
+                        typeInference),
                 createSqlOperandTypeInference(
-                        dataTypeFactory, resolvedFunction.getDefinition(), typeInference),
+                        context.getCatalogManager().getDataTypeFactory(),
+                        resolvedFunction.getDefinition(),
+                        typeInference),
                 createSqlOperandTypeChecker(
-                        dataTypeFactory, resolvedFunction.getDefinition(), typeInference),
+                        context.getCatalogManager().getDataTypeFactory(),
+                        resolvedFunction.getDefinition(),
+                        typeInference),
                 createParamTypes(typeFactory, typeInference),
                 createSqlFunctionCategory(resolvedFunction));
 
-        this.dataTypeFactory = dataTypeFactory;
+        this.context = context;
         this.typeFactory = typeFactory;
         this.resolvedFunction = resolvedFunction;
         this.typeInference = typeInference;
@@ -95,7 +101,7 @@ public class BridgingSqlFunction extends SqlFunction {
     /**
      * Creates an instance of a scalar or table function (either a system or user-defined function).
      *
-     * @param dataTypeFactory used for creating {@link DataType}
+     * @param context for accessing {@link DataTypeFactory} and {@link ExpressionConverterFactory}
      * @param typeFactory used for bridging to {@link RelDataType}
      * @param kind commonly used SQL standard function; use {@link SqlKind#OTHER_FUNCTION} if this
      *     function cannot be mapped to a common function kind.
@@ -103,7 +109,7 @@ public class BridgingSqlFunction extends SqlFunction {
      * @param typeInference type inference logic
      */
     public static BridgingSqlFunction of(
-            DataTypeFactory dataTypeFactory,
+            FlinkContext context,
             FlinkTypeFactory typeFactory,
             SqlKind kind,
             ContextResolvedFunction resolvedFunction,
@@ -115,10 +121,9 @@ public class BridgingSqlFunction extends SqlFunction {
 
         if (functionKind == FunctionKind.TABLE) {
             return new BridgingSqlFunction.WithTableFunction(
-                    dataTypeFactory, typeFactory, kind, resolvedFunction, typeInference);
+                    context, typeFactory, kind, resolvedFunction, typeInference);
         }
-        return new BridgingSqlFunction(
-                dataTypeFactory, typeFactory, kind, resolvedFunction, typeInference);
+        return new BridgingSqlFunction(context, typeFactory, kind, resolvedFunction, typeInference);
     }
 
     /** Creates an instance of a scalar or table function during translation. */
@@ -129,12 +134,7 @@ public class BridgingSqlFunction extends SqlFunction {
         final DataTypeFactory dataTypeFactory = context.getCatalogManager().getDataTypeFactory();
         final TypeInference typeInference =
                 resolvedFunction.getDefinition().getTypeInference(dataTypeFactory);
-        return of(
-                dataTypeFactory,
-                typeFactory,
-                SqlKind.OTHER_FUNCTION,
-                resolvedFunction,
-                typeInference);
+        return of(context, typeFactory, SqlKind.OTHER_FUNCTION, resolvedFunction, typeInference);
     }
 
     /** Creates an instance of a scalar or table function during translation. */
@@ -154,8 +154,8 @@ public class BridgingSqlFunction extends SqlFunction {
                         FunctionIdentifier.of(functionDefinition.getName()), functionDefinition));
     }
 
-    public DataTypeFactory getDataTypeFactory() {
-        return dataTypeFactory;
+    public FlinkContext getContext() {
+        return context;
     }
 
     public FlinkTypeFactory getTypeFactory() {
@@ -195,12 +195,12 @@ public class BridgingSqlFunction extends SqlFunction {
     public static class WithTableFunction extends BridgingSqlFunction implements SqlTableFunction {
 
         private WithTableFunction(
-                DataTypeFactory dataTypeFactory,
+                FlinkContext context,
                 FlinkTypeFactory typeFactory,
                 SqlKind kind,
                 ContextResolvedFunction resolvedFunction,
                 TypeInference typeInference) {
-            super(dataTypeFactory, typeFactory, kind, resolvedFunction, typeInference);
+            super(context, typeFactory, kind, resolvedFunction, typeInference);
         }
 
         /**

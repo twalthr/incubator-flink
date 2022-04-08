@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
+
 /** A call expression converter rule that converts calls to user defined functions. */
 public class FunctionDefinitionConvertRule implements CallExpressionConvertRule {
     @Override
@@ -64,7 +66,7 @@ public class FunctionDefinitionConvertRule implements CallExpressionConvertRule 
 
                 final BridgingSqlFunction sqlFunction =
                         BridgingSqlFunction.of(
-                                context.getDataTypeFactory(),
+                                unwrapContext(context.getRelBuilder()),
                                 context.getTypeFactory(),
                                 SqlKind.OTHER_FUNCTION,
                                 ContextResolvedFunction.fromCallExpression(call),

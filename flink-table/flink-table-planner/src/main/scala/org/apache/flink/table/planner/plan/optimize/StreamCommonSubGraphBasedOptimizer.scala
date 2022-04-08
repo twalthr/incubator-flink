@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, SqlExprToRexConverterFactory}
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, ExpressionConverterFactory}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, ModifyKindSet, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
@@ -174,8 +174,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
       override def getModuleManager: ModuleManager = planner.moduleManager
 
-      override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
-        context.getSqlExprToRexConverterFactory
+      override def getExpressionConverterFactory: ExpressionConverterFactory =
+        context.getExpressionConverterFactory
 
       override def getFlinkRelBuilder: FlinkRelBuilder = planner.getRelBuilder
 

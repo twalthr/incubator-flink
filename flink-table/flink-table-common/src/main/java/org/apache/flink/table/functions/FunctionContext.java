@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
@@ -86,5 +87,18 @@ public class FunctionContext {
     /** Get the external resource information. */
     public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
         return context.getExternalResourceInfos(resourceName);
+    }
+
+    /**
+     * Gets the {@link ClassLoader} to load classes that are not in system's classpath, but are part
+     * of the JAR file of a user job.
+     */
+    public ClassLoader getUserCodeClassLoader() {
+        return context.getUserCodeClassLoader();
+    }
+
+    @Internal
+    RuntimeContext getContext() {
+        return context;
     }
 }

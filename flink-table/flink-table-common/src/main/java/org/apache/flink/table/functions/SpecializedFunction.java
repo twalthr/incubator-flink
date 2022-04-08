@@ -18,11 +18,19 @@
 
 package org.apache.flink.table.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
+
+import java.io.Serializable;
+import java.lang.invoke.MethodHandle;
 
 /**
  * A {@link FunctionDefinition} that can provide a runtime implementation (i.e. the function's body)
@@ -56,7 +64,7 @@ public interface SpecializedFunction extends FunctionDefinition {
 
     /** Provides call and session information for the specialized function. */
     @PublicEvolving
-    interface SpecializedContext {
+    interface SpecializedContext extends ExpressionEvaluatorFactory {
 
         /** Returns the context of the current call. */
         CallContext getCallContext();
@@ -66,5 +74,61 @@ public interface SpecializedFunction extends FunctionDefinition {
 
         /** Returns the classloader used to resolve built-in functions. */
         ClassLoader getBuiltInClassLoader();
+    }
+
+    /** Helper interface for creating {@link ExpressionEvaluator}s. */
+    interface ExpressionEvaluatorFactory {
+
+        /**
+         * Creates a serializable factory that can be passed into a {@link UserDefinedFunction} for
+         * evaluating an {@link Expression} during runtime.
+         *
+         * <p>Add a dependency to the {@code flink-table-api-java} module to access all available
+         * expressions of Table API.
+         *
+         * <p>Initialize the evaluator in {@link UserDefinedFunction#open(FunctionContext)} by
+         * calling {@link ExpressionEvaluator#openHandle(FunctionContext)}. It will return an
+         * invokable instance to be called during runtime.
+         */
+        ExpressionEvaluator createEvaluator(
+                Expression expression, DataType outputDataType, DataTypes.Field... args);
+
+        /**
+         * Creates a serializable factory that can be passed into a {@link UserDefinedFunction} for
+         * evaluating a {@link BuiltInFunctionDefinition} during runtime.
+         *
+         * <p>See {@link BuiltInFunctionDefinitions} for a list available functions.
+         *
+         * <p>Initialize the evaluator in {@link UserDefinedFunction#open(FunctionContext)} by
+         * calling {@link ExpressionEvaluator#openHandle(FunctionContext)}. It will return an
+         * invokable instance to be called during runtime.
+         */
+        ExpressionEvaluator createEvaluator(
+                BuiltInFunctionDefinition function, DataType outputDataType, DataType... args);
+    }
+
+    /**
+     * Serializable factory that can be passed into a {@link UserDefinedFunction} for evaluating
+     * previously defined expression during runtime.
+     *
+     * @see SpecializedContext#createEvaluator(Expression, DataType, DataTypes.Field...)
+     * @see SpecializedContext#createEvaluator(BuiltInFunctionDefinition, DataType, DataType...)
+     */
+    interface ExpressionEvaluator extends Serializable {
+
+        /**
+         * Creates and initializes runtime implementation for expression evaluation. The returned
+         * {@link MethodHandle} should be stored in a transient variable and can be invoked via
+         * {@link MethodHandle#invokeExact(Object...)} using the conversion classes previously
+         * defined via the passed {@link DataType}s.
+         */
+        default MethodHandle openHandle(FunctionContext context) {
+            return openHandleInternal(context.getContext());
+        }
+
+        void close();
+
+        @Internal
+        MethodHandle openHandleInternal(RuntimeContext context);
     }
 }

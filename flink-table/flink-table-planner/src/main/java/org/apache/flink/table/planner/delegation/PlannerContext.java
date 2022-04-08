@@ -20,14 +20,22 @@ package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
+import org.apache.flink.table.planner.calcite.ExpressionConverterFactory;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkConvertletTable;
@@ -39,20 +47,22 @@ import org.apache.flink.table.planner.calcite.FlinkRexBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverterImpl;
 import org.apache.flink.table.planner.catalog.FunctionCatalogOperatorTable;
 import org.apache.flink.table.planner.codegen.ExpressionReducer;
+import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.hint.FlinkHintStrategies;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.calcite.config.CalciteConnectionConfigImpl;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.Context;
@@ -61,8 +71,10 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
+import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
@@ -73,13 +85,21 @@ import org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
+import org.apache.calcite.tools.RelBuilder;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.function.Supplier;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -94,8 +114,6 @@ public class PlannerContext {
 
     private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
     private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
-    private final SqlExprToRexConverterFactory rexConverterFactory =
-            new DefaultSqlExprToRexConverterFactory();
     private final TableConfig tableConfig;
     private final RelOptCluster cluster;
     private final FlinkContext context;
@@ -120,7 +138,12 @@ public class PlannerContext {
                         moduleManager,
                         functionCatalog,
                         catalogManager,
-                        rexConverterFactory);
+                        new DefaultExpressionConverterFactory(
+                                () ->
+                                        createRelBuilder(
+                                                catalogManager.getCurrentCatalog(),
+                                                catalogManager.getCurrentDatabase()),
+                                this::createShallowPlanner));
 
         this.rootSchema = rootSchema;
         this.traitDefs = traitDefs;
@@ -138,8 +161,8 @@ public class PlannerContext {
         this.cluster = FlinkRelOptClusterFactory.create(planner, new FlinkRexBuilder(typeFactory));
     }
 
-    public SqlExprToRexConverterFactory getSqlExprToRexConverterFactory() {
-        return rexConverterFactory;
+    public ExpressionConverterFactory getSqlExprToRexConverterFactory() {
+        return context.getExpressionConverterFactory();
     }
 
     public FrameworkConfig createFrameworkConfig() {
@@ -280,7 +303,7 @@ public class PlannerContext {
         }
     }
 
-    private org.apache.calcite.sql.SqlDialect getCalciteSqlDialect() {
+    private static org.apache.calcite.sql.SqlDialect getCalciteSqlDialect(TableConfig tableConfig) {
         SqlDialect sqlDialect = tableConfig.getSqlDialect();
         switch (sqlDialect) {
             case HIVE:
@@ -334,31 +357,58 @@ public class PlannerContext {
                 new FunctionCatalogOperatorTable(
                         context.getFunctionCatalog(),
                         context.getCatalogManager().getDataTypeFactory(),
-                        typeFactory),
+                        typeFactory,
+                        context),
                 FlinkSqlOperatorTable.instance());
     }
 
     // --------------------------------------------------------------------------------------------
-    // DefaultSqlExprToRexConverterFactory
+    // Utilities for basic expression conversion
     // --------------------------------------------------------------------------------------------
 
-    private class DefaultSqlExprToRexConverterFactory implements SqlExprToRexConverterFactory {
+    private FlinkPlannerImpl createShallowPlanner() {
+        return new FlinkPlannerImpl(
+                frameworkConfig,
+                (isLenient) -> createEmptyCatalogReader(typeFactory),
+                typeFactory,
+                cluster);
+    }
+
+    private static CalciteCatalogReader createEmptyCatalogReader(FlinkTypeFactory typeFactory) {
+        return new FlinkCalciteCatalogReader(
+                CalciteSchema.createRootSchema(false),
+                Collections.emptyList(),
+                typeFactory,
+                new CalciteConnectionConfigImpl(new Properties()));
+    }
+
+    private static class DefaultExpressionConverterFactory implements ExpressionConverterFactory {
+
+        private final Supplier<FlinkRelBuilder> relBuilder;
+        private final Supplier<FlinkPlannerImpl> shallowPlanner;
+
+        private DefaultExpressionConverterFactory(
+                Supplier<FlinkRelBuilder> relBuilder, Supplier<FlinkPlannerImpl> shallowPlanner) {
+            this.relBuilder = relBuilder;
+            this.shallowPlanner = shallowPlanner;
+        }
 
         @Override
-        public SqlExprToRexConverter create(
+        public SqlExprToRexConverter createSqlExprToRexConverter(
                 RelDataType inputRowType, @Nullable RelDataType outputType) {
+            final TableConfig tableConfig = unwrapTableConfig(relBuilder.get());
+
             return new SqlExprToRexConverterImpl(
-                    checkNotNull(frameworkConfig),
-                    checkNotNull(typeFactory),
-                    checkNotNull(cluster),
-                    checkNotNull(getCalciteSqlDialect()),
+                    shallowPlanner.get(),
+                    checkNotNull(getCalciteSqlDialect(tableConfig)),
                     inputRowType,
                     outputType);
         }
 
         @Override
-        public SqlExprToRexConverter create(
+        public SqlExprToRexConverter createSqlExprToRexConverter(
                 RowType inputRowType, @Nullable LogicalType outputType) {
+            final FlinkTypeFactory typeFactory = unwrapTypeFactory(relBuilder.get());
             final RelDataType convertedInputRowType = typeFactory.buildRelNodeRowType(inputRowType);
 
             final RelDataType convertedOutputType;
@@ -368,7 +418,59 @@ public class PlannerContext {
                 convertedOutputType = null;
             }
 
-            return create(convertedInputRowType, convertedOutputType);
+            return createSqlExprToRexConverter(convertedInputRowType, convertedOutputType);
+        }
+
+        @Override
+        public RexNode convertExpressionToRexNode(
+                List<RowType.RowField> args,
+                Expression expression,
+                @Nullable LogicalType outputType) {
+            final FlinkTypeFactory typeFactory = unwrapTypeFactory(relBuilder.get());
+            final RelDataType argRowType = typeFactory.buildRelNodeRowType(new RowType(args));
+
+            final LocalReferenceExpression[] localRefs =
+                    args.stream()
+                            .map(a -> localRef(a.getName(), DataTypes.of(a.getType())))
+                            .toArray(LocalReferenceExpression[]::new);
+
+            final ExpressionResolverBuilder resolverBuilder = createExpressionResolverBuilder();
+            if (outputType != null) {
+                resolverBuilder.withOutputDataType(DataTypes.of(outputType));
+            } else {
+                resolverBuilder.withOutputDataType(null);
+            }
+
+            final ResolvedExpression resolvedExpression =
+                    resolverBuilder
+                            .withLocalReferences(localRefs)
+                            .build()
+                            .resolve(Collections.singletonList(expression))
+                            .get(0);
+
+            final RelBuilder builder = relBuilder.get();
+            builder.values(argRowType);
+            return resolvedExpression.accept(new ExpressionConverter(builder));
+        }
+
+        private ParserImpl createShallowParser() {
+            final FlinkContext context = ShortcutUtils.unwrapContext(relBuilder.get());
+            return new ParserImpl(
+                    context.getCatalogManager(),
+                    shallowPlanner,
+                    shallowPlanner.get()::parser,
+                    this);
+        }
+
+        private ExpressionResolverBuilder createExpressionResolverBuilder() {
+            final FlinkContext context = ShortcutUtils.unwrapContext(relBuilder.get());
+            final Parser shallowParser = createShallowParser();
+            return ExpressionResolver.resolverFor(
+                    context.getTableConfig(),
+                    name -> Optional.empty(),
+                    context.getFunctionCatalog().asLookup(shallowParser::parseIdentifier),
+                    context.getCatalogManager().getDataTypeFactory(),
+                    shallowParser::parseSqlExpression);
         }
     }
 }

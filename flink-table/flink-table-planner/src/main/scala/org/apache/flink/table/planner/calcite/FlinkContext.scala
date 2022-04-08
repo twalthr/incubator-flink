@@ -52,8 +52,8 @@ trait FlinkContext extends Context {
   /** Returns the [[ModuleManager]] defined in [[org.apache.flink.table.api.TableEnvironment]]. */
   def getModuleManager: ModuleManager
 
-  /** Returns the [[SqlExprToRexConverterFactory]] to convert SQL expressions to rex nodes. */
-  def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory
+  /** Planner internal factory to create utilities for parsing/translating expressions. */
+  def getExpressionConverterFactory: ExpressionConverterFactory
 
   override def unwrap[C](clazz: Class[C]): C = {
     if (clazz.isInstance(this)) clazz.cast(this) else null.asInstanceOf[C]

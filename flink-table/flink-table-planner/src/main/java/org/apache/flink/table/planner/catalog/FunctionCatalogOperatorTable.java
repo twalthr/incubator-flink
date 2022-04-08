@@ -32,6 +32,7 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
@@ -72,13 +73,17 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 
     private final FlinkTypeFactory typeFactory;
 
+    private final FlinkContext context;
+
     public FunctionCatalogOperatorTable(
             FunctionCatalog functionCatalog,
             DataTypeFactory dataTypeFactory,
-            FlinkTypeFactory typeFactory) {
+            FlinkTypeFactory typeFactory,
+            FlinkContext context) {
         this.functionCatalog = functionCatalog;
         this.dataTypeFactory = dataTypeFactory;
         this.typeFactory = typeFactory;
+        this.context = context;
     }
 
     @Override
@@ -177,7 +182,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
         } else {
             function =
                     BridgingSqlFunction.of(
-                            dataTypeFactory,
+                            context,
                             typeFactory,
                             SqlKind.OTHER_FUNCTION,
                             resolvedFunction,

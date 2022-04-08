@@ -23,9 +23,9 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.planner.calcite.ExpressionConverterFactory;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -79,8 +79,8 @@ public class SourceAbilityContext implements FlinkContext {
     }
 
     @Override
-    public SqlExprToRexConverterFactory getSqlExprToRexConverterFactory() {
-        return context.getSqlExprToRexConverterFactory();
+    public ExpressionConverterFactory getExpressionConverterFactory() {
+        return context.getExpressionConverterFactory();
     }
 
     @Override

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.functions.{FunctionDefinition, ScalarFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.codegen._
-import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.generateFunctionAwareCall
+import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{DefaultExpressionEvaluatorFactory, generateFunctionAwareCall}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
@@ -47,8 +47,10 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     : GeneratedExpression = {
 
     val function: BridgingSqlFunction = call.getOperator.asInstanceOf[BridgingSqlFunction]
+    val context = function.getContext
+    val typeFactory = function.getTypeFactory
+    val dataTypeFactory = context.getCatalogManager.getDataTypeFactory
     val definition: FunctionDefinition = function.getDefinition
-    val dataTypeFactory = function.getDataTypeFactory
 
     // we could have implemented a dedicated code generation context but the closer we are to
     // Calcite the more consistent is the type inference during the data type enrichment
@@ -56,7 +58,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       dataTypeFactory,
       definition,
       RexCallBinding.create(
-        function.getTypeFactory,
+        typeFactory,
         call,
         Collections.emptyList()),
       call.getType)
@@ -67,7 +69,10 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       definition,
       callContext,
       classOf[PlannerBase].getClassLoader,
-      ctx.tableConfig)
+      ctx.tableConfig,
+      new DefaultExpressionEvaluatorFactory(
+        ctx.tableConfig,
+        context.getExpressionConverterFactory))
     val inference = udf.getTypeInference(dataTypeFactory)
 
     generateFunctionAwareCall(

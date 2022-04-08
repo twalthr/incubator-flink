@@ -153,8 +153,8 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
         .getPlanner
         .getContext
         .unwrap(classOf[FlinkContext])
-        .getSqlExprToRexConverterFactory
-        .create(tableRowType, null)
+        .getExpressionConverterFactory
+        .createSqlExprToRexConverter(tableRowType, null)
     val rexNode = converter.convertToRexNode(expr)
 
     if (useDefinedConstructor) {

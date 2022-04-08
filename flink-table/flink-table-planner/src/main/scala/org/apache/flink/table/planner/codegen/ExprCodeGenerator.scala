@@ -342,25 +342,33 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   }
 
   override def visitInputRef(inputRef: RexInputRef): GeneratedExpression = {
-    val input1Arity = input1Type match {
-      case r: RowType => r.getFieldCount
-      case _ => 1
-    }
-    // if inputRef index is within size of input1 we work with input1, input2 otherwise
-    val input = if (inputRef.getIndex < input1Arity) {
-      (input1Type, input1Term)
+    if (input1Type == null) {
+      GeneratedExpression(
+        inputRef.getName,
+        inputRef.getName + "IsNull",
+        NO_CODE,
+        FlinkTypeFactory.toLogicalType(inputRef.getType))
     } else {
-      (input2Type.getOrElse(throw new CodeGenException("Invalid input access.")),
-        input2Term.getOrElse(throw new CodeGenException("Invalid input access.")))
-    }
+      val input1Arity = input1Type match {
+        case r: RowType => r.getFieldCount
+        case _ => 1
+      }
+      // if inputRef index is within size of input1 we work with input1, input2 otherwise
+      val input = if (inputRef.getIndex < input1Arity) {
+        (input1Type, input1Term)
+      } else {
+        (input2Type.getOrElse(throw new CodeGenException("Invalid input access.")),
+          input2Term.getOrElse(throw new CodeGenException("Invalid input access.")))
+      }
 
-    val index = if (input._2 == input1Term) {
-      inputRef.getIndex
-    } else {
-      inputRef.getIndex - input1Arity
-    }
+      val index = if (input._2 == input1Term) {
+        inputRef.getIndex
+      } else {
+        inputRef.getIndex - input1Arity
+      }
 
-    generateInputAccess(ctx, input._1, input._2, index, nullableInput, true)
+      generateInputAccess(ctx, input._1, input._2, index, nullableInput, true)
+    }
   }
 
   override def visitTableInputRef(rexTableInputRef: RexTableInputRef): GeneratedExpression =

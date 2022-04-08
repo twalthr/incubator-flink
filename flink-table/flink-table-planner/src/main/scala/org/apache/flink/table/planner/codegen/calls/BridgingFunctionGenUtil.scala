@@ -18,25 +18,38 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.flink.api.common.functions.{AbstractRichFunction, RichFunction}
+import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.data.GenericRowData
+import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef}
+import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression}
+import org.apache.flink.table.functions.SpecializedFunction.{ExpressionEvaluator, ExpressionEvaluatorFactory}
 import org.apache.flink.table.functions.UserDefinedFunctionHelper.{ASYNC_TABLE_EVAL, SCALAR_EVAL, TABLE_EVAL, validateClassForRuntime}
 import org.apache.flink.table.functions._
+import org.apache.flink.table.planner.calcite.{ExpressionConverterFactory, FlinkContext}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.WrappingCollector
+import org.apache.flink.table.runtime.functions.DefaultExpressionEvaluator
+import org.apache.flink.table.runtime.generated.{GeneratedFunction, GeneratedObject}
 import org.apache.flink.table.runtime.operators.join.lookup.DelegatingResultFuture
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper
 import org.apache.flink.table.types.inference.{CallContext, TypeInference, TypeInferenceUtil}
+import org.apache.flink.table.types.logical.RowType.RowField
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{isCompositeType}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.table.types.utils.DataTypeUtils.{isInternal, validateInputDataType, validateOutputDataType}
+import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.util.Preconditions
 
+import org.apache.calcite.rex.{RexShuttle, RexUtil}
+
+import _root_.scala.collection.JavaConverters._
 import java.util.concurrent.CompletableFuture
 
 /**
@@ -428,5 +441,136 @@ object BridgingFunctionGenUtil {
       argumentClasses,
       outputClass,
       functionName)
+  }
+
+  class DefaultExpressionEvaluatorFactory(
+      tableConfig: ReadableConfig,
+      converterFactory: ExpressionConverterFactory)
+    extends ExpressionEvaluatorFactory {
+
+    override def createEvaluator(
+        expression: Expression,
+        outputDataType: DataType,
+        args: DataTypes.Field*)
+      : ExpressionEvaluator = {
+      val argFields = args.map(f => new RowField(f.getName, f.getDataType.getLogicalType))
+      val argTypes = args.map(_.getDataType.getLogicalType)
+      val argNames = args.map(_.getName)
+      val outputType = outputDataType.getLogicalType
+
+      val ctx = new EvaluatorCodeGeneratorContext(tableConfig)
+
+      val externalOutputClass = outputDataType.getConversionClass
+      val externalOutputTypeTerm = typeTerm(externalOutputClass)
+
+      // arguments
+      val externalArgClasses = args.map(_.getDataType.getConversionClass)
+      val externalArgTypeTerms = externalArgClasses.map(typeTerm)
+      val argsSignatureCode = externalArgTypeTerms
+        .zipWithIndex
+        .map { case (t, i) => s"$t arg$i"}
+        .mkString(", ")
+      val argToInternalExprs = args
+        .map(_.getDataType)
+        .zipWithIndex
+        .map { case (argDataType, i) =>
+          genToInternalConverterAll(ctx, argDataType, s"arg$i")
+        }
+
+      // map arguments
+      val argMappingCode = argToInternalExprs
+        .zipWithIndex
+        .map { case (srcExpr, i) =>
+          val newResultTerm = "$" + i
+          val newResultTypeTerm = primitiveTypeTermForType(srcExpr.resultType)
+          val newNullTerm = newResultTerm + "IsNull"
+          s"""
+             |boolean $newNullTerm = ${srcExpr.nullTerm};
+             |$newResultTypeTerm $newResultTerm = ${srcExpr.resultTerm};
+             |""".stripMargin
+        }
+        .mkString("\n")
+
+      // expression
+      val rexNode = converterFactory.convertExpressionToRexNode(
+        argFields.asJava,
+        expression,
+        outputType)
+      val exprCodeGen = new ExprCodeGenerator(ctx, false)
+      val genExpr = exprCodeGen.generateExpression(rexNode)
+
+      // output
+      val resultTerm = genToExternalConverterAll(ctx, outputDataType, genExpr)
+      val externalResultClass = outputDataType.getConversionClass
+      val externalResultTypeTerm = typeTerm(externalResultClass)
+      val externalResultClassBoxed = primitiveToWrapper(externalResultClass)
+      val externalResultCasting = if (externalResultClass == externalResultClassBoxed) {
+        s"($externalResultTypeTerm)"
+      } else {
+        s"($externalResultTypeTerm) (${typeTerm(externalResultClassBoxed)})"
+      }
+
+      val evaluatorName = newName("ExpressionEvaluator")
+      val evaluatorCode =
+        s"""
+           |public class $evaluatorName extends ${className[AbstractRichFunction]} {
+           |
+           |  ${ctx.reuseMemberCode()}
+           |
+           |  public $evaluatorName(Object[] references) throws Exception {
+           |    ${ctx.reuseInitCode()}
+           |  }
+           |
+           |  public void open(${className[Configuration]} parameters) throws Exception {
+           |    ${ctx.reuseOpenCode()}
+           |  }
+           |
+           |  public $externalOutputTypeTerm eval($argsSignatureCode) {
+           |    ${ctx.reuseLocalVariableCode()}
+           |    ${argToInternalExprs.map(_.code).mkString("\n")}
+           |    $argMappingCode
+           |    ${genExpr.code}
+           |    return $externalResultCasting ($resultTerm);
+           |  }
+           |
+           |  public String toString() {
+           |    return "${EncodingUtils.escapeJava(rexNode.toString)}";
+           |  }
+           |}
+           |""".stripMargin
+
+      val genClass = new GeneratedFunction[RichFunction](
+        evaluatorName,
+        evaluatorCode,
+        ctx.references.toArray,
+        ctx.tableConfig)
+      new DefaultExpressionEvaluator(genClass, externalResultClass, externalArgClasses.toArray)
+    }
+
+    override def createEvaluator(
+        function: BuiltInFunctionDefinition,
+        outputDataType: DataType,
+        args: DataType*)
+      : ExpressionEvaluator = {
+      val argFields = args
+        .zipWithIndex
+        .map { case (dataType, i) => DataTypes.FIELD(s"arg$i", dataType) }
+      val argRefs = argFields.map(arg => unresolvedRef(arg.getName))
+      createEvaluator(
+        unresolvedCall(function, argRefs: _*),
+        outputDataType,
+        argFields: _*)
+    }
+  }
+
+  private class EvaluatorCodeGeneratorContext(tableConfig: ReadableConfig)
+    extends CodeGeneratorContext(tableConfig) {
+
+    override def addReusableConverter(
+        dataType: DataType,
+        classLoaderTerm: String = null)
+      : String = {
+      super.addReusableConverter(dataType, "this.getClass().getClassLoader()")
+    }
   }
 }

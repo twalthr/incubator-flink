@@ -18,8 +18,26 @@
 
 package org.apache.flink.table.examples.java.basics;
 
-import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.SpecializedFunction;
+import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.FlinkRuntimeException;
+
+import java.lang.invoke.MethodHandle;
+import java.util.Optional;
+
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.callSql;
+import static org.apache.flink.table.api.Expressions.row;
 
 /** The famous word count example that shows a minimal Flink SQL job in batch execution mode. */
 public final class WordCountSQLExample {
@@ -27,22 +45,71 @@ public final class WordCountSQLExample {
     public static void main(String[] args) throws Exception {
 
         // set up the Table API
-        final EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().inBatchMode().build();
-        final TableEnvironment tableEnv = TableEnvironment.create(settings);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
-        // execute a Flink SQL job and print the result locally
-        tableEnv.executeSql(
-                        // define the aggregation
-                        "SELECT word, SUM(frequency) AS `count`\n"
-                                // read from an artificial fixed-size table with rows and columns
-                                + "FROM (\n"
-                                + "  VALUES ('Hello', 1), ('Ciao', 1), ('Hello', 2)\n"
-                                + ")\n"
-                                // name the table and its columns
-                                + "AS WordTable(word, frequency)\n"
-                                // group for aggregation
-                                + "GROUP BY word")
-                .print();
+        tableEnv.createTemporarySystemFunction("MySpecificFun", MySpecificFun.class);
+
+        Table t = tableEnv.fromDataStream(env.fromElements(1, 2, 3));
+
+        t.select(call(MySpecificFun.class, $("f0"), "Hello")).execute().print();
+    }
+
+    public static class MySpecificFun extends ScalarFunction implements SpecializedFunction {
+
+        @Override
+        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+            return TypeInference.newBuilder()
+                    .typedArguments(DataTypes.INT(), DataTypes.STRING())
+                    .outputTypeStrategy(callContext -> Optional.of(DataTypes.STRING()))
+                    .build();
+        }
+
+        public Object eval(Object... o) {
+            return null;
+        }
+
+        @Override
+        public UserDefinedFunction specialize(SpecializedContext context) {
+            final ExpressionEvaluator evaluator =
+                    context.createEvaluator(
+                            row(
+                                    callSql("b + 12 + CAST(MySpecificFun(b, 'hello') AS INT)"),
+                                    call(MyScalar.class, $("b"))),
+                            DataTypes.ROW(
+                                    DataTypes.FIELD("a", DataTypes.INT()),
+                                    DataTypes.FIELD("b", DataTypes.INT())),
+                            DataTypes.FIELD("a", DataTypes.INT()),
+                            DataTypes.FIELD("b", DataTypes.INT()));
+            return new SpecialScalar(evaluator);
+        }
+
+        public static class SpecialScalar extends ScalarFunction {
+            private final ExpressionEvaluator rowEvaluator;
+            private transient MethodHandle rowHandle;
+
+            public SpecialScalar(ExpressionEvaluator rowEvaluator) {
+                this.rowEvaluator = rowEvaluator;
+            }
+
+            @Override
+            public void open(FunctionContext context) {
+                rowHandle = rowEvaluator.openHandle(context);
+            }
+
+            public String eval(Integer i, String s) {
+                try {
+                    return ((Row) rowHandle.invokeExact(i, i)).toString();
+                } catch (Throwable t) {
+                    throw new FlinkRuntimeException(t);
+                }
+            }
+        }
+    }
+
+    public static class MyScalar extends ScalarFunction {
+        public Integer eval(Integer b) {
+            return b + 1;
+        }
     }
 }

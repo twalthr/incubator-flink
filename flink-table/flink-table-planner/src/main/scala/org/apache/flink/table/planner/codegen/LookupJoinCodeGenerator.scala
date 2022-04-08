@@ -162,7 +162,8 @@ object LookupJoinCodeGenerator {
       lookupFunction,
       callContext,
       classOf[PlannerBase].getClassLoader,
-      tableConfig)
+      tableConfig,
+      null)
 
     val inference = createLookupTypeInference(
       dataTypeFactory,
