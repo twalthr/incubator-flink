@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
@@ -31,6 +30,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.util.Preconditions;
 
 import java.time.Duration;
@@ -260,7 +260,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      *
      * <pre>{@code
      * TableEnvironment tEnv = ...
-     * TableConfig tableConfig = tEnv.getConfig
+     * TableConfig config = tEnv.getConfig
      * tableConfig.setLocalTimeZone(ZoneOffset.ofHours(2));
      * tEnv("CREATE TABLE testTable (id BIGINT, tmstmp TIMESTAMP WITH LOCAL TIME ZONE)");
      * tEnv("INSERT INTO testTable VALUES ((1, '2000-01-01 2:00:00'), (2, TIMESTAMP '2000-01-01 2:00:00'))");
@@ -435,14 +435,16 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
         return getMinIdleStateRetentionTime() * 3 / 2;
     }
 
-    /** @return The duration until state which was not updated will be retained. */
+    /**
+     * @return The duration until state which was not updated will be retained.
+     */
     public Duration getIdleStateRetention() {
         return configuration.get(ExecutionConfigOptions.IDLE_STATE_RETENTION);
     }
 
     /**
      * Sets a custom user parameter that can be accessed via {@link
-     * org.apache.flink.table.functions.FunctionContext#getJobParameter(String, String)}.
+     * FunctionContext#getJobParameter(String, String)}.
      *
      * <p>This will add an entry to the current value of {@link
      * PipelineOptions#GLOBAL_JOB_PARAMETERS}.
@@ -452,13 +454,12 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      *
      * <pre>{@code
      * Map<String, String> params = ...
-     * TableConfig tableConfig = tEnv.getConfig;
+     * TableConfig config = tEnv.getConfig();
      * config.set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
      * }</pre>
      */
-    @Experimental
     public void addJobParameter(String key, String value) {
-        Map<String, String> params =
+        final Map<String, String> params =
                 getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
                         .map(HashMap::new)
                         .orElseGet(HashMap::new);
