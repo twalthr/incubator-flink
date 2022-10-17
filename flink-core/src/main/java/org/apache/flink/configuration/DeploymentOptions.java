@@ -106,25 +106,6 @@ public class DeploymentOptions {
                                     .build());
 
     @Experimental
-    public static final ConfigOption<List<String>> PROGRAM_CONFIG_WILDCARDS =
-            ConfigOptions.key("execution.program-config.wildcards")
-                    .stringType()
-                    .asList()
-                    .defaultValues()
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "List of configuration keys that are allowed to be set in a user program "
-                                                    + "regardless whether program configuration is enabled or not.")
-                                    .linebreak()
-                                    .linebreak()
-                                    .text(
-                                            "Currently, this list is limited to '%s' only.",
-                                            TextElement.text(
-                                                    PipelineOptions.GLOBAL_JOB_PARAMETERS.key()))
-                                    .build());
-
-    @Experimental
     public static final ConfigOption<Boolean> PROGRAM_CONFIG_ENABLED =
             ConfigOptions.key("execution.program-config.enabled")
                     .booleanType()
@@ -145,11 +126,5 @@ public class DeploymentOptions {
                                                     + "Either your client that is trying to submit the job to an external "
                                                     + "cluster (session cluster deployment) throws the exception or the "
                                                     + "job manager (application mode deployment).")
-                                    .linebreak()
-                                    .linebreak()
-                                    .text(
-                                            "The '%s' option lists configuration keys that are allowed to be set in user programs "
-                                                    + "regardless of this setting.",
-                                            TextElement.text(PROGRAM_CONFIG_WILDCARDS.key()))
                                     .build());
 }
